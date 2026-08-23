@@ -88,29 +88,29 @@ codeunit 60012 "DXR MCC Registry Loader"
     local procedure LoadConcepts()
     begin
         // ---- BC: Base Controls (Phase 1 gen-1 legacy restore + Phase 2 current + Phase 3 fields + Perm repair) ----
-        InsConcept('BC', 'BC-P2', 1, 'Warehouse Controls Setup: legacy row restore', 56415, 56407, 54798, 'SETUP');
-        InsConcept('BC', 'BC-P2', 2, 'Purchase Controls Setup: legacy row restore', 56415, 56408, 54800, 'SETUP');
-        InsConcept('BC', 'BC-P2', 3, 'Sales Controls Setup: legacy row restore', 56415, 56409, 54802, 'SETUP');
-        InsConcept('BC', 'BC-P2', 4, 'Vendor Controls Setup: legacy row restore', 56415, 56410, 54804, 'SETUP');
-        InsConcept('BC', 'BC-P2', 5, 'Transfer Controls Setup: legacy row restore', 56415, 56411, 54806, 'SETUP');
-        InsConcept('BC', 'BC-P2', 6, 'Customer Controls Setup: legacy row restore', 56415, 56412, 54807, 'SETUP');
-        InsConcept('BC', 'BC-P2', 7, 'Migr Status history restore', 56415, 56413, 54810, 'HIST');
-        InsConcept('BC', 'BC-P3', 8, 'Customer: Mandatory Order No./Exp. Exemption Card/Reference Address field restore (3 fields)', 56416, 0, 0, 'MA');
-        InsConcept('BC', 'BC-P3', 9, 'Item: Payment Terms Code/Allow Decimals field restore (2 fields)', 56416, 0, 0, 'MA');
-        InsConcept('BC', 'BC-P3', 10, 'Sales Header: Reference Address field restore', 56416, 0, 0, 'MA');
-        InsConcept('BC', 'BC-P3', 11, 'Warehouse Receipt Header: Customer/Vendor No./Name field restore (4 fields)', 56416, 0, 0, 'MA');
-        InsConcept('BC', 'BC-P3', 12, 'Warehouse Shipment Header: Customer/Vendor No./Name field restore (4 fields)', 56416, 0, 0, 'MA');
+        InsConcept('BC', 'BC-P2', 1, 'Warehouse Controls Setup: legacy row restore', 60022, 56407, 54798, 'SETUP');
+        InsConcept('BC', 'BC-P2', 2, 'Purchase Controls Setup: legacy row restore', 60022, 56408, 54800, 'SETUP');
+        InsConcept('BC', 'BC-P2', 3, 'Sales Controls Setup: legacy row restore', 60022, 56409, 54802, 'SETUP');
+        InsConcept('BC', 'BC-P2', 4, 'Vendor Controls Setup: legacy row restore', 60022, 56410, 54804, 'SETUP');
+        InsConcept('BC', 'BC-P2', 5, 'Transfer Controls Setup: legacy row restore', 60022, 56411, 54806, 'SETUP');
+        InsConcept('BC', 'BC-P2', 6, 'Customer Controls Setup: legacy row restore', 60022, 56412, 54807, 'SETUP');
+        InsConcept('BC', 'BC-P2', 7, 'Migr Status history restore', 60022, 56413, 54810, 'HIST');
+        InsConcept('BC', 'BC-P3', 8, 'Customer: Mandatory Order No./Exp. Exemption Card/Reference Address field restore (3 fields)', 60023, 0, 0, 'MA');
+        InsConcept('BC', 'BC-P3', 9, 'Item: Payment Terms Code/Allow Decimals field restore (2 fields)', 60023, 0, 0, 'MA');
+        InsConcept('BC', 'BC-P3', 10, 'Sales Header: Reference Address field restore', 60023, 0, 0, 'MA');
+        InsConcept('BC', 'BC-P3', 11, 'Warehouse Receipt Header: Customer/Vendor No./Name field restore (4 fields)', 60023, 0, 0, 'MA');
+        InsConcept('BC', 'BC-P3', 12, 'Warehouse Shipment Header: Customer/Vendor No./Name field restore (4 fields)', 60023, 0, 0, 'MA');
         // CORRECTED 2026-08-22: these 6 rows had Legacy Table ID = 0 even though dispatcher 54858
         // genuinely reads from these gen-1 tables (confirmed via direct source read of "DXR_BC
         // Migr Phase 1.Codeunit.al") - meant MCC never counted/gap-checked them. Real IDs added;
         // no ID-to-name sequential order (verified each against its own file, not assumed).
-        InsConcept('BC', 'BC-P1', 13, 'Warehouse Controls Setup: legacy row restore (gen-1, "DXR Warehouse Controls Setup" 56401 -> active "DXR_Warehouse Controls Setup" 54798, runs before Phase 2)', 54858, 56401, 54798, 'SETUP');
-        InsConcept('BC', 'BC-P1', 14, 'Purchase Controls Setup: legacy row restore (gen-1, "DXR Purchase Controls Setup" 56406 -> active "DXR_Purchase Controls Setup" 54800)', 54858, 56406, 54800, 'SETUP');
-        InsConcept('BC', 'BC-P1', 15, 'Sales Controls Setup: legacy row restore (gen-1, "DXR Sales Controls Setup" 56402 -> active "DXR_Sales Controls Setup" 54802)', 54858, 56402, 54802, 'SETUP');
-        InsConcept('BC', 'BC-P1', 16, 'Vendor Controls Setup: legacy row restore (gen-1, "DXR Vendor Controls Setup" 56404 -> active "DXR_Vendor Controls Setup" 54804)', 54858, 56404, 54804, 'SETUP');
-        InsConcept('BC', 'BC-P1', 17, 'Transfer Controls Setup: legacy row restore (gen-1, "DXR Transfer Controls Setup" 56403 -> active "DXR_Transfer Controls Setup" 54806)', 54858, 56403, 54806, 'SETUP');
-        InsConcept('BC', 'BC-P1', 18, 'Customer Controls Setup: legacy row restore (gen-1, "DXR Customer Controls Setup" 56405 -> active "DXR_Customer Controls Setup" 54807)', 54858, 56405, 54807, 'SETUP');
-        InsConcept('BC', 'BC-PERM', 19, 'Permission set assignment repair (all users, DXR_BaseControls)', 56413, 0, 0, 'OTHER');
+        InsConcept('BC', 'BC-P1', 13, 'Warehouse Controls Setup: legacy row restore (gen-1, "DXR Warehouse Controls Setup" 56401 -> active "DXR_Warehouse Controls Setup" 54798, runs before Phase 2)', 60021, 56401, 54798, 'SETUP');
+        InsConcept('BC', 'BC-P1', 14, 'Purchase Controls Setup: legacy row restore (gen-1, "DXR Purchase Controls Setup" 56406 -> active "DXR_Purchase Controls Setup" 54800)', 60021, 56406, 54800, 'SETUP');
+        InsConcept('BC', 'BC-P1', 15, 'Sales Controls Setup: legacy row restore (gen-1, "DXR Sales Controls Setup" 56402 -> active "DXR_Sales Controls Setup" 54802)', 60021, 56402, 54802, 'SETUP');
+        InsConcept('BC', 'BC-P1', 16, 'Vendor Controls Setup: legacy row restore (gen-1, "DXR Vendor Controls Setup" 56404 -> active "DXR_Vendor Controls Setup" 54804)', 60021, 56404, 54804, 'SETUP');
+        InsConcept('BC', 'BC-P1', 17, 'Transfer Controls Setup: legacy row restore (gen-1, "DXR Transfer Controls Setup" 56403 -> active "DXR_Transfer Controls Setup" 54806)', 60021, 56403, 54806, 'SETUP');
+        InsConcept('BC', 'BC-P1', 18, 'Customer Controls Setup: legacy row restore (gen-1, "DXR Customer Controls Setup" 56405 -> active "DXR_Customer Controls Setup" 54807)', 60021, 56405, 54807, 'SETUP');
+        InsConcept('BC', 'BC-PERM', 19, 'Permission set assignment repair (all users, DXR_BaseControls)', 60024, 0, 0, 'OTHER');
 
         // ---- DRLOC: Base App DR Localization ----
         InsConcept('DRLOC', 'DRLOC-P2', 1, 'Fiscal migration phase', 52210, 0, 0, 'MA');

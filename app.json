@@ -27,6 +27,12 @@
       "publisher": "Dextra",
       "name": "DX-Payments",
       "version": "28.3.0.5"
+    },
+    {
+      "id": "e8b1de99-1c7d-454d-b0bc-7cc1dc7b86ae",
+      "publisher": "Dextra",
+      "name": "Base Controls",
+      "version": "28.3.3.8"
     }
   ],
   "idRanges": [
