@@ -4,7 +4,9 @@
 
 **Goal:** Give "DXR Migration Control Center" (MCC) a compile-time (typed) path into every legacy→DXR_ migration across the Dextra BC portfolio, so it stops depending on the executing user/task already holding each target extension's own permission set, stops silently no-op'ing on dispatcher codeunits that lack a real `OnRun`, and can run/commit/log at real per-table granularity instead of one giant blocking call per phase.
 
-**Architecture:** MCC keeps its existing registry (`DXR MCC Concept` → `Dispatcher Codeunit ID` → `Codeunit.Run()`) completely unchanged. What changes is *what* `Dispatcher Codeunit ID` points at: instead of pointing at an extension's own phase/dispatcher codeunit (opaque ID, no compile-time reference, sometimes missing `OnRun` entirely, sometimes bundling 18 tables into one call), it points at a small **native MCC "adapter" codeunit** that has a real `trigger OnRun`, lives inside MCC, and calls the target extension's *real, already-correct* migration procedure directly and typed (`Record "Legacy X"`, not `RecordRef`). This requires MCC to declare each target extension as an `app.json` dependency. One adapter = one concept = one table/step, so MCC gets real per-concept commit/log for free through the existing `LogAndCount`/`Commit()` machinery already fixed in this session. **We do NOT re-implement the field-by-field migration logic that's already correct** (confirmed typed and correct in ~80% of the portfolio by the discovery pass below) — we only give MCC a proper, typed, granular way to *call* it. We only write new logic where the discovery pass found the original is missing, broken, or unreachable (see per-extension findings).
+**Architecture:** MCC keeps its existing registry (`DXR MCC Concept` → `Dispatcher Codeunit ID` → `Codeunit.Run()`) completely unchanged. What changes is *what* `Dispatcher Codeunit ID` points at: instead of pointing at an extension's own phase/dispatcher codeunit (opaque ID, no compile-time reference, sometimes missing `OnRun` entirely, sometimes bundling many tables into one call), it points at a small **native MCC "adapter" codeunit** that has a real `trigger OnRun`, lives inside MCC, and calls the target extension's *real, already-correct* migration procedure directly and typed (`Codeunit "<Real Name>"`, not a raw ID). This requires MCC to declare each target extension as an `app.json` dependency (plus `internalsVisibleTo` from that extension, when its migration codeunit is `Access = Internal`). **We do NOT re-implement the field-by-field migration logic that's already correct** — we only give MCC a proper, typed way to *call* it. We only write new logic where discovery found the original is missing, broken, or unreachable (see per-extension findings).
+
+**REALIZED GRANULARITY (2026-08-23, important divergence from the original goal below):** the paragraph above and Task 2.2/2.3's worked examples originally aimed for "one adapter = one `DXR MCC Concept` row" — splitting each extension's bundled phase dispatcher into one adapter per table/step, so MCC could commit/log at real per-table granularity (this was DRLOC's specific "stuck on Company Information, nothing in the logs" motivation). **That fine-grained goal was NOT pursued for the Roadmap extensions actually completed (BC through BELLONPOS, see the Roadmap Execution Log below).** Two consecutive user redirects narrowed the goal instead to: apply the dependency + typed-reference pattern gradually to every extension, one adapter per EXISTING phase/dispatcher codeunit (matching that extension's own current bundling boundary, not per-concept), purely for compile-time safety (a rename/removal in the sibling extension now breaks MCC's own build instead of silently no-op'ing or erroring only at runtime — confirmed against Microsoft's "Permissions Property" and "Using Access Modifiers in AL" docs that `Access = Internal`/dependencies/`internalsVisibleTo` are compile-time-only constructs with zero runtime permission effect). The one exception is VP, where the existing registry granularity was already per-phase-procedure (not per-dispatcher), so VP's 7 adapters match that existing finer boundary — see the Execution Log. The per-concept splitting goal (DRLOC-P2's 18-step breakout, Tasks 2.1-2.3) remains valid and unstarted; it is a separate, deferred piece of work, not superseded by the pattern applied elsewhere.
 
 **Explicit exclusion (per user instruction):** any codeunit confirmed `Subtype = Upgrade` is never made an adapter target for `Codeunit.Run()` — the platform hard-blocks that outside its own publish/schema-sync cycle and there is no code-level workaround. Where an Upgrade-subtype codeunit's real logic is already exposed to a **normal, sibling codeunit** via public procedure calls (confirmed pattern: DRLOC's 52210 calls into 52189's public procedures directly, Bellon's Phase-2/6/7 wrappers call into `BellonUpgradeProcess`'s public procedures directly), MCC adapts to *that sibling*, never to the Upgrade codeunit itself. Where no such sibling exists, the concept stays `Blocked` with a reason, exactly as already documented in the registry.
 
@@ -46,19 +48,25 @@
 
 ```
 DXR-Migration-Control-Center/
-  app.json                                    Modify: add dependencies incrementally, one per phase
+  app.json                                    Modify: 13 real dependencies added, one per wired extension
   src/
-    Adapters/
-      SD/
-        DXRMCCAdaptSDDispatcher.Codeunit.al           Create (2026-08-23, post-Phase-1 redirect - see below)
-      DXP/
-        DXRMCCAdaptDXPDispatcher.Codeunit.al           Create (2026-08-23, post-Phase-1 redirect - see below)
-      DRLOC/
-        DXRMCCAdaptDRLOCCompanyInfo.Codeunit.al       Create (Phase 2)
-        DXRMCCAdaptDRLOCPaymentMethodRel.Codeunit.al  Create (Phase 2)
-        DXRMCCAdaptDRLOCRncDatabase.Codeunit.al       Create (Phase 2)
-        ... one file per DRLOC concept being adapted (Roadmap Phase 2 continuation)
-      <Extension>/...                                  Create (one folder per Roadmap phase, added incrementally)
+    Adapters/                                          codeunit ID range 60016-60068 (next free: 60069)
+      SD/    DXRMCCAdaptSDDispatcher.Codeunit.al                1 adapter  - DONE
+      DXP/   DXRMCCAdaptDXPDispatcher.Codeunit.al                1 adapter  - DONE
+      BC/    DXRMCCAdaptBCPhase{1,2,3}, ...PermRepair            4 adapters - DONE
+      RBPD/  DXRMCCAdaptRBPDWorker.Codeunit.al                   1 adapter  - DONE
+      VP/    DXRMCCAdaptVPPhase{1-7}.Codeunit.al                 7 adapters - DONE
+      PCM/   DXRMCCAdaptPCMPhase{2,3,4,5}.Codeunit.al            4 adapters - DONE
+      TU/    DXRMCCAdaptTUDispatcher.Codeunit.al                 1 adapter  - DONE
+      DESB/  DXRMCCAdaptDESBWorker, ...Phase2                    2 adapters - DONE
+      DESLS/ DXRMCCAdaptDESLSWorker, ...Phase1                   2 adapters - DONE
+      RC/    DXRMCCAdaptRCPhase{1,2,3,4,5}.Codeunit.al           5 adapters - DONE
+      FE/    DXRMCCAdaptFEPhase{7,8,9,10,11,12,13}               7 adapters - DONE
+      LSFE/  DXRMCCAdaptLSFEPermSet, ...POSContingency           2 adapters - DONE
+      BELLON/    DXRMCCAdaptBellonPhase{2..12}                  11 adapters - DONE
+      BELLONPOS/ DXRMCCAdaptBellonPOSPhase2.Codeunit.al           1 adapter  - DONE
+      LSLOC/     DXRMCCAdaptLSLOCDispatcher.Codeunit.al           1 adapter  - DONE (found late, see Execution Log)
+      DRLOC/     (not started - out of scope for this run, see below)
     # SD and DXP's Adapters/ history (2026-08-23, two reversals - read both before assuming either
     # state): Tasks 1.1/1.2 originally tried typed adapters, hit AL0161 (Access=Internal blocked a
     # typed reference), and fell back to a pure registry repoint with no adapter/dependency at all
@@ -72,16 +80,19 @@ DXR-Migration-Control-Center/
     # does NOT grant any runtime permission benefit over a raw Codeunit.Run(ID) call - dependencies
     # and internalsVisibleTo are compile-time-only constructs (confirmed against Microsoft's
     # "Permissions Property" doc). Its real, only benefit is compile-time safety - a rename/removal
-    # in SD/DXP now breaks MCC's own build instead of silently no-op'ing at runtime. Apply this
-    # pattern to future extensions for THAT reason, not for a permission-cascade effect that isn't
-    # real - see the correction comments in both adapter codeunit files for the full citation.
+    # in the sibling extension now breaks MCC's own build instead of silently no-op'ing at runtime.
+    # This pattern was then applied to every extension below for THAT reason - see the correction
+    # comments in the SD/DXP adapter codeunit files for the full citation, repeated in later
+    # adapters' comments. A SECOND user redirect ("build completo") extended this from "SD/DXP only"
+    # to "every extension MCC works on, as a deliberate portfolio-wide design pattern, not only
+    # where strictly necessary" - see the Roadmap Execution Log below for what that produced.
     DXRMCCExecutor.Codeunit.al                  No change (dispatch mechanism already fits adapters)
     DXRMCCRegistryLoader.Codeunit.al            Modify: repoint "Dispatcher Codeunit ID" per concept, per phase
   docs/superpowers/plans/
     2026-08-23-mcc-native-migration.md          This file
 ```
 
-Each adapter codeunit owns exactly one responsibility: call one real, existing procedure, typed, with a real `OnRun`. New adapters are added to a per-extension folder so the growing dependency list stays easy to audit against `app.json`.
+Each adapter codeunit owns exactly one responsibility: call one real, existing procedure, typed, with a real `OnRun`. New adapters are added to a per-extension folder so the growing dependency list stays easy to audit against `app.json`. **Granularity note:** every adapter above wraps one existing phase/dispatcher codeunit (matching that extension's own current bundling boundary), not one `DXR MCC Concept` row — see the Architecture section's "REALIZED GRANULARITY" note above for why this differs from Tasks 2.1-2.3's original per-concept goal.
 
 ---
 
@@ -453,30 +464,171 @@ codeunit 60022 "DXR MCC Adapt DRLOC PmtMethod"
 
 ---
 
-## Roadmap (Phases 3+): remaining extensions, by discovery classification
+## Roadmap: original discovery classification vs. what was actually built
 
-Each remaining extension gets its own dependency addition + a batch of adapters following the exact pattern proven in Tasks 2.2/2.3. Per this session's planning scope, **detailed bite-sized tasks for each are written when that phase starts** (standard staged planning for a program this size — the inventory below is the real, evidence-backed input to that write-up, not a placeholder). Order below is by leverage (highest-impact/most-broken first) and by dependency tier (`Order No.` in the registry — Setup-tier extensions before their dependents).
+The table below is the ORIGINAL discovery-pass estimate (2026-08-23, before execution started) — kept for
+historical reference on relative extension size/complexity. **It does not reflect what was actually built.**
+The realized granularity is coarser than "TRIVIAL/COMPLEX per concept" implies (see "REALIZED GRANULARITY"
+above) — every extension below except VP got exactly one adapter per existing phase/dispatcher codeunit,
+not one per concept row, so the COMPLEX/TRIVIAL split never ended up mattering the way this table assumed.
+**For the real, as-built result per extension, see the Roadmap Execution Log section immediately below this
+table.**
 
-| Order | Ext | Real folder | Concepts | TRIVIAL (thin adapter only) | COMPLEX (needs real porting work) | SKIP (Upgrade / no-op / code-fix-only) | Notes |
-|---|---|---|---|---|---|---|---|
-| 1 | DRLOC (cont'd) | `DR-Localization\Localization\src\Base\Codeunits\Uprade\` | ~105 | ~55-60 | ~8-10 (Item NCF Category batch, RNC Database batch, Company Info BLOBs, FlowField-only ones - not portable, informational) | 3 (DRLOC-NCF seq6/7 code-fix-only, DRLOC-P1 seq8 Subtype=Upgrade wrapper - already reached via 52210) | Tasks 2.2/2.3 done; remaining ~16 DRLOC-P2 steps + P3/P4/P5/P6 table-pairs follow the same 2 patterns |
-| 2 | BC | `Base-Controls\Base Controls\src\services\migration\` | 19 | 19 | 0 | 0 | All 4 dispatchers already 100% typed `Record`; genuinely thinnest phase in the whole portfolio |
-| 2 | RBPD | `Recaudo BC\RecaudoBPD\Base\Codeunits\` | 11 | 11 (Worker 56308 confirmed; Phase1/Phase2 internals assumed same pattern - **confirm before committing**) | 0 | 0 | Shares an `AssignPermissionSetToUser` pattern with BC - candidate for one shared MCC helper procedure instead of 2 copies |
-| 3 | VP | `DxPayloads-BC\Vendor Payloads\src\Base\Codeunits\Migration\` | 46 → collapse to ~23 real ops | ~20 | ~3 (Phase7's table-level RecordRef merge logic - already correct/safe, port as-is not field-level) | 0 | Phase 1-6 (gen-1) and Phase 7 hit the same 23 targets from 2 source generations - one adapter per target table trying both sources in sequence, not 46 adapters |
-| 4 | DXP | `DXPAYMENT-BC\Base\CodeUnits\` | 46 — **DONE** (Task 1.2, 2026-08-23) | 46/46 (all repointed to Runner 52313, which already had a real OnRun + correct per-phase Permissions for every table) | 0 | 0 | DXP-P3 vs DXP-P5 precedence question RESOLVED (user confirmed Phase 5 wins) — fixed at the source in DXP's own repo (4 commits: reorder + retroactive repair + 2 review-driven fixes), independently reviewed 3 rounds, verdict "ready to merge". Nothing left to do here. |
-| 5 | PCM | `Price-Controls-Mgt\Price Controls Mgt\src\Base\Codeunits\` | 16 | ~10 | ~6 (Phase 5 Id Renum - port ONLY the final Workflow-shell logic, do not reintroduce the 6 already-removed redundant shells per the registry's own note) | 0 |  |
-| 5 | TU | `DX-TransUnion\TransUnion\src\Base\Codeunits\` | 5 | 5 (3 via dispatcher 53605 + 2 already MCC-Fallback-covered, Dispatcher=0) | 0 | 0 | Smallest, cleanest extension in the portfolio per Discovery |
-| 6 | DESB | `Despacho-Base\Despacho Base\src\Base\Codeunits\Upgrade\` | 71 | 67 (Worker 53681's 39 + Phase1's 28) | 4 (Phase 2's `_Old2`/`_Reloc` collision-relocation logic) | 1 (53669 dispatcher, Subtype=Upgrade - Worker 53681 is the real normal-codeunit entry point already) | ⚠ do not use `apps\1-DespachoBase\src\Core\...` - confirmed stale duplicate folder, use `Despacho-Base\Despacho Base\` only |
-| 6 | DESLS | `Despacho-Base\Despacho LS\src\Base\Codeunits\Upgrade\` | ~14 | ~4 | 10 (cross-extension `CopyMatchingRecord` reads from DESB's own legacy tables - port carefully, needs DESB dependency too) | 0 |  |
-| 7 | RC | `Retail-Controls\src\services\upgrade\` | ~8 phases | Phase1/2/4/5 (moderate) | Phase3 (ID-collision guard logic, 5 tables incl. LSC POS Func. Profile) | Phase Upgrade Mgt (54742/54743, already in skip-list) | Every file declares Cloud+OnPrem codeunit ID pairs - adapters target the Cloud IDs only unless MCC ever needs an OnPrem build |
-| 8 | FE | `Facturacion Workspace\BC-Facturacion-Electronica\Facturacion Electronica\Base\` | ~40 | ~32 | 3 confirmed (EF Archived Sent Request's scoring-merge, EF Codigos Item/EF Currency Type's key-based merge, EF ATEB Send Registry's enum re-mapping) + ~16 not yet read (P8/9/10/13) | 0 | P7's field-number bug (this session's own earlier finding, 55501-504→52333/52334) already confirmed fixed in current source - port the fixed version, don't reintroduce the bug |
-| 9 | LSFE | `Facturacion Workspace\BC-Facturacion-Electronica\LS Facturacion Electronica\Base\Codeunit\` | 2 | 2 (both already have correct explicit `Permissions`) | 0 | 0 | Cleanest port in the whole portfolio - already does everything right, adapter is pure formality |
-| 10 | BELLON | `Bellon_Customization\Bellon Customization\src\Base\Codeunits\` | ~257 | ~256 (P2's 141 + P6's 114 + P7's 1 summarizing 55 tables) | 0 confirmed yet | P10 (56127, confirmed deliberate no-op - do not adapt) + P3/4/5/8/9/11/12 (~7 rows, bodies not yet read - confirm before assuming TRIVIAL) | Largest single extension by concept count; P7's "55 tables in one summary row" should be split into per-table adapters/concepts as part of this phase, not kept as one bundled call (same DRLOC-P2 problem, smaller blast radius since P7 is already the never-overwrite pattern) |
-| 11 | BELLONPOS | `Bellon_Customization\Bellon POS\Base\Codeunits\` | 12 | 12 | 0 | 0 | **Source-extension bug, fix at BELLONPOS not via MCC workaround**: `DXR_POS Upgrade Process` has no `Permissions` property for the tables it touches at all - even after MCC gets a typed adapter, BELLONPOS should still declare its own `Permissions` correctly, since other BELLONPOS code paths (its own upgrade cycle) hit the same gap independent of MCC |
+| Order | Ext | Real folder | Concepts (registry) | Original TRIVIAL/COMPLEX estimate | Status |
+|---|---|---|---|---|---|
+| 1 | DRLOC | `DR-Localization\Localization\src\Base\Codeunits\Uprade\` | ~105 | ~55-60 TRIVIAL, ~8-10 COMPLEX, 3 SKIP | **NOT STARTED** — deferred, see below |
+| 2 | BC | `Base-Controls\Base Controls\src\services\migration\` | 19 | 19 TRIVIAL | **DONE** |
+| 2 | RBPD | `Recaudo BC\RecaudoBPD\Base\Codeunits\` | 11 | 11 TRIVIAL | **DONE** |
+| 3 | VP | `DxPayloads-BC\Vendor Payloads\src\Base\Codeunits\Migration\` | 46 | ~20 TRIVIAL, ~3 COMPLEX | **DONE** |
+| 4 | DXP | `DXPAYMENT-BC\Base\CodeUnits\` | 46 | 46 TRIVIAL | **DONE** (Task 1.2) |
+| 5 | PCM | `Price-Controls-Mgt\Price Controls Mgt\src\Base\Codeunits\` | 16 | ~10 TRIVIAL, ~6 COMPLEX | **DONE** |
+| 5 | TU | `DX-TransUnion\TransUnion\src\Base\Codeunits\` | 5 | 5 TRIVIAL | **DONE** |
+| 6 | DESB | `Despacho-Base\Despacho Base\src\Base\Codeunits\Upgrade\` | 71 (registry) / 42 (adapted) | 67 TRIVIAL, 4 COMPLEX, 1 SKIP | **DONE** |
+| 6 | DESLS | `Despacho-Base\Despacho LS\src\Base\Codeunits\Upgrade\` | ~14 (est.) / 17 (registry) | ~4 TRIVIAL, 10 COMPLEX | **DONE** |
+| 7 | RC | `Retail-Controls\src\services\upgrade\` | ~8 phases (est.) / 12 (registry) | Phase1/2/4/5 moderate, Phase3 COMPLEX | **DONE** |
+| 8 | FE | `Facturacion Workspace\BC-Facturacion-Electronica\Facturacion Electronica\Base\` | ~40 (est.) / 41 (registry) | ~32 TRIVIAL, 3+ COMPLEX | **DONE** |
+| 9 | LSFE | `Facturacion Workspace\BC-Facturacion-Electronica\LS Facturacion Electronica\Base\Codeunit\` | 2 | 2 TRIVIAL | **DONE** |
+| 10 | BELLON | `Bellon_Customization\Bellon Customization\src\Base\Codeunits\` | ~257 (est.) / 269 (registry) | ~256 TRIVIAL | **DONE** |
+| 11 | BELLONPOS | `Bellon_Customization\Bellon POS\Base\Codeunits\` | 12 | 12 TRIVIAL | **DONE** |
+| — | LSLOC | `Localizacion-LS-Central\LS Localizacion Base\Base\Codeunits\Upgrade\` | 24 | not in original discovery pass (missed entirely — found late) | **DONE** |
+| — | DPP | `DescuentoProntoPago-OLD\Base\Codeunit\` | 3 | not in original discovery pass | **N/A — no adapter possible or needed** (see below) |
 
-**BLOCKING QUESTIONS before their respective phases can complete (ask the user, do not guess):**
+**BLOCKING QUESTIONS from the original discovery pass:**
 1. ~~DXP-P3 vs DXP-P5: which legacy generation is the real source of truth for tables 52275-52283?~~ **RESOLVED 2026-08-23** — user confirmed Phase 5 (most recent generation). Fixed at the source in DXP's own repo.
-2. Confirm before Phase 10 (BELLON): read the 7 un-read Phase bodies (P3/4/5/8/9/11/12) before assuming they're safe to bulk-classify as TRIVIAL.
+2. ~~Confirm before BELLON: read the 7 un-read Phase bodies before assuming they're safe.~~ **RESOLVED 2026-08-23** — all 11 BELLON phase codeunits read directly; found genuinely simpler than estimated (all `Access = Public`, real `OnRun` bodies, no internalsVisibleTo needed anywhere in that repo — the only extension in the whole portfolio where that's true). See Execution Log.
+3. **OPEN, not yet asked:** should DRLOC (the one remaining Roadmap extension) be brought into this same pattern, given the "build completo" scope redirect? The original pre-flight ruling deferred it because Task 2.1 requires editing DR-Localization's own source tree, whose git status was never checked in this run. Confirm with the user before starting — do not assume "build completo" already covers it without asking, since it was explicitly scoped out once already.
+
+---
+
+## Roadmap Execution Log (2026-08-23, post-Phase-1 "build completo" redirect)
+
+After Phase 1 (SD + DXP) was reviewed and merge-ready, the user issued two redirects: (1) reverse the
+registry-repoint-only fix for SD/DXP back to the original typed-adapter-with-real-dependency design, and
+(2) apply that same dependency + typed-reference pattern **gradually, to every extension MCC works on, as a
+deliberate design pattern** — not only where strictly necessary — because this guarantees migration by
+table/field NAME from each source extension and avoids ever having to recompile all 22+ extensions together.
+The process below was repeated per extension, without a fresh SDD implementer dispatch per extension (done
+directly, same session, same as SD/DXP): check git status (land any pre-existing uncommitted work if it
+compiles clean), verify each source codeunit's real `Access` modifier and entry point directly from its own
+source (never assumed), add `internalsVisibleTo` only where `Access = Internal`, add the MCC dependency, add
+one typed adapter per existing phase/dispatcher codeunit, repoint that extension's registry rows, compile
+MCC clean, commit in both the source repo and MCC. A batched independent review (not per-extension) was
+dispatched twice: once after BC+RBPD+VP, once after PCM through BELLONPOS.
+
+**BC** (`Base-Controls\Base Controls`): pre-existing uncommitted Phase2/3/Scheduler+async work landed
+(commit `74d0cc3`, compiles clean). `internalsVisibleTo` granted (BC commit `1030d9e`). 4 typed adapters —
+Phase1/2/3, PermRepair (60021-60024) — all 4 dispatchers already had real `OnRun` + correct `Permissions`;
+pure compile-safety upgrade, 0 confirmed bugs. All 19 BC rows repointed (MCC commit `4761da5`).
+
+**RBPD** (`Recaudo BC\RecaudoBPD`): pre-existing uncommitted Worker+legacy tableext work landed (commit
+`53cc466`, compiles clean). `internalsVisibleTo` granted (RBPD commit `0273381`). 1 typed adapter — Worker
+(60025), real `OnRun` confirmed. All 11 RBPD rows repointed (MCC commit `b73376b`).
+
+**VP** (`DxPayloads-BC\Vendor Payloads`): clean tree. `internalsVisibleTo` granted (VP commit `189eaca`).
+**Architecture lesson, caught before wiring**: VP's own `DXR_VP Migration Dispatcher` (52720) has a real
+`OnRun` but only advances ONE phase per call, then reschedules the rest via its own async Job Queue — wiring
+MCC to it once would falsely report success after only Phase 1. Wired 7 typed adapters (60026-60032) directly
+to each phase's own `Run(var Progress, var Total, var ErrorText): Boolean` procedure instead (the one
+extension in the batch where the adapter count matches per-procedure, not per-dispatcher, granularity — this
+already matched the registry's existing per-phase rows). Independent review found this is a REAL functional
+fix, not just compile-safety: none of VP's 7 phase codeunits had an `OnRun` at all, so MCC's prior raw
+`Codeunit.Run()` calls were silent no-ops for all 46 VP concepts (same bug class as the original SD/DXP
+finding). All 46 VP rows repointed (MCC commit `2b17cc3`).
+
+**PCM** (`Price-Controls-Mgt\Price Controls Mgt`): pre-existing uncommitted Phase5IdRenumber + legacy tables
+landed (commit `98d55ce`, compiles clean). All 4 phase codeunits (Phase2-5) confirmed `Access = Public` — no
+`internalsVisibleTo` needed. 4 typed adapters (60033-60036). All 16 PCM rows repointed.
+
+**TU** (`DX-TransUnion\TransUnion`): `internalsVisibleTo` granted (TU commit `6d3d30d`). 1 typed adapter —
+Dispatcher (60037), `Access = Internal` confirmed. TU-P1 rows repointed (TU-GAP rows stay Dispatcher=0,
+MCC Fallback Migrator, unchanged).
+
+**DESB + DESLS** (sibling projects, one git root `Despacho-Base\`): pre-existing uncommitted work landed
+(commit `a949b7e`, 97 files, both projects compile clean). Both `internalsVisibleTo` granted (DESB `b36aa90`,
+DESLS `6112d73`). DESB: 2 typed adapters — Worker (60038), Phase2 (60039). DESLS: 2 typed adapters — Worker
+(60040), Phase1 (60041). In both, the Worker's own `OnRun` already calls its Dispatcher's
+`RunPendingPhasesWithStatusTracking()`, which itself runs Phase2 (or Phase1) internally under its own
+Upgrade Tag — the registry's separate direct-to-Phase2/Phase1 rows cause a harmless, independently
+tag-gated, redundant double-invocation; documented in the adapter comments, deliberately not "fixed"
+(pre-existing registry structure, out of scope). Independently re-verified true by the batched review
+(read the Worker's actual `OnRun` body in both repos). ⚠ `Despacho-Base\apps\1-DespachoBase\` is a stale
+duplicate copy of DESB at an older version (27.0.0.18 vs the live 28.3.4.21) — confirmed by the review to be
+unrelated to this work, but a trap for future greps of this repo. All 42 DESB + 17 DESLS rows repointed.
+
+**RC (Retail Controls)** (`Retail-Controls`): pre-existing uncommitted Phase4/5/Scheduler+legacy tables
+landed (commit `f1c206c`, compiles clean). `internalsVisibleTo` granted (RC commit `a8a1831`). 5 typed
+adapters — Phase1 Setup Retro/Phase2 Documents/Phase3 ID Collision/Phase4 PermSet Repair/Phase5 Setup Tables
+(60042-60046), all `Access = Internal` with real, substantive `OnRun` logic (Phase3/5 are themselves
+retroactive repairs of an earlier retroactive repair, well-documented in RC's own source). All 12 RC rows
+repointed (MCC commit `16b3d10`).
+
+**FE + LSFE** (sibling projects, one git root `BC-Facturacion-Electronica\`): clean tree. **Both `app.json`
+files were blocked by this repo's own blanket `*.json` `.gitignore` rule** (only the two `.Test` app.json
+were carved out with `!`) — asked the user, ruling was to force-add (`git add -f`) past the rule rather than
+leave the `internalsVisibleTo` grant uncommitted/lost on a fresh clone. Committed as `4f3b14f` (first time
+either main app.json has ever been tracked in this repo). FE: 7 typed adapters — Phase7 Bootstrap/8 Master/9
+Purchase/10 Sales/11 Tables/12 History/13 NCF Cleanup (60047-60053), all `Access = Internal` with real
+`OnRun`; FE's one `Subtype = Upgrade` codeunit (52530 "DXR_Upgrade") was never touched. LSFE: 2 typed
+adapters — Assign PermSet (60054), POS Contingency (60055), both `Access = Internal`; their `OnRun` bodies
+call NAMED PROCEDURES (not `.Run()`) on a typed `"DXR_LSFE Upgrade"` (52587) variable, which genuinely IS
+`Subtype = Upgrade` — this is the one case in the whole portfolio where a Subtype=Upgrade codeunit is
+touched at all, done deliberately via procedure call rather than `.Run()`, matching a pre-existing pattern
+already used inside LSFE's own source. All 41 FE + 2 LSFE rows repointed (MCC commit `3be35fb`).
+
+**BELLON + BELLONPOS** (sibling projects, one git root `Bellon_Customization\`): pre-existing uncommitted
+work landed (commit `ba7697d6` in that repo — new Phase13 OldGap + Phase14 XCollFix migration codeunits,
+dispatcher/tag updates, version bumps for both extensions; IDE `.alcache` junk files were staged
+accidentally by a broad `git add`, caught and unstaged before commit). Phase13/14 are new migration phases
+not yet in MCC's registry — out of scope for this pattern-application pass. All 11 BELLON phase codeunits
+(Phase2-12, 56119-56129) AND BELLONPOS's 1 phase codeunit (56212) confirmed `Access = Public` — the only
+extension in the whole ~14-extension portfolio where zero `internalsVisibleTo` grants were needed anywhere.
+12 typed adapters (60056-60067). All 269 BELLON + 12 BELLONPOS rows repointed, verified via a precise
+field-position sed pattern (not a bare word-boundary match) given the huge free-text description corpus
+made accidental ID collisions likelier than in smaller extensions — zero collisions found (MCC commit
+`e28c87f`).
+
+**LSLOC (LS Central DR Localization)** (`Localizacion-LS-Central\LS Localizacion Base`) — **found and wired
+after the fact**: this extension's registry rows (`InsConcept('LSLOC', ...)`, 24 rows) were missed by the
+original portfolio pass above — not in the Roadmap table, not touched until the user flagged "aun queda
+pendiente las demas extensiones... que tienes aqui en la ruta fisica" (there are still pending extensions
+here in the physical path) after the doc-update pass had already started. Pre-existing uncommitted work
+landed first (commit `f2b4e7c` in that repo — fixes a malformed `app.json`, a duplicate `runtime` key that
+made the file invalid JSON, plus 3 restored legacy `.old` table/tableextension definitions; compiles clean).
+Its single Dispatcher (54506) confirmed `Access = Public` (no `internalsVisibleTo` needed, same as
+BELLON/BELLONPOS) with a real, substantive `OnRun` that orchestrates all 3 of the extension's migration
+phases (OPOS Setup, LS-to-DXR_LS restore, dependency-field sync), each independently Upgrade-Tag-gated. 1
+typed adapter (60068, the one case in the whole portfolio where a single dispatcher already covers every
+row for its extension, same shape as SD's dispatcher). All 24 LSLOC rows repointed (MCC commit `ecc9c87`).
+**Not yet covered by either independent batch review below** — flag for a future review pass alongside
+DRLOC.
+
+**Independent batch reviews:**
+- Round 1 (after BC+RBPD+VP): confirmed VP's finding (real functional fix, not just compile-safety) and
+  found BC's Phase2 comment overstated ("purely compile-safety") — Phase2's own `Copy*` procedures always
+  overwrite (pre-existing behavior, gate lives in the Scheduler which MCC's adapter bypasses by calling
+  `OnRun` directly, not a regression). Both corrected in adapter comments, commit `75f774b`.
+- Round 2 (after PCM through BELLONPOS, all 9 remaining extensions): **zero Critical or Important findings.**
+  Every specifically-flagged risk (BELLON's 269-row sed-collision risk, DESB/DESLS Worker redundancy claim,
+  LSFE's Subtype=Upgrade procedure-vs-`.Run()` distinction, FE/LSFE's forced `app.json` tracking, the
+  `ba7697d6` landed-work claim) was independently re-verified against the real source and confirmed accurate.
+  Two Minor/informational notes only (a harmless FE version-skew between two dependents' pins, and the
+  DESB stale-duplicate-folder trap noted above) — no fixes required. Verdict: "correct and safe as
+  committed."
+
+**Not yet done:** LSLOC has not been through either independent batch review (found and wired after both
+rounds already ran) — worth a small scoped review alongside whatever comes next. No review is dispatched
+against this doc's own edits (documentation, not code — not normally reviewed the same way). **DRLOC remains
+fully out of scope** — see Blocking Question 3 above. **DPP (DescuentoProntoPago-OLD) has no adapter and
+needs none**: of its 3 registry rows, 2 are retired stale entries (`Dispatcher = 0`) and the 1 real row
+(DPP-UPG) points directly at 54283, which IS the portfolio's one `Subtype = Upgrade` codeunit for this
+extension — per the Global Constraints rule, that can never become an adapter target, so DPP-UPG correctly
+stays `Blocked`/manual (runs automatically on next publish/schema-sync only). This is confirmed-complete,
+not a gap.
+
+**Portfolio coverage as of this update:** every registry extension code has now been checked —
+SD, DXP, BC, RBPD, VP, PCM, TU, DESB, DESLS, RC, FE, LSFE, BELLON, BELLONPOS, LSLOC (15) wired with the
+typed-reference pattern; DPP (1) confirmed to need no adapter; DRLOC (1) remains the only genuinely open
+item, deferred pending user confirmation (Blocking Question 3).
 
 ---
 
