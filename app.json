@@ -57,6 +57,12 @@
       "publisher": "Dextra",
       "name": "TransUnion",
       "version": "28.3.2.5"
+    },
+    {
+      "id": "c7a48d32-662c-4e8a-a315-494b174556cf",
+      "publisher": "Dextra",
+      "name": "Despacho Base",
+      "version": "28.3.4.21"
     }
   ],
   "idRanges": [
