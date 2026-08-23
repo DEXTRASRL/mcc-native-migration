@@ -734,7 +734,8 @@ codeunit 60011 "DXR MCC Executor"
             52773,            // DXR_VP TXT Upgrade (VP TXT, not currently MCC-tracked)
             52743,            // DXR_VP API Upgrade (VendorPay API, not currently MCC-tracked)
             52667, 52120396,  // DXR_VP Upgrade (VP core)
-            53648, 52119593   // DXR_Prontopago Migr Upgrade (a separate DPP workspace, not DescuentoProntoPago-OLD)
+            53648, 52119593,  // DXR_Prontopago Migr Upgrade (a separate DPP workspace, not DescuentoProntoPago-OLD)
+            54283              // DPP Upgrade Manager (DescuentoProntoPago-OLD)
         ]);
     end;
 
