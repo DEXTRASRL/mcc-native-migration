@@ -24,6 +24,8 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Migration Lock Mgt." = X,
         codeunit "DXR MCC Completion Notify" = X,
         codeunit "DXR MCC Upgrade Tag Seed" = X,
+        codeunit "DXR MCC Adapt SD Dispatcher" = X,
+        codeunit "DXR MCC Adapt DXP Dispatcher" = X,
         page "DXR Migration Control Center" = X,
         page "DXR MCC Concept Subform" = X,
         page "DXR MCC Run Log" = X,
