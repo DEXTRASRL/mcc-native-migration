@@ -117,71 +117,59 @@ git commit -m "build: add SD and DXP as MCC dependencies for native adapter code
 
 ---
 
-## Task 1.1: SD adapters — Phase 1 (Field Dup) and Phase 2 (Legacy Table)
+## Task 1.1: SD registry repoint (REDEFINED 2026-08-23 during execution — see below)
+
+**Original design (typed MCC-side adapter codeunits) was ABANDONED mid-execution.** The implementer hit
+`AL0161: inaccessible due to its protection level` — `DXR_SD_Migr_Phase1_FieldDup`/`Phase2_LegacyTable`
+are `Access = Internal` with no `internalsVisibleTo` grant to MCC, so a typed `Codeunit "DXR_SD_Migr_..."`
+reference cannot compile from MCC at all. Verified against Microsoft's own docs ("Using Access Modifiers
+in AL"): `Access = Internal` is compile-time only — "the OnRun trigger can be run on internal codeunits
+by using Codeunit.Run" at runtime, dynamic `Codeunit.Run(Integer)` is unaffected. This made the whole
+adapter approach unnecessary for this specific bug: MCC's existing, unmodified `Codeunit.Run(DispatcherCodeunitId)`
+already works fine against `Access = Internal` targets — the real problem was SD's dispatcher (54779)
+still being `Subtype = Upgrade` (which DOES block `Codeunit.Run()`/TaskScheduler outside schema-sync,
+confirmed by a documented live crash) while 54780/54781 individually had no `OnRun` at all.
+
+**Fixed at the source instead** (SD's own repo, `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\Special dispatch\Special-Distpach\Pedidos Especiales`,
+already its own git repo — separate from this plan/worktree, not tracked by this ledger). Also found and
+landed 12 files of substantial pre-existing uncommitted work (self-dated 2026-08-20, never committed)
+that had already converted Phase1/Phase2 from `DataTransfer`+`Subtype=Upgrade` to `Access=Internal`+manual
+`RecordRef` copy, and redesigned the dispatcher to do nothing during `OnUpgradePerCompany` (empty) with
+all real work moved to a new `OnRun`. 4 commits landed in SD's repo (local only, not pushed):
+- `e523369` — lands the pre-existing 2026-08-20 work as-is
+- `edfdc91` — removes `Subtype = Upgrade` + the now-illegal empty `OnUpgradePerCompany` trigger (AL0477)
+- `2c35e47` — adds explicit `Permissions` to 54780/54781 (independent review found `DXR_DispatchControls`
+  only grants `R` not `M` on 3 tables Phase1 writes to — neither codeunit had its own `Permissions` to
+  compensate for losing `Subtype=Upgrade`'s implicit elevated execution context)
+- `9218460` — adds `tabledata Field = R` to 54781 (re-review found `GetCommonCompatibleFieldNos` reads
+  the system `Field` table, uncovered by any reachable permission set)
+
+All 4 compile clean (`alc.exe` exit 0, zero new errors/warnings) and were independently reviewed
+(2 review passes, both Critical findings addressed and re-verified).
+
+**What's actually left for MCC (this task, in this worktree):**
 
 **Files:**
-- Read: `Special dispatch\...\Base\Migration\DXR_SD_Migr_Phase1_FieldDup.Codeunit.al` (confirm exact public procedure signature — Discovery confirmed it exposes `procedure Execute()` at line 24, not `trigger OnRun`)
-- Read: `Special dispatch\...\Base\Migration\DXR_SD_Migr_Phase2_LegacyTable.Codeunit.al` (confirm `procedure Execute()` at line 14)
-- Create: `src\Adapters\SD\DXRMCCAdaptSDPhase1FieldDup.Codeunit.al`
-- Create: `src\Adapters\SD\DXRMCCAdaptSDPhase2LegacyTable.Codeunit.al`
-- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — SD-P1 (seq 1,3-9) and SD-P2 (seq 2) `InsConcept` rows
+- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — SD-P1 (seq 1,3-9, 8 rows), SD-P2 (seq 2, 1 row), SD-P3 (seq 10, 1 row)
+- Modify: `app.json` — remove the SD dependency added in Task 1.0 (no longer needed — no typed reference to SD from MCC anymore)
 
 **Interfaces:**
-- Consumes: `DXR_SD_Migr_Phase1_FieldDup.Execute()` and `DXR_SD_Migr_Phase2_LegacyTable.Execute()` — exact signatures confirmed in Step 1 below (Discovery only confirmed the procedure exists and the codeunit name/file, not the full parameter list — verify before writing the adapter body).
-- Produces: two new codeunit IDs (MCC's own ID range 60000-60100 per `app.json:idRanges` — pick the next two free IDs after the highest currently used, e.g. continue from 60016/60017 if 60015 is the current max) that `DXRMCCRegistryLoader.Codeunit.al` will reference as the new `Dispatcher Codeunit ID` for SD-P1/SD-P2.
+- Consumes: nothing new — MCC's existing `Codeunit.Run(Integer)` dispatch mechanism, unchanged.
+- Produces: nothing new — no new codeunit IDs, no adapter files, no permission set changes.
 
-- [ ] **Step 1: Read both real SD codeunits in full to confirm `Execute()`'s exact signature (parameters, if any) and access modifier (must be `procedure`, not `local procedure`, for MCC to call it cross-extension)**
+- [ ] **Step 1: Repoint all 10 SD concept rows to the dispatcher.** In `DXRMCCRegistryLoader.Codeunit.al`, change every `InsConcept('SD', 'SD-P1', ...)` row's `DispatcherCodeunitId` argument from `54780` to `54779`, the `InsConcept('SD', 'SD-P2', 2, ...)` row's from `54781` to `54779`, and the `InsConcept('SD', 'SD-P3', 10, ...)` row's from `0` to `54779` — the dispatcher (54779) now orchestrates all 3 phases itself (Phase3→Phase1→Phase2, in that order) inside its own `OnRun`, so every SD concept shares the same single dispatcher call, same pattern MCC already uses elsewhere (e.g. DRLOC-P2's 18 concepts sharing dispatcher 52210) — `IsDispatcherAlreadyDone`'s dedup-by-dispatcher-ID logic already handles one dispatcher ID covering many concepts correctly, no Executor change needed.
 
-- [ ] **Step 2: Write the adapter for Phase 1**
+- [ ] **Step 2: Update SD-P3's stale description.** Its current text ("Subtype=Upgrade codeunit 54779 - cannot be invoked via Codeunit.Run() from MCC or anywhere outside schema-sync; runs automatically on next publish only") is now factually wrong — 54779 is no longer Subtype=Upgrade. Update the description to reflect that Phase 3 (permission set assignment) now runs as part of 54779's own `OnRun`, first, before Phase 1/2.
 
-```al
-codeunit 60016 "DXR MCC Adapt SD Phase1"
-{
-    // SD's own DXR_SD_Migr_Phase1_FieldDup.Codeunit.al only exposes `procedure Execute()` -
-    // no `trigger OnRun`. MCC's Executor.RunDispatcher always calls Codeunit.Run(ID), which
-    // invokes OnRun only - on a codeunit with no OnRun declared, the platform runs an empty
-    // implicit trigger and returns success, silently migrating nothing. CONFIRMED 2026-08-23:
-    // this is why SD-P1 (8 concepts) never moved a single row via MCC. This adapter's only
-    // job is to give MCC a real OnRun that calls the real, already-correct Execute().
-    trigger OnRun()
-    var
-        Phase1: Codeunit "DXR_SD_Migr_Phase1_FieldDup";
-    begin
-        Phase1.Execute();
-    end;
-}
-```
+- [ ] **Step 3: Revert the SD half of Task 1.0's `app.json` dependency** — remove the `18373840-6093-4765-8799-491f61accb2b` (Special Dispatch) entry from `dependencies`. Leave the DXP entry in place (Task 1.2 hasn't been investigated yet — don't assume it has the same `Access = Internal` blocker until confirmed).
 
-- [ ] **Step 3: Write the adapter for Phase 2** (same shape, targeting `DXR_SD_Migr_Phase2_LegacyTable.Execute()`)
+- [ ] **Step 4: Compile** (Task 1.5's command). Expect clean compile, same lone pre-existing warning.
 
-```al
-codeunit 60017 "DXR MCC Adapt SD Phase2"
-{
-    trigger OnRun()
-    var
-        Phase2: Codeunit "DXR_SD_Migr_Phase2_LegacyTable";
-    begin
-        Phase2.Execute();
-    end;
-}
-```
-
-- [ ] **Step 4: Repoint the registry** — in `DXRMCCRegistryLoader.Codeunit.al`, change every `InsConcept('SD', 'SD-P1', ...)` row's `DispatcherCodeunitId` argument from `54780` to `60016`, and the `InsConcept('SD', 'SD-P2', 2, ...)` row's from `54781` to `60017`
-
-- [ ] **Step 5: Add both new codeunits to `DXRMCCPermissionSet.PermissionSet.al`**
-
-```al
-codeunit "DXR MCC Adapt SD Phase1" = X,
-codeunit "DXR MCC Adapt SD Phase2" = X,
-```
-
-- [ ] **Step 6: Compile and confirm the SD-P1/P2 rows actually move data on a test run** — compile per Task 1.5's command, then run "Reload Registry" + "Run Extension" for SD in a test company, and confirm via the `DXR MCC Run Log` that `Old Record Count`/`Migrated Record Count` are non-zero where the legacy tables have real rows (this is the concrete regression test for the bug this task fixes — there is no automated test harness in this repo, per Discovery, so this manual verification is the acceptance check)
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/Adapters/SD/ src/DXRMCCRegistryLoader.Codeunit.al src/DXRMCCPermissionSet.PermissionSet.al
-git commit -m "fix: SD-P1/P2 never migrated data (target codeunits had no OnRun) - add native adapters"
+git add src/DXRMCCRegistryLoader.Codeunit.al app.json
+git commit -m "fix: SD-P1/P2/P3 never migrated data (wrong dispatcher IDs, one had no OnRun) - repoint registry to fixed dispatcher 54779, revert now-unneeded SD dependency"
 ```
 
 ---
