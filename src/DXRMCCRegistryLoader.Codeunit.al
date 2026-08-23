@@ -790,18 +790,18 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DESLS', 'DESLS-PERM', 17, 'Assign DXR_Despacho LS permission set to all users', 60129, 0, 0, 'SETUP');
 
         // ---- RC: Retail Controls ----
-        InsConcept('RC', 'RC-P5', 1, 'LYT Controls Setup legacy table restore', 60046, 56529, 54726, 'SETUP');
-        InsConcept('RC', 'RC-P5', 2, 'Pos Controls Setup legacy table restore', 60046, 56530, 54728, 'SETUP');
-        InsConcept('RC', 'RC-P5', 3, 'Internal Migr Status legacy table restore', 60046, 56543, 54736, 'HIST');
-        InsConcept('RC', 'RC-P1', 4, 'LYT Controls Setup legacy row restore (Setup Retro pass, runs before Phase 5''s own pass) - CORRECTED 2026-08-22, had zero Legacy/New Table ID before ("LYT. Controls Setup" 56500 -> active "DXR_LYT Controls Setup" 54726, same final target RC-P5 seq1 also feeds)', 60042, 56500, 54726, 'SETUP');
-        InsConcept('RC', 'RC-P1', 5, 'Pos Controls Setup legacy row restore (Setup Retro pass) - CORRECTED 2026-08-22, had zero Legacy/New Table ID before ("Pos Controls Setup" 56501 -> active "DXR_Pos Controls Setup" 54728, same final target RC-P5 seq2 also feeds)', 60042, 56501, 54728, 'SETUP');
-        InsConcept('RC', 'RC-P1', 6, 'Purchase/Sales Controls Setup field restore (cross-repo _DXR fields)', 60042, 0, 0, 'SETUP');
-        InsConcept('RC', 'RC-P1', 7, 'LSC POS Func. Profile field restore', 60042, 0, 0, 'OTHER');
-        InsConcept('RC', 'RC-P2', 8, 'Sales Header field restore (Documents Retro pass, high volume, batched 500/commit)', 60043, 0, 0, 'MA');
-        InsConcept('RC', 'RC-P2', 9, 'Purchase Header field restore (Documents Retro pass, high volume, batched)', 60043, 0, 0, 'MA');
-        InsConcept('RC', 'RC-P2', 10, 'Sales Invoice Header field restore (Documents Retro pass, high volume, batched)', 60043, 0, 0, 'MA');
-        InsConcept('RC', 'RC-P3', 11, 'Cross-table field-ID collision retro-fix (ID Collision Retro: Sales Header/Sales Invoice Header/Purchase Header/LSC POS Func. Profile/DXR_Sales Controls Setup/DXR_Purchase Controls Setup, 9 fields, 54675-54677->56531-56538)', 60044, 0, 0, 'OTHER');
-        InsConcept('RC', 'RC-P4', 12, 'Permission set assignment repair (all users, DXR_Retail Controls, PermSet Repair)', 60045, 0, 0, 'OTHER');
+        InsConcept('RC', 'RC-P5', 1, 'LYT Controls Setup legacy table restore', 60135, 56529, 54726, 'SETUP');
+        InsConcept('RC', 'RC-P5', 2, 'Pos Controls Setup legacy table restore', 60135, 56530, 54728, 'SETUP');
+        InsConcept('RC', 'RC-P5', 3, 'Internal Migr Status legacy table restore', 60135, 56543, 54736, 'HIST');
+        InsConcept('RC', 'RC-P1', 4, 'LYT Controls Setup legacy row restore (Setup Retro pass, runs before Phase 5''s own pass) - CORRECTED 2026-08-22, had zero Legacy/New Table ID before ("LYT. Controls Setup" 56500 -> active "DXR_LYT Controls Setup" 54726, same final target RC-P5 seq1 also feeds)', 60131, 56500, 54726, 'SETUP');
+        InsConcept('RC', 'RC-P1', 5, 'Pos Controls Setup legacy row restore (Setup Retro pass) - CORRECTED 2026-08-22, had zero Legacy/New Table ID before ("Pos Controls Setup" 56501 -> active "DXR_Pos Controls Setup" 54728, same final target RC-P5 seq2 also feeds)', 60131, 56501, 54728, 'SETUP');
+        InsConcept('RC', 'RC-P1', 6, 'Purchase/Sales Controls Setup field restore (cross-repo _DXR fields)', 60131, 0, 0, 'SETUP');
+        InsConcept('RC', 'RC-P1', 7, 'LSC POS Func. Profile field restore', 60131, 0, 0, 'OTHER');
+        InsConcept('RC', 'RC-P2', 8, 'Sales Header field restore (Documents Retro pass, high volume, batched 500/commit)', 60132, 0, 0, 'MA');
+        InsConcept('RC', 'RC-P2', 9, 'Purchase Header field restore (Documents Retro pass, high volume, batched)', 60132, 0, 0, 'MA');
+        InsConcept('RC', 'RC-P2', 10, 'Sales Invoice Header field restore (Documents Retro pass, high volume, batched)', 60132, 0, 0, 'MA');
+        InsConcept('RC', 'RC-P3', 11, 'Cross-table field-ID collision retro-fix (ID Collision Retro: Sales Header/Sales Invoice Header/Purchase Header/LSC POS Func. Profile/DXR_Sales Controls Setup/DXR_Purchase Controls Setup, 9 fields, 54675-54677->56531-56538)', 60133, 0, 0, 'OTHER');
+        InsConcept('RC', 'RC-P4', 12, 'Permission set assignment repair (all users, DXR_Retail Controls, PermSet Repair)', 60134, 0, 0, 'OTHER');
 
         // ---- FE: Facturacion Electronica ----
         // FE-P7/P8/P9/P10 expanded 2026-08-22 (follow-up completed - previously phase-level only,
