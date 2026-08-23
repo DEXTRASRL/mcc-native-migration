@@ -50,7 +50,7 @@
 DXR-Migration-Control-Center/
   app.json                                    Modify: 13 real dependencies added, one per wired extension
   src/
-    Adapters/                                          codeunit ID range 60016-60068 (next free: 60069)
+    Adapters/                                          codeunit ID range 60016-60073 (next free: 60074)
       SD/    DXRMCCAdaptSDDispatcher.Codeunit.al                1 adapter  - DONE
       DXP/   DXRMCCAdaptDXPDispatcher.Codeunit.al                1 adapter  - DONE
       BC/    DXRMCCAdaptBCPhase{1,2,3}, ...PermRepair            4 adapters - DONE
@@ -66,7 +66,7 @@ DXR-Migration-Control-Center/
       BELLON/    DXRMCCAdaptBellonPhase{2..12}                  11 adapters - DONE
       BELLONPOS/ DXRMCCAdaptBellonPOSPhase2.Codeunit.al           1 adapter  - DONE
       LSLOC/     DXRMCCAdaptLSLOCDispatcher.Codeunit.al           1 adapter  - DONE (found late, see Execution Log)
-      DRLOC/     (not started - out of scope for this run, see below)
+      DRLOC/     DXRMCCAdaptDRLOCPhase{2,3,4,5,6}.Codeunit.al      5 adapters - DONE (see Execution Log)
     # SD and DXP's Adapters/ history (2026-08-23, two reversals - read both before assuming either
     # state): Tasks 1.1/1.2 originally tried typed adapters, hit AL0161 (Access=Internal blocked a
     # typed reference), and fell back to a pure registry repoint with no adapter/dependency at all
@@ -476,7 +476,7 @@ table.**
 
 | Order | Ext | Real folder | Concepts (registry) | Original TRIVIAL/COMPLEX estimate | Status |
 |---|---|---|---|---|---|
-| 1 | DRLOC | `DR-Localization\Localization\src\Base\Codeunits\Uprade\` | ~105 | ~55-60 TRIVIAL, ~8-10 COMPLEX, 3 SKIP | **NOT STARTED** — deferred, see below |
+| 1 | DRLOC | `DR-Localization\Localization\src\Base\Codeunits\Uprade\` | 105 | ~55-60 TRIVIAL, ~8-10 COMPLEX, 3 SKIP | **DONE** (93 rows wired; see Execution Log) |
 | 2 | BC | `Base-Controls\Base Controls\src\services\migration\` | 19 | 19 TRIVIAL | **DONE** |
 | 2 | RBPD | `Recaudo BC\RecaudoBPD\Base\Codeunits\` | 11 | 11 TRIVIAL | **DONE** |
 | 3 | VP | `DxPayloads-BC\Vendor Payloads\src\Base\Codeunits\Migration\` | 46 | ~20 TRIVIAL, ~3 COMPLEX | **DONE** |
@@ -496,7 +496,7 @@ table.**
 **BLOCKING QUESTIONS from the original discovery pass:**
 1. ~~DXP-P3 vs DXP-P5: which legacy generation is the real source of truth for tables 52275-52283?~~ **RESOLVED 2026-08-23** — user confirmed Phase 5 (most recent generation). Fixed at the source in DXP's own repo.
 2. ~~Confirm before BELLON: read the 7 un-read Phase bodies before assuming they're safe.~~ **RESOLVED 2026-08-23** — all 11 BELLON phase codeunits read directly; found genuinely simpler than estimated (all `Access = Public`, real `OnRun` bodies, no internalsVisibleTo needed anywhere in that repo — the only extension in the whole portfolio where that's true). See Execution Log.
-3. **OPEN, not yet asked:** should DRLOC (the one remaining Roadmap extension) be brought into this same pattern, given the "build completo" scope redirect? The original pre-flight ruling deferred it because Task 2.1 requires editing DR-Localization's own source tree, whose git status was never checked in this run. Confirm with the user before starting — do not assume "build completo" already covers it without asking, since it was explicitly scoped out once already.
+3. ~~Should DRLOC be brought into this same pattern?~~ **RESOLVED 2026-08-23** — user explicitly confirmed ("y las localizacion vamos agregarlas tambien aqui y hacer que funcionen aqui"). DRLOC's Localization project (Base App DR Localization) is its own already-existing git repo — no new repo initialization was needed, same as every other sibling extension. Wired using the same coarser per-dispatcher pattern as the rest of the portfolio, not the original fine-grained Task 2.1-2.3 per-concept design (see Execution Log).
 
 ---
 
@@ -615,20 +615,45 @@ DRLOC.
   DESB stale-duplicate-folder trap noted above) — no fixes required. Verdict: "correct and safe as
   committed."
 
-**Not yet done:** LSLOC has not been through either independent batch review (found and wired after both
-rounds already ran) — worth a small scoped review alongside whatever comes next. No review is dispatched
-against this doc's own edits (documentation, not code — not normally reviewed the same way). **DRLOC remains
-fully out of scope** — see Blocking Question 3 above. **DPP (DescuentoProntoPago-OLD) has no adapter and
-needs none**: of its 3 registry rows, 2 are retired stale entries (`Dispatcher = 0`) and the 1 real row
-(DPP-UPG) points directly at 54283, which IS the portfolio's one `Subtype = Upgrade` codeunit for this
-extension — per the Global Constraints rule, that can never become an adapter target, so DPP-UPG correctly
-stays `Blocked`/manual (runs automatically on next publish/schema-sync only). This is confirmed-complete,
-not a gap.
+**DRLOC (DR-Localization, "Base App DR Localization")** (`DR-Localization\Localization`): the one remaining
+Roadmap extension — user explicitly confirmed bringing it into the same pattern ("y las localizacion vamos
+agregarlas tambien aqui y hacer que funcionen aqui"). Pre-existing uncommitted work landed first (commit
+`497c517` in that repo — touches `DXR_UpgradeTagMgt`, `DXR_Field_ID_Alignment_Upgrade`,
+`DXR_Internal_Closure_Migration_Upgrade_Clean`, `DXR_Internal_Migr_Phase_Tags`, Phase 2/3/5's own codeunits,
+`DXR_PurchaseHeaderExt.TableExt`, and an `app.json` version bump; compiles clean). Read all 5 target phase
+codeunits directly: Phase 2 Fiscal (52210), Phase 3 Purchase (52212), Phase 4 Sales (52214), Phase 5 Ledger
+(52216), Phase 6 History (52257) all confirmed `Access = Public` (no `internalsVisibleTo` needed) with real,
+substantive `OnRun` bodies — none is the repo's `Subtype = Upgrade` codeunit (that's a DIFFERENT codeunit,
+DRLOC-P1's "Internal Closure Migration", which correctly stays unwired/`Blocked`, `Dispatcher = 0`, per the
+Global Constraints skip-list rule — never touched). 5 typed adapters (60069-60073). All 93 wireable DRLOC
+rows (`DRLOC-P2` 23, `-P3` 13, `-P4` 10, `-P5` 19, `-P6` 28) repointed. Two other row groups deliberately left
+untouched, both already correctly handled without an adapter: **DRLOC-GAP** (9 rows, `Dispatcher = 0` with
+real Legacy/New Table IDs) already flows through MCC's own generic `DXR MCC Fallback Migrator`
+(RecordRef-based table-pair reconciliation, fires automatically whenever `Dispatcher = 0` and both table IDs
+are nonzero — this mechanism predates this session's adapter work and needs no per-extension wiring at all);
+**DRLOC-NCF** (2 rows, `Dispatcher = 0`, both table IDs 0) are genuine code-level fixes with no row-copy
+action to point at, correctly `Not Row-Based`. MCC commit `62f5b55`. This closes the Roadmap: every
+registry extension code is now either wired, confirmed to need no adapter (DPP — see below), or correctly
+handled generically (DRLOC-GAP/NCF/P1).
 
-**Portfolio coverage as of this update:** every registry extension code has now been checked —
-SD, DXP, BC, RBPD, VP, PCM, TU, DESB, DESLS, RC, FE, LSFE, BELLON, BELLONPOS, LSLOC (15) wired with the
-typed-reference pattern; DPP (1) confirmed to need no adapter; DRLOC (1) remains the only genuinely open
-item, deferred pending user confirmation (Blocking Question 3).
+**DPP (DescuentoProntoPago-OLD)**: confirmed needs no adapter, not a gap. Of its 3 registry rows, 2 are
+retired stale entries (`Dispatcher = 0`) and the 1 real row (DPP-UPG) points directly at codeunit 54283,
+which IS the portfolio's one `Subtype = Upgrade` codeunit for this extension — per the Global Constraints
+rule that codeunit can never become an adapter target, so DPP-UPG correctly stays `Blocked`/manual (runs
+automatically on next publish/schema-sync only).
+
+**Not yet done:** neither LSLOC nor DRLOC has been through the same independent-review process as the
+earlier batches (BC+RBPD+VP round 1, PCM-through-BELLONPOS round 2) — a review was dispatched for both after
+this doc update, covering LSLOC's single adapter and all of DRLOC's wiring (including the Fallback
+Migrator/GAP/NCF claims above, independently re-verified against the Executor source, not just asserted).
+No review is dispatched against this doc's own edits (documentation, not code).
+
+**Portfolio coverage as of this update:** every registry extension code has now been checked and wired where
+possible — SD, DXP, BC, RBPD, VP, PCM, TU, DESB, DESLS, RC, FE, LSFE, BELLON, BELLONPOS, LSLOC, DRLOC (16)
+wired with the typed-reference pattern; DPP (1) confirmed to need no adapter. **No extension remains open.**
+The Roadmap's original per-concept granularity goal (Tasks 2.1-2.3, DRLOC-P2's 18-step breakout) remains
+unimplemented — see "REALIZED GRANULARITY" at the top of this document — but is a separate, lower-priority
+piece of work, not required for what "build completo" asked for.
 
 ---
 
