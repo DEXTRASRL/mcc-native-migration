@@ -87,6 +87,18 @@
       "publisher": "Dextra",
       "name": "facturacion-electronica-ls",
       "version": "28.5.0.3"
+    },
+    {
+      "id": "a9734a52-02bb-4e3d-8150-2f9ee4b50530",
+      "publisher": "Dextra",
+      "name": "Bellon Customization",
+      "version": "28.3.4.16"
+    },
+    {
+      "id": "6b2c910b-6607-4ffa-859e-1ba16790e4d8",
+      "publisher": "Dextra",
+      "name": "Bellon Customization POS",
+      "version": "28.3.2.5"
     }
   ],
   "idRanges": [
