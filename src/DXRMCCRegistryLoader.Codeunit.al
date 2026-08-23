@@ -289,17 +289,17 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DPP', 'DPP-UPG', 3, 'Cash Journal Receipt List: DPP Disc. PP Amount restore from DPPDisc. Cash Payment ("DPP Upgrade Manager" 54283/52120102, Subtype=Upgrade - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs automatically on next publish/upgrade only)', 54283, 0, 0, 'HIST');
 
         // ---- RBPD: RecaudoBPD ----
-        InsConcept('RBPD', 'RBPD-P1', 1, 'Cust. Ledger Entry legacy tableextension (DXR-IB Cust. Led) restore', 60025, 0, 0, 'MA');
-        InsConcept('RBPD', 'RBPD-P1', 2, 'Gen. Journal Line legacy tableextension (DXR-IB Gen. Jrnl Line) restore', 60025, 0, 0, 'MA');
-        InsConcept('RBPD', 'RBPD-P2', 3, 'IbankingSetup legacy table restore ("DXR-IB IbankingSetup" -> "DXR_IbankingSetup")', 60025, 54646, 54665, 'SETUP');
-        InsConcept('RBPD', 'RBPD-P2', 4, 'History legacy table restore (Header+Details pair: "DXR-IB IbankingHistoryHeader" 54633 + "...Details" 54628 -> "DXR_IbankingHistoryHeader" 54666 + "...Details" 54667 - Header IDs tracked here, Details moves alongside it)', 60025, 54633, 54666, 'HIST');
-        InsConcept('RBPD', 'RBPD-P2', 5, 'PagosProveedores legacy table restore ("DXR-IB PagosProveedores" -> "DXR_PagosProveedores")', 60025, 54638, 54668, 'MA');
-        InsConcept('RBPD', 'RBPD-P2', 6, 'ReferenciaPagos legacy table restore ("DXR-IB IbankingReferenciaPagos" -> "DXR_IbankingReferenciaPagos")', 60025, 54642, 54669, 'MA');
-        InsConcept('RBPD', 'RBPD-P2', 7, 'RecaudoDocsPendientes legacy table restore ("DXR-IB Recaudo Docs Pendientes" -> "DXR_Recaudo Docs Pendientes")', 60025, 54649, 54670, 'MA');
-        InsConcept('RBPD', 'RBPD-P2', 8, 'CashReceiptExt legacy table restore ("DXR-IB Cash Receipt Ext" -> "DXR_Cash Receipt Ext")', 60025, 54655, 54671, 'MA');
-        InsConcept('RBPD', 'RBPD-P2', 9, 'MiddlewareSetup legacy table restore ("DXR-IB MiddlewareSetup" -> "DXR_MiddlewareSetup")', 60025, 54657, 54672, 'SETUP');
-        InsConcept('RBPD', 'RBPD-P3', 10, 'Middleware Configuration Consolidation (IbankingSetup -> MiddlewareSetup field copy)', 60025, 0, 0, 'SETUP');
-        InsConcept('RBPD', 'RBPD-P2', 11, 'History Details legacy table restore ("DXR-IB IbankingHistoryDetails" 54628 -> "DXR_IbankingHistoryDetails" 54667) - found 2026-08-22, the Details half of RBPD-P2 seq4''s Header+Details pair had no row of its own, so its count/gap was never independently tracked', 60025, 54628, 54667, 'HIST');
+        InsConcept('RBPD', 'RBPD-P1', 1, 'Cust. Ledger Entry legacy tableextension (DXR-IB Cust. Led) restore', 60105, 0, 0, 'MA');
+        InsConcept('RBPD', 'RBPD-P1', 2, 'Gen. Journal Line legacy tableextension (DXR-IB Gen. Jrnl Line) restore', 60106, 0, 0, 'MA');
+        InsConcept('RBPD', 'RBPD-P2', 3, 'IbankingSetup legacy table restore ("DXR-IB IbankingSetup" -> "DXR_IbankingSetup")', 60107, 54646, 54665, 'SETUP');
+        InsConcept('RBPD', 'RBPD-P2', 4, 'History legacy table restore (Header+Details pair: "DXR-IB IbankingHistoryHeader" 54633 + "...Details" 54628 -> "DXR_IbankingHistoryHeader" 54666 + "...Details" 54667 - Header IDs tracked here, Details moves alongside it)', 60108, 54633, 54666, 'HIST');
+        InsConcept('RBPD', 'RBPD-P2', 5, 'PagosProveedores legacy table restore ("DXR-IB PagosProveedores" -> "DXR_PagosProveedores")', 60109, 54638, 54668, 'MA');
+        InsConcept('RBPD', 'RBPD-P2', 6, 'ReferenciaPagos legacy table restore ("DXR-IB IbankingReferenciaPagos" -> "DXR_IbankingReferenciaPagos")', 60110, 54642, 54669, 'MA');
+        InsConcept('RBPD', 'RBPD-P2', 7, 'RecaudoDocsPendientes legacy table restore ("DXR-IB Recaudo Docs Pendientes" -> "DXR_Recaudo Docs Pendientes")', 60111, 54649, 54670, 'MA');
+        InsConcept('RBPD', 'RBPD-P2', 8, 'CashReceiptExt legacy table restore ("DXR-IB Cash Receipt Ext" -> "DXR_Cash Receipt Ext")', 60112, 54655, 54671, 'MA');
+        InsConcept('RBPD', 'RBPD-P2', 9, 'MiddlewareSetup legacy table restore ("DXR-IB MiddlewareSetup" -> "DXR_MiddlewareSetup")', 60113, 54657, 54672, 'SETUP');
+        InsConcept('RBPD', 'RBPD-P3', 10, 'Middleware Configuration Consolidation (IbankingSetup -> MiddlewareSetup field copy)', 60114, 0, 0, 'SETUP');
+        InsConcept('RBPD', 'RBPD-P2', 11, 'History Details legacy table restore ("DXR-IB IbankingHistoryDetails" 54628 -> "DXR_IbankingHistoryDetails" 54667) - found 2026-08-22, the Details half of RBPD-P2 seq4''s Header+Details pair had no row of its own, so its count/gap was never independently tracked', 60108, 54628, 54667, 'HIST');
 
         // ---- SD: Special Dispatch (dispatcher codeunit IDs verified 2026-08-22 directly against
         // source - this repo's own progress.json claimed 59116/59117/59118, which is stale/wrong;
