@@ -1,0 +1,5 @@
+.alpackages/
+.altestrunner/
+.snapshots/
+.vscode/.alcache/
+*.app
