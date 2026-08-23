@@ -105,6 +105,12 @@
       "publisher": "Dextra",
       "name": "LS Central DR Localization",
       "version": "28.3.3.7"
+    },
+    {
+      "id": "b269ef93-1340-452e-bc44-732c5dacd1c8",
+      "publisher": "Dextra",
+      "name": "Base App DR Localization",
+      "version": "28.3.6.12"
     }
   ],
   "idRanges": [
