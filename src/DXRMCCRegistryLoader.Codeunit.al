@@ -886,36 +886,36 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60055, 0, 0, 'OTHER');
 
         // ---- LSLOC: LS Central DR Localization (dispatcher 54506 sequences all phases internally, tag-gated - same ID on every row is correct, matches BC-P2/BC-P3 convention) ----
-        InsConcept('LSLOC', 'LSLOC-OPOS', 1, 'OPOS Setup: DXR_Gaps Setup -> DXR_LS OPOS Print Setup field copy (fixes the documented SOLUCION_NCF_UPGRADE.md silent-migration-failure incident)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 54506, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 3, 'Archived Consumer Sales 607 dependency-field sync (54104 field range -> 52111, target rows must pre-exist, via "DXR_LS Dependency Fields Upgr." 54512)', 54506, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 4, 'LSDX POS Setup legacy table restore (54300 -> 54492, via "DXR_LS Legacy Tables Upgrade" 54511)', 54506, 54300, 54492, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-OPOS', 1, 'OPOS Setup: DXR_Gaps Setup -> DXR_LS OPOS Print Setup field copy (fixes the documented SOLUCION_NCF_UPGRADE.md silent-migration-failure incident)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 60068, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 3, 'Archived Consumer Sales 607 dependency-field sync (54104 field range -> 52111, target rows must pre-exist, via "DXR_LS Dependency Fields Upgr." 54512)', 60068, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 4, 'LSDX POS Setup legacy table restore (54300 -> 54492, via "DXR_LS Legacy Tables Upgrade" 54511)', 60068, 54300, 54492, 'SETUP');
         // Expanded 2026-08-22 from 3 collapsed rows into individual ones - full breakdown read
         // directly from "DXR_LS TableExt Fields Upgrade" (54510), "DXR_LS Dependency Fields Upgr."
         // (54512), and "DXR_LS Legacy Tables Upgrade" (54511) - all 3 kept on dispatcher 54506
         // (the already-established, working entry point that sequences them internally) rather
         // than switching to the sub-codeunit IDs directly, since that invocation path was never
         // independently confirmed safe to call in isolation.
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 54506, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 54506, 0, 0, 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 54506, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 54506, 0, 0, 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 54506, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 18, 'Report Sales 607 Buffer dependency-field sync (54151 -> 52215, target rows must pre-exist)', 54506, 0, 0, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 19, 'Archived Sales 607 dependency-field sync (54106 -> 52115, target rows must pre-exist)', 54506, 0, 0, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 20, 'NCF Sales Setup dependency-field sync (54131 -> 52178, target rows must pre-exist)', 54506, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 21, 'LSDXTender Types Relation legacy table restore (54301 -> 54493)', 54506, 54301, 54493, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 54506, 54302, 54494, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 54506, 54324, 54495, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 54506, 54328, 54496, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60068, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60068, 0, 0, 'OTHER');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60068, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60068, 0, 0, 'OTHER');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60068, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 18, 'Report Sales 607 Buffer dependency-field sync (54151 -> 52215, target rows must pre-exist)', 60068, 0, 0, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 19, 'Archived Sales 607 dependency-field sync (54106 -> 52115, target rows must pre-exist)', 60068, 0, 0, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 20, 'NCF Sales Setup dependency-field sync (54131 -> 52178, target rows must pre-exist)', 60068, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 21, 'LSDXTender Types Relation legacy table restore (54301 -> 54493)', 60068, 54301, 54493, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 60068, 54302, 54494, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60068, 54324, 54495, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60068, 54328, 54496, 'HIST');
     end;
 
     local procedure InsExt(Code2: Code[20]; Name2: Text[100]; AppIdText: Text; OrderNo: Integer; Notes2: Text)

@@ -99,6 +99,12 @@
       "publisher": "Dextra",
       "name": "Bellon Customization POS",
       "version": "28.3.2.5"
+    },
+    {
+      "id": "b18ab944-2133-4326-bcd7-a235e0a8bdef",
+      "publisher": "Dextra",
+      "name": "LS Central DR Localization",
+      "version": "28.3.3.7"
     }
   ],
   "idRanges": [
