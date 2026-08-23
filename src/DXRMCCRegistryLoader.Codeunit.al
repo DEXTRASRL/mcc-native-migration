@@ -306,15 +306,15 @@ codeunit 60012 "DXR MCC Registry Loader"
         // the real ones are 54779 (dispatcher)/54780 (Phase 1)/54781 (Phase 2), all of which were
         // also sitting at the DispatcherCodeunitId=0 placeholder in this registry until now, meaning
         // Run Portfolio/Run All Setup/etc silently skipped Special Dispatch entirely) ----
-        InsConcept('SD', 'SD-P1', 1, 'Customer: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'MA');
-        InsConcept('SD', 'SD-P2', 2, 'Phase 2: legacy table restore (DXR_Dispatch Module Setup)', 60019, 59114, 54778, 'SETUP');
-        InsConcept('SD', 'SD-P1', 3, 'Sales Header: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'MA');
-        InsConcept('SD', 'SD-P1', 4, 'Sales Invoice Header: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'HIST');
-        InsConcept('SD', 'SD-P1', 5, 'Sales Shipment Header: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'HIST');
-        InsConcept('SD', 'SD-P1', 6, 'Warehouse Shipment Header: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'MA');
-        InsConcept('SD', 'SD-P1', 7, 'Gen. Journal Line: Special Dispatch field restore (59000->54747)', 60019, 0, 0, 'MA');
-        InsConcept('SD', 'SD-P1', 8, 'User Setup: Invoice Permission field restore (59000->54747)', 60019, 0, 0, 'SETUP');
-        InsConcept('SD', 'SD-P1', 9, 'LSC Store: Print Header Doc. field restore (59000->54747)', 60019, 0, 0, 'SETUP');
+        InsConcept('SD', 'SD-P1', 1, 'Customer: Special Dispatch field restore (59000->54747)', 60070, 0, 0, 'MA');
+        InsConcept('SD', 'SD-P2', 2, 'Phase 2: legacy table restore (DXR_Dispatch Module Setup)', 60071, 59114, 54778, 'SETUP');
+        InsConcept('SD', 'SD-P1', 3, 'Sales Header: Special Dispatch field restore (59000->54747)', 60072, 0, 0, 'MA');
+        InsConcept('SD', 'SD-P1', 4, 'Sales Invoice Header: Special Dispatch field restore (59000->54747)', 60073, 0, 0, 'HIST');
+        InsConcept('SD', 'SD-P1', 5, 'Sales Shipment Header: Special Dispatch field restore (59000->54747)', 60074, 0, 0, 'HIST');
+        InsConcept('SD', 'SD-P1', 6, 'Warehouse Shipment Header: Special Dispatch field restore (59000->54747)', 60075, 0, 0, 'MA');
+        InsConcept('SD', 'SD-P1', 7, 'Gen. Journal Line: Special Dispatch field restore (59000->54747)', 60076, 0, 0, 'MA');
+        InsConcept('SD', 'SD-P1', 8, 'User Setup: Invoice Permission field restore (59000->54747)', 60077, 0, 0, 'SETUP');
+        InsConcept('SD', 'SD-P1', 9, 'LSC Store: Print Header Doc. field restore (59000->54747)', 60078, 0, 0, 'SETUP');
         // CORRECTED 2026-08-23: 54779 "DXR_SD_Migr_Phase_Dispatcher" is NO LONGER Subtype=Upgrade -
         // fixed at the source (SD's own repo, commit edfdc91) by removing the Subtype=Upgrade
         // property and the now-illegal empty OnUpgradePerCompany trigger. The dispatcher was also
@@ -322,7 +322,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         // then Phase 2) now runs from its own OnRun, invoked via ordinary Codeunit.Run() like any
         // other MCC dispatcher - no schema-sync/publish dependency remains. All 3 SD phases
         // therefore now share this single dispatcher call.
-        InsConcept('SD', 'SD-P3', 10, 'Assign DXR_DispatchControls permission set to all users (runs as part of Special Dispatch''s own migration dispatcher OnRun, first, before Phase 1/2)', 60019, 0, 0, 'SETUP');
+        InsConcept('SD', 'SD-P3', 10, 'Assign DXR_DispatchControls permission set to all users (native local migration in MCC, hardcodes Special Dispatch''s real app ID)', 60079, 0, 0, 'SETUP');
 
         // ---- DXP: DXPAYMENT-BC ----
         InsConcept('DXP', 'DXP-P5', 1, 'Payment Setup legacy table restore', 60020, 54700, 52275, 'SETUP');
