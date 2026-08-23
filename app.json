@@ -75,6 +75,18 @@
       "publisher": "Dextra",
       "name": "Retail Controls",
       "version": "28.3.5.5"
+    },
+    {
+      "id": "4ccf94f0-8e86-437f-99fc-a4eeda4a5122",
+      "publisher": "Dextra",
+      "name": "Facturacion Electronica",
+      "version": "28.3.6.4"
+    },
+    {
+      "id": "4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2",
+      "publisher": "Dextra",
+      "name": "facturacion-electronica-ls",
+      "version": "28.5.0.3"
     }
   ],
   "idRanges": [
