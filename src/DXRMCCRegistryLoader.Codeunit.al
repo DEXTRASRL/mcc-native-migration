@@ -767,27 +767,27 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLONPOS', 'BELLONPOS-P2', 12, 'POS Trans. / Invalid Items RTC legacy table restore', 56212, 50302, 53565, 'HIST');
 
         // ---- DESLS: Despacho LS ----
-        InsConcept('DESLS', 'DESLS-P1', 1, 'Document Generic legacy table restore', 53963, 50870, 53945, 'OTHER');
-        InsConcept('DESLS', 'DESLS-P1', 2, 'Despacho LS Migr Status legacy table restore', 53963, 50871, 53946, 'HIST');
+        InsConcept('DESLS', 'DESLS-P1', 1, 'Document Generic legacy table restore', 60040, 50870, 53945, 'OTHER');
+        InsConcept('DESLS', 'DESLS-P1', 2, 'Despacho LS Migr Status legacy table restore', 60040, 50871, 53946, 'HIST');
         // CORRECTED 2026-08-22: New Table IDs 53943/53945 didn't exist (53943 was a transposed
         // digit, 53945 was actually DocumentGeneric - a different table already used at
         // DESLS-P1 seq1). Real active IDs confirmed via source: DXR_Dispatch Line=53843,
         // DXR_Dispatch Setup=53845 (both in Despacho Base, cross-extension reference).
-        InsConcept('DESLS', 'DESLS-P1FLD', 3, 'Dispatch Line: Store No./Document Reference field restore (50808 -> 53843)', 53924, 50808, 53843, 'MA');
-        InsConcept('DESLS', 'DESLS-P1FLD', 4, 'Dispatch Setup: Enable Manual Gen. Doc. field restore (50800 -> 53845)', 53924, 50800, 53845, 'SETUP');
-        InsConcept('DESLS', 'DESLS-P1FLD', 5, 'Log Reimpresiones Cond (table 50830): Staff ID field restore', 53924, 0, 0, 'HIST');
-        InsConcept('DESLS', 'DESLS-P1FLD', 6, 'LSC Staff: 3 fields restore (Reprint Shipments/invoices, Del Dispatch Document)', 53924, 0, 0, 'SETUP');
-        InsConcept('DESLS', 'DESLS-P1FLD', 7, 'LSC Retail User: Almacen Despacho field restore', 53924, 0, 0, 'SETUP');
-        InsConcept('DESLS', 'DESLS-P1FLD', 8, 'Pickup Historic (table 50833): Store No. field restore', 53924, 0, 0, 'HIST');
-        InsConcept('DESLS', 'DESLS-P1FLD', 9, 'Pickup List (table 50834): Store No. field restore', 53924, 0, 0, 'OTHER');
-        InsConcept('DESLS', 'DESLS-P1FLD', 10, 'Posted Transport Line (table 50816): Store/Document Reference field restore', 53924, 0, 0, 'HIST');
-        InsConcept('DESLS', 'DESLS-P1FLD', 11, 'LSC Retail Product Group: Comision_Cobro field restore', 53924, 0, 0, 'MA');
-        InsConcept('DESLS', 'DESLS-P1FLD', 12, 'Transport Header (table 50801): Store field restore', 53924, 0, 0, 'MA');
-        InsConcept('DESLS', 'DESLS-P1FLD', 13, 'Shipment Header (table 50813): Store No. field restore', 53924, 0, 0, 'MA');
-        InsConcept('DESLS', 'DESLS-P1FLD', 14, 'Transport Line (table 50806): Store No./Document Reference field restore', 53924, 0, 0, 'MA');
-        InsConcept('DESLS', 'DESLS-P1FLD', 15, 'Transport Log''s (table 50812): Document Reference field restore', 53924, 0, 0, 'HIST');
-        InsConcept('DESLS', 'DESLS-P1FLD', 16, 'User Setup: Grupo Precios Tope/Supervisor field restore', 53924, 0, 0, 'SETUP');
-        InsConcept('DESLS', 'DESLS-PERM', 17, 'Assign DXR_Despacho LS permission set to all users', 53963, 0, 0, 'SETUP');
+        InsConcept('DESLS', 'DESLS-P1FLD', 3, 'Dispatch Line: Store No./Document Reference field restore (50808 -> 53843)', 60041, 50808, 53843, 'MA');
+        InsConcept('DESLS', 'DESLS-P1FLD', 4, 'Dispatch Setup: Enable Manual Gen. Doc. field restore (50800 -> 53845)', 60041, 50800, 53845, 'SETUP');
+        InsConcept('DESLS', 'DESLS-P1FLD', 5, 'Log Reimpresiones Cond (table 50830): Staff ID field restore', 60041, 0, 0, 'HIST');
+        InsConcept('DESLS', 'DESLS-P1FLD', 6, 'LSC Staff: 3 fields restore (Reprint Shipments/invoices, Del Dispatch Document)', 60041, 0, 0, 'SETUP');
+        InsConcept('DESLS', 'DESLS-P1FLD', 7, 'LSC Retail User: Almacen Despacho field restore', 60041, 0, 0, 'SETUP');
+        InsConcept('DESLS', 'DESLS-P1FLD', 8, 'Pickup Historic (table 50833): Store No. field restore', 60041, 0, 0, 'HIST');
+        InsConcept('DESLS', 'DESLS-P1FLD', 9, 'Pickup List (table 50834): Store No. field restore', 60041, 0, 0, 'OTHER');
+        InsConcept('DESLS', 'DESLS-P1FLD', 10, 'Posted Transport Line (table 50816): Store/Document Reference field restore', 60041, 0, 0, 'HIST');
+        InsConcept('DESLS', 'DESLS-P1FLD', 11, 'LSC Retail Product Group: Comision_Cobro field restore', 60041, 0, 0, 'MA');
+        InsConcept('DESLS', 'DESLS-P1FLD', 12, 'Transport Header (table 50801): Store field restore', 60041, 0, 0, 'MA');
+        InsConcept('DESLS', 'DESLS-P1FLD', 13, 'Shipment Header (table 50813): Store No. field restore', 60041, 0, 0, 'MA');
+        InsConcept('DESLS', 'DESLS-P1FLD', 14, 'Transport Line (table 50806): Store No./Document Reference field restore', 60041, 0, 0, 'MA');
+        InsConcept('DESLS', 'DESLS-P1FLD', 15, 'Transport Log''s (table 50812): Document Reference field restore', 60041, 0, 0, 'HIST');
+        InsConcept('DESLS', 'DESLS-P1FLD', 16, 'User Setup: Grupo Precios Tope/Supervisor field restore', 60041, 0, 0, 'SETUP');
+        InsConcept('DESLS', 'DESLS-PERM', 17, 'Assign DXR_Despacho LS permission set to all users', 60040, 0, 0, 'SETUP');
 
         // ---- RC: Retail Controls ----
         InsConcept('RC', 'RC-P5', 1, 'LYT Controls Setup legacy table restore', 56508, 56529, 54726, 'SETUP');

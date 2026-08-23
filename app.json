@@ -63,6 +63,12 @@
       "publisher": "Dextra",
       "name": "Despacho Base",
       "version": "28.3.4.21"
+    },
+    {
+      "id": "adb067e6-0e65-4ab0-8d61-160e7df7763f",
+      "publisher": "Dextra",
+      "name": "Despacho LS",
+      "version": "28.3.2.10"
     }
   ],
   "idRanges": [
