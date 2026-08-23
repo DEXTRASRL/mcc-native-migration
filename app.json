@@ -39,6 +39,12 @@
       "publisher": "Dextra",
       "name": "Recaudo BPD",
       "version": "28.3.2.4"
+    },
+    {
+      "id": "f64305eb-aae2-4479-8726-e604fe48c051",
+      "publisher": "Dextra",
+      "name": "Vendor Payloads",
+      "version": "28.1.13.6"
     }
   ],
   "idRanges": [
