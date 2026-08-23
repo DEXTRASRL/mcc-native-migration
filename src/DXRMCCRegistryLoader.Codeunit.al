@@ -411,9 +411,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('PCM', 'PCM-P4', 16, 'Sales Line: 12 operational + 20 snapshot fields restore (Phase 4 pass)', 60035, 0, 0, 'MA');
 
         // ---- TU: TransUnion ----
-        InsConcept('TU', 'TU-P1', 1, 'Transunion Setup legacy table restore', 53605, 57304, 53601, 'SETUP');
-        InsConcept('TU', 'TU-P1', 2, 'Transunion Header legacy table restore', 53605, 57305, 53602, 'MA');
-        InsConcept('TU', 'TU-P1', 3, 'Customer/Cust. Ledger Entry duplicated field restore (10 fields)', 53605, 0, 0, 'MA');
+        InsConcept('TU', 'TU-P1', 1, 'Transunion Setup legacy table restore', 60037, 57304, 53601, 'SETUP');
+        InsConcept('TU', 'TU-P1', 2, 'Transunion Header legacy table restore', 60037, 57305, 53602, 'MA');
+        InsConcept('TU', 'TU-P1', 3, 'Customer/Cust. Ledger Entry duplicated field restore (10 fields)', 60037, 0, 0, 'MA');
         // Found 2026-08-22: Tables.old has a 2-generation split like Bellon's (non-"Old2" 57300/
         // 57301 feeding "Old2" 57304/57305, which TU-P1 seq1/2 already restore from). Whether
         // dispatcher 53605 itself reads the non-Old2 originals wasn't independently confirmed in

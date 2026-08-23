@@ -51,6 +51,12 @@
       "publisher": "Dextra SRL",
       "name": "Price Controls Mgt.",
       "version": "28.3.4.7"
+    },
+    {
+      "id": "7c42bd17-42ea-4c0a-b6db-e7034ad57faf",
+      "publisher": "Dextra",
+      "name": "TransUnion",
+      "version": "28.3.2.5"
     }
   ],
   "idRanges": [

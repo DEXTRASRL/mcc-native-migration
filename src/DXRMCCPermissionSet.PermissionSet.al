@@ -42,6 +42,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Adapt PCM Phase3" = X,
         codeunit "DXR MCC Adapt PCM Phase4" = X,
         codeunit "DXR MCC Adapt PCM Phase5" = X,
+        codeunit "DXR MCC Adapt TU Dispatcher" = X,
         page "DXR Migration Control Center" = X,
         page "DXR MCC Concept Subform" = X,
         page "DXR MCC Run Log" = X,
