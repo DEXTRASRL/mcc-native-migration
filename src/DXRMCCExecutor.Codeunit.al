@@ -702,6 +702,15 @@ codeunit 60011 "DXR MCC Executor"
     /// registry addition is covered without re-auditing. Codeunit IDs only - onprem/SaaS variants
     /// of the same codeunit share the AL object name but not necessarily the ID, so both are
     /// listed where the source declares both.
+    /// REMOVED 2026-08-23: 54779 (DXR_SD_Migr_Phase_Dispatcher, SD) - taken out of this list because
+    /// it no longer declares Subtype = Upgrade. Fixed at the source in Special Dispatch's own
+    /// separate repo (not this one), commit edfdc91: Subtype = Upgrade and the now-illegal empty
+    /// OnUpgradePerCompany trigger were both removed, and all real migration work (Phase 3
+    /// permission-set assignment, then Phase 1, then Phase 2) was moved into the dispatcher's own
+    /// OnRun. MCC's DXR MCC Registry Loader was repointed to DispatcherCodeunitId = 54779 for all 10
+    /// SD concepts in the same fix round - leaving 54779 in this list would have kept every SD
+    /// concept permanently Blocked with a stale "Subtype = Upgrade" error despite the registry now
+    /// being correct, since this guard runs before Codeunit.Run() is ever attempted.
     /// </summary>
     local procedure IsKnownUpgradeCodeunit(CodeunitId: Integer): Boolean
     begin
@@ -723,7 +732,6 @@ codeunit 60011 "DXR MCC Executor"
             53923,            // DXR_Desp LS Migr Dispatcher (DESLS) - NOT the same as 53924 Phase 1
             54445, 36003619,  // DXR_LS Upgrade Code Mgt (LSLOC)
             52773,            // DXR_VP TXT Upgrade (VP TXT, not currently MCC-tracked)
-            54779,            // DXR_SD_Migr_Phase_Dispatcher (SD) - the one that actually crashed live
             52743,            // DXR_VP API Upgrade (VendorPay API, not currently MCC-tracked)
             52667, 52120396,  // DXR_VP Upgrade (VP core)
             53648, 52119593   // DXR_Prontopago Migr Upgrade (a separate DPP workspace, not DescuentoProntoPago-OLD)
