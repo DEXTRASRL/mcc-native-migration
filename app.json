@@ -69,6 +69,12 @@
       "publisher": "Dextra",
       "name": "Despacho LS",
       "version": "28.3.2.10"
+    },
+    {
+      "id": "6e53178d-a25a-4432-9b46-977d98c087fc",
+      "publisher": "Dextra",
+      "name": "Retail Controls",
+      "version": "28.3.5.5"
     }
   ],
   "idRanges": [
