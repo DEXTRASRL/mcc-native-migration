@@ -15,14 +15,7 @@
   "help": "",
   "target": "Cloud",
   "screenshots": [],
-  "dependencies": [
-    {
-      "id": "36b9c68f-cc27-46b1-bf63-4400a31c5f61",
-      "publisher": "Dextra",
-      "name": "DX-Payments",
-      "version": "28.3.0.5"
-    }
-  ],
+  "dependencies": [],
   "idRanges": [
     {
       "from": 60000,
