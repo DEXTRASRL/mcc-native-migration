@@ -882,8 +882,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('FE', 'FE-P12', 303, 'EF ATEB Send Registry legacy table restore (55610 -> 52509, has an enum re-mapping step)', 60141, 55610, 52509, 'HIST');
 
         // ---- LSFE: LS Facturacion Electronica (2 on-demand background repairs, both scheduled by the "Run Migration Now" action on DXR_LSFE Migration Status) ----
-        InsConcept('LSFE', 'LSFE-P1', 1, 'Assign PermSet to all users (background worker, runs synchronously when invoked directly)', 60054, 0, 0, 'SETUP');
-        InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60055, 0, 0, 'OTHER');
+        InsConcept('LSFE', 'LSFE-P1', 1, 'Assign PermSet to all users (background worker, runs synchronously when invoked directly)', 60144, 0, 0, 'SETUP');
+        InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60145, 0, 0, 'OTHER');
 
         // ---- LSLOC: LS Central DR Localization (dispatcher 54506 sequences all phases internally, tag-gated - same ID on every row is correct, matches BC-P2/BC-P3 convention) ----
         InsConcept('LSLOC', 'LSLOC-OPOS', 1, 'OPOS Setup: DXR_Gaps Setup -> DXR_LS OPOS Print Setup field copy (fixes the documented SOLUCION_NCF_UPGRADE.md silent-migration-failure incident)', 60068, 0, 0, 'SETUP');
