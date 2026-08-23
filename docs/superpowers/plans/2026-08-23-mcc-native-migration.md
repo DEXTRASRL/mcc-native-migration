@@ -174,53 +174,73 @@ git commit -m "fix: SD-P1/P2/P3 never migrated data (wrong dispatcher IDs, one h
 
 ---
 
-## Task 1.2: DXP adapters — Phase 1, 2, 4 (Phase 3 blocked, see below)
+## Task 1.2: DXP registry repoint (REDEFINED 2026-08-23 during execution — see below)
+
+**Original design (typed MCC-side adapter codeunits) was ABANDONED before dispatch**, same reason as Task 1.1
+(SD): investigating DXP's actual source first (before repeating Task 1.1's blocked cycle) found DXP already
+has a plain, non-Upgrade Runner (`DXR_DXP_Migr_Phase_Runner`, codeunit 52313) with a REAL `trigger OnRun()`
+that already orchestrates all 6 phases in sequence, and every one of the 6 phase codeunits (52310-52315)
+already declares its own correct `Permissions` — DXP never had SD's `Access=Internal`-blocks-typed-reference
+problem or SD's missing-Permissions problem. The only real bug was MCC's registry pointing individual
+concepts at the wrong (no-`OnRun`) sub-phase codeunits directly instead of at 52313.
+
+**A second, more serious bug was found and fixed at the source** (DXP's own repo,
+`C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\DXPAYMENT-BC`, separate git repo, not tracked by this
+ledger, branch `migration/dx-payments-28.3`): DXP-P1/P3/P5 all restore the SAME 9 payment/promotion tables
+from 3 different legacy generations, all insert-only-if-absent (never overwrite) — old `OnRun` order let
+Phase 1 (oldest generation) always win. User confirmed Phase 5 (most recent generation) is the actual
+source of truth. 4 commits landed (local only, not pushed):
+- `3d1b88c` — reorders `OnRun()` to run Phase 5 before Phase 1/2/3/4/6 (fixes NEW companies only)
+- `608dd6e` — adds a genuine retroactive-repair pass (`RepairPhase5PrecedenceIfNeeded`, own Upgrade Tag,
+  evaluated unconditionally like the file's existing `EnsurePermissionSetsAssignedIfNeeded` pattern) with a
+  real upsert (`RepairPrecedence` + 9 `RepairXxx` procedures on `DXR_MigrPhase5Tables.Codeunit.al`) — review
+  found the simple reorder alone was a silent no-op for any company that already ran the old order
+- `0c499f0` — fixes 2 of the 9 `RepairXxx` procedures (`RepairPromoBinHeader`, `RepairStorePayments`) to use
+  `Modify(false)` instead of `Modify(true)` — review found `Modify(true)` fired `OnModify()` triggers with
+  real side effects (a hard-block guard on already-Enabled promotions; an unwanted replication-counter bump)
+- `ad5797a` — documentation completeness fix (comment clarity only)
+
+All 4 compile clean and were independently reviewed (3 review rounds total, final verdict "ready to merge").
+
+**What's actually left for MCC (this task, in this worktree):**
 
 **Files:**
-- Read: `DXPAYMENT-BC\Base\CodeUnits\DXR_DXP_Migr_Phase1_Tables.Codeunit.al` (confirm `procedure Run(...): Boolean` signature at line 33)
-- Read: `DXPAYMENT-BC\Base\CodeUnits\DXR_DXP_Migr_Phase3_Tables.Codeunit.al` (same shape, line 34 — written but NOT wired to the registry this task, see Step 4)
-- Read: whichever DXP codeunits implement Phase2/Phase4 (Discovery confirmed the pattern but only read Phase1/Phase3 in full — read Phase2/Phase4's exact signature before writing their adapters)
-- Create: `src\Adapters\DXP\DXRMCCAdaptDXPPhase1.Codeunit.al`
-- Create: `src\Adapters\DXP\DXRMCCAdaptDXPPhase2.Codeunit.al`
-- Create: `src\Adapters\DXP\DXRMCCAdaptDXPPhase4.Codeunit.al`
-- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — DXP-P1, DXP-P2, DXP-P4 rows only (NOT DXP-P3, see Step 4)
+- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — all 49 `InsConcept('DXP', ...)` rows (DXP-P1: 10 rows
+  currently `52310`, DXP-P2: 6 rows currently `52311`, DXP-P3: 9 rows currently `52312`, DXP-P4: 9 rows
+  currently `52321`, DXP-P5: 9 rows currently `52314`, DXP-P6: 6 rows currently `52315`)
+- Modify: `app.json` — remove the DXP dependency added in Task 1.0 (no longer needed, same reasoning as
+  Task 1.1's SD dependency revert — no typed reference to DXP from MCC)
 
 **Interfaces:**
-- Consumes: `DXR_DXP_Migr_Phase1_Tables.Run(): Boolean`, and the equivalent for Phase2/Phase4 (confirm exact signature per extension before writing).
-- Produces: 3 new codeunit IDs (continue MCC's own range after Task 1.1's 60016/60017, e.g. 60018-60020).
+- Consumes: nothing new — MCC's existing `Codeunit.Run(Integer)` dispatch mechanism, unchanged.
+- Produces: nothing new.
 
-- [ ] **Step 1: Read Phase2/Phase4's real codeunits in full to confirm their exact public procedure signature** (Discovery confirmed Phase1/Phase3 read `procedure Run(...): Boolean` with no `OnRun` - Phase2/Phase4 were not read in full, do not assume the same signature without checking)
+- [ ] **Step 1: Repoint all 49 DXP concept rows to `52313`.** Grep `InsConcept('DXP',` in
+  `DXRMCCRegistryLoader.Codeunit.al` to find every row (they are NOT contiguous — DXP-P5/P6/P2/P4/P1/P3 rows
+  are interleaved with other extensions' rows and each other across the file). Change each row's
+  `DispatcherCodeunitId` argument (currently `52310`, `52311`, `52312`, `52314`, `52315`, or `52321`
+  depending on phase) to `52313`.
 
-- [ ] **Step 2: Write the 3 adapters**, same shape as Task 1.1's, e.g.:
+- [ ] **Step 2: Note (do not fix) a separate data-accuracy question found during investigation** — DXP-P3's
+  registry rows declare Legacy Table IDs in the 54769-54777 range, but the actual DXP-P3 dispatcher source
+  (`DXR_MigrPhase3Tables.Codeunit.al`) reads from tables named `"DXR_Payment Setup 54220"` etc. (54220-series,
+  not 54769-series). This may mean the registry's row-count tracking for DXP-P3 is checking the wrong table
+  IDs (cosmetic — MCC's row counts for those 9 concepts would be wrong/misleading — but does NOT affect
+  whether real data migrates, since that happens via `Codeunit.Run(52313)` regardless of what IDs the
+  registry declares for counting). Do not guess-fix this — flag it in the commit message as a known
+  follow-up needing direct table-ID verification, per this plan's Global Constraints (never invent IDs).
 
-```al
-codeunit 60018 "DXR MCC Adapt DXP Phase1"
-{
-    // DXR_DXP_Migr_Phase1_Tables.Codeunit.al only exposes `procedure Run(...): Boolean`, no
-    // OnRun - confirmed 2026-08-23 as the reason DXP-P1 (9 concepts) never moved data via MCC,
-    // same bug class as SD (Task 1.1).
-    trigger OnRun()
-    var
-        Phase1: Codeunit "DXR_DXP_Migr_Phase1_Tables";
-    begin
-        Phase1.Run(); // confirm actual parameter list against the real signature read in Step 1 before finalizing this call
-    end;
-}
-```
+- [ ] **Step 3: Revert the DXP half of Task 1.0's `app.json` dependency** — remove the
+  `36b9c68f-cc27-46b1-bf63-4400a31c5f61` (DX-Payments) entry from `dependencies`, leaving an empty array
+  (both SD and DXP dependencies are now reverted).
 
-- [ ] **Step 3: Repoint the registry** for `InsConcept('DXP', 'DXP-P1', ...)`, `'DXP-P2'`, `'DXP-P4'` rows only, from their current IDs (`52310`, `52311`, `52321`) to the new adapter IDs
+- [ ] **Step 4: Compile** (Task 1.5's command). Expect clean compile, same lone pre-existing warning.
 
-- [ ] **Step 4: Do NOT create or wire a DXP-P3 adapter in this task — BLOCKING QUESTION for the user first.** Discovery confirmed DXP-P3 and DXP-P5 both restore the same target tables (52275-52283) from two different legacy generations with no enforced precedence (Phase3 checks Phase1's completion tag before running; Phase5 does not check anything and can silently overwrite-by-skip whichever ran first). Wiring DXP-P3 with the same "give it an OnRun" fix as the others would just make this latent precedence bug start actually firing on real data instead of silently never running. Ask the user: which legacy generation (Phase1/Phase3's `54748→52275` source, or Phase5's `54700→52275` source) is the actual source of truth for these fields, before this concept gets an adapter at all.
-
-- [ ] **Step 5: Add the 3 new codeunits to `DXRMCCPermissionSet.PermissionSet.al`**
-
-- [ ] **Step 6: Compile and verify DXP-P1/P2/P4 move real data**, same manual acceptance check as Task 1.1 Step 6
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/Adapters/DXP/ src/DXRMCCRegistryLoader.Codeunit.al src/DXRMCCPermissionSet.PermissionSet.al
-git commit -m "fix: DXP-P1/P2/P4 never migrated data (target codeunits had no OnRun) - add native adapters; DXP-P3 intentionally left unwired pending source-of-truth decision"
+git add src/DXRMCCRegistryLoader.Codeunit.al app.json
+git commit -m "fix: DXP-P1/P2/P3/P4/P5/P6 never migrated data (wrong dispatcher IDs) - repoint all 49 concepts to fixed Runner 52313, revert now-unneeded DXP dependency"
 ```
 
 ---
