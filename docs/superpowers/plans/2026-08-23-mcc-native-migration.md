@@ -49,16 +49,32 @@ DXR-Migration-Control-Center/
   app.json                                    Modify: add dependencies incrementally, one per phase
   src/
     Adapters/
+      SD/
+        DXRMCCAdaptSDDispatcher.Codeunit.al           Create (2026-08-23, post-Phase-1 redirect - see below)
+      DXP/
+        DXRMCCAdaptDXPDispatcher.Codeunit.al           Create (2026-08-23, post-Phase-1 redirect - see below)
       DRLOC/
         DXRMCCAdaptDRLOCCompanyInfo.Codeunit.al       Create (Phase 2)
         DXRMCCAdaptDRLOCPaymentMethodRel.Codeunit.al  Create (Phase 2)
         DXRMCCAdaptDRLOCRncDatabase.Codeunit.al       Create (Phase 2)
         ... one file per DRLOC concept being adapted (Roadmap Phase 2 continuation)
       <Extension>/...                                  Create (one folder per Roadmap phase, added incrementally)
-    # SD and DXP do NOT get an Adapters/ folder (2026-08-23) - Tasks 1.1/1.2's typed-adapter design was
-    # abandoned mid-execution (Access=Internal blocked a typed reference; the real fix was a pure registry
-    # repoint instead, plus source-side fixes in SD's/DXP's own separate repos - see Task 1.1/1.2 below and
-    # the ledger). No src/Adapters/SD or src/Adapters/DXP exists or should be created.
+    # SD and DXP's Adapters/ history (2026-08-23, two reversals - read both before assuming either
+    # state): Tasks 1.1/1.2 originally tried typed adapters, hit AL0161 (Access=Internal blocked a
+    # typed reference), and fell back to a pure registry repoint with no adapter/dependency at all
+    # (commits 27677c8..8fa133d) - reviewed and merge-ready in that form. The USER THEN EXPLICITLY
+    # REDIRECTED back to typed adapters as the intended portfolio-wide pattern (commit e872fd8),
+    # accepting the AL0161 fix cost (SD's own app.json now grants MCC internalsVisibleTo - a real,
+    # necessary companion change in SD's separate repo, commit 750ccd9). DXP got a typed adapter too
+    # for consistency, but did NOT need internalsVisibleTo (its Runner has no Access property, so
+    # defaults to Public) - one was added by mistake and reverted (DXP repo commit e1bf849).
+    # IMPORTANT CORRECTION (2026-08-23, from the redirect's own review): the typed-reference design
+    # does NOT grant any runtime permission benefit over a raw Codeunit.Run(ID) call - dependencies
+    # and internalsVisibleTo are compile-time-only constructs (confirmed against Microsoft's
+    # "Permissions Property" doc). Its real, only benefit is compile-time safety - a rename/removal
+    # in SD/DXP now breaks MCC's own build instead of silently no-op'ing at runtime. Apply this
+    # pattern to future extensions for THAT reason, not for a permission-cascade effect that isn't
+    # real - see the correction comments in both adapter codeunit files for the full citation.
     DXRMCCExecutor.Codeunit.al                  No change (dispatch mechanism already fits adapters)
     DXRMCCRegistryLoader.Codeunit.al            Modify: repoint "Dispatcher Codeunit ID" per concept, per phase
   docs/superpowers/plans/
