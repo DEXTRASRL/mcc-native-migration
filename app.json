@@ -45,6 +45,12 @@
       "publisher": "Dextra",
       "name": "Vendor Payloads",
       "version": "28.1.13.6"
+    },
+    {
+      "id": "0ef94c34-cbc6-41d8-ab1a-258e9085707d",
+      "publisher": "Dextra SRL",
+      "name": "Price Controls Mgt.",
+      "version": "28.3.4.7"
     }
   ],
   "idRanges": [
