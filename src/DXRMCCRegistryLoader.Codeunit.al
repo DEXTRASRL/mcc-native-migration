@@ -325,32 +325,32 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('SD', 'SD-P3', 10, 'Assign DXR_DispatchControls permission set to all users (native local migration in MCC, hardcodes Special Dispatch''s real app ID)', 60079, 0, 0, 'SETUP');
 
         // ---- DXP: DXPAYMENT-BC ----
-        InsConcept('DXP', 'DXP-P5', 1, 'Payment Setup legacy table restore', 60020, 54700, 52275, 'SETUP');
-        InsConcept('DXP', 'DXP-P5', 2, 'Promotion Bin Card legacy table restore', 60020, 54701, 52276, 'MA');
-        InsConcept('DXP', 'DXP-P5', 3, 'Store Payments legacy table restore', 60020, 54702, 52277, 'MA');
-        InsConcept('DXP', 'DXP-P5', 4, 'Payment Process Logs legacy table restore', 60020, 54703, 52278, 'HIST');
-        InsConcept('DXP', 'DXP-P5', 5, 'Promo Bin Header legacy table restore', 60020, 54704, 52279, 'MA');
-        InsConcept('DXP', 'DXP-P5', 6, 'Promotion Bin Items Lines legacy table restore', 60020, 54705, 52280, 'MA');
-        InsConcept('DXP', 'DXP-P5', 7, 'Promotion Bin Lines legacy table restore', 60020, 54706, 52281, 'MA');
-        InsConcept('DXP', 'DXP-P5', 8, 'Promotion Bin Setup legacy table restore', 60020, 54707, 52282, 'SETUP');
-        InsConcept('DXP', 'DXP-P5', 9, 'Error Audit Log legacy table restore', 60020, 54708, 52283, 'HIST');
-        InsConcept('DXP', 'DXP-P6', 10, 'LSC Infocode field restore (renumbered generation)', 60020, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P5', 1, 'Payment Setup legacy table restore', 60084, 54700, 52275, 'SETUP');
+        InsConcept('DXP', 'DXP-P5', 2, 'Promotion Bin Card legacy table restore', 60084, 54701, 52276, 'MA');
+        InsConcept('DXP', 'DXP-P5', 3, 'Store Payments legacy table restore', 60084, 54702, 52277, 'MA');
+        InsConcept('DXP', 'DXP-P5', 4, 'Payment Process Logs legacy table restore', 60084, 54703, 52278, 'HIST');
+        InsConcept('DXP', 'DXP-P5', 5, 'Promo Bin Header legacy table restore', 60084, 54704, 52279, 'MA');
+        InsConcept('DXP', 'DXP-P5', 6, 'Promotion Bin Items Lines legacy table restore', 60084, 54705, 52280, 'MA');
+        InsConcept('DXP', 'DXP-P5', 7, 'Promotion Bin Lines legacy table restore', 60084, 54706, 52281, 'MA');
+        InsConcept('DXP', 'DXP-P5', 8, 'Promotion Bin Setup legacy table restore', 60084, 54707, 52282, 'SETUP');
+        InsConcept('DXP', 'DXP-P5', 9, 'Error Audit Log legacy table restore', 60084, 54708, 52283, 'HIST');
+        InsConcept('DXP', 'DXP-P6', 10, 'LSC Infocode field restore (renumbered generation)', 60085, 0, 0, 'SETUP');
         // CORRECTED 2026-08-22: was one collapsed "41 fields... OTHER" row - split into its 5
         // real independent TryCopyTableFields() calls (confirmed via direct source read of
         // DXR_MigrPhase6Fields.Codeunit.al), each classified by what it actually configures
         // instead of dumped into OTHER. LSC Tender Type specifically was flagged by the user as
         // needing to be confirmed covered by "Run All Setup" - it wasn't, now it is.
-        InsConcept('DXP', 'DXP-P6', 39, 'LSC POS Terminal field restore (renumbered generation)', 60020, 0, 0, 'SETUP');
-        InsConcept('DXP', 'DXP-P6', 40, 'LSC POS Trans. Line field restore (renumbered generation)', 60020, 0, 0, 'MA');
-        InsConcept('DXP', 'DXP-P6', 41, 'LSC Tender Type field restore (renumbered generation)', 60020, 0, 0, 'SETUP');
-        InsConcept('DXP', 'DXP-P6', 42, 'LSC Trans. Payment Entry field restore (renumbered generation)', 60020, 0, 0, 'MA');
-        InsConcept('DXP', 'DXP-P2', 12, 'LSC Infocode field restore (same-table)', 60020, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P6', 39, 'LSC POS Terminal field restore (renumbered generation)', 60085, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P6', 40, 'LSC POS Trans. Line field restore (renumbered generation)', 60085, 0, 0, 'MA');
+        InsConcept('DXP', 'DXP-P6', 41, 'LSC Tender Type field restore (renumbered generation)', 60085, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P6', 42, 'LSC Trans. Payment Entry field restore (renumbered generation)', 60085, 0, 0, 'MA');
+        InsConcept('DXP', 'DXP-P2', 12, 'LSC Infocode field restore (same-table)', 60081, 0, 0, 'SETUP');
         // CORRECTED 2026-08-22: same split as DXP-P6 above, confirmed via DXR_MigrPhase2Fields
         // .Codeunit.al's own 5 independent TryCopyTableFields() calls.
-        InsConcept('DXP', 'DXP-P2', 43, 'LSC POS Terminal field restore (same-table)', 60020, 0, 0, 'SETUP');
-        InsConcept('DXP', 'DXP-P2', 44, 'LSC POS Trans. Line field restore (same-table)', 60020, 0, 0, 'MA');
-        InsConcept('DXP', 'DXP-P2', 45, 'LSC Tender Type field restore (same-table)', 60020, 0, 0, 'SETUP');
-        InsConcept('DXP', 'DXP-P2', 46, 'LSC Trans. Payment Entry field restore (same-table)', 60020, 0, 0, 'MA');
+        InsConcept('DXP', 'DXP-P2', 43, 'LSC POS Terminal field restore (same-table)', 60081, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P2', 44, 'LSC POS Trans. Line field restore (same-table)', 60081, 0, 0, 'MA');
+        InsConcept('DXP', 'DXP-P2', 45, 'LSC Tender Type field restore (same-table)', 60081, 0, 0, 'SETUP');
+        InsConcept('DXP', 'DXP-P2', 46, 'LSC Trans. Payment Entry field restore (same-table)', 60081, 0, 0, 'MA');
         // DXP-P1/P3/P5 all independently converge on the SAME final active tables (52275-52283)
         // from 3 different legacy generations - confirmed 2026-08-22 by reading all 3 dispatcher
         // codeunits directly, each idempotent via Dest.Get() before insert, so all 3 are safe to
@@ -361,35 +361,35 @@ codeunit 60012 "DXR MCC Registry Loader"
         // 54211"`), a leftover tag from a prior renumbering. RecordRef.Open(54211) would have
         // failed "table not found" for every one of these 9 rows. Confirmed via direct source
         // read of every table declaration in DXPAYMENT-BC.
-        InsConcept('DXP', 'DXP-P4', 14, 'DX Payment Setup legacy table restore (54760 -> 54748, feeds DXP-P1)', 60020, 54760, 54748, 'SETUP');
-        InsConcept('DXP', 'DXP-P4', 15, 'DX Promotion Bin Card legacy table restore (54761 -> 54749, feeds DXP-P1)', 60020, 54761, 54749, 'MA');
-        InsConcept('DXP', 'DXP-P4', 16, 'Store Payments DX legacy table restore (54762 -> 54750, feeds DXP-P1)', 60020, 54762, 54750, 'MA');
-        InsConcept('DXP', 'DXP-P4', 17, 'Payment Process Logs legacy table restore (54763 -> 54751, feeds DXP-P1)', 60020, 54763, 54751, 'HIST');
-        InsConcept('DXP', 'DXP-P4', 18, 'DX Promo Bin Header legacy table restore (54764 -> 54752, feeds DXP-P1)', 60020, 54764, 54752, 'MA');
-        InsConcept('DXP', 'DXP-P4', 19, 'DX Promo Bin ItemsLines legacy table restore (54765 -> 54753, feeds DXP-P1)', 60020, 54765, 54753, 'MA');
-        InsConcept('DXP', 'DXP-P4', 20, 'DX Promotion Bin Lines legacy table restore (54766 -> 54754, feeds DXP-P1)', 60020, 54766, 54754, 'MA');
-        InsConcept('DXP', 'DXP-P4', 21, 'DX Promotion Bin Setup legacy table restore (54767 -> 54755, feeds DXP-P1)', 60020, 54767, 54755, 'SETUP');
-        InsConcept('DXP', 'DXP-P4', 22, 'DX Error Audit Log legacy table restore (54768 -> 54756, feeds DXP-P1)', 60020, 54768, 54756, 'HIST');
-        InsConcept('DXP', 'DXP-P1', 11, 'DX Payment Setup legacy table restore (54748 -> active DXR_Payment Setup 52275)', 60020, 54748, 52275, 'SETUP');
-        InsConcept('DXP', 'DXP-P1', 23, 'DX Promotion Bin Card legacy table restore (54749 -> active DXR_Promotion Bin Card 52276)', 60020, 54749, 52276, 'MA');
-        InsConcept('DXP', 'DXP-P1', 24, 'Store Payments DX legacy table restore (54750 -> active DXR_Store Payments 52277)', 60020, 54750, 52277, 'MA');
-        InsConcept('DXP', 'DXP-P1', 25, 'Payment Process Logs legacy table restore (54751 -> active DXR_Payment Process Logs 52278)', 60020, 54751, 52278, 'HIST');
-        InsConcept('DXP', 'DXP-P1', 26, 'DX Promo Bin Header legacy table restore (54752 -> active DXR_Promo Bin Header 52279)', 60020, 54752, 52279, 'MA');
-        InsConcept('DXP', 'DXP-P1', 27, 'DX Promotion Bin Items Lines legacy table restore (54753 -> active DXR_Promotion Bin Items Lines 52280)', 60020, 54753, 52280, 'MA');
-        InsConcept('DXP', 'DXP-P1', 28, 'DX Promotion Bin Lines legacy table restore (54754 -> active DXR_Promotion Bin Lines 52281)', 60020, 54754, 52281, 'MA');
-        InsConcept('DXP', 'DXP-P1', 29, 'DX Promotion Bin Setup legacy table restore (54755 -> active DXR_Promotion Bin Setup 52282)', 60020, 54755, 52282, 'SETUP');
-        InsConcept('DXP', 'DXP-P1', 30, 'DX Error Audit Log legacy table restore (54756 -> active DXR_Error Audit Log 52283)', 60020, 54756, 52283, 'HIST');
+        InsConcept('DXP', 'DXP-P4', 14, 'DX Payment Setup legacy table restore (54760 -> 54748, feeds DXP-P1)', 60083, 54760, 54748, 'SETUP');
+        InsConcept('DXP', 'DXP-P4', 15, 'DX Promotion Bin Card legacy table restore (54761 -> 54749, feeds DXP-P1)', 60083, 54761, 54749, 'MA');
+        InsConcept('DXP', 'DXP-P4', 16, 'Store Payments DX legacy table restore (54762 -> 54750, feeds DXP-P1)', 60083, 54762, 54750, 'MA');
+        InsConcept('DXP', 'DXP-P4', 17, 'Payment Process Logs legacy table restore (54763 -> 54751, feeds DXP-P1)', 60083, 54763, 54751, 'HIST');
+        InsConcept('DXP', 'DXP-P4', 18, 'DX Promo Bin Header legacy table restore (54764 -> 54752, feeds DXP-P1)', 60083, 54764, 54752, 'MA');
+        InsConcept('DXP', 'DXP-P4', 19, 'DX Promo Bin ItemsLines legacy table restore (54765 -> 54753, feeds DXP-P1)', 60083, 54765, 54753, 'MA');
+        InsConcept('DXP', 'DXP-P4', 20, 'DX Promotion Bin Lines legacy table restore (54766 -> 54754, feeds DXP-P1)', 60083, 54766, 54754, 'MA');
+        InsConcept('DXP', 'DXP-P4', 21, 'DX Promotion Bin Setup legacy table restore (54767 -> 54755, feeds DXP-P1)', 60083, 54767, 54755, 'SETUP');
+        InsConcept('DXP', 'DXP-P4', 22, 'DX Error Audit Log legacy table restore (54768 -> 54756, feeds DXP-P1)', 60083, 54768, 54756, 'HIST');
+        InsConcept('DXP', 'DXP-P1', 11, 'DX Payment Setup legacy table restore (54748 -> active DXR_Payment Setup 52275)', 60080, 54748, 52275, 'SETUP');
+        InsConcept('DXP', 'DXP-P1', 23, 'DX Promotion Bin Card legacy table restore (54749 -> active DXR_Promotion Bin Card 52276)', 60080, 54749, 52276, 'MA');
+        InsConcept('DXP', 'DXP-P1', 24, 'Store Payments DX legacy table restore (54750 -> active DXR_Store Payments 52277)', 60080, 54750, 52277, 'MA');
+        InsConcept('DXP', 'DXP-P1', 25, 'Payment Process Logs legacy table restore (54751 -> active DXR_Payment Process Logs 52278)', 60080, 54751, 52278, 'HIST');
+        InsConcept('DXP', 'DXP-P1', 26, 'DX Promo Bin Header legacy table restore (54752 -> active DXR_Promo Bin Header 52279)', 60080, 54752, 52279, 'MA');
+        InsConcept('DXP', 'DXP-P1', 27, 'DX Promotion Bin Items Lines legacy table restore (54753 -> active DXR_Promotion Bin Items Lines 52280)', 60080, 54753, 52280, 'MA');
+        InsConcept('DXP', 'DXP-P1', 28, 'DX Promotion Bin Lines legacy table restore (54754 -> active DXR_Promotion Bin Lines 52281)', 60080, 54754, 52281, 'MA');
+        InsConcept('DXP', 'DXP-P1', 29, 'DX Promotion Bin Setup legacy table restore (54755 -> active DXR_Promotion Bin Setup 52282)', 60080, 54755, 52282, 'SETUP');
+        InsConcept('DXP', 'DXP-P1', 30, 'DX Error Audit Log legacy table restore (54756 -> active DXR_Error Audit Log 52283)', 60080, 54756, 52283, 'HIST');
         // CORRECTED 2026-08-22: same class of bug as DXP-P4 above - "5422x" was a name-embedded
         // tag, not a real table ID. Real IDs confirmed via direct source read.
-        InsConcept('DXP', 'DXP-P3', 13, 'DXR_Payment Setup 54769 legacy table restore (2nd generation, -> active DXR_Payment Setup 52275)', 60020, 54769, 52275, 'SETUP');
-        InsConcept('DXP', 'DXP-P3', 31, 'DXR_Promotion Bin Card 54770 legacy table restore (2nd generation, -> active DXR_Promotion Bin Card 52276)', 60020, 54770, 52276, 'MA');
-        InsConcept('DXP', 'DXP-P3', 32, 'DXR_Store Payments 54771 legacy table restore (2nd generation, -> active DXR_Store Payments 52277)', 60020, 54771, 52277, 'MA');
-        InsConcept('DXP', 'DXP-P3', 33, 'DXR_Payment Process Logs 54772 legacy table restore (2nd generation, -> active DXR_Payment Process Logs 52278)', 60020, 54772, 52278, 'HIST');
-        InsConcept('DXP', 'DXP-P3', 34, 'DXR_Promo Bin Header 54773 legacy table restore (2nd generation, -> active DXR_Promo Bin Header 52279)', 60020, 54773, 52279, 'MA');
-        InsConcept('DXP', 'DXP-P3', 35, 'DXR_Promo Bin ItemsLines 54774 legacy table restore (2nd generation, -> active DXR_Promotion Bin Items Lines 52280)', 60020, 54774, 52280, 'MA');
-        InsConcept('DXP', 'DXP-P3', 36, 'DXR_Promotion Bin Lines 54775 legacy table restore (2nd generation, -> active DXR_Promotion Bin Lines 52281)', 60020, 54775, 52281, 'MA');
-        InsConcept('DXP', 'DXP-P3', 37, 'DXR_Promotion Bin Setup 54776 legacy table restore (2nd generation, -> active DXR_Promotion Bin Setup 52282)', 60020, 54776, 52282, 'SETUP');
-        InsConcept('DXP', 'DXP-P3', 38, 'DXR_Error Audit Log 54777 legacy table restore (2nd generation, -> active DXR_Error Audit Log 52283)', 60020, 54777, 52283, 'HIST');
+        InsConcept('DXP', 'DXP-P3', 13, 'DXR_Payment Setup 54769 legacy table restore (2nd generation, -> active DXR_Payment Setup 52275)', 60082, 54769, 52275, 'SETUP');
+        InsConcept('DXP', 'DXP-P3', 31, 'DXR_Promotion Bin Card 54770 legacy table restore (2nd generation, -> active DXR_Promotion Bin Card 52276)', 60082, 54770, 52276, 'MA');
+        InsConcept('DXP', 'DXP-P3', 32, 'DXR_Store Payments 54771 legacy table restore (2nd generation, -> active DXR_Store Payments 52277)', 60082, 54771, 52277, 'MA');
+        InsConcept('DXP', 'DXP-P3', 33, 'DXR_Payment Process Logs 54772 legacy table restore (2nd generation, -> active DXR_Payment Process Logs 52278)', 60082, 54772, 52278, 'HIST');
+        InsConcept('DXP', 'DXP-P3', 34, 'DXR_Promo Bin Header 54773 legacy table restore (2nd generation, -> active DXR_Promo Bin Header 52279)', 60082, 54773, 52279, 'MA');
+        InsConcept('DXP', 'DXP-P3', 35, 'DXR_Promo Bin ItemsLines 54774 legacy table restore (2nd generation, -> active DXR_Promotion Bin Items Lines 52280)', 60082, 54774, 52280, 'MA');
+        InsConcept('DXP', 'DXP-P3', 36, 'DXR_Promotion Bin Lines 54775 legacy table restore (2nd generation, -> active DXR_Promotion Bin Lines 52281)', 60082, 54775, 52281, 'MA');
+        InsConcept('DXP', 'DXP-P3', 37, 'DXR_Promotion Bin Setup 54776 legacy table restore (2nd generation, -> active DXR_Promotion Bin Setup 52282)', 60082, 54776, 52282, 'SETUP');
+        InsConcept('DXP', 'DXP-P3', 38, 'DXR_Error Audit Log 54777 legacy table restore (2nd generation, -> active DXR_Error Audit Log 52283)', 60082, 54777, 52283, 'HIST');
 
         // ---- PCM: Price Controls Mgt. (dispatcher "DXR_Migr. Phase Dispatcher" 54615 runs
         // Phase2/54612 -> Phase3/54613 -> Phase4/54614 -> Phase5/54620 in sequence) ----
