@@ -80,7 +80,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC PCM Migr Phase3" = X,
         codeunit "DXR MCC PCM Migr Phase4" = X,
         codeunit "DXR MCC PCM Migr Phase5" = X,
-        codeunit "DXR MCC Adapt TU Dispatcher" = X,
+        codeunit "DXR MCC TU Migr Dispatcher" = X,
         codeunit "DXR MCC Adapt DESB Worker" = X,
         codeunit "DXR MCC Adapt DESB Phase2" = X,
         codeunit "DXR MCC Adapt DESLS Worker" = X,
