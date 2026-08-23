@@ -14,7 +14,7 @@
 
 ## Global Constraints
 
-- Never call `Codeunit.Run()` on a codeunit confirmed `Subtype = Upgrade`. Confirmed IDs (do not add these as adapter targets, ever): `52248, 36003045, 52189, 36003049, 51962, 36002776, 52255, 36003047, 53669, 59221, 53562, 52587, 36003121, 53600, 54856, 54662, 54599, 54742, 54743, 54534, 53923, 54445, 36003619, 52773, 54779, 52743, 52667, 52120396, 53648, 52119593, 54283` (54283 added this plan — see Task 1.3, was missing from `IsKnownUpgradeCodeunit`).
+- Never call `Codeunit.Run()` on a codeunit confirmed `Subtype = Upgrade`. Confirmed IDs (do not add these as adapter targets, ever): `52248, 36003045, 52189, 36003049, 51962, 36002776, 52255, 36003047, 53669, 59221, 53562, 52587, 36003121, 53600, 54856, 54662, 54599, 54742, 54743, 54534, 53923, 54445, 36003619, 52773, 52743, 52667, 52120396, 53648, 52119593, 54283` (54283 added this plan — see Task 1.3, was missing from `IsKnownUpgradeCodeunit`. **54779 REMOVED from this list 2026-08-23** — Task 1.1 confirmed SD's dispatcher no longer declares `Subtype = Upgrade` at the source, in SD's own separate repo, commit `edfdc91`; do not re-add it here or in `IsKnownUpgradeCodeunit` without re-verifying against that source first — final whole-branch review flagged this exact staleness as a real regression risk for future phases).
 - Never duplicate field-mapping logic that discovery already confirmed correct and typed — call it, don't rewrite it.
 - Every adapter codeunit gets its own real `trigger OnRun` (fixes the "no OnRun = silent no-op" bug class found in SD/DXP).
 - One adapter = one `DXR MCC Concept` row's granularity of work (never bundle 18 tables behind one adapter the way legacy dispatchers do) — this is what fixes DRLOC's "stuck, nothing in the logs" behavior.
@@ -54,15 +54,11 @@ DXR-Migration-Control-Center/
         DXRMCCAdaptDRLOCPaymentMethodRel.Codeunit.al  Create (Phase 2)
         DXRMCCAdaptDRLOCRncDatabase.Codeunit.al       Create (Phase 2)
         ... one file per DRLOC concept being adapted (Roadmap Phase 2 continuation)
-      SD/
-        DXRMCCAdaptSDPhase1FieldDup.Codeunit.al       Create (Phase 1)
-        DXRMCCAdaptSDPhase2LegacyTable.Codeunit.al    Create (Phase 1)
-      DXP/
-        DXRMCCAdaptDXPPhase1Tables.Codeunit.al        Create (Phase 1)
-        DXRMCCAdaptDXPPhase2Tables.Codeunit.al        Create (Phase 1)
-        DXRMCCAdaptDXPPhase3Tables.Codeunit.al        Create (Phase 1, blocked pending business decision)
-        DXRMCCAdaptDXPPhase4Tables.Codeunit.al        Create (Phase 1)
       <Extension>/...                                  Create (one folder per Roadmap phase, added incrementally)
+    # SD and DXP do NOT get an Adapters/ folder (2026-08-23) - Tasks 1.1/1.2's typed-adapter design was
+    # abandoned mid-execution (Access=Internal blocked a typed reference; the real fix was a pure registry
+    # repoint instead, plus source-side fixes in SD's/DXP's own separate repos - see Task 1.1/1.2 below and
+    # the ledger). No src/Adapters/SD or src/Adapters/DXP exists or should be created.
     DXRMCCExecutor.Codeunit.al                  No change (dispatch mechanism already fits adapters)
     DXRMCCRegistryLoader.Codeunit.al            Modify: repoint "Dispatcher Codeunit ID" per concept, per phase
   docs/superpowers/plans/
@@ -204,10 +200,19 @@ All 4 compile clean and were independently reviewed (3 review rounds total, fina
 
 **What's actually left for MCC (this task, in this worktree):**
 
+**DONE (2026-08-23) — actual result, corrected from this task's original estimate:** the brief below
+originally estimated 49 rows across DXP-P1(10)/P2(6)/P6(6); the implementer found and correctly repointed
+the REAL count, 46 rows (DXP-P1: 9, P2: 5, P3: 9, P4: 9, P5: 9, P6: 5) — verified by direct grep, not
+fabricated to match the estimate. Commit `8fa133d`. Final whole-branch review independently re-verified 46
+is correct. **The DXP-P3 table-ID question in Step 2 below was investigated further by the final review and
+is a FALSE ALARM, not a real follow-up** — `54220`/`54769` etc. are digits embedded in the legacy tables'
+AL object NAMES (e.g. `table 54769 "DXR_Payment Setup 54220"`), not two different ID schemes; the registry's
+`54769-54777` Legacy Table IDs are the actual object IDs and are correct. No further action needed on this.
+
 **Files:**
-- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — all 49 `InsConcept('DXP', ...)` rows (DXP-P1: 10 rows
-  currently `52310`, DXP-P2: 6 rows currently `52311`, DXP-P3: 9 rows currently `52312`, DXP-P4: 9 rows
-  currently `52321`, DXP-P5: 9 rows currently `52314`, DXP-P6: 6 rows currently `52315`)
+- Modify: `src\DXRMCCRegistryLoader.Codeunit.al` — all 46 `InsConcept('DXP', ...)` rows (DXP-P1: 9 rows
+  currently `52310`, DXP-P2: 5 rows currently `52311`, DXP-P3: 9 rows currently `52312`, DXP-P4: 9 rows
+  currently `52321`, DXP-P5: 9 rows currently `52314`, DXP-P6: 5 rows currently `52315`)
 - Modify: `app.json` — remove the DXP dependency added in Task 1.0 (no longer needed, same reasoning as
   Task 1.1's SD dependency revert — no typed reference to DXP from MCC)
 
@@ -215,33 +220,23 @@ All 4 compile clean and were independently reviewed (3 review rounds total, fina
 - Consumes: nothing new — MCC's existing `Codeunit.Run(Integer)` dispatch mechanism, unchanged.
 - Produces: nothing new.
 
-- [ ] **Step 1: Repoint all 49 DXP concept rows to `52313`.** Grep `InsConcept('DXP',` in
+- [x] **Step 1: Repoint all 46 DXP concept rows to `52313`.** Grep `InsConcept('DXP',` in
   `DXRMCCRegistryLoader.Codeunit.al` to find every row (they are NOT contiguous — DXP-P5/P6/P2/P4/P1/P3 rows
   are interleaved with other extensions' rows and each other across the file). Change each row's
   `DispatcherCodeunitId` argument (currently `52310`, `52311`, `52312`, `52314`, `52315`, or `52321`
   depending on phase) to `52313`.
 
-- [ ] **Step 2: Note (do not fix) a separate data-accuracy question found during investigation** — DXP-P3's
-  registry rows declare Legacy Table IDs in the 54769-54777 range, but the actual DXP-P3 dispatcher source
-  (`DXR_MigrPhase3Tables.Codeunit.al`) reads from tables named `"DXR_Payment Setup 54220"` etc. (54220-series,
-  not 54769-series). This may mean the registry's row-count tracking for DXP-P3 is checking the wrong table
-  IDs (cosmetic — MCC's row counts for those 9 concepts would be wrong/misleading — but does NOT affect
-  whether real data migrates, since that happens via `Codeunit.Run(52313)` regardless of what IDs the
-  registry declares for counting). Do not guess-fix this — flag it in the commit message as a known
-  follow-up needing direct table-ID verification, per this plan's Global Constraints (never invent IDs).
+- [x] **Step 2: RESOLVED — see the "DONE" note above.** DXP-P3's Legacy Table IDs (54769-54777) are correct
+  as-is; the 54220-series digits are name-embedded tags on the legacy tables, not a second ID scheme. No
+  registry change needed.
 
-- [ ] **Step 3: Revert the DXP half of Task 1.0's `app.json` dependency** — remove the
+- [x] **Step 3: Revert the DXP half of Task 1.0's `app.json` dependency** — removed the
   `36b9c68f-cc27-46b1-bf63-4400a31c5f61` (DX-Payments) entry from `dependencies`, leaving an empty array
   (both SD and DXP dependencies are now reverted).
 
-- [ ] **Step 4: Compile** (Task 1.5's command). Expect clean compile, same lone pre-existing warning.
+- [x] **Step 4: Compile** (Task 1.5's command). Clean, same lone pre-existing warning.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/DXRMCCRegistryLoader.Codeunit.al app.json
-git commit -m "fix: DXP-P1/P2/P3/P4/P5/P6 never migrated data (wrong dispatcher IDs) - repoint all 49 concepts to fixed Runner 52313, revert now-unneeded DXP dependency"
-```
+- [x] **Step 5: Commit** — `8fa133d`, "fix: DXP-P1/P2/P3/P4/P5/P6 never migrated data (wrong dispatcher IDs) - repoint all DXP concepts to fixed Runner 52313, revert now-unneeded DXP dependency"
 
 ---
 
@@ -302,7 +297,7 @@ Expected: clean compile (0 errors), same lone pre-existing `AL0482` warning on `
 
 - [ ] **Step 2: Publish to a test environment, run "Reload Registry"** (picks up the repointed Dispatcher Codeunit IDs), then **"Run Extension" for SD and for DXP**
 
-- [ ] **Step 3: Confirm via `DXR MCC Run Log`** that SD-P1/P2 and DXP-P1/P2/P4 now show non-zero `Migrated Record Count` where their legacy tables have real rows (DXP-P3 stays unwired/unchanged per Task 1.2 Step 4)
+- [ ] **Step 3: Confirm via `DXR MCC Run Log`** that all SD-P1/P2/P3 (10 concepts) and all DXP-P1/P2/P3/P4/P5/P6 (46 concepts) now show non-zero `Migrated Record Count` where their legacy tables have real rows — DXP-P3 IS wired (repointed to 52313 along with everything else; the earlier "stays unwired" note was from the abandoned original design and no longer applies, see Task 1.2's "DONE" note). Watch specifically for companies that already ran SD's OLD `OnUpgradePerCompany`-based migration before this fix (see Recommendation 4 in the final whole-branch review, 2026-08-23) — if Phase 1/2/3's Upgrade Tags are already set from that old run, each phase's internal tag guard will correctly no-op, which is expected and NOT itself a sign this fix failed.
 
 ---
 
@@ -452,7 +447,7 @@ Each remaining extension gets its own dependency addition + a batch of adapters 
 | 2 | BC | `Base-Controls\Base Controls\src\services\migration\` | 19 | 19 | 0 | 0 | All 4 dispatchers already 100% typed `Record`; genuinely thinnest phase in the whole portfolio |
 | 2 | RBPD | `Recaudo BC\RecaudoBPD\Base\Codeunits\` | 11 | 11 (Worker 56308 confirmed; Phase1/Phase2 internals assumed same pattern - **confirm before committing**) | 0 | 0 | Shares an `AssignPermissionSetToUser` pattern with BC - candidate for one shared MCC helper procedure instead of 2 copies |
 | 3 | VP | `DxPayloads-BC\Vendor Payloads\src\Base\Codeunits\Migration\` | 46 → collapse to ~23 real ops | ~20 | ~3 (Phase7's table-level RecordRef merge logic - already correct/safe, port as-is not field-level) | 0 | Phase 1-6 (gen-1) and Phase 7 hit the same 23 targets from 2 source generations - one adapter per target table trying both sources in sequence, not 46 adapters |
-| 4 | DXP (cont'd) | `DXPAYMENT-BC\Base\CodeUnits\` | 32 done (Task 1.2) + 14 (P5/P6) | TBD - P5/P6 `OnRun` presence not yet confirmed | 0 confirmed | DXP-P3 (9) blocked on business decision | Confirm P5/P6 `trigger OnRun` presence before assuming Task 1.2's pattern applies unchanged |
+| 4 | DXP | `DXPAYMENT-BC\Base\CodeUnits\` | 46 — **DONE** (Task 1.2, 2026-08-23) | 46/46 (all repointed to Runner 52313, which already had a real OnRun + correct per-phase Permissions for every table) | 0 | 0 | DXP-P3 vs DXP-P5 precedence question RESOLVED (user confirmed Phase 5 wins) — fixed at the source in DXP's own repo (4 commits: reorder + retroactive repair + 2 review-driven fixes), independently reviewed 3 rounds, verdict "ready to merge". Nothing left to do here. |
 | 5 | PCM | `Price-Controls-Mgt\Price Controls Mgt\src\Base\Codeunits\` | 16 | ~10 | ~6 (Phase 5 Id Renum - port ONLY the final Workflow-shell logic, do not reintroduce the 6 already-removed redundant shells per the registry's own note) | 0 |  |
 | 5 | TU | `DX-TransUnion\TransUnion\src\Base\Codeunits\` | 5 | 5 (3 via dispatcher 53605 + 2 already MCC-Fallback-covered, Dispatcher=0) | 0 | 0 | Smallest, cleanest extension in the portfolio per Discovery |
 | 6 | DESB | `Despacho-Base\Despacho Base\src\Base\Codeunits\Upgrade\` | 71 | 67 (Worker 53681's 39 + Phase1's 28) | 4 (Phase 2's `_Old2`/`_Reloc` collision-relocation logic) | 1 (53669 dispatcher, Subtype=Upgrade - Worker 53681 is the real normal-codeunit entry point already) | ⚠ do not use `apps\1-DespachoBase\src\Core\...` - confirmed stale duplicate folder, use `Despacho-Base\Despacho Base\` only |
@@ -464,7 +459,7 @@ Each remaining extension gets its own dependency addition + a batch of adapters 
 | 11 | BELLONPOS | `Bellon_Customization\Bellon POS\Base\Codeunits\` | 12 | 12 | 0 | 0 | **Source-extension bug, fix at BELLONPOS not via MCC workaround**: `DXR_POS Upgrade Process` has no `Permissions` property for the tables it touches at all - even after MCC gets a typed adapter, BELLONPOS should still declare its own `Permissions` correctly, since other BELLONPOS code paths (its own upgrade cycle) hit the same gap independent of MCC |
 
 **BLOCKING QUESTIONS before their respective phases can complete (ask the user, do not guess):**
-1. DXP-P3 vs DXP-P5 (Task 1.2 Step 4): which legacy generation is the real source of truth for tables 52275-52283?
+1. ~~DXP-P3 vs DXP-P5: which legacy generation is the real source of truth for tables 52275-52283?~~ **RESOLVED 2026-08-23** — user confirmed Phase 5 (most recent generation). Fixed at the source in DXP's own repo.
 2. Confirm before Phase 10 (BELLON): read the 7 un-read Phase bodies (P3/4/5/8/9/11/12) before assuming they're safe to bulk-classify as TRIVIAL.
 
 ---
