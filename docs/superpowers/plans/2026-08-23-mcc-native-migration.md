@@ -642,11 +642,21 @@ which IS the portfolio's one `Subtype = Upgrade` codeunit for this extension —
 rule that codeunit can never become an adapter target, so DPP-UPG correctly stays `Blocked`/manual (runs
 automatically on next publish/schema-sync only).
 
-**Not yet done:** neither LSLOC nor DRLOC has been through the same independent-review process as the
-earlier batches (BC+RBPD+VP round 1, PCM-through-BELLONPOS round 2) — a review was dispatched for both after
-this doc update, covering LSLOC's single adapter and all of DRLOC's wiring (including the Fallback
-Migrator/GAP/NCF claims above, independently re-verified against the Executor source, not just asserted).
-No review is dispatched against this doc's own edits (documentation, not code).
+**Review result (LSLOC + DRLOC batch):** LSLOC's wiring was confirmed correct and safe as committed (one
+Important-severity, self-healing note: 54506's own lock-contention path reschedules silently without an
+error, documented in the adapter comment, not a correctness bug). **DRLOC's original wiring had a Critical
+bug**: the 5 per-phase adapters (60069-60073, one per Phase 2-6 codeunit) bypassed DR-Localization's real
+top-level orchestrator, `"DXR_Migr. Phase Dispatcher"` (52208) — which alone enforces (1) the DRLOC-P1
+prerequisite gate (`EnsurePhase1Completed`, `Error()`s if not set), (2) a 12-hour global cross-company lock
+guarding against a race with DR-Localization's own auto-scheduled background dispatcher, and (3) a
+multi-company coordinator-company gate some Phase 2 steps depend on. None of Phase 2-6's own `OnRun` bodies
+enforce any of this. **Fixed** (MCC commit `8a35b22`): collapsed the 5 per-phase adapters into one adapter
+(kept ID 60069, deleted 60070-60073) that calls 52208 directly — the same shape as SD's and LSLOC's own
+dispatchers, and the correct match for MCC's own per-dispatcher completion dedup. Typed by numeric ID
+(`Codeunit 52208`), not by name, since Price Controls Mgt. independently declares an unrelated codeunit also
+named `"DXR_Migr. Phase Dispatcher"` (AL0275 ambiguous reference otherwise — a real naming collision across
+two unrelated dependencies, worth remembering for any future extension sharing a common phase-codeunit
+naming convention). All 93 DRLOC rows repointed to the single corrected adapter. MCC compiles clean.
 
 **Portfolio coverage as of this update:** every registry extension code has now been checked and wired where
 possible — SD, DXP, BC, RBPD, VP, PCM, TU, DESB, DESLS, RC, FE, LSFE, BELLON, BELLONPOS, LSLOC, DRLOC (16)
