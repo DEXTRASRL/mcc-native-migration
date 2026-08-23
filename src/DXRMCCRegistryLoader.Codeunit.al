@@ -393,22 +393,22 @@ codeunit 60012 "DXR MCC Registry Loader"
 
         // ---- PCM: Price Controls Mgt. (dispatcher "DXR_Migr. Phase Dispatcher" 54615 runs
         // Phase2/54612 -> Phase3/54613 -> Phase4/54614 -> Phase5/54620 in sequence) ----
-        InsConcept('PCM', 'PCM-P5', 1, 'Approval History legacy table restore (has real transactional data)', 60036, 57024, 54609, 'HIST');
-        InsConcept('PCM', 'PCM-P5', 2, 'LSC Offers FB legacy table restore (Temporary shell, no data)', 60036, 57023, 54607, 'SETUP');
-        InsConcept('PCM', 'PCM-P5', 3, 'Prices Factbox legacy table restore (Temporary shell, no data)', 60036, 57021, 54603, 'SETUP');
-        InsConcept('PCM', 'PCM-P5', 4, 'Prices Ctrl Setup legacy table restore (single-row setup)', 60036, 57022, 54605, 'SETUP');
-        InsConcept('PCM', 'PCM-P5', 5, 'Customer: PRC Store field restore (1 field) - true field already preserved in the active tableextension, no separate legacy shell needed (see Extension Notes)', 60036, 0, 0, 'MA');
-        InsConcept('PCM', 'PCM-P5', 6, 'LSC Store Price Group field restore (3 fields: Precio Fijado/Excluir Store Prices/Excluir Cust. Prices) - true fields already preserved in the active tableextension', 60036, 0, 0, 'SETUP');
-        InsConcept('PCM', 'PCM-P5', 7, 'Approval Entry field restore (3 fields: Workflow Code/Workflow Instance ID/Posting Date) - true fields already preserved in the active tableextension', 60036, 0, 0, 'OTHER');
-        InsConcept('PCM', 'PCM-P5', 8, 'Workflow: Approval Type field restore (1 field) - the one table whose true field was genuinely lost, restored via a separate legacy shell tableextension (57004) at its true id+name', 60036, 0, 0, 'SETUP');
-        InsConcept('PCM', 'PCM-P5', 9, 'Sales Header Snapshot field restore (10 fields) - true fields already preserved in the active tableextension', 60036, 0, 0, 'MA');
-        InsConcept('PCM', 'PCM-P5', 10, 'Sales Line field restore (12 fields) + Sales Line Snapshot field restore (20 fields) - true fields already preserved in the active tableextension', 60036, 0, 0, 'MA');
-        InsConcept('PCM', 'PCM-P2', 11, 'Customer: PRC Store field restore (1 field, Phase 2 pass - runs before Phase 5''s own pass)', 60033, 0, 0, 'MA');
-        InsConcept('PCM', 'PCM-P2', 12, 'LSC Store Price Group field restore (3 fields, Phase 2 pass)', 60033, 0, 0, 'SETUP');
-        InsConcept('PCM', 'PCM-P3', 13, 'Approval Entry field restore (Workflow Code/Instance ID/Posting Date, Phase 3 pass)', 60034, 0, 0, 'OTHER');
-        InsConcept('PCM', 'PCM-P3', 14, 'Workflow: PRC Approval Type field restore (Phase 3 pass)', 60034, 0, 0, 'SETUP');
-        InsConcept('PCM', 'PCM-P4', 15, 'Sales Header: 10 snapshot fields restore (Phase 4 pass)', 60035, 0, 0, 'MA');
-        InsConcept('PCM', 'PCM-P4', 16, 'Sales Line: 12 operational + 20 snapshot fields restore (Phase 4 pass)', 60035, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P5', 1, 'Approval History legacy table restore (has real transactional data)', 60125, 57024, 54609, 'HIST');
+        InsConcept('PCM', 'PCM-P5', 2, 'LSC Offers FB legacy table restore (Temporary shell, no data)', 60125, 57023, 54607, 'SETUP');
+        InsConcept('PCM', 'PCM-P5', 3, 'Prices Factbox legacy table restore (Temporary shell, no data)', 60125, 57021, 54603, 'SETUP');
+        InsConcept('PCM', 'PCM-P5', 4, 'Prices Ctrl Setup legacy table restore (single-row setup)', 60125, 57022, 54605, 'SETUP');
+        InsConcept('PCM', 'PCM-P5', 5, 'Customer: PRC Store field restore (1 field) - true field already preserved in the active tableextension, no separate legacy shell needed (see Extension Notes)', 60125, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P5', 6, 'LSC Store Price Group field restore (3 fields: Precio Fijado/Excluir Store Prices/Excluir Cust. Prices) - true fields already preserved in the active tableextension', 60125, 0, 0, 'SETUP');
+        InsConcept('PCM', 'PCM-P5', 7, 'Approval Entry field restore (3 fields: Workflow Code/Workflow Instance ID/Posting Date) - true fields already preserved in the active tableextension', 60125, 0, 0, 'OTHER');
+        InsConcept('PCM', 'PCM-P5', 8, 'Workflow: Approval Type field restore (1 field) - the one table whose true field was genuinely lost, restored via a separate legacy shell tableextension (57004) at its true id+name', 60125, 0, 0, 'SETUP');
+        InsConcept('PCM', 'PCM-P5', 9, 'Sales Header Snapshot field restore (10 fields) - true fields already preserved in the active tableextension', 60125, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P5', 10, 'Sales Line field restore (12 fields) + Sales Line Snapshot field restore (20 fields) - true fields already preserved in the active tableextension', 60125, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P2', 11, 'Customer: PRC Store field restore (1 field, Phase 2 pass - runs before Phase 5''s own pass)', 60122, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P2', 12, 'LSC Store Price Group field restore (3 fields, Phase 2 pass)', 60122, 0, 0, 'SETUP');
+        InsConcept('PCM', 'PCM-P3', 13, 'Approval Entry field restore (Workflow Code/Instance ID/Posting Date, Phase 3 pass)', 60123, 0, 0, 'OTHER');
+        InsConcept('PCM', 'PCM-P3', 14, 'Workflow: PRC Approval Type field restore (Phase 3 pass)', 60123, 0, 0, 'SETUP');
+        InsConcept('PCM', 'PCM-P4', 15, 'Sales Header: 10 snapshot fields restore (Phase 4 pass)', 60124, 0, 0, 'MA');
+        InsConcept('PCM', 'PCM-P4', 16, 'Sales Line: 12 operational + 20 snapshot fields restore (Phase 4 pass)', 60124, 0, 0, 'MA');
 
         // ---- TU: TransUnion ----
         InsConcept('TU', 'TU-P1', 1, 'Transunion Setup legacy table restore', 60037, 57304, 53601, 'SETUP');
