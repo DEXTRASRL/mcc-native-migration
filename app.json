@@ -33,6 +33,12 @@
       "publisher": "Dextra",
       "name": "Base Controls",
       "version": "28.3.3.8"
+    },
+    {
+      "id": "e5a19345-02ce-4433-b03b-b1a2136682bf",
+      "publisher": "Dextra",
+      "name": "Recaudo BPD",
+      "version": "28.3.2.4"
     }
   ],
   "idRanges": [

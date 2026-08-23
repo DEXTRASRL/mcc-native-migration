@@ -30,6 +30,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Adapt BC Phase2" = X,
         codeunit "DXR MCC Adapt BC Phase3" = X,
         codeunit "DXR MCC Adapt BC Perm Repair" = X,
+        codeunit "DXR MCC Adapt RBPD Worker" = X,
         page "DXR Migration Control Center" = X,
         page "DXR MCC Concept Subform" = X,
         page "DXR MCC Run Log" = X,
