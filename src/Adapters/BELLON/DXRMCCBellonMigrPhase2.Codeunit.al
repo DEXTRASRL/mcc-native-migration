@@ -19,6 +19,21 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // "Upgrade Tag Mgt." exposes them via a typed Public codeunit already dependent-on elsewhere
     // in this portfolio, but the literals are copied directly to avoid any further cross-repo
     // coupling risk).
+    //
+    // Fixed 2026-08-24 (code review, Critical finding on the FE/BELLON bridge retrofit): this
+    // codeunit had NO Permissions property at all despite MigrateTableExt_DXNCFSetupFields()
+    // declaring a typed Record on "DXR_NCF Setup" (Access = Internal in DR-Localization) and
+    // calling Get()/Modify() on it - MCC's top-level permission set only grants codeunit Execute,
+    // never tabledata, so per-object Permissions blocks are the sole runtime access mechanism in
+    // this codebase. Adds the one entry actually required by that procedure's real Get/Modify
+    // calls (no Insert anywhere in this procedure). NOTE: this codeunit's ~130+ other typed Record
+    // calls (MigrateAllNormalizedTables/MigrateAllTableExtensionFields and their many helper
+    // procedures, e.g. "AGR Setup"/"DXR_AGR Setup" et al.) also have no corresponding Permissions
+    // entries and are a separate, much larger pre-existing gap predating this task - flagged here
+    // for visibility, not fixed as part of this specific retrofit (out of scope for this task).
+    Permissions =
+        tabledata "DXR_NCF Setup" = RM;
+
     trigger OnRun()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
