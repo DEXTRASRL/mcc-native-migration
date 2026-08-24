@@ -23,12 +23,14 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
     // DR-Localization (AL0161 on any typed/named reference, including a Permissions entry).
     // "DXR_Cash Journal Receipt List" is still accessed purely via RecordRef by numeric table ID,
     // matching the established pattern for every other sibling's Access = Internal object in this
-    // portfolio (see e.g. "DXR MCC FE Migr Phase7"). "DXR_NCF Setup" is instead reached through the
-    // typed "DXR_BE MCC Migr Bridge" (56132) thin wrapper in BELLON's own package (see the
-    // "DXR_NCF Setup" block below), which DOES have the internalsVisibleTo grant.
+    // portfolio (see e.g. "DXR MCC FE Migr Phase7"). "DXR_NCF Setup" is now declared as a typed
+    // Record directly here (see the "DXR_NCF Setup" block below) - DR-Localization grants MCC's own
+    // app ID internalsVisibleTo directly, so BELLON's "DXR_BE MCC Migr Bridge" (56132) bridge
+    // codeunit is no longer needed for this table (left in place, unused).
     Permissions =
         tabledata "Item Charge Assignment (Purch)" = RM,
-        tabledata Vendor = RM;
+        tabledata Vendor = RM,
+        tabledata "DXR_NCF Setup" = RM;
 
     trigger OnRun()
     var
@@ -40,7 +42,7 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
     local procedure MigrateMissingOldToDxrBridgeFields(var UpgradeTag: Codeunit "Upgrade Tag")
     var
         RecRef: RecordRef;
-        BellonMCCMigrBridge: Codeunit "DXR_BE MCC Migr Bridge";
+        NCFSetup: Record "DXR_NCF Setup";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-BellonP13OldGapCompleted') then
             exit;
@@ -64,10 +66,21 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
             until RecRef.Next() = 0;
         RecRef.Close();
 
-        // DXR_NCF Setup (52179) is Access = Internal, so it cannot be declared as a typed Record
-        // here - this calls a thin typed bridge procedure in BELLON's own package instead
-        // ("DXR_BE MCC Migr Bridge".RunOldToDxrBridgeSync_NCFSetup()). Zero RecordRef/FieldRef.
-        BellonMCCMigrBridge.RunOldToDxrBridgeSync_NCFSetup();
+        // DXR_NCF Setup (52179) is Access = Internal in DR-Localization, but DR-Localization now
+        // grants MCC's own app ID internalsVisibleTo directly, so it is declared as a typed Record
+        // directly here. Copies "DXR_NCF Setup"'s own intermediate bridge fields into its live
+        // "_DXR" fields (a prior migration pass wired the ObsoleteState=Pending source fields into
+        // these "_Old" fields but never wired the final leg): "Grupo Contable BS_Old" (50003) ->
+        // "Grupo Contable BS_DXR" (52787), "Legal Tip %_Old" (50004) -> "Legal Tip %_DXR" (52788).
+        // Preserves the exact FindSet(true)/repeat.../Modify(false) loop shape of the original
+        // procedure for minimal risk, even though "DXR_NCF Setup" is a singleton (single-row)
+        // table. Zero RecordRef/FieldRef/TransferFields.
+        if NCFSetup.FindSet(true) then
+            repeat
+                NCFSetup."Grupo Contable BS_DXR" := NCFSetup."Grupo Contable BS_Old";
+                NCFSetup."Legal Tip %_DXR" := NCFSetup."Legal Tip %_Old";
+                NCFSetup.Modify(false);
+            until NCFSetup.Next() = 0;
 
         // Vendor.TableExt.al has 13 fields (50018-50025, 50028-50032) where the legacy source is
         // copied to an "_Old" field by Phase 2, but no IdRestore bridge was ever declared for

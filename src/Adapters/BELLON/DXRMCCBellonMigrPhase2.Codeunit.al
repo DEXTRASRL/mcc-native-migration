@@ -2104,27 +2104,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     begin
     end;
 
-    // Fixed 2026-08-24 (code review, Finding 1): DXR_NCF Setup (table 52179, DR-Localization) is
-    // declared Access = Internal there, and MCC's own package has no internalsVisibleTo grant
-    // from DR-Localization (only "Bellon Customization" does - confirmed by reading DR-
-    // Localization\Localization\app.json), so a typed Record variable cannot be declared here at
-    // all. Rather than keep a RecordRef workaround, this now calls a thin typed bridge procedure
-    // added to BELLON's own package for this task - "DXR_BE MCC Migr Bridge" (56132)
-    // .RunDependencyFieldSync_NCFSetup() - which lives inside a package that DOES have the
-    // internalsVisibleTo grant and can declare "DXR_NCF Setup" as a typed Record directly. This
-    // mirrors the exact pattern already established by LSLOC's "DXR_LS Migr. Dispatcher" and FE's
-    // "DXR_EF MCC Migr Bridge" for the same Access=Internal constraint elsewhere in this plan.
-    // Zero RecordRef/FieldRef in this procedure.
+    // Retrofitted 2026-08-24 (bridge retirement): DXR_NCF Setup (table 52179, DR-Localization) is
+    // declared Access = Internal there, but DR-Localization now grants MCC's own app ID
+    // internalsVisibleTo directly (confirmed via DR-Localization\Localization\app.json), so a
+    // typed Record on "DXR_NCF Setup" can now be declared directly in MCC - no bridge codeunit
+    // needed. BELLON's own "DXR_BE MCC Migr Bridge" (56132) is left in place, unused, per this
+    // task's scope. Zero RecordRef/FieldRef/TransferFields in this procedure.
     //
-    // Fixed 2026-08-24: the old field mapping copied both fields into dead "_Old" shadow fields
-    // (50003/50004) - NCFSetup.TableExt.al's real active targets, confirmed via ObsoleteReason on
+    // Field mapping: NCFSetup.TableExt.al's real active targets, confirmed via ObsoleteReason on
     // fields 50001/50002 (neither destination is itself obsolete), are "Grupo Contable BS_DXR"
-    // (52787) and "Legal Tip %_DXR" (52788). The bridge procedure implements exactly this pair.
+    // (52787) and "Legal Tip %_DXR" (52788). "DXR_NCF Setup" is a single-row table (blank primary
+    // key).
     local procedure MigrateTableExt_DXNCFSetupFields()
     var
-        BellonMCCMigrBridge: Codeunit "DXR_BE MCC Migr Bridge";
+        NCFSetup: Record "DXR_NCF Setup";
     begin
-        BellonMCCMigrBridge.RunDependencyFieldSync_NCFSetup();
+        if NCFSetup.Get() then
+            if (NCFSetup."Grupo Contable BS_DXR" <> NCFSetup."Grupo Contable BS") or
+               (NCFSetup."Legal Tip %_DXR" <> NCFSetup."Legal Tip %")
+            then begin
+                NCFSetup."Grupo Contable BS_DXR" := NCFSetup."Grupo Contable BS";
+                NCFSetup."Legal Tip %_DXR" := NCFSetup."Legal Tip %";
+                NCFSetup.Modify(false);
+            end;
     end;
 
     local procedure MigrateTableExt_LSCPOSTransLineFields()
