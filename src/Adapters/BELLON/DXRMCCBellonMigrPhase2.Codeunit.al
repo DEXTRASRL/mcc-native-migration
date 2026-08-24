@@ -38,6 +38,15 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // same reason as "DXR_NCF Setup" above. Source tables only need R (FindSet/Next/CalcFields,
     // never modified); destination tables only need RI (Get + Insert - none of these procedures
     // ever call Modify, so RIM would be over-broad).
+    //
+    // Extended 2026-08-24 (Task B.1, BELLON-P2 MA-category tableextension field-group batch B1,
+    // seq136/137/139/141): unlike the whole-table-clone batch above, this batch's field-group
+    // procedures each read AND write the SAME table (a single "_DXR" field alongside its legacy
+    // counterpart on one row), so the grant needed is RM (FindSet/Get + Modify), never RI. Covers
+    // every table with a typed Record declared by this batch's 12 non-no-op procedures, plus
+    // "Assembly Setup" (already typed/Direct from an earlier, out-of-band commit within this same
+    // seq136 concept, bc6cae7, which never added its own Permissions entry - closing that gap here
+    // rather than leaving a third undocumented instance of the same recurring mistake).
     Permissions =
         tabledata "DXR_NCF Setup" = RM,
         tabledata "Bancos - Extracto Bancario" = R,
@@ -113,7 +122,21 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata Comision_Grupo_Vendedor = R,
         tabledata "DXR_Comision_Grupo_Vendedor" = RI,
         tabledata "Inventory View" = R,
-        tabledata "DXR_Inventory View." = RI;
+        tabledata "DXR_Inventory View." = RI,
+        tabledata "Approval Entry" = RM,
+        tabledata "Assembly Setup" = RM,
+        tabledata "Bank Acc. Reconciliation" = RM,
+        tabledata "Bank Acc. Reconciliation Line" = RM,
+        tabledata "Bank Account" = RM,
+        tabledata "Bank Account Ledger Entry" = RM,
+        tabledata Currency = RM,
+        tabledata "Currency Exchange Rate" = RM,
+        tabledata "Cust. Ledger Entry" = RM,
+        tabledata Customer = RM,
+        tabledata "Customer Price Group" = RM,
+        tabledata "Issued Reminder Header" = RM,
+        tabledata Item = RM,
+        tabledata "Item Category" = RM;
 
     trigger OnRun()
     var
@@ -2440,28 +2463,30 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_ApprovalEntryFields()
     var
-        RecRef: RecordRef;
+        ApprovalEntry: Record "Approval Entry";
     begin
-        RecRef.Open(Database::"Approval Entry");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 52001, 52002))
+        // copied "ID" into "ID_Old" (field 52002), a dead shadow field - ApprovalEntry.TableExt.al's
+        // real active target, confirmed via ObsoleteReason on field 52001 (52787 is not itself
+        // obsolete), is "ID_DXR." (field 52787, trailing period as declared in source). Direct
+        // typed field closes that gap.
+        if ApprovalEntry.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52001, 52002);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if ApprovalEntry."ID_DXR." <> ApprovalEntry."ID" then begin
+                    ApprovalEntry."ID_DXR." := ApprovalEntry."ID";
+                    ApprovalEntry.Modify(false);
+                end;
+            until ApprovalEntry.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): AssemblyHeader.TableExt.al defines only field 50000 "Importe
+    // Total Costo" (Pending, obsolete) and its replacement 52787 "Importe Total Costo_DXR" - both
+    // are FlowFields (identical CalcFormula = Sum("Assembly Line"."Cost Amount" ...)), so there is
+    // no stored value to migrate. The old RecordRef version's destination (50001) never existed in
+    // the schema either (CopyFieldIfExists was already a guaranteed no-op on every row). Nothing to
+    // open, nothing to copy.
     local procedure MigrateTableExt_AssemblyHeaderFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Assembly Header");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     local procedure MigrateTableExt_AssemblySetupFields()
@@ -2480,71 +2505,92 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
             end;
     end;
 
+    // No-op by design (2026-08-24): BEVendorLedgerEntryExt.TableExt.al defines only field 50000
+    // "Buy-from Vendor Name" (Pending, obsolete) and its replacement 52787 "Buy-from Vendor
+    // Name_DXR" - both are FlowFields (identical CalcFormula = lookup(Vendor.Name ...)), so there is
+    // no stored value to migrate. The old RecordRef version's destination (50001) never existed in
+    // the schema either (CopyFieldIfExists was already a guaranteed no-op on every row). Nothing to
+    // open, nothing to copy.
     local procedure MigrateTableExt_VendorLedgerEntryFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Vendor Ledger Entry");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     local procedure MigrateTableExt_BankAccReconciliationFields()
     var
-        RecRef: RecordRef;
+        BankAccReconciliation: Record "Bank Acc. Reconciliation";
     begin
-        RecRef.Open(Database::"Bank Acc. Reconciliation");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // copied "BE Extracto Bancario" into "Extracto Bancario_Old" (field 50001), a dead shadow
+        // field - BankAccReconciliation.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Extracto Bancario_DXR"
+        // (52787). Direct typed field closes that gap.
+        if BankAccReconciliation.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if BankAccReconciliation."Extracto Bancario_DXR" <> BankAccReconciliation."BE Extracto Bancario" then begin
+                    BankAccReconciliation."Extracto Bancario_DXR" := BankAccReconciliation."BE Extracto Bancario";
+                    BankAccReconciliation.Modify(false);
+                end;
+            until BankAccReconciliation.Next() = 0;
     end;
 
     local procedure MigrateTableExt_BankAccReconciliationLineFields()
     var
-        RecRef: RecordRef;
+        BankAccReconciliationLine: Record "Bank Acc. Reconciliation Line";
     begin
-        RecRef.Open(Database::"Bank Acc. Reconciliation Line");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 52000, 52001))
+        // copied "BE Extracto Bancario" into "Extracto Bancario_Old" (field 52001), a dead shadow
+        // field - BankAccReconciliationLine.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 52000 (52787 is not itself obsolete), is "Extracto Bancario_DXR"
+        // (52787). Direct typed field closes that gap.
+        if BankAccReconciliationLine.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52000, 52001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if BankAccReconciliationLine."Extracto Bancario_DXR" <> BankAccReconciliationLine."BE Extracto Bancario" then begin
+                    BankAccReconciliationLine."Extracto Bancario_DXR" := BankAccReconciliationLine."BE Extracto Bancario";
+                    BankAccReconciliationLine.Modify(false);
+                end;
+            until BankAccReconciliationLine.Next() = 0;
     end;
 
     local procedure MigrateTableExt_BankAccountFields()
     var
-        RecRef: RecordRef;
+        BankAccount: Record "Bank Account";
     begin
-        RecRef.Open(Database::"Bank Account");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
+        // shadow fields (50003-50005) - BankAccount.TableExt.al's real active targets, confirmed
+        // via ObsoleteReason on fields 50000-50002 (none of the destinations below are themselves
+        // obsolete), are "Cod. Proveedor Bco._BE_DXR" (52787 - name kept as originally declared,
+        // it is not itself obsolete), "Account No._DXR" (52788) and "Amount In Payload_DXR"
+        // (52789). Direct typed fields close that gap.
+        if BankAccount.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50003);
-                CopyFieldIfExists(RecRef, 50001, 50004);
-                CopyFieldIfExists(RecRef, 50002, 50005);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (BankAccount."Cod. Proveedor Bco._BE_DXR" <> BankAccount."Cod. Proveedor Bco.") or
+                   (BankAccount."Account No._DXR" <> BankAccount."Account No.") or
+                   (BankAccount."Amount In Payload_DXR" <> BankAccount."Amount In Payload")
+                then begin
+                    BankAccount."Cod. Proveedor Bco._BE_DXR" := BankAccount."Cod. Proveedor Bco.";
+                    BankAccount."Account No._DXR" := BankAccount."Account No.";
+                    BankAccount."Amount In Payload_DXR" := BankAccount."Amount In Payload";
+                    BankAccount.Modify(false);
+                end;
+            until BankAccount.Next() = 0;
     end;
 
     local procedure MigrateTableExt_BankAccountLedgerEntryFields()
     var
-        RecRef: RecordRef;
+        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
     begin
-        RecRef.Open(Database::"Bank Account Ledger Entry");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // copied "Fecha Registro 2" into "Fecha Registro 2_Old" (field 50001), a dead shadow field -
+        // BankAccountLedgerEntry.TableExt.al's real active target, confirmed via ObsoleteReason on
+        // field 50000 (52787 is not itself obsolete), is "Fecha Registro 2_DXR" (52787). Direct
+        // typed field closes that gap.
+        if BankAccountLedgerEntry.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if BankAccountLedgerEntry."Fecha Registro 2_DXR" <> BankAccountLedgerEntry."Fecha Registro 2" then begin
+                    BankAccountLedgerEntry."Fecha Registro 2_DXR" := BankAccountLedgerEntry."Fecha Registro 2";
+                    BankAccountLedgerEntry.Modify(false);
+                end;
+            until BankAccountLedgerEntry.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCBarcodesFields()
@@ -2668,113 +2714,196 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_CurrencyFields()
     var
-        RecRef: RecordRef;
+        Currency: Record "Currency";
     begin
-        RecRef.Open(Database::"Currency");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // copied "Accepted bpd" into "Accepted bpd_Old" (field 50001), a dead shadow field -
+        // Currency.TableExt.al's real active target, confirmed via ObsoleteReason on field 50000
+        // (52787 is not itself obsolete), is "Accepted bpd_DXR" (52787). Direct typed field closes
+        // that gap.
+        if Currency.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if Currency."Accepted bpd_DXR" <> Currency."Accepted bpd" then begin
+                    Currency."Accepted bpd_DXR" := Currency."Accepted bpd";
+                    Currency.Modify(false);
+                end;
+            until Currency.Next() = 0;
     end;
 
     local procedure MigrateTableExt_CurrencyExchangeRateFields()
     var
-        RecRef: RecordRef;
+        CurrencyExchangeRate: Record "Currency Exchange Rate";
     begin
-        RecRef.Open(Database::"Currency Exchange Rate");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // copied "Tasa Banco Central" into "Tasa Banco Central_Old" (field 50001), a dead shadow
+        // field - CurrencyExchangeRate.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Tasa Banco Central_DXR"
+        // (52787), which is also live-read by this same tableextension's own
+        // ExchangeRateBancoCentral() procedure. Direct typed field closes that gap.
+        if CurrencyExchangeRate.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if CurrencyExchangeRate."Tasa Banco Central_DXR" <> CurrencyExchangeRate."Tasa Banco Central" then begin
+                    CurrencyExchangeRate."Tasa Banco Central_DXR" := CurrencyExchangeRate."Tasa Banco Central";
+                    CurrencyExchangeRate.Modify(false);
+                end;
+            until CurrencyExchangeRate.Next() = 0;
     end;
 
     local procedure MigrateTableExt_CustLedgerEntryFields()
     var
-        RecRef: RecordRef;
+        CustLedgerEntry: Record "Cust. Ledger Entry";
     begin
-        RecRef.Open(Database::"Cust. Ledger Entry");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version had two pairs. (1) CopyFieldIfExists(RecRef,
+        // 50000, 50003): field 50003 never existed in CustLedgerEntry.TableExt.al's schema (already
+        // a guaranteed no-op) - and source field 50000 "Recordatorios" is a FlowField (Count(...)),
+        // replaced by FlowField 52787 "Recordatorios_DXR", so there is no stored value to migrate
+        // either way; that pair is correctly dropped. (2) CopyFieldIfExists(RecRef, 50002, 50004)
+        // copied "No. Authorizacion" into "No. Authorizacion_Old" (field 50004), a dead shadow field
+        // - the real active target, confirmed via ObsoleteReason on field 50002 (52788 is not
+        // itself obsolete), is "No. Authorizacion_DXR" (52788). Direct typed field closes that gap.
+        if CustLedgerEntry.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50003);
-                CopyFieldIfExists(RecRef, 50002, 50004);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if CustLedgerEntry."No. Authorizacion_DXR" <> CustLedgerEntry."No. Authorizacion" then begin
+                    CustLedgerEntry."No. Authorizacion_DXR" := CustLedgerEntry."No. Authorizacion";
+                    CustLedgerEntry.Modify(false);
+                end;
+            until CustLedgerEntry.Next() = 0;
     end;
 
+    // Fixed 2026-08-24 (master-data table, elevated shadow-field scrutiny): the old RecordRef
+    // version copied every one of these 46 fields into a "_BE_DXR" intermediate (50061-50106) that
+    // is ITSELF further obsolete - confirmed via ObsoleteReason on each "_BE_DXR" field in
+    // Customer.TableExt.al: "Field was renumbered and renamed to <ID> (...) by commit c9e8f48d
+    // without a data migration ... Restored at its true original ID so 'Bellon Migr. Phase 5
+    // CustItem' (cod. 56122) can bridge the value forward." That sibling codeunit
+    // (BellonMigrPhase5CustItemDXR.Codeunit.al) independently bridges the same 46 "_BE_DXR" fields
+    // to their true final "_DXR" targets (52787-52833 block) with a never-overwrite merge policy -
+    // its own field-number comments are the authoritative source for the mapping used below, cross-
+    // checked field-by-field against Customer.TableExt.al's ObsoleteReason text. Writing directly to
+    // the final "_DXR" targets here (skipping the dead "_BE_DXR" hop entirely) makes this
+    // procedure's result correct standalone, without depending on phase 5 having also run. None of
+    // the final "_DXR" targets below are themselves obsolete.
     local procedure MigrateTableExt_CustomerFields()
     var
-        RecRef: RecordRef;
+        Customer: Record Customer;
     begin
-        RecRef.Open(Database::"Customer");
-        if RecRef.FindSet(true) then
+        if Customer.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50061);
-                CopyFieldIfExists(RecRef, 50001, 50062);
-                CopyFieldIfExists(RecRef, 50002, 50063);
-                CopyFieldIfExists(RecRef, 50003, 50064);
-                CopyFieldIfExists(RecRef, 50004, 50065);
-                CopyFieldIfExists(RecRef, 50005, 50066);
-                CopyFieldIfExists(RecRef, 50007, 50067);
-                CopyFieldIfExists(RecRef, 50008, 50068);
-                CopyFieldIfExists(RecRef, 50009, 50069);
-                CopyFieldIfExists(RecRef, 50011, 50070);
-                CopyFieldIfExists(RecRef, 50012, 50071);
-                CopyFieldIfExists(RecRef, 50013, 50072);
-                CopyFieldIfExists(RecRef, 50014, 50073);
-                CopyFieldIfExists(RecRef, 50015, 50074);
-                CopyFieldIfExists(RecRef, 50016, 50075);
-                CopyFieldIfExists(RecRef, 50021, 50076);
-                CopyFieldIfExists(RecRef, 50022, 50077);
-                CopyFieldIfExists(RecRef, 50023, 50078);
-                CopyFieldIfExists(RecRef, 50024, 50079);
-                CopyFieldIfExists(RecRef, 50025, 50080);
-                CopyFieldIfExists(RecRef, 50026, 50081);
-                CopyFieldIfExists(RecRef, 50027, 50082);
-                CopyFieldIfExists(RecRef, 50028, 50083);
-                CopyFieldIfExists(RecRef, 50029, 50084);
-                CopyFieldIfExists(RecRef, 50030, 50085);
-                CopyFieldIfExists(RecRef, 50031, 50086);
-                CopyFieldIfExists(RecRef, 50032, 50087);
-                CopyFieldIfExists(RecRef, 50033, 50088);
-                CopyFieldIfExists(RecRef, 50034, 50089);
-                CopyFieldIfExists(RecRef, 50035, 50090);
-                CopyFieldIfExists(RecRef, 50036, 50091);
-                CopyFieldIfExists(RecRef, 50037, 50092);
-                CopyFieldIfExists(RecRef, 50038, 50093);
-                CopyFieldIfExists(RecRef, 50039, 50094);
-                CopyFieldIfExists(RecRef, 50040, 50095);
-                CopyFieldIfExists(RecRef, 50041, 50096);
-                CopyFieldIfExists(RecRef, 50042, 50097);
-                CopyFieldIfExists(RecRef, 50043, 50098);
-                CopyFieldIfExists(RecRef, 50045, 50099);
-                CopyFieldIfExists(RecRef, 50048, 50100);
-                CopyFieldIfExists(RecRef, 50049, 50101);
-                CopyFieldIfExists(RecRef, 50050, 50102);
-                CopyFieldIfExists(RecRef, 50051, 50103);
-                CopyFieldIfExists(RecRef, 50054, 50104);
-                CopyFieldIfExists(RecRef, 50056, 50105);
-                CopyFieldIfExists(RecRef, 50060, 50106);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (Customer."Dirección Representante_DXR" <> Customer."Dirección Representante") or
+                   (Customer."Sector Representante_DXR" <> Customer."Sector Representante") or
+                   (Customer."Cédula Representante_DXR" <> Customer."Cédula Representante") or
+                   (Customer."Cumpl Representante_DXR" <> Customer."Cumpleaños Representante") or
+                   (Customer."Celular Representante_DXR" <> Customer."Celular Representante") or
+                   (Customer."E-Mail Representante_DXR." <> Customer."E-Mail Representante") or
+                   (Customer."Código Cobrador_DXR" <> Customer."Código Cobrador") or
+                   (Customer."Requiere OC_DXR" <> Customer."Requiere OC") or
+                   (Customer."Tipo de Cliente_DXR" <> Customer."Tipo de Cliente") or
+                   (Customer."Frecuencia Visita_DXR" <> Customer."Frecuencia Visita") or
+                   (Customer."Secuencia Visita_DXR" <> Customer."Secuencia Visita") or
+                   (Customer."Días Visita_DXR" <> Customer."Días Visita") or
+                   (Customer."Carnet DGII_DXR" <> Customer."Carnet DGII") or
+                   (Customer."Cobrar Interés_DXR" <> Customer."Cobrar Interés") or
+                   (Customer."% Interés_DXR" <> Customer."% Interés") or
+                   (Customer."Carnet Exención ITBIS_DXR" <> Customer."Carnet Exención ITBIS") or
+                   (Customer."Vencimiento Carnet_DXR" <> Customer."Vencimiento Carnet") or
+                   (Customer."Enc. Compras Nombre_DXR" <> Customer."Enc. Compras Nombre") or
+                   (Customer."Enc. Compras Email_DXR." <> Customer."Enc. Compras email") or
+                   (Customer."Enc. Compras celular_DXR" <> Customer."Enc. Compras celular") or
+                   (Customer."Enc. Compras Cumpleaños_DXR" <> Customer."Enc. Compras Cumpleaños") or
+                   (Customer."Enc. Pagos Nombre_DXR" <> Customer."Enc. Pagos Nombre") or
+                   (Customer."Enc. Pagos Email_DXR." <> Customer."Enc. Pagos email") or
+                   (Customer."Enc. Pagos celular_DXR" <> Customer."Enc. Pagos celular") or
+                   (Customer."Enc. Pagos Cumpleaños_DXR" <> Customer."Enc. Pagos Cumpleaños") or
+                   (Customer."Frecuencia de Pago_DXR" <> Customer."Frecuencia de Pago") or
+                   (Customer."Apartado Postal_DXR" <> Customer."Apartado Postal") or
+                   (Customer."Sector_DXR" <> Customer.Sector) or
+                   (Customer."Municipio_DXR" <> Customer.Municipio) or
+                   (Customer."Provincia_DXR" <> Customer.Provincia) or
+                   (Customer."Comision_Tipo_ID_DXR." <> Customer.Comision_Tipo_ID) or
+                   (Customer."Deuda Pico_DXR" <> Customer."Deuda Pico") or
+                   (Customer."Fecha Deuda Pico_DXR" <> Customer."Fecha Deuda Pico") or
+                   (Customer."Gestor_ID_DXR." <> Customer.Gestor_ID) or
+                   (Customer."Fecha envio edo cuenta_DXR" <> Customer."Fecha envio estado cuenta") or
+                   (Customer."Invoice Expiration Days_DXR" <> Customer."Invoice Expiration Days") or
+                   (Customer."Enc. Recepcion Email_DXR." <> Customer."Enc. Recepcion Email") or
+                   (Customer."StoreID_DXR." <> Customer.StoreId) or
+                   (Customer."Tipo Segmento_DXR" <> Customer."Tipo Segmento") or
+                   (Customer."Monto Deposito Cilindr_DXR" <> Customer."Monto Deposito - Cilindros") or
+                   (Customer."Cant asig - Cilindros_DXR" <> Customer."Cantidad asignar - Cilindros") or
+                   (Customer."Cliente Cilindros_DXR" <> Customer."Cliente Cilindros") or
+                   (Customer."Fecha Exp Reg Merc_DXR" <> Customer."Fecha Expiracion Reg Mercantil") or
+                   (Customer."B2C Customer_DXR" <> Customer."B2C Customer") or
+                   (Customer."Last Date/Time Modified_DXR" <> Customer."Last Date/Time Modified") or
+                   (Customer."Req Fecha Reg Merc_DXR" <> Customer."Requiere Fecha Reg. Mercantil")
+                then begin
+                    Customer."Dirección Representante_DXR" := Customer."Dirección Representante";
+                    Customer."Sector Representante_DXR" := Customer."Sector Representante";
+                    Customer."Cédula Representante_DXR" := Customer."Cédula Representante";
+                    Customer."Cumpl Representante_DXR" := Customer."Cumpleaños Representante";
+                    Customer."Celular Representante_DXR" := Customer."Celular Representante";
+                    Customer."E-Mail Representante_DXR." := Customer."E-Mail Representante";
+                    Customer."Código Cobrador_DXR" := Customer."Código Cobrador";
+                    Customer."Requiere OC_DXR" := Customer."Requiere OC";
+                    Customer."Tipo de Cliente_DXR" := Customer."Tipo de Cliente";
+                    Customer."Frecuencia Visita_DXR" := Customer."Frecuencia Visita";
+                    Customer."Secuencia Visita_DXR" := Customer."Secuencia Visita";
+                    Customer."Días Visita_DXR" := Customer."Días Visita";
+                    Customer."Carnet DGII_DXR" := Customer."Carnet DGII";
+                    Customer."Cobrar Interés_DXR" := Customer."Cobrar Interés";
+                    Customer."% Interés_DXR" := Customer."% Interés";
+                    Customer."Carnet Exención ITBIS_DXR" := Customer."Carnet Exención ITBIS";
+                    Customer."Vencimiento Carnet_DXR" := Customer."Vencimiento Carnet";
+                    Customer."Enc. Compras Nombre_DXR" := Customer."Enc. Compras Nombre";
+                    Customer."Enc. Compras Email_DXR." := Customer."Enc. Compras email";
+                    Customer."Enc. Compras celular_DXR" := Customer."Enc. Compras celular";
+                    Customer."Enc. Compras Cumpleaños_DXR" := Customer."Enc. Compras Cumpleaños";
+                    Customer."Enc. Pagos Nombre_DXR" := Customer."Enc. Pagos Nombre";
+                    Customer."Enc. Pagos Email_DXR." := Customer."Enc. Pagos email";
+                    Customer."Enc. Pagos celular_DXR" := Customer."Enc. Pagos celular";
+                    Customer."Enc. Pagos Cumpleaños_DXR" := Customer."Enc. Pagos Cumpleaños";
+                    Customer."Frecuencia de Pago_DXR" := Customer."Frecuencia de Pago";
+                    Customer."Apartado Postal_DXR" := Customer."Apartado Postal";
+                    Customer."Sector_DXR" := Customer.Sector;
+                    Customer."Municipio_DXR" := Customer.Municipio;
+                    Customer."Provincia_DXR" := Customer.Provincia;
+                    Customer."Comision_Tipo_ID_DXR." := Customer.Comision_Tipo_ID;
+                    Customer."Deuda Pico_DXR" := Customer."Deuda Pico";
+                    Customer."Fecha Deuda Pico_DXR" := Customer."Fecha Deuda Pico";
+                    Customer."Gestor_ID_DXR." := Customer.Gestor_ID;
+                    Customer."Fecha envio edo cuenta_DXR" := Customer."Fecha envio estado cuenta";
+                    Customer."Invoice Expiration Days_DXR" := Customer."Invoice Expiration Days";
+                    Customer."Enc. Recepcion Email_DXR." := Customer."Enc. Recepcion Email";
+                    Customer."StoreID_DXR." := Customer.StoreId;
+                    Customer."Tipo Segmento_DXR" := Customer."Tipo Segmento";
+                    Customer."Monto Deposito Cilindr_DXR" := Customer."Monto Deposito - Cilindros";
+                    Customer."Cant asig - Cilindros_DXR" := Customer."Cantidad asignar - Cilindros";
+                    Customer."Cliente Cilindros_DXR" := Customer."Cliente Cilindros";
+                    Customer."Fecha Exp Reg Merc_DXR" := Customer."Fecha Expiracion Reg Mercantil";
+                    Customer."B2C Customer_DXR" := Customer."B2C Customer";
+                    Customer."Last Date/Time Modified_DXR" := Customer."Last Date/Time Modified";
+                    Customer."Req Fecha Reg Merc_DXR" := Customer."Requiere Fecha Reg. Mercantil";
+                    Customer.Modify(false);
+                end;
+            until Customer.Next() = 0;
     end;
 
     local procedure MigrateTableExt_CustomerPriceGroupFields()
     var
-        RecRef: RecordRef;
+        CustomerPriceGroup: Record "Customer Price Group";
     begin
-        RecRef.Open(Database::"Customer Price Group");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // targeted field 50001, which in CustomerPriceGroup.TableExt.al is a completely unrelated,
+        // Removed Boolean field ("Relacionado a Precio GLOBAL") - not even the intended shadow
+        // field. The actual dead shadow field is 50002 "Global Sales Code_Old"; the real active
+        // target, confirmed via ObsoleteReason on field 50000 (52787 is not itself obsolete), is
+        // "Global Sales Code_DXR" (52787). Direct typed field closes both gaps.
+        if CustomerPriceGroup.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if CustomerPriceGroup."Global Sales Code_DXR" <> CustomerPriceGroup."Global Sales Code" then begin
+                    CustomerPriceGroup."Global Sales Code_DXR" := CustomerPriceGroup."Global Sales Code";
+                    CustomerPriceGroup.Modify(false);
+                end;
+            until CustomerPriceGroup.Next() = 0;
     end;
 
     local procedure MigrateTableExt_GenJournalBatchFields()
@@ -2869,90 +2998,146 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_IssuedReminderHeaderFields()
     var
-        RecRef: RecordRef;
+        IssuedReminderHeader: Record "Issued Reminder Header";
     begin
-        RecRef.Open(Database::"Issued Reminder Header");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version had three pairs. (1) CopyFieldIfExists(RecRef,
+        // 50000, 50003): destination 50003 never existed in IssuedReminderHeader.TableExt.al's
+        // schema (already a guaranteed no-op) - source field 50000 "Codigo Cobrador" is a FlowField,
+        // replaced by FlowField 52787, so no stored value either way; correctly dropped. (2)
+        // CopyFieldIfExists(RecRef, 50001, 50004) copied "Remaining Amount 2" into "Remaining
+        // Amount 2_Old" (field 50004), a dead shadow field - the real active target, confirmed via
+        // ObsoleteReason on field 50001 (52788 is not itself obsolete), is "Remaining Amount 2_DXR"
+        // (52788). (3) CopyFieldIfExists(RecRef, 50002, 50005): destination 50005 never existed
+        // either (guaranteed no-op) - source field 50002 "Cust Post Group Ficha Cliente" is also a
+        // FlowField, replaced by FlowField 52789, no stored value; correctly dropped. Direct typed
+        // field for pair (2) closes that one real gap.
+        if IssuedReminderHeader.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50003);
-                CopyFieldIfExists(RecRef, 50001, 50004);
-                CopyFieldIfExists(RecRef, 50002, 50005);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if IssuedReminderHeader."Remaining Amount 2_DXR" <> IssuedReminderHeader."Remaining Amount 2" then begin
+                    IssuedReminderHeader."Remaining Amount 2_DXR" := IssuedReminderHeader."Remaining Amount 2";
+                    IssuedReminderHeader.Modify(false);
+                end;
+            until IssuedReminderHeader.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): IssuedReminderLine.TableExt.al defines only field 50000
+    // "Remaining Amount 2" (Pending, obsolete) and its replacement 52787 "Remaining Amount 2_DXR" -
+    // both are FlowFields (identical CalcFormula = Sum("Detailed Cust. Ledg. Entry".Amount ...)), so
+    // there is no stored value to migrate. The old RecordRef version's destination (50001) never
+    // existed in the schema either (CopyFieldIfExists was already a guaranteed no-op on every row).
+    // Nothing to open, nothing to copy.
     local procedure MigrateTableExt_IssuedReminderLineFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Issued Reminder Line");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
+    // Fixed 2026-08-24 (master-data table, elevated shadow-field scrutiny): same two-hop shadow-
+    // field pattern as MigrateTableExt_CustomerFields() above - the old RecordRef version copied
+    // every field into a "_BE_DXR" intermediate (50036-50070) that is ITSELF further obsolete per
+    // Item.TableExt.al's own ObsoleteReason text ("Field was renumbered and renamed to <ID> ... by
+    // commit c9e8f48d without a data migration ... Restored ... so 'Bellon Migr. Phase 5 CustItem'
+    // (cod. 56122) can bridge the value forward"), cross-checked against that sibling codeunit's own
+    // BridgeItemOldGenFields() field-number comments. Two legacy pairs from the old code - 50032
+    // "Buyer Group Code" -> 50067 and 50033 Inventory2 -> 50068 - are correctly dropped: both are
+    // FlowFields on the legacy side AND their true final targets (52818/52819) are also FlowFields
+    // (no "_BE_DXR" intermediate was ever declared for either), so there is no stored value to
+    // migrate, matching BellonMigrPhase5CustItemDXR.Codeunit.al's own explicit exclusion of the same
+    // two fields. Writing directly to the final "_DXR" targets here (skipping the dead "_BE_DXR"
+    // hop) makes this procedure correct standalone. None of the final "_DXR" targets below are
+    // themselves obsolete.
     local procedure MigrateTableExt_ItemFields()
     var
-        RecRef: RecordRef;
+        Item: Record Item;
     begin
-        RecRef.Open(Database::"Item");
-        if RecRef.FindSet(true) then
+        if Item.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50036);
-                CopyFieldIfExists(RecRef, 50001, 50037);
-                CopyFieldIfExists(RecRef, 50002, 50038);
-                CopyFieldIfExists(RecRef, 50003, 50039);
-                CopyFieldIfExists(RecRef, 50004, 50040);
-                CopyFieldIfExists(RecRef, 50005, 50041);
-                CopyFieldIfExists(RecRef, 50006, 50042);
-                CopyFieldIfExists(RecRef, 50007, 50043);
-                CopyFieldIfExists(RecRef, 50008, 50044);
-                CopyFieldIfExists(RecRef, 50009, 50045);
-                CopyFieldIfExists(RecRef, 50010, 50046);
-                CopyFieldIfExists(RecRef, 50011, 50047);
-                CopyFieldIfExists(RecRef, 50012, 50048);
-                CopyFieldIfExists(RecRef, 50013, 50049);
-                CopyFieldIfExists(RecRef, 50014, 50050);
-                CopyFieldIfExists(RecRef, 50015, 50051);
-                CopyFieldIfExists(RecRef, 50016, 50052);
-                CopyFieldIfExists(RecRef, 50017, 50053);
-                CopyFieldIfExists(RecRef, 50018, 50054);
-                CopyFieldIfExists(RecRef, 50019, 50055);
-                CopyFieldIfExists(RecRef, 50020, 50056);
-                CopyFieldIfExists(RecRef, 50021, 50057);
-                CopyFieldIfExists(RecRef, 50022, 50058);
-                CopyFieldIfExists(RecRef, 50023, 50059);
-                CopyFieldIfExists(RecRef, 50024, 50060);
-                CopyFieldIfExists(RecRef, 50025, 50061);
-                CopyFieldIfExists(RecRef, 50026, 50062);
-                CopyFieldIfExists(RecRef, 50027, 50063);
-                CopyFieldIfExists(RecRef, 50029, 50064);
-                CopyFieldIfExists(RecRef, 50030, 50065);
-                CopyFieldIfExists(RecRef, 50031, 50066);
-                CopyFieldIfExists(RecRef, 50032, 50067);
-                CopyFieldIfExists(RecRef, 50033, 50068);
-                CopyFieldIfExists(RecRef, 50034, 50069);
-                CopyFieldIfExists(RecRef, 50035, 50070);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (Item."Modelo_DXR" <> Item.Modelo) or
+                   (Item."Marca_DXR" <> Item.Marca) or
+                   (Item."Se Detalla_DXR" <> Item."Se Detalla") or
+                   (Item."Producido_DXR" <> Item.Producido) or
+                   (Item."Carga % Tarjeta_DXR" <> Item."Carga % Tarjeta") or
+                   (Item."Consignación_DXR" <> Item."Consignación") or
+                   (Item."Internal Use_DXR" <> Item."Internal Use") or
+                   (Item."Acepta Decimales_DXR" <> Item."Acepta Decimales") or
+                   (Item."Exhibición_DXR" <> Item."Exhibición") or
+                   (Item."Precio Sugerido_DXR" <> Item."Precio Sugerido") or
+                   (Item."Kit_DXR" <> Item.Kit) or
+                   (Item."Empaque_DXR" <> Item.Empaque) or
+                   (Item."Empaque Maestro_DXR" <> Item."Empaque Maestro") or
+                   (Item."Venta por Mayor_DXR" <> Item."Venta por Mayor") or
+                   (Item."% Comisión Venta_DXR" <> Item."% Comisión Venta") or
+                   (Item."% Comisión Cobro_DXR" <> Item."% Comisión Cobro") or
+                   (Item."Márgen Plaza_DXR" <> Item."Márgen Plaza") or
+                   (Item."Márgen Importación_DXR" <> Item."Márgen Importación") or
+                   (Item."Descripcion_Bellon_DXR" <> Item."Descripcion Bellon") or
+                   (Item."Costo Liquidacion_DXR" <> Item."Costo Liquidacion") or
+                   (Item."Comision_Tipo_ID_DXR." <> Item.Comision_Tipo_ID) or
+                   (Item."Ultimo Costo Bellon_DXR" <> Item."Ultimo Costo Bellon") or
+                   (Item."Costo Unitario Bellon_DXR" <> Item."Costo Unitario Bellon") or
+                   (Item."SANA Info Adicionales_DXR" <> Item."SANA - Info. Adicionales") or
+                   (Item."Sales Group_DXR" <> Item."Sales Group") or
+                   (Item."Sales SubGroup_DXR" <> Item."Sales SubGroup") or
+                   (Item."Sales Dept Code_DXR" <> Item."Sales Dept Code") or
+                   (Item."Codigo Producto Aduana_DXR" <> Item."Codigo Producto Aduana") or
+                   (Item."ExclFromDiscountCoupons_DXR" <> Item.ExcludedFromDiscountCoupons) or
+                   (Item."ExclFromFreeShipCoupons_DXR" <> Item.ExcludedFromFreeShipCoupons) or
+                   (Item."Disponible para Ventas_DXR" <> Item."Disponible para Ventas") or
+                   (Item."Item Status_DXR" <> Item."Item Status") or
+                   (Item."Control Existencia_DXR" <> Item."Control Existencia")
+                then begin
+                    Item."Modelo_DXR" := Item.Modelo;
+                    Item."Marca_DXR" := Item.Marca;
+                    Item."Se Detalla_DXR" := Item."Se Detalla";
+                    Item."Producido_DXR" := Item.Producido;
+                    Item."Carga % Tarjeta_DXR" := Item."Carga % Tarjeta";
+                    Item."Consignación_DXR" := Item."Consignación";
+                    Item."Internal Use_DXR" := Item."Internal Use";
+                    Item."Acepta Decimales_DXR" := Item."Acepta Decimales";
+                    Item."Exhibición_DXR" := Item."Exhibición";
+                    Item."Precio Sugerido_DXR" := Item."Precio Sugerido";
+                    Item."Kit_DXR" := Item.Kit;
+                    Item."Empaque_DXR" := Item.Empaque;
+                    Item."Empaque Maestro_DXR" := Item."Empaque Maestro";
+                    Item."Venta por Mayor_DXR" := Item."Venta por Mayor";
+                    Item."% Comisión Venta_DXR" := Item."% Comisión Venta";
+                    Item."% Comisión Cobro_DXR" := Item."% Comisión Cobro";
+                    Item."Márgen Plaza_DXR" := Item."Márgen Plaza";
+                    Item."Márgen Importación_DXR" := Item."Márgen Importación";
+                    Item."Descripcion_Bellon_DXR" := Item."Descripcion Bellon";
+                    Item."Costo Liquidacion_DXR" := Item."Costo Liquidacion";
+                    Item."Comision_Tipo_ID_DXR." := Item.Comision_Tipo_ID;
+                    Item."Ultimo Costo Bellon_DXR" := Item."Ultimo Costo Bellon";
+                    Item."Costo Unitario Bellon_DXR" := Item."Costo Unitario Bellon";
+                    Item."SANA Info Adicionales_DXR" := Item."SANA - Info. Adicionales";
+                    Item."Sales Group_DXR" := Item."Sales Group";
+                    Item."Sales SubGroup_DXR" := Item."Sales SubGroup";
+                    Item."Sales Dept Code_DXR" := Item."Sales Dept Code";
+                    Item."Codigo Producto Aduana_DXR" := Item."Codigo Producto Aduana";
+                    Item."ExclFromDiscountCoupons_DXR" := Item.ExcludedFromDiscountCoupons;
+                    Item."ExclFromFreeShipCoupons_DXR" := Item.ExcludedFromFreeShipCoupons;
+                    Item."Disponible para Ventas_DXR" := Item."Disponible para Ventas";
+                    Item."Item Status_DXR" := Item."Item Status";
+                    Item."Control Existencia_DXR" := Item."Control Existencia";
+                    Item.Modify(false);
+                end;
+            until Item.Next() = 0;
     end;
 
     local procedure MigrateTableExt_ItemCategoryFields()
     var
-        RecRef: RecordRef;
+        ItemCategory: Record "Item Category";
     begin
-        RecRef.Open(Database::"Item Category");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
+        // copied "% Comision" into "% Comision_Old" (field 50001), a dead shadow field -
+        // ItemCategory.TableExt.al's real active target, confirmed via ObsoleteReason on field 50000
+        // (52787 is not itself obsolete), is "% Comision_DXR" (52787). Direct typed field closes
+        // that gap.
+        if ItemCategory.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if ItemCategory."% Comision_DXR" <> ItemCategory."% Comision" then begin
+                    ItemCategory."% Comision_DXR" := ItemCategory."% Comision";
+                    ItemCategory.Modify(false);
+                end;
+            until ItemCategory.Next() = 0;
     end;
 
     local procedure MigrateTableExt_ItemChargeAssignmentPurchFields()
