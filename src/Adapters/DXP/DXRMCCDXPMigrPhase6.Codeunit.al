@@ -36,8 +36,6 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     begin
         if PosTerminal.FindSet(true) then
             repeat
-                PosTerminal.DXRutaFirma := PosTerminal.DXRutaFirma_Old;
-                PosTerminal.DXRpuerto := PosTerminal.DXRpuerto_Old;
                 PosTerminal."Uses VeriPhone_DXR" := PosTerminal."Uses VeriPhone_Old";
                 PosTerminal.Puerto_DXR := PosTerminal.Puerto_Old;
                 PosTerminal.Proveedor_DXR := PosTerminal.Proveedor_Old;
@@ -86,7 +84,6 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     begin
         if TenderType.FindSet(true) then
             repeat
-                TenderType."DXRequiredVeriphoneProcessing" := TenderType."DXRequiredVeriphoneProcess_Old";
                 TenderType."ReqVeriphoneProcessing_DXR" := TenderType."ReqVeriphoneProcessing_Old";
                 TenderType.tPayment_DXR := TenderType.tPayment_Old;
                 TenderType."Cuota Payment_DXR" := TenderType."Cuota Payment_Old";
