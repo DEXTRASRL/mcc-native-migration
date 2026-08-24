@@ -110,23 +110,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         DispatchSetupRec: Record "DXR_Dispatch Setup";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyDispatchSetupRec: Record "DXR-DE Dispatch Setup";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHSETUP-28.3') then
             exit;
 
         if DispatchSetupRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(DispatchSetupRec);
-                if FindMatchingLegacyRow(50800, NewRecRef, LegacyRecRef) then begin
+                if LegacyDispatchSetupRec.Get(DispatchSetupRec."Key") then begin
                     // 50840 "DXR-DE Enable Manual Gen. Doc." -> Enable Manual Gen. Doc._DXR
-                    Fld := LegacyRecRef.Field(50840);
-                    DispatchSetupRec."Enable Manual Gen. Doc._DXR" := Fld.Value();
-                    DispatchSetupRec.Modify(false);
+                    if DispatchSetupRec."Enable Manual Gen. Doc._DXR" <> LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc." then begin
+                        DispatchSetupRec."Enable Manual Gen. Doc._DXR" := LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc.";
+                        DispatchSetupRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until DispatchSetupRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHSETUP-28.3');
