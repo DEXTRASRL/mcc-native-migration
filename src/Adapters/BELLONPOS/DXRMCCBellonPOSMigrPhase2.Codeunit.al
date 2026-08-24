@@ -52,18 +52,20 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
 
     local procedure MigrateTableExt_BEDXSetupFields()
     var
-        RecRef: RecordRef;
+        Setup: Record "BE DX Setup";
     begin
-        RecRef.Open(Database::"BE DX Setup");
-        if RecRef.FindSet(true) then
+        if Setup.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50340, 53526);
-                CopyFieldIfExists(RecRef, 50341, 53527);
-                CopyFieldIfExists(RecRef, 50342, 53528);
-                CopyFieldIfExists(RecRef, 50343, 53529);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (Setup."POS Venta Exonerada ITBIS" <> Setup."POS Venta Exonerada ITBIS_DXR") then
+                    Setup."POS Venta Exonerada ITBIS_DXR" := Setup."POS Venta Exonerada ITBIS";
+                if (Setup."Filtro Pos Devolucion" <> Setup."Filtro Pos Devolucion_DXR") then
+                    Setup."Filtro Pos Devolucion_DXR" := Setup."Filtro Pos Devolucion";
+                if (Setup."POS Devolucion Exonerada ITBIS" <> Setup."POS Devolucion Exonerada ITBIS_DXR") then
+                    Setup."POS Devolucion Exonerada ITBIS_DXR" := Setup."POS Devolucion Exonerada ITBIS";
+                if (Setup."Show SalesPerson on Receipt" <> Setup."Show SalesPerson on Receipt_DXR") then
+                    Setup."Show SalesPerson on Receipt_DXR" := Setup."Show SalesPerson on Receipt";
+                Setup.Modify(false);
+            until Setup.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCCouponHeaderFields()
@@ -107,17 +109,18 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
 
     local procedure MigrateTableExt_LSCPOSTerminalFields()
     var
-        RecRef: RecordRef;
+        Terminal: Record "LSC POS Terminal";
     begin
-        RecRef.Open(Database::"LSC POS Terminal");
-        if RecRef.FindSet(true) then
+        if Terminal.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 53526);
-                CopyFieldIfExists(RecRef, 50001, 53527);
-                CopyFieldIfExists(RecRef, 50002, 53528);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (Terminal."External Cmd. Print Z by Range" <> Terminal."External Cmd. Print Z by Range_DXR") then
+                    Terminal."External Cmd. Print Z by Range_DXR" := Terminal."External Cmd. Print Z by Range";
+                if (Terminal."External Cmd. Imp. Factura" <> Terminal."External Cmd. Imp. Factura_DXR") then
+                    Terminal."External Cmd. Imp. Factura_DXR" := Terminal."External Cmd. Imp. Factura";
+                if (Terminal."External Cmd. Cliente Suspe." <> Terminal."External Cmd. Cliente Suspe._DXR") then
+                    Terminal."External Cmd. Cliente Suspe._DXR" := Terminal."External Cmd. Cliente Suspe.";
+                Terminal.Modify(false);
+            until Terminal.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCPOSTransactionFields()
