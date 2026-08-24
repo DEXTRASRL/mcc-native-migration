@@ -2104,30 +2104,27 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     begin
     end;
 
+    // Fixed 2026-08-24 (code review, Finding 1): DXR_NCF Setup (table 52179, DR-Localization) is
+    // declared Access = Internal there, and MCC's own package has no internalsVisibleTo grant
+    // from DR-Localization (only "Bellon Customization" does - confirmed by reading DR-
+    // Localization\Localization\app.json), so a typed Record variable cannot be declared here at
+    // all. Rather than keep a RecordRef workaround, this now calls a thin typed bridge procedure
+    // added to BELLON's own package for this task - "DXR_BE MCC Migr Bridge" (56132)
+    // .RunDependencyFieldSync_NCFSetup() - which lives inside a package that DOES have the
+    // internalsVisibleTo grant and can declare "DXR_NCF Setup" as a typed Record directly. This
+    // mirrors the exact pattern already established by LSLOC's "DXR_LS Migr. Dispatcher" and FE's
+    // "DXR_EF MCC Migr Bridge" for the same Access=Internal constraint elsewhere in this plan.
+    // Zero RecordRef/FieldRef in this procedure.
+    //
+    // Fixed 2026-08-24: the old field mapping copied both fields into dead "_Old" shadow fields
+    // (50003/50004) - NCFSetup.TableExt.al's real active targets, confirmed via ObsoleteReason on
+    // fields 50001/50002 (neither destination is itself obsolete), are "Grupo Contable BS_DXR"
+    // (52787) and "Legal Tip %_DXR" (52788). The bridge procedure implements exactly this pair.
     local procedure MigrateTableExt_DXNCFSetupFields()
     var
-        RecRef: RecordRef;
+        BellonMCCMigrBridge: Codeunit "DXR_BE MCC Migr Bridge";
     begin
-        // DXR_NCF Setup (table 52179, DR-Localization) is declared Access = Internal, so it
-        // cannot be referenced by a typed Record variable from this extension (compile-time
-        // access-boundary error) - RecordRef.Open() by raw ID is the only way to reach it from
-        // here, matching the established, deliberate precedent already used elsewhere in this
-        // same file for other DR-Localization Access=Internal tables (see the "Cash Journal
-        // Receipt List" procedure above). This is a genuine external constraint, not a
-        // convenience shortcut, so it stays a documented exception to the zero-RecordRef rule.
-        //
-        // Fixed 2026-08-24: the old field mapping copied both fields into dead "_Old" shadow
-        // fields (50003/50004) - NCFSetup.TableExt.al's real active targets, confirmed via
-        // ObsoleteReason on fields 50001/50002 (neither destination is itself obsolete), are
-        // "Grupo Contable BS_DXR" (52787) and "Legal Tip %_DXR" (52788).
-        RecRef.Open(52179);
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50001, 52787);
-                CopyFieldIfExists(RecRef, 50002, 52788);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+        BellonMCCMigrBridge.RunDependencyFieldSync_NCFSetup();
     end;
 
     local procedure MigrateTableExt_LSCPOSTransLineFields()
@@ -2350,6 +2347,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // a single-row table (blank primary key). "Terminos Devoluciones" (50018/52802) is a BLOB
         // field, so it needs CalcFields() before it can be read/copied, same as the old RecordRef
         // version's explicit CalcField() call. Direct typed fields close the shadow-field gap.
+        //
+        // Note (code review, Finding 2): the redundant-write guard below intentionally excludes
+        // "Terminos Devoluciones_DXR"/"Terminos Devoluciones" - AL does not support a "<>"
+        // comparison on BLOB fields. The BLOB is still copied unconditionally whenever any other
+        // field in the guard differs, so it never goes stale in practice for this one-shot
+        // upgrade-time migration; it just isn't itself part of the trigger condition.
         if LSCRetailSetup.Get() then begin
             LSCRetailSetup.CalcFields("Terminos Devoluciones");
             if (LSCRetailSetup."Withhold VAT Refund_DXR" <> LSCRetailSetup."Withhold VAT Refund") or
