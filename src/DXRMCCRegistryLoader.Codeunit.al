@@ -768,18 +768,18 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P2', 156, 'Tableextension field-group restore: ValueEntry/Vendor/WarehouseReceiptLine (Leg-Norm pass)', 60146, 0, 0, 'MA');
 
         // ---- BELLONPOS: Bellon Customization POS ----
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 1, 'LSC Membership Card field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 2, 'BE DX Setup field restore', 60067, 0, 0, 'SETUP');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 3, 'LSC Coupon Header field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 4, 'LSC POS Trans. Line field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 5, 'LSC POS Command field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 6, 'LSC POS Terminal field restore', 60067, 0, 0, 'SETUP');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 7, 'LSC POS Transaction field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 8, 'LSC Trans. Sales Entry field restore', 60067, 0, 0, 'OTHER');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 9, 'LSC Trans Server Table Log field restore', 60067, 0, 0, 'HIST');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 10, 'POS Trans. Grouped RTC legacy table restore', 60067, 50300, 53563, 'HIST');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 11, 'POS Trans RTC legacy table restore', 60067, 50301, 53564, 'HIST');
-        InsConcept('BELLONPOS', 'BELLONPOS-P2', 12, 'POS Trans. / Invalid Items RTC legacy table restore', 60067, 50302, 53565, 'HIST');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 1, 'LSC Membership Card field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 2, 'BE DX Setup field restore', 60159, 0, 0, 'SETUP');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 3, 'LSC Coupon Header field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 4, 'LSC POS Trans. Line field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 5, 'LSC POS Command field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 6, 'LSC POS Terminal field restore', 60159, 0, 0, 'SETUP');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 7, 'LSC POS Transaction field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 8, 'LSC Trans. Sales Entry field restore', 60159, 0, 0, 'OTHER');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 9, 'LSC Trans Server Table Log field restore', 60159, 0, 0, 'HIST');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 10, 'POS Trans. Grouped RTC legacy table restore', 60159, 50300, 53563, 'HIST');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 11, 'POS Trans RTC legacy table restore', 60159, 50301, 53564, 'HIST');
+        InsConcept('BELLONPOS', 'BELLONPOS-P2', 12, 'POS Trans. / Invalid Items RTC legacy table restore', 60159, 50302, 53565, 'HIST');
 
         // ---- DESLS: Despacho LS ----
         InsConcept('DESLS', 'DESLS-P1', 1, 'Document Generic legacy table restore', 60129, 50870, 53945, 'OTHER');

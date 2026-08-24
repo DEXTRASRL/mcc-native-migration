@@ -113,7 +113,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Bellon Migr Phase12" = X,
         codeunit "DXR MCC Bellon Migr Phase13" = X,
         codeunit "DXR MCC Bellon Migr Phase14" = X,
-        codeunit "DXR MCC Adapt BellonPOS Ph2" = X,
+        codeunit "DXR MCC BellonPOS Migr Phase2" = X,
         codeunit "DXR MCC Adapt LSLOC Dispatch" = X,
         codeunit "DXR MCC Adapt DRLOC Dispatch" = X,
         page "DXR Migration Control Center" = X,
