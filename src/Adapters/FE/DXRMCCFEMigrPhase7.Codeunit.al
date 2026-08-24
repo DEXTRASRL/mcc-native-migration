@@ -3,15 +3,27 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     // Native local migration - ported verbatim from Facturacion Electronica's own
     // "DXR_Migr. Phase 7 Bootstrap".OnRun(), which delegates entirely to "DXR_Upgrade".
     // ExecutePhase1DependencyMigration() (codeunit "DXR_Upgrade", Subtype = Upgrade,
-    // Access = Internal). Copies 4 pairs of NCF/Payment setup fields (owned by DR-Localization,
-    // dependency tables of FE) plus a later-added "Applies Withholding_DXR" fill on 5 line tables.
+    // Access = Internal). Copies 4 pairs of NCF/Payment setup fields (registry rows FE-P7 seq1/
+    // 304/305/306, all SETUP, in scope) plus a later-added "Applies Withholding_DXR" fill on 5
+    // line tables (untracked repair step, no registry row, out of scope - left exactly as
+    // before, matching the LSLOC precedent of leaving out-of-scope in-file code untouched).
     //
-    // All 8 dependency tables (DXNCF Purchase Setup/DXR_NCF Purchase Setup, DXNCF Sales Setup/
-    // DXR_NCF Sales Setup, DXNCF Setup/DXR_NCF Setup, DXPayment Method Relation/DXR_Payment Method
-    // Relation) are owned by DR-Localization; the 4 "DXR_" (new) sides are Access = Internal there,
-    // so this codeunit accesses all 8 purely via RecordRef by numeric table ID (never by name),
-    // matching the established pattern for every other sibling's Access = Internal object in this
-    // portfolio.
+    // The 4 in-scope target tables (DXR_NCF Purchase Setup 52177, DXR_NCF Sales Setup 52178,
+    // DXR_NCF Setup 52179, DXR_Payment Method Relation 52180) are owned by DR-Localization and
+    // Access = Internal there; MCC has no internalsVisibleTo grant from DR-Localization (confirmed
+    // by reading DR-Localization/Localization/app.json's internalsVisibleTo list), so it cannot
+    // see them as typed Records. Investigated (per this task's own instructions) whether this
+    // matches the LSLOC precedent (Task A.4-LSLOC): confirmed yes - the actual "_DXR" fields being
+    // migrated (Alternal No. Series_DXR/Alt No. Series NC_DXR/Base URL_DXR/Payment Type_DXR/
+    // Payment Type Form_DXR) are declared on FE's OWN tableextensions of those 4 DR-Localization
+    // tables (EFDxNcfPurchaseSetup/EFDxNcfSalesSetup/EFNcfSetup/EFPaymentMethodRelation.TableExt.al),
+    // not on DR-Localization's own base tables - fields DR-Localization's own package cannot see
+    // either. Zero-RecordRef therefore requires a thin typed wrapper: FE's own new public
+    // "DXR_EF MCC Migr Bridge" (52544, added for this task, mirroring LSLOC's "DXR_LS Migr.
+    // Dispatcher" bridge pattern) now exposes RunDependencyFieldSync_NCFPurchaseSetup/
+    // NCFSalesSetup/NCFSetup/PaymentMethodRelation(), each a direct typed field copy living
+    // inside FE's own package (which DOES have internalsVisibleTo from DR-Localization, and owns
+    // the target fields).
     Permissions =
         tabledata "Purch. Cr. Memo Line" = RM,
         tabledata "Purch. Inv. Line" = RM,
@@ -38,20 +50,22 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     end;
 
     local procedure MigrateLegacyDependencyTableFields()
+    var
+        FEMigrBridge: Codeunit "DXR_EF MCC Migr Bridge";
     begin
-        // DXNCF Purchase Setup (54130) -> DXR_NCF Purchase Setup (52177): Alternal No.
+        // seq1: DXNCF Purchase Setup (54130) -> DXR_NCF Purchase Setup (52177): Alternal No.
         // Series_DXR (55501->52333), Alt No. Series NC_DXR (55502->52334).
-        CopyLegacyDependencyTableFields(54130, 52177, 55501, 52333, 55502, 52334);
+        FEMigrBridge.RunDependencyFieldSync_NCFPurchaseSetup();
 
-        // DXNCF Sales Setup (54131) -> DXR_NCF Sales Setup (52178): same field pair.
-        CopyLegacyDependencyTableFields(54131, 52178, 55501, 52333, 55502, 52334);
+        // seq304: DXNCF Sales Setup (54131) -> DXR_NCF Sales Setup (52178): same field pair.
+        FEMigrBridge.RunDependencyFieldSync_NCFSalesSetup();
 
-        // DXNCF Setup (54132) -> DXR_NCF Setup (52179): Base URL_DXR only.
-        CopyLegacyDependencyTableFields(54132, 52179, 55501, 52333, 0, 0);
+        // seq305: DXNCF Setup (54132) -> DXR_NCF Setup (52179): Base URL_DXR only.
+        FEMigrBridge.RunDependencyFieldSync_NCFSetup();
 
-        // DXPayment Method Relation (54133) -> DXR_Payment Method Relation (52180): Payment
-        // Type_DXR (55502->52333), Payment Type Form_DXR (55501->52334).
-        CopyLegacyDependencyTableFields(54133, 52180, 55502, 52334, 55501, 52333);
+        // seq306: DXPayment Method Relation (54133) -> DXR_Payment Method Relation (52180):
+        // Payment Type_DXR (55501->52333), Payment Type Form_DXR (55502->52334).
+        FEMigrBridge.RunDependencyFieldSync_PaymentMethodRelation();
 
         // "Applies Withholding_DXR" (52335) fill on the 5 line tables - same table on both sides
         // (field 55504 -> 52335), added 2026-08-22 after Phase 9/10's FieldMap was found missing
@@ -65,51 +79,12 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         CopyLegacyDependencyTableFieldsSameTable(Database::"Sales Cr.Memo Line", 55504, 52335);
     end;
 
-    local procedure CopyLegacyDependencyTableFields(SourceTableId: Integer; TargetTableId: Integer; SourceFieldNo1: Integer; TargetFieldNo1: Integer; SourceFieldNo2: Integer; TargetFieldNo2: Integer)
-    var
-        SourceRef: RecordRef;
-        TargetRef: RecordRef;
-        SourceKeyRef: KeyRef;
-        SourcePkFieldRef: FieldRef;
-        TargetPkFieldRef: FieldRef;
-        KeyFieldIndex: Integer;
-        AllKeyFieldsMapped: Boolean;
-    begin
-        SourceRef.Open(SourceTableId);
-        TargetRef.Open(TargetTableId);
-
-        SourceKeyRef := SourceRef.KeyIndex(1);
-
-        if SourceRef.FindSet() then
-            repeat
-                TargetRef.Reset();
-                AllKeyFieldsMapped := true;
-
-                for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
-                    SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-
-                    if TargetRef.FieldExist(SourcePkFieldRef.Number) then begin
-                        TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Number);
-                        TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
-                    end else
-                        AllKeyFieldsMapped := false;
-                end;
-
-                if AllKeyFieldsMapped then
-                    if TargetRef.FindFirst() then begin
-                        CopyFieldValueIfExists(SourceRef, TargetRef, SourceFieldNo1, TargetFieldNo1);
-
-                        if (SourceFieldNo2 <> 0) and (TargetFieldNo2 <> 0) then
-                            CopyFieldValueIfExists(SourceRef, TargetRef, SourceFieldNo2, TargetFieldNo2);
-
-                        TargetRef.Modify(false);
-                    end;
-            until SourceRef.Next() = 0;
-
-        TargetRef.Close();
-        SourceRef.Close();
-    end;
-
+    // CopyLegacyDependencyTableFieldsSameTable/CopyFieldValueIfExists below remain RecordRef-based
+    // by design: they serve only the out-of-scope "Applies Withholding_DXR" same-table fill (no
+    // MCC registry row - see the class header comment), left untouched per this task's scope
+    // rules. The generic cross-table RecordRef helper that used to serve the 4 in-scope NCF/
+    // Payment concepts (CopyLegacyDependencyTableFields) has been removed - replaced by
+    // "DXR_EF MCC Migr Bridge" calls above.
     local procedure CopyLegacyDependencyTableFieldsSameTable(TableId: Integer; SourceFieldNo: Integer; TargetFieldNo: Integer)
     var
         RecRef: RecordRef;
