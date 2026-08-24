@@ -26,7 +26,17 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     //      SOURCE fields ("DX Details"/"DX NCF Expiration Date"/"DX Is Debit Note"/"DXExclude
     //      Control Legal Tip"/"DX Apply Withholding") that are THEMSELVES ObsoleteState = Removed on
     //      the current DXR_PurchaseHeaderExt.TableExt.AL (confirmed by direct read of each field's
-    //      own attribute block). AL refuses a typed reference to a Removed field (compile error) -
+    //      own attribute block). DISAMBIGUATION (2026-08-24, review correction confirmed and
+    //      re-verified): it is the SOURCE "DX ..." field name that is Removed on each pair - the
+    //      TARGET "_DXR" field ("Details_DXR"/"NCF Expiration Date_DXR"/"Is Debit Note_DXR"/
+    //      "Excl Ctrl Legal Tip_DXR"/"Apply Withholding_DXR", no "DX" prefix) is perfectly live with
+    //      no ObsoleteState at all - only a DIFFERENTLY-NAMED "_V1" intermediate one block above each
+    //      target (e.g. "Apply Withholding_DXR_V1") is Removed on that side. Do not confuse the two:
+    //      this port fails on the READ side (SourceRecord."DX Details" etc.), not the write side.
+    //      Empirically re-verified by actually compiling a typed reference to all 5 source fields with
+    //      alc.exe: every one throws "error AL0433: Field 'DX ...' is removed", quoting the exact same
+    //      ObsoleteReason text cited above - a real compiler-enforced block, not a misreading of the
+    //      property text. AL refuses a typed reference to a Removed field, whether read or write -
     //      there is no typed way to read these 5 values. DR-Localization's own two independent
     //      implementations of this migration (this codeunit AND the parallel "DXR_Internal Closure
     //      Migration"."MigratePurchaseHeaderHistoricalFieldsIfExists") both explicitly document
