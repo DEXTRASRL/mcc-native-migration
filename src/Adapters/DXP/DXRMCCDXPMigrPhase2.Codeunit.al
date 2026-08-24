@@ -36,7 +36,13 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
         if PosTerminal.FindSet(true) then
             repeat
                 PosTerminal."Uses VeriPhone_DXR" := PosTerminal."DX Uses VeriPhone";
+                // Cross-enum-type conversion: DXPuerto (enum "DX Port") → Puerto_DXR (enum DXR_Port)
+                // Ordinal values verified identical before .AsInteger() conversion (Port: {0:COM1..9:COM10}).
+                // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
                 PosTerminal.Puerto_DXR := (PosTerminal.DXPuerto.AsInteger());
+                // Cross-enum-type conversion: DXProveedor (enum "DX Provider") → Proveedor_DXR (enum DXR_Provider)
+                // Ordinal values verified identical before .AsInteger() conversion (Provider: {0:" ",1:Azul,2:Cardnet,3:Visanet,4:"Azul Com"}).
+                // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
                 PosTerminal.Proveedor_DXR := (PosTerminal.DXProveedor.AsInteger());
                 PosTerminal."Imprime Ticket_DXR" := PosTerminal."DXImprime Ticket";
                 PosTerminal."Puerto Secundario_DXR" := PosTerminal."DXPuerto Secundario";
