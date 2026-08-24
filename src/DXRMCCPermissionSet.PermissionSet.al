@@ -118,6 +118,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC LSLOC Migr ToDXRLS" = X,
         codeunit "DXR MCC LSLOC Migr DepFields" = X,
         codeunit "DXR MCC Adapt DRLOC Dispatch" = X,
+        codeunit "DXR MCC Adapt DRLOC PmtMethod" = X,
         page "DXR Migration Control Center" = X,
         page "DXR MCC Concept Subform" = X,
         page "DXR MCC Run Log" = X,
