@@ -7,9 +7,11 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     // after PCM's "Renumerar objetos y campos DXR_ a rango global 51801-54999" commit. Unlike
     // Phase2-4, the real source has no retry-on-transient-lock logic here - preserved as-is.
     // Tables 54605 "DXR_Prices Ctrl Setup" and 54609 "DXR_Approval History" are Access = Internal
-    // on PCM's side (same object-name collision with their 570xx predecessors, restored pending
-    // removal) - accessed here purely via RecordRef by numeric table ID, so they cannot be (and do
-    // not need to be) named in this Permissions block.
+    // on PCM's side (restored 570xx predecessors, pending removal), so neither is named in this
+    // Permissions block. 54609/MigrateApprovalHistory below still crosses via RecordRef by numeric
+    // table ID (Task A.4 scope was 54605/Setup only). 54605/MigratePricesCtrlSetup below instead
+    // uses the typed thin-wrapper pattern: it calls a public procedure PCM's own codeunit 54620
+    // exposes, rather than declaring Record/RecordRef on the Internal table here.
     Permissions =
         tabledata "Approval Entry" = RM,
         tabledata Customer = RM,
@@ -34,90 +36,20 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     local procedure MigratePricesCtrlSetup()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        OldRef: RecordRef;
-        NewRef: RecordRef;
-        NewCodeFld: FieldRef;
+        Phase5IdRenum: Codeunit 54620;
     begin
         if UpgradeTag.HasUpgradeTag(Step1Tag()) then
             exit;
 
-        // Old table shares the same object name "DXR_Prices Ctrl Setup" (57022 vs 54605) and both
-        // are Access = Internal on PCM's side - use RecordRef by numeric table ID throughout, both
-        // to disambiguate the name collision and to avoid a typed reference to an internal object.
-        OldRef.Open(57022);
-        if not OldRef.FindFirst() then begin
-            OldRef.Close();
-            UpgradeTag.SetUpgradeTag(Step1Tag());
-            exit;
-        end;
-
-        // Both tables share identical field IDs/types for every Setup field, so field 57000
-        // ("Code") is also the new table's primary key field number.
-        NewRef.Open(54605);
-        NewCodeFld := NewRef.Field(57000);
-        NewCodeFld.SetRange(GetSetupCode(OldRef));
-        if not NewRef.IsEmpty() then begin
-            NewCodeFld.SetRange();
-            NewRef.Close();
-            OldRef.Close();
-            UpgradeTag.SetUpgradeTag(Step1Tag());
-            exit;
-        end;
-        NewCodeFld.SetRange();
-
-        // FieldRef-by-number copy: both tables share identical field IDs/types for every Setup
-        // field (see DXRPRCPricesCtrlSetup.Table.al in Tables.old / Tables).
-        CopySetupFieldsByRecordRef(OldRef, NewRef);
-        NewRef.Close();
-        OldRef.Close();
+        // Tables 57022 ("DXR_Prices Ctrl Setup_Old") and 54605 ("DXR_Prices Ctrl Setup") are both
+        // Access = Internal on PCM's side - typed-thin-wrapper pattern: PCM's own codeunit exposes
+        // a public, ungated, fully typed procedure that MCC calls instead of declaring Record/
+        // RecordRef on the Internal tables itself. See MigrateLegacyPricesCtrlSetupForExternalCaller
+        // in DXRPRCMigrPhase5IdRenumber.Codeunit.al for the real (idempotent, if-not-exists-insert)
+        // migration logic.
+        Phase5IdRenum.MigrateLegacyPricesCtrlSetupForExternalCaller();
 
         UpgradeTag.SetUpgradeTag(Step1Tag());
-    end;
-
-    local procedure GetSetupCode(var OldRef: RecordRef): Code[20]
-    var
-        CodeFld: FieldRef;
-    begin
-        CodeFld := OldRef.Field(57000); // "Code"
-        exit(CodeFld.Value());
-    end;
-
-    local procedure BuildSetupFieldIdList(var FieldIds: List of [Integer])
-    begin
-        FieldIds.Add(57000); FieldIds.Add(57001); FieldIds.Add(57002); FieldIds.Add(57004);
-        FieldIds.Add(57005); FieldIds.Add(57006); FieldIds.Add(57007); FieldIds.Add(57008);
-        FieldIds.Add(57009); FieldIds.Add(57010); FieldIds.Add(570011); FieldIds.Add(57012);
-        FieldIds.Add(57013); FieldIds.Add(57014); FieldIds.Add(57015); FieldIds.Add(57016);
-        FieldIds.Add(57017); FieldIds.Add(57018); FieldIds.Add(57019); FieldIds.Add(57020);
-        FieldIds.Add(57021); FieldIds.Add(57022); FieldIds.Add(57023); FieldIds.Add(57024);
-        FieldIds.Add(57025); FieldIds.Add(57026); FieldIds.Add(57027); FieldIds.Add(57028);
-        FieldIds.Add(57029); FieldIds.Add(57030); FieldIds.Add(57031); FieldIds.Add(57032);
-        FieldIds.Add(57033); FieldIds.Add(57043); FieldIds.Add(57044); FieldIds.Add(57045);
-        FieldIds.Add(57046); FieldIds.Add(57047); FieldIds.Add(57048); FieldIds.Add(57049);
-        FieldIds.Add(57050); FieldIds.Add(57051); FieldIds.Add(57052); FieldIds.Add(57053);
-        FieldIds.Add(57054); FieldIds.Add(57055); FieldIds.Add(57056); FieldIds.Add(57057);
-        FieldIds.Add(57058); FieldIds.Add(57059); FieldIds.Add(57060); FieldIds.Add(57061);
-        FieldIds.Add(57062); FieldIds.Add(57063); FieldIds.Add(57064); FieldIds.Add(57034);
-        FieldIds.Add(57035); FieldIds.Add(57036); FieldIds.Add(57037); FieldIds.Add(57038);
-        FieldIds.Add(57039); FieldIds.Add(57040); FieldIds.Add(57041); FieldIds.Add(57200);
-        FieldIds.Add(57201); FieldIds.Add(57202); FieldIds.Add(57206); FieldIds.Add(57203);
-        FieldIds.Add(57204); FieldIds.Add(57205);
-    end;
-
-    local procedure CopySetupFieldsByRecordRef(var OldRef: RecordRef; var NewRef: RecordRef)
-    var
-        FieldIds: List of [Integer];
-        FieldId: Integer;
-        OldFld, NewFld : FieldRef;
-    begin
-        NewRef.Init();
-        BuildSetupFieldIdList(FieldIds);
-        foreach FieldId in FieldIds do begin
-            OldFld := OldRef.Field(FieldId);
-            NewFld := NewRef.Field(FieldId);
-            NewFld.Value := OldFld.Value;
-        end;
-        NewRef.Insert(false);
     end;
 
     local procedure MigrateApprovalHistory()
