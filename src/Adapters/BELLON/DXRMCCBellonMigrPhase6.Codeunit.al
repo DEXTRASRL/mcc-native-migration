@@ -873,6 +873,302 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
             until Legacy.Next() = 0;
     end;
 
+    // ===== 14 FINAL SETUP-category "Old2" whole-table restores converted to native typed logic =====
+    // Task A.4 Batch 6 (FINAL batch): zero RecordRef/FieldRef, zero TransferFields - every field
+    // assigned explicitly. Replaces the last 14 of the MigrateLegacyTableData(...) calls in
+    // Setup scope (the helper remains in use below for ~71 other, out-of-scope non-Setup "Old2"
+    // tables in MigrateAllRenumberedDXRTables() - not removed, not dead). Completes BELLON-P6's
+    // entire Setup sweep. Each of these 14 tables' final destination (53xxx) is the SAME table a
+    // sibling BELLON-P2 concept (already converted in DXRMCCBellonMigrPhase2's own Task A.4
+    // Batches 1-3, reviewed clean) already writes to from a DIFFERENT legacy source (50xxx). Both
+    // procedures do a Get()-before-Insert() against the same destination table - intentional and
+    // idempotent, not a conflict. Field lists and primary keys verified independently against this
+    // batch's real Tables.old2\*.Table.al (Old2 legacy) and Tables\*.Table.al (DXR_ new) sources -
+    // field-for-field identical on both sides for all 14 tables in this batch, no renamed/shadow
+    // fields found (cross checked against the sibling BELLON-P2 procedures for the same 14
+    // destination tables too). No AutoIncrement PKs, no BLOB fields in this batch.
+
+    // seq247: DXR_Sales Groups Old2 (59323) -> DXR_Sales Groups (53393). PK = "Code".
+    local procedure MigrateSalesGroupsOld2Table()
+    var
+        Legacy: Record "DXR_Sales Groups Old2";
+        New: Record "DXR_Sales Groups";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New."Visible in Webshop" := Legacy."Visible in Webshop";
+                    New."Sales Dept Code" := Legacy."Sales Dept Code";
+                    New."Sort No." := Legacy."Sort No.";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq248: DXR_Sales SubGroups Old2 (59324) -> DXR_Sales SubGroups (53394). PK = "Code".
+    local procedure MigrateSalesSubGroupsOld2Table()
+    var
+        Legacy: Record "DXR_Sales SubGroups Old2";
+        New: Record "DXR_Sales SubGroups";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New."Visible in Webshop" := Legacy."Visible in Webshop";
+                    New."Sort No." := Legacy."Sort No.";
+                    New."Sales Group" := Legacy."Sales Group";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq250: DXR_Std POS DASCOM Paymt Old2 (59326) -> DXR_Std POS DASCOM Paymt Eqv (53396).
+    // PK = "Payment Code". Legacy AL object name truncated to "DXR_Std POS DASCOM Paymt Old2"
+    // (30-char limit) - confirmed via Tables.old2\StandardPOSDASCOMPaymtEqv.Table.al line 1.
+    local procedure MigrateStdPOSDASCOMPaymtEqvOld2Table()
+    var
+        Legacy: Record "DXR_Std POS DASCOM Paymt Old2";
+        New: Record "DXR_Std POS DASCOM Paymt Eqv";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Payment Code") then begin
+                    New.Init();
+                    New."Payment Code" := Legacy."Payment Code";
+                    New.Description := Legacy.Description;
+                    New."DASCOM Eqv" := Legacy."DASCOM Eqv";
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq251: DXR_Standard POS Gen. Com Old2 (59327) -> DXR_Standard POS Gen. Comments (53397).
+    // PK = ("Fiscal Doc. Type", "Line No."). Legacy AL object name truncated to
+    // "DXR_Standard POS Gen. Com Old2" (30-char limit) - confirmed via
+    // Tables.old2\StandardPOSGenComments.Table.al line 1.
+    local procedure MigrateStandardPOSGenCommentsOld2Table()
+    var
+        Legacy: Record "DXR_Standard POS Gen. Com Old2";
+        New: Record "DXR_Standard POS Gen. Comments";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Fiscal Doc. Type", Legacy."Line No.") then begin
+                    New.Init();
+                    New."Fiscal Doc. Type" := Legacy."Fiscal Doc. Type";
+                    New."Line No." := Legacy."Line No.";
+                    New."Text Message" := Legacy."Text Message";
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq252: DXR_Standard POS Users Old2 (59328) -> DXR_Standard POS Users (53398). PK = "User Code".
+    local procedure MigrateStandardPOSUsersOld2Table()
+    var
+        Legacy: Record "DXR_Standard POS Users Old2";
+        New: Record "DXR_Standard POS Users";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."User Code") then begin
+                    New.Init();
+                    New."User Code" := Legacy."User Code";
+                    New."Standard POS Store" := Legacy."Standard POS Store";
+                    New."Standard POS Terminal" := Legacy."Standard POS Terminal";
+                    New."User Name" := Legacy."User Name";
+                    New.Inactive := Legacy.Inactive;
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New."Filter Reg" := Legacy."Filter Reg";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq254: DXR_Summary Recon Setup Old2 (59330) -> DXR_Summary Recon Setup (53400). PK = Serial.
+    local procedure MigrateSummaryReconSetupOld2Table()
+    var
+        Legacy: Record "DXR_Summary Recon Setup Old2";
+        New: Record "DXR_Summary Recon Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Serial) then begin
+                    New.Init();
+                    New.Serial := Legacy.Serial;
+                    New.Type := Legacy.Type;
+                    New."Order" := Legacy."Order";
+                    New."Type Text" := Legacy."Type Text";
+                    New.Grupo := Legacy.Grupo;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq255: DXR_Tasas BC Old2 (59331) -> DXR_Tasas BC (53401). PK = "Fecha Tasa".
+    local procedure MigrateTasasBCOld2Table()
+    var
+        Legacy: Record "DXR_Tasas BC Old2";
+        New: Record "DXR_Tasas BC";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Fecha Tasa") then begin
+                    New.Init();
+                    New."Fecha Tasa" := Legacy."Fecha Tasa";
+                    New.Tasa := Legacy.Tasa;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq258: DXR_Tipo de Contenedor Old2 (59334) -> DXR_Tipo de Contenedor (53404). PK = "Code".
+    local procedure MigrateTipoDeContenedorOld2Table()
+    var
+        Legacy: Record "DXR_Tipo de Contenedor Old2";
+        New: Record "DXR_Tipo de Contenedor";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq259: DXR_Tipo Gas Old2 (59335) -> DXR_Tipo Gas (53405). PK = Id.
+    local procedure MigrateTipoGasOld2Table()
+    var
+        Legacy: Record "DXR_Tipo Gas Old2";
+        New: Record "DXR_Tipo Gas";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Id) then begin
+                    New.Init();
+                    New.Id := Legacy.Id;
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq260: DXR_Tipos o Agentes Old2 (59336) -> DXR_Tipos o Agentes (53406). PK = "Code".
+    local procedure MigrateTiposOAgentesOld2Table()
+    var
+        Legacy: Record "DXR_Tipos o Agentes Old2";
+        New: Record "DXR_Tipos o Agentes";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq262: DXR_Tratados Arancelarios Old2 (59338) -> DXR_Tratados Arancelarios (53408).
+    // PK = (Arancel, Pais).
+    local procedure MigrateTratadosArancelariosOld2Table()
+    var
+        Legacy: Record "DXR_Tratados Arancelarios Old2";
+        New: Record "DXR_Tratados Arancelarios";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Arancel, Legacy.Pais) then begin
+                    New.Init();
+                    New.Arancel := Legacy.Arancel;
+                    New.Pais := Legacy.Pais;
+                    New."Tasa Arancel" := Legacy."Tasa Arancel";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq263: DXR_UserApproverByBuyerGr Old2 (59339) -> DXR_UserApproverByBuyerGroup (53409).
+    // PK = (UserID, "Buyer Group"). Legacy AL object name truncated to
+    // "DXR_UserApproverByBuyerGr Old2" (30-char limit) - confirmed via
+    // Tables.old2\UserApproverByBuyerGroup.Table.al line 1.
+    local procedure MigrateUserApproverByBuyerGroupOld2Table()
+    var
+        Legacy: Record "DXR_UserApproverByBuyerGr Old2";
+        New: Record "DXR_UserApproverByBuyerGroup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.UserID, Legacy."Buyer Group") then begin
+                    New.Init();
+                    New.UserID := Legacy.UserID;
+                    New."Buyer Group" := Legacy."Buyer Group";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq264: DXR_UserByBuyerGroup Old2 (59340) -> DXR_UserByBuyerGroup (53410).
+    // PK = (UserID, "Buyer Group Code").
+    local procedure MigrateUserByBuyerGroupOld2Table()
+    var
+        Legacy: Record "DXR_UserByBuyerGroup Old2";
+        New: Record "DXR_UserByBuyerGroup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.UserID, Legacy."Buyer Group Code") then begin
+                    New.Init();
+                    New.UserID := Legacy.UserID;
+                    New."Buyer Group Code" := Legacy."Buyer Group Code";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq268: DXR_VAT Bus. Settings Old2 (59344) -> DXR_VAT Bus. Settings (53414). PK = "code".
+    local procedure MigrateVATBusSettingsOld2Table()
+    var
+        Legacy: Record "DXR_VAT Bus. Settings Old2";
+        New: Record "DXR_VAT Bus. Settings";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."code") then begin
+                    New.Init();
+                    New."code" := Legacy."code";
+                    New."VAT Bus. Posting GRoup" := Legacy."VAT Bus. Posting GRoup";
+                    New.Usar := Legacy.Usar;
+                    New."Tipo NCF Cliente" := Legacy."Tipo NCF Cliente";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
     local procedure MigrateAllRenumberedDXRTables()
     begin
         MigrateLegacyTableData(59231, 53301); // DXR_Agente restored at true original ID
@@ -966,28 +1262,28 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
         MigrateLegacyTableData(59320, 53390); // DXR_Requisicion Comment Line restored at true original ID
         MigrateLegacyTableData(59321, 53391); // DXR_Requisicion Line restored at true original ID
         MigrateSalesDeptOld2Table(); // DXR_Sales Dept Old2 (59322) -> DXR_Sales Dept (53392) - native
-        MigrateLegacyTableData(59323, 53393); // DXR_Sales Groups restored at true original ID
-        MigrateLegacyTableData(59324, 53394); // DXR_Sales SubGroups restored at true original ID
+        MigrateSalesGroupsOld2Table(); // DXR_Sales Groups Old2 (59323) -> DXR_Sales Groups (53393) - native
+        MigrateSalesSubGroupsOld2Table(); // DXR_Sales SubGroups Old2 (59324) -> DXR_Sales SubGroups (53394) - native
         MigrateLegacyTableData(59325, 53395); // DXR_Send Email Log restored at true original ID
-        MigrateLegacyTableData(59326, 53396); // DXR_Std POS DASCOM Paymt Eqv restored at true original ID
-        MigrateLegacyTableData(59327, 53397); // DXR_Standard POS Gen. Comments restored at true original ID
-        MigrateLegacyTableData(59328, 53398); // DXR_Standard POS Users restored at true original ID
+        MigrateStdPOSDASCOMPaymtEqvOld2Table(); // DXR_Std POS DASCOM Paymt Old2 (59326) -> DXR_Std POS DASCOM Paymt Eqv (53396) - native
+        MigrateStandardPOSGenCommentsOld2Table(); // DXR_Standard POS Gen. Com Old2 (59327) -> DXR_Standard POS Gen. Comments (53397) - native
+        MigrateStandardPOSUsersOld2Table(); // DXR_Standard POS Users Old2 (59328) -> DXR_Standard POS Users (53398) - native
         MigrateLegacyTableData(59329, 53399); // DXR_Store Statement Posting restored at true original ID
-        MigrateLegacyTableData(59330, 53400); // DXR_Summary Recon Setup restored at true original ID
-        MigrateLegacyTableData(59331, 53401); // DXR_Tasas BC restored at true original ID
+        MigrateSummaryReconSetupOld2Table(); // DXR_Summary Recon Setup Old2 (59330) -> DXR_Summary Recon Setup (53400) - native
+        MigrateTasasBCOld2Table(); // DXR_Tasas BC Old2 (59331) -> DXR_Tasas BC (53401) - native
         MigrateLegacyTableData(59332, 53402); // DXR_Tickets By Offer restored at true original ID
         MigrateLegacyTableData(59333, 53403); // DXR_Tickets Entry restored at true original ID
-        MigrateLegacyTableData(59334, 53404); // DXR_Tipo de Contenedor restored at true original ID
-        MigrateLegacyTableData(59335, 53405); // DXR_Tipo Gas restored at true original ID
-        MigrateLegacyTableData(59336, 53406); // DXR_Tipos o Agentes restored at true original ID
+        MigrateTipoDeContenedorOld2Table(); // DXR_Tipo de Contenedor Old2 (59334) -> DXR_Tipo de Contenedor (53404) - native
+        MigrateTipoGasOld2Table(); // DXR_Tipo Gas Old2 (59335) -> DXR_Tipo Gas (53405) - native
+        MigrateTiposOAgentesOld2Table(); // DXR_Tipos o Agentes Old2 (59336) -> DXR_Tipos o Agentes (53406) - native
         MigrateLegacyTableData(59337, 53407); // DXR_Trans. Archive Line restored at true original ID
-        MigrateLegacyTableData(59338, 53408); // DXR_Tratados Arancelarios restored at true original ID
-        MigrateLegacyTableData(59339, 53409); // DXR_UserApproverByBuyerGroup restored at true original ID
-        MigrateLegacyTableData(59340, 53410); // DXR_UserByBuyerGroup restored at true original ID
+        MigrateTratadosArancelariosOld2Table(); // DXR_Tratados Arancelarios Old2 (59338) -> DXR_Tratados Arancelarios (53408) - native
+        MigrateUserApproverByBuyerGroupOld2Table(); // DXR_UserApproverByBuyerGr Old2 (59339) -> DXR_UserApproverByBuyerGroup (53409) - native
+        MigrateUserByBuyerGroupOld2Table(); // DXR_UserByBuyerGroup Old2 (59340) -> DXR_UserByBuyerGroup (53410) - native
         MigrateLegacyTableData(59341, 53411); // DXR_UserLogs restored at true original ID
         MigrateLegacyTableData(59342, 53412); // DXR_UserPromo Apps restored at true original ID
         MigrateLegacyTableData(59343, 53413); // DXR_Valoracion de Inventario restored at true original ID
-        MigrateLegacyTableData(59344, 53414); // DXR_VAT Bus. Settings restored at true original ID
+        MigrateVATBusSettingsOld2Table(); // DXR_VAT Bus. Settings Old2 (59344) -> DXR_VAT Bus. Settings (53414) - native
         MigrateLegacyTableData(59345, 53415); // DXR_Printing Invoice Log BO restored at true original ID
     end;
 }
