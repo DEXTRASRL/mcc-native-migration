@@ -425,12 +425,15 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('TU', 'TU-P1', 1, 'Transunion Setup legacy table restore', 60126, 57304, 53601, 'SETUP');
         InsConcept('TU', 'TU-P1', 2, 'Transunion Header legacy table restore', 60126, 57305, 53602, 'MA');
         InsConcept('TU', 'TU-P1', 3, 'Customer/Cust. Ledger Entry duplicated field restore (10 fields)', 60126, 0, 0, 'MA');
-        // Found 2026-08-22: Tables.old has a 2-generation split like Bellon's (non-"Old2" 57300/
-        // 57301 feeding "Old2" 57304/57305, which TU-P1 seq1/2 already restore from). Whether
-        // dispatcher 53605 itself reads the non-Old2 originals wasn't independently confirmed in
-        // this pass (flagged out of budget) - Dispatcher Codeunit ID left 0 so MCC's own fallback
-        // does the copy rather than assuming an untested code path exists.
-        InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 0, 57300, 53601, 'SETUP');
+        // Resolved 2026-08-24 (Task A.4): confirmed the non-"Old2" originals (57300/57301) are
+        // NOT Access = Internal (unlike 57304/57305) and ARE already read directly by 60126's own
+        // MigrateLegacyTables() - typed Record "Transunion Setup"/"Transunion Header", zero
+        // RecordRef, gated by the same TableMigrationTag() step as the rest of 60126's OnRun.
+        // That IS "MCC's own fallback" the earlier comment anticipated - it just wasn't wired to
+        // this row yet. Dispatcher Codeunit ID repointed from 0 to 60126 accordingly (seq1 already
+        // shares 60126, so this causes no double-processing - see IsDispatcherAlreadyDone's
+        // per-dispatcher dedup in DXR MCC Executor).
+        InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
         InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 0, 57301, 53602, 'MA');
 
         // ---- DESB: Despacho Base (38 table pairs + 2 collision-fix phases + permission repair) ----

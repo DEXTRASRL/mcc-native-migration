@@ -102,36 +102,27 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
             until CustLedgerEntry.Next() = 0;
     end;
 
-    // Tables 57304/57305 "DXR_Transunion Setup Old2"/"DXR_Transunion Header Old2" are
-    // Access = Internal on TU's side - accessed here purely via RecordRef by numeric table ID.
-    // Both share identical field IDs/types with their renumbered replacements (53601/53602).
+    // Table 57305 "DXR_Transunion Header Old2" is Access = Internal on TU's side - accessed here
+    // purely via RecordRef by numeric table ID (shares identical field IDs/types with its
+    // renumbered replacement 53602). Category = MA (TU-P1 seq2), out of scope for Task A.4's
+    // Setup-phase sweep - left exactly as-is pending its own task.
+    //
+    // Setup (57304 "DXR_Transunion Setup Old2" -> 53601, Category = SETUP, TU-P1 seq1) migrates
+    // via a typed call into TU's own new public codeunit "DXR_TU Setup Gen2 Migration" (53607,
+    // added 2026-08-24 to TU's repository specifically for this) instead - zero RecordRef/
+    // FieldRef. TU's own migration-namespace codeunits (DXR_TU Migr Dispatcher 53605, etc.) stay
+    // Access = Internal as-is; only a brand-new, narrowly-scoped codeunit was added on TU's side
+    // to give MCC a typed entry point, per Task A.4's controller ruling (do not widen Access on
+    // any EXISTING TU object).
     local procedure MigrateGen2LegacyTables()
     var
-        OldSetupRef: RecordRef;
-        NewSetupRef: RecordRef;
-        SetupCodeFld: FieldRef;
+        TUSetupGen2Migration: Codeunit "DXR_TU Setup Gen2 Migration";
         OldHeaderRef: RecordRef;
         NewHeaderRef: RecordRef;
         FieldIds: List of [Integer];
     begin
-        BuildNormalFieldIdList(57304, FieldIds);
-        OldSetupRef.Open(57304);
-        if OldSetupRef.FindSet() then
-            repeat
-                SetupCodeFld := OldSetupRef.Field(1); // "Code"
-                NewSetupRef.Open(53601);
-                NewSetupRef.Field(1).SetRange(SetupCodeFld.Value());
-                if NewSetupRef.IsEmpty() then begin
-                    NewSetupRef.Field(1).SetRange();
-                    NewSetupRef.Init();
-                    CopyFieldsByRecordRef(OldSetupRef, NewSetupRef, FieldIds);
-                    NewSetupRef.Insert(false);
-                end;
-                NewSetupRef.Close();
-            until OldSetupRef.Next() = 0;
-        OldSetupRef.Close();
+        TUSetupGen2Migration.MigrateGen2Setup();
 
-        Clear(FieldIds);
         BuildNormalFieldIdList(57305, FieldIds);
         OldHeaderRef.Open(57305);
         if OldHeaderRef.FindSet() then
