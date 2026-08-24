@@ -27,6 +27,41 @@ BANKREC, VPAPI). `VendorPay_TXT` remains explicitly excluded (Task 0.1 scope not
    works if AT LEAST ONE of them is callable (not `Access = Internal`, and not
    `Subtype = Upgrade` alone blocking `Codeunit.Run()`).
 
+## CORRECTION (2026-08-24, discovered mid-Task A.4 while working BC)
+
+This audit's method (Step 2/3) never checked whether MCC's own app ID
+(`a5b9bf50-7945-4455-8df4-3be9c7431a7b`) was already present in a target extension's own
+`internalsVisibleTo` list — a THIRD path, independent of both "Direct" (table not Internal) and
+"Thin-Wrapper" (source codeunit exposes a public procedure): if MCC is granted `internalsVisibleTo`
+by the source extension, MCC can declare `Record` directly on that extension's `Access = Internal`
+tables itself, with zero source-repo changes needed at all.
+
+**Confirmed via direct `app.json` grep, 2026-08-24:**
+- **BC, RC, TU, FE — all 4 extensions this audit classified "Blocked" — already grant MCC
+  `internalsVisibleTo`.** None of them are actually Blocked. BC is confirmed Direct-viable by
+  existing, already-working code (`DXRMCCBCMigrP2Warehouse.Codeunit.al` already declares
+  `Record "DXR_Warehouse Ctrl Setup Old2"`/`Record "DXR_Warehouse Controls Setup"` directly and
+  compiles, despite both tables being genuinely `Access = Internal` - confirmed via
+  `WarehouseControlsSetup.Table.al:3`/`WarehouseControlsSetupGen2.Table.al:3`). RC and TU and FE
+  were not yet re-verified against real code (BC was, since this is the correction's origin point)
+  but their `app.json` grants are confirmed identical in kind - treat as Direct-viable, re-confirm
+  per-table when a task actually reaches one of their internal tables, same evidence discipline as
+  every other task in this plan.
+- **DRLOC and PCM do NOT have this grant** (re-confirmed, matches original audit) - their
+  Thin-Wrapper resolutions (Task A.3, Task A.4-PCM) were genuinely necessary, not extra work.
+- **TU's Task A.4 thin-wrapper (new codeunit `DXR_TU Setup Gen2 Migration`, 53607, in TU's own
+  repo) turned out to be MORE work than strictly necessary** - TU also grants MCC
+  `internalsVisibleTo`, so a Direct fix (typed `Record` declared straight in MCC, no new TU-side
+  codeunit) would have worked too. Not reverting this - the thin-wrapper is still correct, compiles,
+  passed review, and adds a defensible extra layer of encapsulation - but flagging so this mistake
+  (checking source codeunit access without checking internalsVisibleTo first) isn't repeated.
+
+**Revised classification for BC/RC/TU/FE: Direct** (via `internalsVisibleTo`), not Blocked.
+**New rule for every future task in this plan touching an `Access = Internal` table:** check the
+target extension's own `app.json` for MCC's app ID in `internalsVisibleTo` BEFORE assuming a
+Thin-Wrapper (new source-side codeunit) is required - only fall back to Thin-Wrapper when that
+grant is genuinely absent (confirmed so far only for DRLOC and PCM).
+
 ## Key portfolio-wide finding (beyond what the brief anticipated)
 
 The brief's DRLOC reference case (pervasive internal tables, but a NORMAL-access
