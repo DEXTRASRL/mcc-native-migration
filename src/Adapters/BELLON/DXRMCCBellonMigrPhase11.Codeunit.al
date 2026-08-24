@@ -22,13 +22,15 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
     //      same shape as #3, bridges from "DXCash Journal Receipt List".
     //
     // "DXR_NCF Setup" (52179) and "DXR_Cash Journal Receipt List" (52132) are Access = Internal in
-    // DR-Localization (AL0161 on any typed/named reference, including a Permissions entry) - both
-    // accessed purely via RecordRef by numeric table ID, matching the established pattern for every
-    // other sibling's Access = Internal object in this portfolio (see e.g. "DXR MCC FE Migr Phase7").
+    // DR-Localization (AL0161 on any typed/named reference, including a Permissions entry).
+    // "DXR_Cash Journal Receipt List" is still accessed purely via RecordRef by numeric table ID,
+    // matching the established pattern for every other sibling's Access = Internal object in this
+    // portfolio (see e.g. "DXR MCC FE Migr Phase7"). "DXR_NCF Setup" is instead reached through the
+    // typed "DXR_BE MCC Migr Bridge" (56132) thin wrapper in BELLON's own package (see
+    // MigrateNCFSetupOldCrossTable() below), which DOES have the internalsVisibleTo grant.
     Permissions =
         tabledata "Config. NCF Compras" = RM,
         tabledata SalesHeaderOrderListFromBo = RM,
-        tabledata "DXNCF Setup" = R,
         tabledata "DXCash Journal Receipt List" = R;
 
     trigger OnRun()
@@ -57,15 +59,13 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
 
     local procedure MigrateConfigNCFComprasFieldRename()
     var
-        RecRef: RecordRef;
+        ConfigNCFCompras: Record "Config. NCF Compras";
     begin
-        RecRef.Open(Database::"Config. NCF Compras");
-        if RecRef.FindSet(true) then
+        if ConfigNCFCompras.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52120031, 52120034);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                ConfigNCFCompras."EF Alternal No. Series" := ConfigNCFCompras."Alternal No. Series_DXR";
+                ConfigNCFCompras.Modify(false);
+            until ConfigNCFCompras.Next() = 0;
     end;
 
     local procedure MigrateSalesHeaderOrderListFromBoFieldRename()
@@ -83,22 +83,18 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
 
     local procedure MigrateNCFSetupOldCrossTable()
     var
-        OldSetup: Record "DXNCF Setup";
-        OldRef: RecordRef;
-        NewRef: RecordRef;
+        BellonMCCMigrBridge: Codeunit "DXR_BE MCC Migr Bridge";
     begin
         // Both are singleton Setup tables (single "Primary Key" row). "DXR_NCF Setup" is Access =
-        // Internal, so the new side is opened by numeric table ID (52179) via RecordRef rather than
-        // a typed Record.Get() - FindFirst() on a singleton table is equivalent to Get() with no args.
-        if not OldSetup.Get() then
-            exit;
-        OldRef.GetTable(OldSetup);
-        NewRef.Open(52179); // DXR_NCF Setup
-        if not NewRef.FindFirst() then
-            exit;
-        CopyFieldValueIfExists(OldRef, NewRef, 50001, 52787); // Grupo Contable BS -> _DXR
-        CopyFieldValueIfExists(OldRef, NewRef, 50002, 52788); // Legal Tip % -> _DXR
-        NewRef.Modify(false);
+        // Internal, so it cannot be declared as a typed Record here (MCC's own package has no
+        // internalsVisibleTo grant from DR-Localization - only "Bellon Customization" does). This
+        // now calls a thin typed bridge procedure added to BELLON's own package for this task -
+        // "DXR_BE MCC Migr Bridge" (56132).RunLegacyCrossTableSync_NCFSetup() - which lives inside
+        // a package that DOES have the internalsVisibleTo grant and can declare "DXR_NCF Setup" as
+        // a typed Record directly. Mirrors the same pattern already used by
+        // MigrateTableExt_DXNCFSetupFields() in "DXR MCC Bellon Migr Phase2". Zero RecordRef/
+        // FieldRef in this procedure.
+        BellonMCCMigrBridge.RunLegacyCrossTableSync_NCFSetup();
     end;
 
     local procedure MigrateListadoRecibodeIngresoOldCrossTable()
