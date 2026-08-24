@@ -142,11 +142,11 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P2', 16, 'NAV POS Customer legacy table restore (54128 -> 52175)', 60165, 54128, 52175, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 17, 'Extract Cards legacy table restore (54120 -> 52160)', 60165, 54120, 52160, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 18, 'Gubernamentales(623) legacy table restore (54155 -> 52220)', 60165, 54155, 52220, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P3', 19, 'Purchase Header field restore (bulk)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P3', 19, 'Purchase Header field restore (bulk)', 60167, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 20, 'Purchase Line field restore (bulk + FlowFields)', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P3', 21, 'Purch. Inv. Header field restore (bulk + FlowFields + special conversions)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P3', 21, 'Purch. Inv. Header field restore (bulk + FlowFields + special conversions)', 60167, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 22, 'Purch. Inv. Line field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P3', 23, 'Purch. Cr. Memo Hdr field restore (bulk + FlowFields)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P3', 23, 'Purch. Cr. Memo Hdr field restore (bulk + FlowFields)', 60167, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 24, 'Purch. Cr. Memo Line field restore', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 25, 'Archived Purchase 606 legacy table restore (54105 -> 52113)', 60069, 54105, 52113, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P3', 26, 'ITBIS Purchase (606) legacy table restore (54125 -> 52169)', 60069, 54125, 52169, 'MA');
