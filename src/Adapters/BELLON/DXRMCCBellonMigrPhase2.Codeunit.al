@@ -194,21 +194,21 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateStandardPOSGenCommentsTable(); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments (native)
         MigrateStandardPOSUsersTable(); // Standard POS Users -> DXR_Standard POS Users (native)
         MigrateLegacyTableData(50173, 53399); // Store Statement Posting -> DXR_Store Statement Posting
-        MigrateLegacyTableData(50174, 53400); // Summary Reconciliation Setup -> DXR_Summary Recon Setup
-        MigrateLegacyTableData(50176, 53401); // Tasas BC -> DXR_Tasas BC
+        MigrateSummaryReconciliationSetupTable(); // Summary Reconciliation Setup -> DXR_Summary Recon Setup (native)
+        MigrateTasasBCTable(); // Tasas BC -> DXR_Tasas BC (native)
         MigrateLegacyTableData(50177, 53402); // Tickets By Offer -> DXR_Tickets By Offer
         MigrateLegacyTableData(50178, 53403); // Tickets Entry -> DXR_Tickets Entry
-        MigrateLegacyTableData(50180, 53404); // Tipo de Contenedor -> DXR_Tipo de Contenedor
-        MigrateLegacyTableData(50181, 53405); // Tipo Gas -> DXR_Tipo Gas
-        MigrateLegacyTableData(50182, 53406); // Tipos o Agentes -> DXR_Tipos o Agentes
+        MigrateTipoDeContenedorTable(); // Tipo de Contenedor -> DXR_Tipo de Contenedor (native)
+        MigrateTipoGasTable(); // Tipo Gas -> DXR_Tipo Gas (native)
+        MigrateTiposOAgentesTable(); // Tipos o Agentes -> DXR_Tipos o Agentes (native)
         MigrateLegacyTableData(50186, 53407); // Trans. Archive Line -> DXR_Trans. Archive Line
-        MigrateLegacyTableData(50195, 53408); // Tratados Arancelarios -> DXR_Tratados Arancelarios
-        MigrateLegacyTableData(50197, 53409); // UserApproverByBuyerGroup -> DXR_UserApproverByBuyerGroup
-        MigrateLegacyTableData(50198, 53410); // UserByBuyerGroup -> DXR_UserByBuyerGroup
+        MigrateTratadosArancelariosTable(); // Tratados Arancelarios -> DXR_Tratados Arancelarios (native)
+        MigrateUserApproverByBuyerGroupTable(); // UserApproverByBuyerGroup -> DXR_UserApproverByBuyerGroup (native)
+        MigrateUserByBuyerGroupTable(); // UserByBuyerGroup -> DXR_UserByBuyerGroup (native)
         MigrateLegacyTableData(50199, 53411); // UserLogs -> DXR_UserLogs
         MigrateLegacyTableData(50200, 53412); // UserPromo Apps -> DXR_UserPromo Apps
         MigrateLegacyTableData(50201, 53413); // Valoracion de Inventario -> DXR_Valoracion de Inventario
-        MigrateLegacyTableData(50202, 53414); // VAT Bus. Settings -> DXR_VAT Bus. Settings
+        MigrateVATBusSettingsTable(); // VAT Bus. Settings -> DXR_VAT Bus. Settings (native)
         MigrateLegacyTableData(50206, 53415); // Printing Invoice Log BO -> DXR_Printing Invoice Log BO
     end;
 
@@ -219,7 +219,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateLegacyTableData(50002, 55006); // AGR Extended Item -> DXR_AGR Extended Item
         MigrateLegacyTableData(50027, 55005); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor
         MigrateLegacyTableData(50097, 55004); // Inventory View -> DXR_Inventory View.
-        MigrateLegacyTableData(50126, 55007); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2
+        MigrateOperacionesTipoComprobante2Table(); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2 (native)
     end;
 
     // ===== 1b) 19 SETUP-category whole-table restores converted to native typed logic =====
@@ -1141,6 +1141,205 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."User Last Modified" := Legacy."User Last Modified";
                     New."Last Date Modified" := Legacy."Last Date Modified";
                     New."Filter Reg" := Legacy."Filter Reg";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // ===== 1d) 10 more SETUP-category whole-table restores converted to native typed logic =====
+    // Task A.4 Batch 3a: zero RecordRef/FieldRef, zero TransferFields - every field assigned
+    // explicitly. Replaces 10 more of the MigrateLegacyTableData(...) calls above (9 inside
+    // MigrateAllNormalizedTables(), 1 inside MigrateAllNormalizedTables_Batch2()) and eliminates,
+    // for these 10 tables specifically, the same real production bug in MigrateLegacyTableData
+    // documented above Batch 1 (NewRecRef.Open inside the repeat/until loop without closing
+    // between iterations). Field lists and primary keys verified against Bellon_Customization's
+    // real Tables.old\*.Table.al (legacy) and Tables\*.Table.al (DXR_) sources - field-for-field
+    // identical on both sides for all 10 tables in this batch, no renamed/shadow fields found.
+
+    // seq115: Summary Reconciliation Setup (50174) -> DXR_Summary Recon Setup (53400). PK = Serial.
+    local procedure MigrateSummaryReconciliationSetupTable()
+    var
+        Legacy: Record "Summary Reconciliation Setup";
+        New: Record "DXR_Summary Recon Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Serial) then begin
+                    New.Init();
+                    New.Serial := Legacy.Serial;
+                    New.Type := Legacy.Type;
+                    New."Order" := Legacy."Order";
+                    New."Type Text" := Legacy."Type Text";
+                    New.Grupo := Legacy.Grupo;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq116: Tasas BC (50176) -> DXR_Tasas BC (53401). PK = "Fecha Tasa".
+    local procedure MigrateTasasBCTable()
+    var
+        Legacy: Record "Tasas BC";
+        New: Record "DXR_Tasas BC";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Fecha Tasa") then begin
+                    New.Init();
+                    New."Fecha Tasa" := Legacy."Fecha Tasa";
+                    New.Tasa := Legacy.Tasa;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq119: Tipo de Contenedor (50180) -> DXR_Tipo de Contenedor (53404). PK = "Code".
+    local procedure MigrateTipoDeContenedorTable()
+    var
+        Legacy: Record "Tipo de Contenedor";
+        New: Record "DXR_Tipo de Contenedor";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq120: Tipo Gas (50181) -> DXR_Tipo Gas (53405). PK = Id.
+    local procedure MigrateTipoGasTable()
+    var
+        Legacy: Record "Tipo Gas";
+        New: Record "DXR_Tipo Gas";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Id) then begin
+                    New.Init();
+                    New.Id := Legacy.Id;
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq121: Tipos o Agentes (50182) -> DXR_Tipos o Agentes (53406). PK = "Code".
+    local procedure MigrateTiposOAgentesTable()
+    var
+        Legacy: Record "Tipos o Agentes";
+        New: Record "DXR_Tipos o Agentes";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq123: Tratados Arancelarios (50195) -> DXR_Tratados Arancelarios (53408).
+    // PK = (Arancel, Pais).
+    local procedure MigrateTratadosArancelariosTable()
+    var
+        Legacy: Record "Tratados Arancelarios";
+        New: Record "DXR_Tratados Arancelarios";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Arancel, Legacy.Pais) then begin
+                    New.Init();
+                    New.Arancel := Legacy.Arancel;
+                    New.Pais := Legacy.Pais;
+                    New."Tasa Arancel" := Legacy."Tasa Arancel";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq124: UserApproverByBuyerGroup (50197) -> DXR_UserApproverByBuyerGroup (53409).
+    // PK = (UserID, "Buyer Group").
+    local procedure MigrateUserApproverByBuyerGroupTable()
+    var
+        Legacy: Record UserApproverByBuyerGroup;
+        New: Record "DXR_UserApproverByBuyerGroup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.UserID, Legacy."Buyer Group") then begin
+                    New.Init();
+                    New.UserID := Legacy.UserID;
+                    New."Buyer Group" := Legacy."Buyer Group";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq125: UserByBuyerGroup (50198) -> DXR_UserByBuyerGroup (53410).
+    // PK = (UserID, "Buyer Group Code").
+    local procedure MigrateUserByBuyerGroupTable()
+    var
+        Legacy: Record UserByBuyerGroup;
+        New: Record "DXR_UserByBuyerGroup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.UserID, Legacy."Buyer Group Code") then begin
+                    New.Init();
+                    New.UserID := Legacy.UserID;
+                    New."Buyer Group Code" := Legacy."Buyer Group Code";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq129: VAT Bus. Settings (50202) -> DXR_VAT Bus. Settings (53414). PK = "code".
+    local procedure MigrateVATBusSettingsTable()
+    var
+        Legacy: Record "VAT Bus. Settings";
+        New: Record "DXR_VAT Bus. Settings";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."code") then begin
+                    New.Init();
+                    New."code" := Legacy."code";
+                    New."VAT Bus. Posting GRoup" := Legacy."VAT Bus. Posting GRoup";
+                    New.Usar := Legacy.Usar;
+                    New."Tipo NCF Cliente" := Legacy."Tipo NCF Cliente";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq134: Operaciones Tipo Comprobante2 (50126) -> DXR_Operaciones Tipo Comprob2 (55007).
+    // PK = Documento. Note target ID 55007 (not the usual 53xxx range) is real - called from
+    // MigrateAllNormalizedTables_Batch2(), not MigrateAllNormalizedTables().
+    local procedure MigrateOperacionesTipoComprobante2Table()
+    var
+        Legacy: Record "Operaciones Tipo Comprobante2";
+        New: Record "DXR_Operaciones Tipo Comprob2";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Documento) then begin
+                    New.Init();
+                    New.Documento := Legacy.Documento;
+                    New.NCF := Legacy.NCF;
+                    New.Fecha := Legacy.Fecha;
+                    New."Tipo Comprobante" := Legacy."Tipo Comprobante";
+                    New."Monto sin ITBIS" := Legacy."Monto sin ITBIS";
+                    New."Monto con ITBIS" := Legacy."Monto con ITBIS";
+                    New.Origen := Legacy.Origen;
                     New.Insert(false);
                 end;
             until Legacy.Next() = 0;
