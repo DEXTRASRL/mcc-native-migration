@@ -2,12 +2,12 @@ codeunit 60097 "DXR MCC BC Migr P2 Customer"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
     // CopyCustomerControlsSetup() - see "DXR MCC BC Migr P2 Warehouse" for the full rationale.
-    Permissions = tabledata "DXR_Customer Ctrl Setup Old2" = R,
+    Permissions = tabledata "DXR Customer Controls Setup" = R,
                   tabledata "DXR_Customer Controls Setup" = RIM;
 
     trigger OnRun()
     var
-        OldSetup: Record "DXR_Customer Ctrl Setup Old2";
+        OldSetup: Record "DXR Customer Controls Setup";
         NewSetup: Record "DXR_Customer Controls Setup";
         NewSetupExists: Boolean;
     begin
@@ -30,7 +30,7 @@ codeunit 60097 "DXR MCC BC Migr P2 Customer"
             NewSetup.Insert(false);
     end;
 
-    local procedure IsOldSetupRowBlank(var OldSetup: Record "DXR_Customer Ctrl Setup Old2"): Boolean
+    local procedure IsOldSetupRowBlank(var OldSetup: Record "DXR Customer Controls Setup"): Boolean
     begin
         exit(
             (not OldSetup.Active) and
