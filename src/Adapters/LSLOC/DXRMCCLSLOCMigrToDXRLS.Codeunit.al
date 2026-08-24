@@ -46,23 +46,115 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     local procedure TableExtFieldsExecute()
     begin
-        CopySameTableFieldRange(Database::"Gen. Journal Line", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::Item, 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC Hospitality Type", 54300, 54500, 2);
-        CopySameTableFieldRange(Database::"LSC Label Functions", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC POS Print Setup Header", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC POS Terminal", 54300, 54500, 10);
-        CopySameTableFieldRange(Database::"LSC POS Terminal", 54370, 54510, 3);
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4);
-        CopySameTableFieldRange(Database::"LSC Sales Type", 54300, 54500, 2);
-        CopySameTableFieldRange(Database::"LSC Store", 54300, 54500, 9);
-        CopySameTableFieldRange(Database::"LSC Store Inventory Line", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2);
+        CopySameTableFieldRange(Database::"Gen. Journal Line", 54300, 54500, 1); // seq2, MA - out of scope
+        CopySameTableFieldRange(Database::Item, 54300, 54500, 1); // seq5, MA - out of scope
+        CopyLSCHospitalityTypeFields(); // seq6, SETUP
+        CopyLSCLabelFunctionsFields(); // seq7, SETUP
+        CopyLSCPOSPrintSetupHeaderFields(); // seq8, SETUP
+        CopyLSCPOSTerminalFields(); // seq9, SETUP (2 ranges)
+        CopySameTableFieldRange(Database::"LSC POS Transaction", 54300, 54500, 1); // seq10, OTHER - out of scope
+        CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4); // seq10, OTHER - out of scope
+        CopyLSCSalesTypeFields(); // seq11, SETUP
+        CopyLSCStoreFields(); // seq12, SETUP
+        CopySameTableFieldRange(Database::"LSC Store Inventory Line", 54300, 54500, 1); // seq13, MA - out of scope
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8); // seq14, OTHER - out of scope
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5); // seq14, OTHER - out of scope
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2); // seq14, OTHER - out of scope
 
-        MigrateSameTableEnumFields();
+        MigrateSameTableEnumFields(); // already typed (no RecordRef/FieldRef) - untouched
+    end;
+
+    // ===== In-scope SETUP same-table field-range restores (LSLOC-TOLOC seq6/7/8/9/11/12) =====
+    // Direct typed field assignment, one line per field - no RecordRef/FieldRef, no TransferFields.
+    // Field pairs confirmed against the real compiled symbols (LSLOC's own old/new TableExts) -
+    // every source field below is ObsoleteState = Pending (not Removed), so it is still readable.
+
+    local procedure CopyLSCHospitalityTypeFields()
+    var
+        Rec: Record "LSC Hospitality Type";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Void line after Bill Prin_DXR" := Rec."LSDX Void line after Bill Prin";
+                Rec."Void Tran. after Bill Prnt_DXR" := Rec."LSDXVoid Tran. after Bill Prnt";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCLabelFunctionsFields()
+    var
+        Rec: Record "LSC Label Functions";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Function Description_DXR" := Rec."LSDX Function Description";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCPOSPrintSetupHeaderFields()
+    var
+        Rec: Record "LSC POS Print Setup Header";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Print Voucher Loc._DXR" := Rec."LSDX Print Voucher Loc.";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCPOSTerminalFields()
+    var
+        Rec: Record "LSC POS Terminal";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."No. Serie NCF Gubern._DXR" := Rec."LSDXNo. Serie NCF Gubern.";
+                Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDXNo. Serie NCF Reg. Esp.";
+                Rec."No. Serie NCF Cred. Fiscal_DXR" := Rec."LSDXNo. Serie NCF Cred. Fiscal";
+                Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" := Rec."LSDXExt. Cmd. NCF Cr. Fiscal";
+                Rec."External Cmd. NCF Guvern_DXR" := Rec."LSDXExternal Cmd. NCF Guvern";
+                Rec."Ext. Cmd. NCF Reg. Esp._DXR" := Rec."LSDXExt. Cmd. NCF Reg. Esp.";
+                Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDXNo. Serie NCF Cons. Final";
+                Rec."Ext. Cmd. NCF Cons. Final_DXR" := Rec."LSDXExt. Cmd. NCF Cons. Final";
+                Rec."NCF Nota de Credito_DXR" := Rec."LSDXNCF Nota de Credito";
+                Rec."NCF Credito U. Final_DXR" := Rec."LSDXNCF Credito U. Final";
+                Rec."NCF Credito Gubernamental_DXR" := Rec."LSDXNCF Credito Gubernamental";
+                Rec."NCF Credito Reg Especiales_DXR" := Rec."LSDXNCF Credito Reg Especiales";
+                Rec."Ext. Cmd. Nota de Credito_DXR" := Rec."LSDXExt. Cmd. Nota de Credito";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCSalesTypeFields()
+    var
+        Rec: Record "LSC Sales Type";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Exento ITBIS_DXR" := Rec."LSDX Exento ITBIS";
+                Rec."POS VAT Exento_DXR" := Rec."LSDX POS VAT Exento";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCStoreFields()
+    var
+        Rec: Record "LSC Store";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Cod. Cliente Contado_DXR" := Rec."LSDX Cod. Cliente Contado";
+                Rec."No. Serie 3er. Party Item_DXR" := Rec."LSDX No. Serie 3er. Party Item";
+                Rec."No. Serie NCF Unico_DXR" := Rec."LSDX No. Serie NCF Unico";
+                Rec."No. Serie NCF Gubern._DXR" := Rec."LSDX No. Serie NCF Gubern.";
+                Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDX No. Serie NCF Reg. Esp.";
+                Rec."No. Serie NCF Cr. Fiscal_DXR" := Rec."LSDX No. Serie NCF Cr. Fiscal";
+                Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
+                Rec."Address 3_DXR" := Rec."LSDX Address 3";
+                Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
     end;
 
     local procedure CopySameTableFieldRange(TableId: Integer; SourceStartFieldNo: Integer; TargetStartFieldNo: Integer; FieldCount: Integer)
@@ -130,11 +222,114 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     local procedure LegacyTablesExecute()
     begin
-        CopyStandaloneTable(Database::"LSDX POS Setup", Database::"DXR_LS POS Setup");
-        CopyStandaloneTable(Database::"LSDXTender Types Relation", Database::"DXR_LS Tender Types Relation");
-        CopyStandaloneTable(Database::"LSDX OPOS Print Setup", Database::"DXR_LS OPOS Print Setup");
-        CopyStandaloneTable(Database::"LSDX POS 607 Diagnostic", Database::"DXR_LS POS 607 Diagnostic");
-        CopyStandaloneTable(Database::"LSDX LS NCF Process Reg.", Database::"DXR_LS NCF Process Reg.");
+        CopyLSDXPOSSetupToDXR(); // seq4, SETUP
+        CopyLSDXTenderTypesRelationToDXR(); // seq21, SETUP
+        CopyLSDXOPOSPrintSetupToDXR(); // seq22, SETUP
+        CopyStandaloneTable(Database::"LSDX POS 607 Diagnostic", Database::"DXR_LS POS 607 Diagnostic"); // seq23, HIST - out of scope
+        CopyStandaloneTable(Database::"LSDX LS NCF Process Reg.", Database::"DXR_LS NCF Process Reg."); // seq24, HIST - out of scope
+    end;
+
+    // ===== In-scope SETUP standalone legacy-table restores (LSLOC-TOLOC seq4/21/22) =====
+    // Direct typed field assignment, one line per field - no RecordRef/FieldRef, no TransferFields.
+    // Both source and target tables are LSLOC's own (or standard LSC-relation) tables, confirmed
+    // NOT Access = Internal (no Access property on any of the six table objects). Field-by-field
+    // mapping confirmed 1:1 by field number against the real compiled symbols (source field N ->
+    // target field N, target name suffixed _DXR).
+
+    local procedure CopyLSDXPOSSetupToDXR()
+    var
+        Source: Record "LSDX POS Setup";
+        Target: Record "DXR_LS POS Setup";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet() then
+            repeat
+                TargetExists := Target.Get(Source."Key");
+                if not TargetExists then begin
+                    Target.Init();
+                    Target."Key_DXR" := Source."Key";
+                end;
+                Target."Withhold VAT Refund_DXR" := Source."Withhold VAT Refund";
+                Target."VAT Bus. Posting Group_DXR" := Source."VAT Bus. Posting Group";
+                Target."VAT Prod. Posting Group_DXR" := Source."VAT Prod. Posting Group";
+                Target."Days Limit_DXR" := Source."Days Limit";
+                Target."Sales Type_DXR" := Source."Sales Type";
+                Target."Ventas Monto 0_DXR" := Source."Ventas Monto 0";
+                Target."Infocode NC Manual_DXR" := Source."Infocode NC Manual";
+                Target."NCManual_DXR" := Source.NCManual;
+                Target."Validate Suspended Trans. POS_DXR" := Source."Validate Suspended Trans. POS";
+                Target."Use POS Localization_DXR" := Source."Use POS Localization";
+                Target."POS in USD_DXR" := Source."POS in USD";
+                Target."Not Allow Print Z with Trans._DXR" := Source."Not Allow Print Z with Trans.";
+                Target."Enable Automatic Replication_DXR" := Source."Enable Automatic Replication";
+                Target."Show Qty. Tags on POS_DXR" := Source."Show Qty. Tags on POS";
+                Target."Show Currency Conv. in ticket_DXR" := Source."Show Currency Conv. in ticket";
+                Target."Show DX Copy Header_DXR" := Source."Show DX Copy Header";
+                Target."Increase Company Name Header_DXR" := Source."Increase Company Name Header";
+                Target."Customer NCF PRIO_DXR" := Source."Customer NCF PRIO";
+                Target."Require RNC Fiscal Credit_DXR" := Source."Require RNC Fiscal Credit";
+                Target."Block Blank Lines in Trans._DXR" := Source."Block Blank Lines in Trans.";
+                Target."Validate Empty Customer Name_DXR" := Source."Validate Empty Customer Name";
+                Target."Validate 607 Fields_DXR" := Source."Validate 607 Fields";
+                Target."Encode QR Ampersand_DXR" := Source."Encode QR Ampersand";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    local procedure CopyLSDXTenderTypesRelationToDXR()
+    var
+        Source: Record "LSDXTender Types Relation";
+        Target: Record "DXR_LS Tender Types Relation";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet() then
+            repeat
+                TargetExists := Target.Get(Source.Code, Source."Tender Type Code");
+                if not TargetExists then begin
+                    Target.Init();
+                    Target."Code_DXR" := Source.Code;
+                    Target."Tender Type Code_DXR" := Source."Tender Type Code";
+                end;
+                Target.Description_DXR := Source.Description;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    local procedure CopyLSDXOPOSPrintSetupToDXR()
+    var
+        Source: Record "LSDX OPOS Print Setup";
+        Target: Record "DXR_LS OPOS Print Setup";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet() then
+            repeat
+                TargetExists := Target.Get(Source."Key");
+                if not TargetExists then begin
+                    Target.Init();
+                    Target."Key_DXR" := Source."Key";
+                end;
+                Target."Print NCF_DXR" := Source."Print NCF";
+                Target."Print Company Name_DXR" := Source."Print Company Name";
+                Target."Print Employee and Trans_DXR" := Source."Print Employee and Trans";
+                Target."Print Cashier_DXR" := Source."Print Cashier";
+                Target."Print Site Name_DXR" := Source."Print Site Name";
+                Target."LineBreakInRNC_DXR" := Source."LineBreakInRNC";
+                Target."Print Transaction Time_DXR" := Source."Print Transaction Time";
+                Target."LineBreakCustomerName_DXR" := Source."LineBreakCustomerName";
+                Target."Print Qty Footer_DXR" := Source."Print Qty Footer";
+                Target."Print Staff Sales Person_DXR" := Source."Print Staff Sales Person";
+                Target."Staff Sales Person Label_DXR" := Source."Staff Sales Person Label";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
     end;
 
     local procedure CopyStandaloneTable(SourceTableId: Integer; TargetTableId: Integer)

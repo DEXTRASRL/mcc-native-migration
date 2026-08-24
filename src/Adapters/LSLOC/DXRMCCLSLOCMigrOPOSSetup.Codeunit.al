@@ -12,10 +12,15 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
     // Dispatcher) ran. Folded into this codeunit - the smallest tracked concept, registry row
     // seq1 - rather than left as an orphan untracked codeunit, so it keeps running unconditionally
     // whenever LSLOC's registry-tracked migration runs, matching the old adapter's exact behavior.
-    // "DXR_Gaps Setup" (52165) is Access = Internal in DR-Localization - accessed here purely via
-    // RecordRef by numeric table ID, so it cannot be (and does not need to be) named below.
+    //
+    // "DXR_Gaps Setup" (52165) is Access = Internal in DR-Localization, and MCC has no
+    // internalsVisibleTo grant from DR-Localization (confirmed via DR-Localization\Localization\
+    // app.json - only "LS Central DR Localization" itself and a handful of other apps are
+    // granted). Zero-RecordRef therefore requires a thin typed wrapper: LSLOC's own public
+    // "DXR_LS Migr. Dispatcher" (54506) now exposes RunOPOSSetupFromGapsSetup(), a same-package
+    // pass-through to the existing (and still Access = Internal) "DXR_LS OPOS Print Setup Upgr."
+    // (54513) Execute() - no logic duplicated, no new codeunit created in LSLOC.
     Permissions =
-        tabledata "DXR_LS OPOS Print Setup" = RIMD,
         tabledata User = R,
         tabledata "Access Control" = RIM;
 
@@ -90,28 +95,8 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
 
     local procedure Execute()
     var
-        GapsSetupRef: RecordRef;
-        OPOSPrintSetup: Record "DXR_LS OPOS Print Setup";
+        LSLOCDispatcher: Codeunit "DXR_LS Migr. Dispatcher";
     begin
-        GapsSetupRef.Open(52165); // DXR_Gaps Setup
-        if GapsSetupRef.FindFirst() then begin
-            if not OPOSPrintSetup.Get() then begin
-                OPOSPrintSetup.Init();
-                OPOSPrintSetup.Insert();
-            end;
-            OPOSPrintSetup."Print NCF_DXR" := GapsSetupRef.Field(54500).Value();
-            OPOSPrintSetup."Print Company Name_DXR" := GapsSetupRef.Field(54501).Value();
-            OPOSPrintSetup."Print Employee and Trans_DXR" := GapsSetupRef.Field(54502).Value();
-            OPOSPrintSetup."Print Cashier_DXR" := GapsSetupRef.Field(54503).Value();
-            OPOSPrintSetup."Print Site Name_DXR" := GapsSetupRef.Field(54504).Value();
-            OPOSPrintSetup."LineBreakInRNC_DXR" := GapsSetupRef.Field(54505).Value();
-            OPOSPrintSetup."Print Transaction Time_DXR" := GapsSetupRef.Field(54506).Value();
-            OPOSPrintSetup."LineBreakCustomerName_DXR" := GapsSetupRef.Field(54507).Value();
-            OPOSPrintSetup."Print Qty Footer_DXR" := GapsSetupRef.Field(54508).Value();
-            OPOSPrintSetup."Print Staff Sales Person_DXR" := GapsSetupRef.Field(54509).Value();
-            OPOSPrintSetup."Staff Sales Person Label_DXR" := GapsSetupRef.Field(54510).Value();
-            OPOSPrintSetup.Modify();
-        end;
-        GapsSetupRef.Close();
+        LSLOCDispatcher.RunOPOSSetupFromGapsSetup();
     end;
 }
