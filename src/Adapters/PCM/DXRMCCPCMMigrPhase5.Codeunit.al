@@ -36,20 +36,107 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     local procedure MigratePricesCtrlSetup()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        Phase5IdRenum: Codeunit 54620;
     begin
         if UpgradeTag.HasUpgradeTag(Step1Tag()) then
             exit;
 
-        // Tables 57022 ("DXR_Prices Ctrl Setup_Old") and 54605 ("DXR_Prices Ctrl Setup") are both
-        // Access = Internal on PCM's side - typed-thin-wrapper pattern: PCM's own codeunit exposes
-        // a public, ungated, fully typed procedure that MCC calls instead of declaring Record/
-        // RecordRef on the Internal tables itself. See MigrateLegacyPricesCtrlSetupForExternalCaller
-        // in DXRPRCMigrPhase5IdRenumber.Codeunit.al for the real (idempotent, if-not-exists-insert)
-        // migration logic.
-        Phase5IdRenum.MigrateLegacyPricesCtrlSetupForExternalCaller();
+        // Native Direct pattern - PCM now grants MCC internalsVisibleTo, so MCC declares both
+        // "DXR_Prices Ctrl Setup_Old" (57022, Access=Internal) and "DXR_Prices Ctrl Setup" (54605,
+        // Access=Internal) directly instead of calling PCM's own codeunit 54620's
+        // MigrateLegacyPricesCtrlSetupForExternalCaller() as a cross-app bridge. Replicates that
+        // procedure's exact fill-semantics inline: single-row setup, only copied if the target row
+        // does not already exist (by Code) - zero RecordRef/FieldRef/TransferFields, explicit
+        // per-field typed assignment for all 70 fields the two tables share (verified 1:1 identical
+        // field IDs/names/types between src\Base\Tables.old and src\Base\Tables versions of
+        // DXRPRCPricesCtrlSetup.Table.al in PCM's own repo).
+        MigratePricesCtrlSetupDirect();
 
         UpgradeTag.SetUpgradeTag(Step1Tag());
+    end;
+
+    local procedure MigratePricesCtrlSetupDirect()
+    var
+        OldSetup: Record "DXR_Prices Ctrl Setup_Old";
+        NewSetup: Record "DXR_Prices Ctrl Setup";
+    begin
+        if not OldSetup.FindFirst() then
+            exit;
+
+        if NewSetup.Get(OldSetup.Code) then
+            exit;
+
+        NewSetup.Init();
+        NewSetup.Code := OldSetup.Code;
+        NewSetup."control Fijacion Precios" := OldSetup."control Fijacion Precios";
+        NewSetup."control Precios Exento" := OldSetup."control Precios Exento";
+        NewSetup."Exempt group" := OldSetup."Exempt group";
+        NewSetup."Exempt Product group" := OldSetup."Exempt Product group";
+        NewSetup."Mandatory Shipment Method" := OldSetup."Mandatory Shipment Method";
+        NewSetup."PRC Enable Price Highlighting" := OldSetup."PRC Enable Price Highlighting";
+        NewSetup."PRC Highlight Lower Price" := OldSetup."PRC Highlight Lower Price";
+        NewSetup."PRC Highlight Price Change" := OldSetup."PRC Highlight Price Change";
+        NewSetup."PRC Enable Approval Summary" := OldSetup."PRC Enable Approval Summary";
+        NewSetup."Mandatory Store In Customer" := OldSetup."Mandatory Store In Customer";
+        NewSetup."PRC Control Print Actions" := OldSetup."PRC Control Print Actions";
+        NewSetup."PRC Control Post Actions" := OldSetup."PRC Control Post Actions";
+        NewSetup."PRC Control Offer Price" := OldSetup."PRC Control Offer Price";
+        NewSetup."PRC Control Offer Discount" := OldSetup."PRC Control Offer Discount";
+        NewSetup."PRC Show Offer Actions" := OldSetup."PRC Show Offer Actions";
+        NewSetup."PRC Control Post & Send" := OldSetup."PRC Control Post & Send";
+        NewSetup."PRC Control Post & Print" := OldSetup."PRC Control Post & Print";
+        NewSetup."PRC Control Make Order" := OldSetup."PRC Control Make Order";
+        NewSetup."PRC Enable Price Approval Page" := OldSetup."PRC Enable Price Approval Page";
+        NewSetup."PRC Show Markup Percentages" := OldSetup."PRC Show Markup Percentages";
+        NewSetup."PRC Show Profit Percentages" := OldSetup."PRC Show Profit Percentages";
+        NewSetup."PRC Show Profit LCY" := OldSetup."PRC Show Profit LCY";
+        NewSetup."PRC Show Direct Cost" := OldSetup."PRC Show Direct Cost";
+        NewSetup."PRC Highlight LSC Offers" := OldSetup."PRC Highlight LSC Offers";
+        NewSetup."PRC Show Periodic Discounts" := OldSetup."PRC Show Periodic Discounts";
+        NewSetup."PRC Show Promotions" := OldSetup."PRC Show Promotions";
+        NewSetup."PRC Show Offer Priority" := OldSetup."PRC Show Offer Priority";
+        NewSetup."PRC Show Offer Description" := OldSetup."PRC Show Offer Description";
+        NewSetup."PRC Show Offer Dates" := OldSetup."PRC Show Offer Dates";
+        NewSetup."PRC Show Price Group" := OldSetup."PRC Show Price Group";
+        NewSetup."PRC Show Validation Period" := OldSetup."PRC Show Validation Period";
+        NewSetup."PRC Show Offer Type" := OldSetup."PRC Show Offer Type";
+        NewSetup."PRC Show Offer Store" := OldSetup."PRC Show Offer Store";
+        NewSetup."PRC Show Offer Discount Pct" := OldSetup."PRC Show Offer Discount Pct";
+        NewSetup."PRC Show Offer Price Field" := OldSetup."PRC Show Offer Price Field";
+        NewSetup."SO Show Customer Prices" := OldSetup."SO Show Customer Prices";
+        NewSetup."SO Show Store Prices" := OldSetup."SO Show Store Prices";
+        NewSetup."SO Show Periodic Discounts" := OldSetup."SO Show Periodic Discounts";
+        NewSetup."SO Show Promotions" := OldSetup."SO Show Promotions";
+        NewSetup."SO Show Approval Summary" := OldSetup."SO Show Approval Summary";
+        NewSetup."SQ Show Customer Prices" := OldSetup."SQ Show Customer Prices";
+        NewSetup."SQ Show Store Prices" := OldSetup."SQ Show Store Prices";
+        NewSetup."SQ Show Periodic Discounts" := OldSetup."SQ Show Periodic Discounts";
+        NewSetup."SQ Show Promotions" := OldSetup."SQ Show Promotions";
+        NewSetup."SQ Show Approval Summary" := OldSetup."SQ Show Approval Summary";
+        NewSetup."RSO Show Customer Prices" := OldSetup."RSO Show Customer Prices";
+        NewSetup."RSO Show Store Prices" := OldSetup."RSO Show Store Prices";
+        NewSetup."RSO Show Periodic Discounts" := OldSetup."RSO Show Periodic Discounts";
+        NewSetup."RSO Show Promotions" := OldSetup."RSO Show Promotions";
+        NewSetup."RSO Show Approval Summary" := OldSetup."RSO Show Approval Summary";
+        NewSetup."PRC Control Attach PDF" := OldSetup."PRC Control Attach PDF";
+        NewSetup."PRC Control Email Actions" := OldSetup."PRC Control Email Actions";
+        NewSetup."PRC Control Print Confirmation" := OldSetup."PRC Control Print Confirmation";
+        NewSetup."PRC Control Post & New" := OldSetup."PRC Control Post & New";
+        NewSetup."PRC Enable Approval Colors" := OldSetup."PRC Enable Approval Colors";
+        NewSetup."PRC Color Line Price" := OldSetup."PRC Color Line Price";
+        NewSetup."PRC Color Profit Positive" := OldSetup."PRC Color Profit Positive";
+        NewSetup."PRC Color Reference Price" := OldSetup."PRC Color Reference Price";
+        NewSetup."PRC Color Line Amount" := OldSetup."PRC Color Line Amount";
+        NewSetup."PRC Color Item Number" := OldSetup."PRC Color Item Number";
+        NewSetup."PRC Color Negative Diff" := OldSetup."PRC Color Negative Diff";
+        NewSetup."PRC Color Positive Savings" := OldSetup."PRC Color Positive Savings";
+        NewSetup."PRC Enable Snapshot Validation" := OldSetup."PRC Enable Snapshot Validation";
+        NewSetup."PRC Cleanup Snap After Release" := OldSetup."PRC Cleanup Snap After Release";
+        NewSetup."PRC Show Snapshot Info" := OldSetup."PRC Show Snapshot Info";
+        NewSetup."PRC Eval Deleted Lines Range" := OldSetup."PRC Eval Deleted Lines Range";
+        NewSetup."PRC Enforce Single Team" := OldSetup."PRC Enforce Single Team";
+        NewSetup."PRC Require Team Assignment" := OldSetup."PRC Require Team Assignment";
+        NewSetup."PRC Control Make Invoice" := OldSetup."PRC Control Make Invoice";
+        NewSetup.Insert(false);
     end;
 
     local procedure MigrateApprovalHistory()
