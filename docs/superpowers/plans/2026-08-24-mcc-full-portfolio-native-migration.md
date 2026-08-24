@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every one of MCC's 705+ registered migration concepts (across all 18 portfolio extensions once Phase 0 registers the 5 currently-invisible ones) runs through a typed, direct-field native MCC adapter — zero `RecordRef`/`FieldRef` in the primary migration path — executed in exactly 4 portfolio-wide phases in this order: Setup, Master/Accounting, Historic, DGII-RNC Database (last).
+**Goal:** Every one of MCC's 705+ registered migration concepts (across all 17 portfolio extensions once Phase 0 registers the 4 currently-invisible ones (VendorPay_TXT explicitly excluded per user instruction)) runs through a typed, direct-field native MCC adapter — zero `RecordRef`/`FieldRef` in the primary migration path — executed in exactly 4 portfolio-wide phases in this order: Setup, Master/Accounting, Historic, DGII-RNC Database (last).
 
 **Architecture:** MCC's existing registry (`DXR MCC Concept` → `Dispatcher Codeunit ID` → `Codeunit.Run()`) and `Category` field (Setup/Master-Accounting/Historic/Other, already driving `Run All Setup/Master-Accounting/Historic` on `DXRMCCMain.Page.al`) are unchanged. Each concept's `Dispatcher Codeunit ID` is repointed at a native MCC adapter codeunit (`src/Adapters/<EXT>/...`) with a real `trigger OnRun`. Two adapter shapes, chosen per Task 0.2's per-extension audit: (1) **direct** — MCC declares typed `Record` variables for both legacy and new tables itself and copies named fields; used whenever the target extension's tables are NOT `Access = Internal`. (2) **thin-wrapper** — MCC's adapter has a real `OnRun` but calls one public procedure on the source extension's own (non-Internal) codeunit, which itself must do the typed copy internally; required whenever the target table is `Access = Internal` (confirmed pattern: DRLOC, see Task 0.2).
 
@@ -34,27 +34,29 @@ Expected: 0 errors. Every new `app.json` dependency requires that extension's `.
 
 ---
 
-## Task 0.1: Register the 5 portfolio extensions currently invisible to MCC
+## Task 0.1: Register the 4 portfolio extensions currently invisible to MCC
+
+**Scope note (ruling, 2026-08-24):** VendorPay_TXT is explicitly excluded from this task per direct user instruction — do not register it, do not search for it. Only the 4 extensions below are in scope.
 
 **Files:**
 - Read: `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\EmailSender\app.json` (confirm real folder/app.json path first — may be nested, e.g. under a `src` or project subfolder)
 - Read: the "Retail-Email-Sender" extension's `app.json` — folder not yet confirmed; search `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\` for it (candidates: under `Retail Controls\` or its own root)
 - Read: `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\BC-Bank-Consolidation\app.json` (DX Bank Reconciliation)
-- Read: the "VendorPay_API" and "VendorPay_TXT" extensions' `app.json` — folder not yet confirmed; search under `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\vendorpayload\`
+- Read: the "VendorPay_API" extension's `app.json` — folder not yet confirmed; search under `C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON\vendorpayload\`
 - Modify: `src\DXRMCCRegistryLoader.Codeunit.al` (add `InsExt(...)` calls for each confirmed extension)
 
 **Interfaces:**
-- Produces: one new `Code[20]` extension code per confirmed extension (pick a short, all-caps code following the existing convention — e.g. `ES` for Email-Sender, `RES` for Retail-Email-Sender, `BANKREC` for DX Bank Reconciliation, `VPAPI`/`VPTXT` for the two VendorPay ones — confirm no collision with the 17 existing codes: BC, BELLON, BELLONPOS, DESB, DESLS, DPP, DRLOC, DXP, FE, LSFE, LSLOC, PCM, RBPD, RC, SD, TU, VP), each with its real `app.json` id/publisher/name, consumed by Task 0.2 and every later task that adds concepts for these extensions.
+- Produces: one new `Code[20]` extension code per confirmed extension (pick a short, all-caps code following the existing convention — e.g. `ES` for Email-Sender, `RES` for Retail-Email-Sender, `BANKREC` for DX Bank Reconciliation, `VPAPI` for VendorPay_API — confirm no collision with the 17 existing codes: BC, BELLON, BELLONPOS, DESB, DESLS, DPP, DRLOC, DXP, FE, LSFE, LSLOC, PCM, RBPD, RC, SD, TU, VP), each with its real `app.json` id/publisher/name, consumed by Task 0.2 and every later task that adds concepts for these extensions.
 
-- [ ] **Step 1: Locate each of the 5 extensions' real project folder and `app.json`**
+- [ ] **Step 1: Locate each of the 4 extensions' real project folder and `app.json`**
 
 ```bash
-find "C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON" -maxdepth 4 -iname "app.json" | xargs grep -l "Email-Sender\|EmailSender\|Bank Reconciliation\|VendorPay_API\|VendorPay_TXT" 2>/dev/null
+find "C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON" -maxdepth 4 -iname "app.json" | xargs grep -l "Email-Sender\|EmailSender\|Bank Reconciliation\|VendorPay_API" 2>/dev/null
 ```
 
 If a name doesn't match (naming may have drifted since `DXR_Legacy_Field_Mapping.md` was written), fall back to `find "C:\Users\rpena\OneDrive - Dextra\Desktop\BELLON" -maxdepth 2 -type d -iname "*email*"` / `*vendorpay*` / `*bank*` and inspect each candidate's `app.json` `"name"` field directly.
 
-- [ ] **Step 2: For each of the 5, confirm it genuinely has DXR_ migration objects** (not just a name match) — run inside each candidate folder:
+- [ ] **Step 2: For each of the 4, confirm it genuinely has DXR_ migration objects** (not just a name match) — run inside each candidate folder:
 
 ```bash
 grep -rl "ObsoleteReason.*DXR_\|_DXR\"" --include="*.al" .
@@ -71,7 +73,6 @@ InsExt('ES', 'Email-Sender', '<real-app-id-from-step-3>', <next-order-no>, '');
 InsExt('RES', 'Retail-Email-Sender', '<real-app-id-from-step-3>', <next-order-no>, '');
 InsExt('BANKREC', 'DX Bank Reconciliation', '<real-app-id-from-step-3>', <next-order-no>, '');
 InsExt('VPAPI', 'VendorPay_API', '<real-app-id-from-step-3>', <next-order-no>, '');
-InsExt('VPTXT', 'VendorPay_TXT', '<real-app-id-from-step-3>', <next-order-no>, '');
 ```
 
 (Only add the rows that Step 2 actually confirmed — skip any that turn out to be a false positive from the mapping doc's index.)
@@ -82,7 +83,7 @@ InsExt('VPTXT', 'VendorPay_TXT', '<real-app-id-from-step-3>', <next-order-no>, '
 
 ```bash
 git add src/DXRMCCRegistryLoader.Codeunit.al
-git commit -m "feat: register portfolio extensions missing from MCC (Email-Sender, Retail-Email-Sender, DX Bank Reconciliation, VendorPay_API, VendorPay_TXT)"
+git commit -m "feat: register portfolio extensions missing from MCC (Email-Sender, Retail-Email-Sender, DX Bank Reconciliation, VendorPay_API)"
 ```
 
 ---
@@ -423,7 +424,7 @@ git commit -m "feat: native thin-wrapper adapter for DRLOC Payment Method Relati
 grep "'SETUP'" src/DXRMCCRegistryLoader.Codeunit.al
 ```
 
-(240 rows as of this plan's authoring, spanning all 17 originally-registered extensions; re-run after Task 0.1 to pick up any Setup concepts the 5 newly-registered extensions add.) For each row, note: Extension Code, Phase Code, Sequence No., Description (usually contains the real legacy/new table IDs or field count), current `Dispatcher Codeunit ID`, `Legacy Table ID`, `New Table ID`.
+(240 rows as of this plan's authoring, spanning all 17 originally-registered extensions; re-run after Task 0.1 to pick up any Setup concepts the 4 newly-registered extensions add.) For each row, note: Extension Code, Phase Code, Sequence No., Description (usually contains the real legacy/new table IDs or field count), current `Dispatcher Codeunit ID`, `Legacy Table ID`, `New Table ID`.
 
 - [ ] **Step 2: Group the worklist by extension**, and for each extension in turn (recommended order: smallest concept-count first for fast wins — TU(2), BELLONPOS(2), LSFE(1), RBPD(3), RC(5), DESLS(5), PCM(7), VP(7), DXP(14, minus DXP-P2 already fixed by Task A.2), BC(12), DESB(12), LSLOC(13), FE(20), DRLOC(25), BELLON(106) — then any Setup rows Task 0.1's 5 new extensions contributed. **Skip SD entirely** - confirmed already fully converted, see Task A.2's correction note; only verify its concepts' Category tags and registry wiring, do not touch its adapter code):
   - For each concept whose `Legacy Table ID`/`New Table ID` are non-zero (whole-table restore): dispatch a `dxr-repository-intelligence` research agent with this prompt template (fill in the real values from Step 1's row):
