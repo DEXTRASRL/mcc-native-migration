@@ -758,7 +758,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P2', 132, 'Comision_Grupo_Vendedor legacy table restore (batch 2)', 60146, 50027, 55005, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 133, 'Inventory View legacy table restore (batch 2)', 60146, 50097, 55004, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 134, 'Operaciones Tipo Comprobante2 legacy table restore (batch 2)', 60146, 50126, 55007, 'SETUP');
-        InsConcept('BELLON', 'BELLON-P2', 135, 'Sales/Purchase old-generation bridge copy (MigrateAllSalesPurchOldGenBridge - scope not yet fully read, flagged for follow-up)', 60146, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P2', 135, 'Sales/Purchase old-generation bridge copy (MigrateAllSalesPurchOldGenBridge - confirmed no-op: both source _BE_DXR and destination _Old fields across all 14 tables are ObsoleteState = Removed, no live tenant data ever existed; see codeunit 60166 header comment)', 60166, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 136, 'Tableextension field-group restore: ApprovalEntry/AssemblyHeader/AssemblySetup/VendorLedgerEntry (Leg-Norm pass)', 60146, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 137, 'Tableextension field-group restore: BankAccReconciliation(+Line)/BankAccount/BankAccountLedgerEntry (Leg-Norm pass)', 60146, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 138, 'Tableextension field-group restore: LSCBarcodes/CheckLedgerEntry/CompanyInformation/CountryRegion (Leg-Norm pass)', 60146, 0, 0, 'SETUP');
