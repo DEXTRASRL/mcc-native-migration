@@ -135,13 +135,13 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P2', 9, 'Bootstrap: CompanyInformation fields', 60165, 0, 0, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 10, 'Bootstrap: BankAccount/Customer/Vendor fields', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 11, 'Bootstrap: GL/UserSetup/Journal fields', 60165, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 12, 'Bootstrap: NCF Setup tables', 60069, 0, 0, 'SETUP');
+        InsConcept('DRLOC', 'DRLOC-P2', 12, 'Bootstrap: NCF Setup tables', 60165, 0, 0, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 13, 'Payment Method Relation legacy table restore (54133 -> 52180)', 60164, 54133, 52180, 'SETUP');
-        InsConcept('DRLOC', 'DRLOC-P2', 14, 'Item NCF Category backfill (V27 data)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 14, 'Item NCF Category backfill (V27 data)', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 15, 'DGII-RNC Database legacy table restore (54119 -> 52156)', 60069, 54119, 52156, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 16, 'NAV POS Customer legacy table restore (54128 -> 52175)', 60069, 54128, 52175, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 17, 'Extract Cards legacy table restore (54120 -> 52160)', 60069, 54120, 52160, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 18, 'Gubernamentales(623) legacy table restore (54155 -> 52220)', 60069, 54155, 52220, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 16, 'NAV POS Customer legacy table restore (54128 -> 52175)', 60165, 54128, 52175, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 17, 'Extract Cards legacy table restore (54120 -> 52160)', 60165, 54120, 52160, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 18, 'Gubernamentales(623) legacy table restore (54155 -> 52220)', 60165, 54155, 52220, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 19, 'Purchase Header field restore (bulk)', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 20, 'Purchase Line field restore (bulk + FlowFields)', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 21, 'Purch. Inv. Header field restore (bulk + FlowFields + special conversions)', 60069, 0, 0, 'MA');

@@ -71,7 +71,26 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "Gen. Journal Template" = RM,
         tabledata "Gen. Journal Batch" = RM,
         tabledata "Workflow Step Argument" = RM,
-        tabledata "VAT Product Posting Group" = RM;
+        tabledata "VAT Product Posting Group" = RM,
+        tabledata "DXFiscal Receipt Types" = R,
+        tabledata "DXR_Fiscal Receipt Types" = RIM,
+        tabledata "DXNCF Categories" = R,
+        tabledata "NCFCategories_DXR" = RIM,
+        tabledata "DXNCF Setup" = R,
+        tabledata "DXR_NCF Setup" = RIM,
+        tabledata "DXNCF Purchase Setup" = R,
+        tabledata "DXR_NCF Purchase Setup" = RIM,
+        tabledata "DXNCF Sales Setup" = R,
+        tabledata "DXR_NCF Sales Setup" = RIM,
+        tabledata "DXNAV_POS_Customer" = R,
+        tabledata "DXR_NAV_POS_Customer" = RIM,
+        tabledata "DXExtract Cards" = R,
+        tabledata "DXR_Extract Cards" = RIM,
+        tabledata "DXGubernamentales(623)" = R,
+        tabledata "DXR_Gubernamentales(623)" = RIM,
+        tabledata Item = RM,
+        tabledata "General Posting Setup" = R,
+        tabledata "G/L Account" = R;
 
     trigger OnRun()
     begin
@@ -83,6 +102,11 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         BootstrapCompanyInformationFields();
         BootstrapBankAccountCustomerVendorFields();
         BootstrapGLUserSetupJournalFields();
+        BootstrapNCFSetupTables();
+        BootstrapItemNCFCategoryBackfill();
+        BootstrapNAVPOSCustomerTable();
+        BootstrapExtractCardsTable();
+        BootstrapGubernamentales623Table();
     end;
 
     // ===== seq9: Bootstrap: CompanyInformation fields =====
@@ -455,5 +479,488 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                     VATProductPostingGroupRec.Modify(false);
                 end;
             until VATProductPostingGroupRec.Next() = 0;
+    end;
+
+    // ===== seq12: Bootstrap: NCF Setup tables =====
+    // Ported from MigrateTable_FiscalReceiptTypes() (~line 3258), MigrateTable_NCFCategories()
+    // (~line 3532), MigrateTable_NCFSetup() (~line 3581), MigrateTable_NCFPurchaseSetup()
+    // (~line 3550) and MigrateTable_NCFSalesSetup() (~line 3568), all in
+    // DXR_Internal_Closure_Migration_Upgrade_Clean.al. All 5 are whole-table CLONES in DR-
+    // Localization own source (unlike Batch 1's field-group procedures) and DR-Localization own
+    // code uses NewRec.TransferFields(OldRec, true) for every one of them - each is expanded below
+    // into explicit, per-field typed assignment (TransferFields is banned plan-wide in this MCC
+    // project). Bundled under one registry concept (seq12, same bundling pattern as seq9/10/11),
+    // but each of the 5 sub-procedures still gates on its OWN real DR-Localization completion tag
+    // (UpgradeTagInternalClosureTable<X>() in DXR_UpgradeTagMgt.Codeunit.al), same convention as
+    // Batch 1's per-procedure tag reuse.
+    //
+    // NCF Setup investigation (2026-08-24, this task - required before writing MigrateNCFSetupTable
+    // below): "DXR_NCF Setup" (52179) already has THREE independent, pre-existing migration
+    // mechanisms in this MCC repo (all confirmed via source):
+    //   1) DXRMCCBellonMigrPhase2.Codeunit.al MigrateTableExt_DXNCFSetupFields() - same-table
+    //      bridge, copies "Grupo Contable BS"/"Legal Tip %" into "Grupo Contable BS_DXR"/
+    //      "Legal Tip %_DXR" (all four fields live on "DXR_NCF Setup" itself).
+    //   2) DXRMCCBellonMigrPhase11.Codeunit.al MigrateNCFSetupOldCrossTable() - cross-table bridge,
+    //      copies the SAME two target fields, but reads the source values off the LEGACY "DXNCF
+    //      Setup" table instead ("Grupo Contable BS"/"Legal Tip %" on the old table).
+    //   3) DXRMCCBellonMigrPhase13.Codeunit.al - intermediate "_Old" bridge, copies
+    //      "Grupo Contable BS_Old"/"Legal Tip %_Old" (also on "DXR_NCF Setup" itself) into the same
+    //      two "_DXR" targets.
+    // All three existing mechanisms exclusively target "Grupo Contable BS_DXR"/"Legal Tip %_DXR" -
+    // two fields that do NOT exist anywhere in DR-Localization's own repo (confirmed by grepping
+    // DR-Localization's full source tree for both names: zero matches in either
+    // Tables.old/DXNCFSetup.Table.al or Base/Tables/DXR_NCFSetup.Table.al). They are purely
+    // BELLON-added tableextension fields layered on top of DR-Localization's "DXNCF Setup"/
+    // "DXR_NCF Setup". MigrateNCFSetupTable() below instead ports DR-Localization's OWN ~73
+    // base-table fields (the real schema DR-Localization itself declares on both tables) - a
+    // completely disjoint field set from all three existing mechanisms; it never reads or writes
+    // "Grupo Contable BS_DXR"/"Legal Tip %_DXR"/either "_Old" or legacy-tableextension counterpart.
+    // This confirms MigrateNCFSetupTable() is a genuine 4th, independent/complementary mechanism
+    // for this same physical table pair, matching this plan's established "multiple independent
+    // fill-gap mechanisms for messy tenant history" precedent for this exact table - it is ported
+    // here unmerged/unmodified, per this task's instructions (do NOT merge/simplify/skip it).
+    //
+    // Two fields on "DXNCF Setup"/"DXR_NCF Setup" are ObsoleteState = Removed on BOTH the old and
+    // new side ("Prepayment Acct. Credit Card", "Use Additional Currency" - confirmed against both
+    // real table sources) - referencing a Removed field is a compile error (AL0499), so both are
+    // deliberately excluded entirely from MigrateNCFSetupTable() below; every other field (including
+    // several marked ObsoleteState = Pending on one or both sides, which remain both readable and
+    // writable - e.g. "Allow NCF 32 in Consumer 607", "CR Customer Withholding",
+    // "EnableCustomerWithholdings", "EnableBankCommission", "Bank Commission Account") is copied,
+    // matching DR-Localization's own TransferFields(OldRec, true) behavior (Pending is not a
+    // migration blocker, only Removed is).
+    local procedure BootstrapNCFSetupTables()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-FISCALRECEIPTTYPES-20260522') then begin
+            MigrateFiscalReceiptTypesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-FISCALRECEIPTTYPES-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFCATEGORIES-20260522') then begin
+            MigrateNCFCategoriesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFCATEGORIES-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFSETUP-20260522') then begin
+            MigrateNCFSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFSETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFPURCHASESETUP-20260522') then begin
+            MigrateNCFPurchaseSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFPURCHASESETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFSALESSETUP-20260522') then begin
+            MigrateNCFSalesSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NCFSALESSETUP-20260522');
+        end;
+    end;
+
+    local procedure MigrateFiscalReceiptTypesTable()
+    var
+        FiscalReceiptTypesOld: Record "DXFiscal Receipt Types";
+        FiscalReceiptTypesNew: Record "DXR_Fiscal Receipt Types";
+    begin
+        if FiscalReceiptTypesOld.IsEmpty() then
+            exit;
+        if FiscalReceiptTypesOld.FindSet() then
+            repeat
+                FiscalReceiptTypesNew."Code" := FiscalReceiptTypesOld."Code";
+                FiscalReceiptTypesNew.Description := FiscalReceiptTypesOld.Description;
+                FiscalReceiptTypesNew."Comprobante Electronico" := FiscalReceiptTypesOld."Comprobante Electronico";
+                if not FiscalReceiptTypesNew.Insert(false) then
+                    FiscalReceiptTypesNew.Modify(false);
+            until FiscalReceiptTypesOld.Next() = 0;
+    end;
+
+    local procedure MigrateNCFCategoriesTable()
+    var
+        NCFCategoriesOld: Record "DXNCF Categories";
+        NCFCategoriesNew: Record "NCFCategories_DXR";
+    begin
+        if NCFCategoriesOld.IsEmpty() then
+            exit;
+        if NCFCategoriesOld.FindSet() then
+            repeat
+                NCFCategoriesNew."DXCodigo" := NCFCategoriesOld."DXCodigo";
+                NCFCategoriesNew."DXDescripcion" := NCFCategoriesOld."DXDescripcion";
+                if not NCFCategoriesNew.Insert(false) then
+                    NCFCategoriesNew.Modify(false);
+            until NCFCategoriesOld.Next() = 0;
+    end;
+
+    // ~73-field whole-table clone (see codeunit-level "NCF Setup investigation" comment above for
+    // the field-count/Removed-field rationale). Field order below matches the real table
+    // declaration order in Base/Tables/DXR_NCFSetup.Table.al / Tables.old/DXNCFSetup.Table.al.
+    local procedure MigrateNCFSetupTable()
+    var
+        NCFSetupOld: Record "DXNCF Setup";
+        NCFSetupNew: Record "DXR_NCF Setup";
+    begin
+        if NCFSetupOld.IsEmpty() then
+            exit;
+        if NCFSetupOld.FindSet() then
+            repeat
+                NCFSetupNew."Primary Key" := NCFSetupOld."Primary Key";
+                NCFSetupNew."Control Dígitos NCF" := NCFSetupOld."Control Dígitos NCF";
+                NCFSetupNew."Funcionalidad NCF" := NCFSetupOld."Funcionalidad NCF";
+                NCFSetupNew."N/C Ventas ITBIS +30 dias" := NCFSetupOld."N/C Ventas ITBIS +30 dias";
+                NCFSetupNew."Directorio Archivo ITBIS (607)" := NCFSetupOld."Directorio Archivo ITBIS (607)";
+                NCFSetupNew."Libro Diario Cargos Banc." := NCFSetupOld."Libro Diario Cargos Banc.";
+                NCFSetupNew."Seccion Diario Cargos Banc." := NCFSetupOld."Seccion Diario Cargos Banc.";
+                NCFSetupNew."No. Series Cargo Banc." := NCFSetupOld."No. Series Cargo Banc.";
+                NCFSetupNew."Codigo Audit. Cargos Banc." := NCFSetupOld."Codigo Audit. Cargos Banc.";
+                NCFSetupNew."Cta. Gastos Cargos Banc." := NCFSetupOld."Cta. Gastos Cargos Banc.";
+                NCFSetupNew."Cta. Gastos Cargos Tarjetas Cr" := NCFSetupOld."Cta. Gastos Cargos Tarjetas Cr";
+                NCFSetupNew."Cta. ITBIS Cargos Tarjetas Cr" := NCFSetupOld."Cta. ITBIS Cargos Tarjetas Cr";
+                NCFSetupNew."Libro Diario Cargos Tarj. Cr." := NCFSetupOld."Libro Diario Cargos Tarj. Cr.";
+                NCFSetupNew."Seccion Diario Cargos Tarj. Cr" := NCFSetupOld."Seccion Diario Cargos Tarj. Cr";
+                NCFSetupNew."No. Series Cargos Tarj. Cr." := NCFSetupOld."No. Series Cargos Tarj. Cr.";
+                NCFSetupNew."Codigo Audit. Cargos Tarj. Cr." := NCFSetupOld."Codigo Audit. Cargos Tarj. Cr.";
+                NCFSetupNew."No. Series Ret. Gubernamental" := NCFSetupOld."No. Series Ret. Gubernamental";
+                NCFSetupNew."Cta. Ret. Gubernamental" := NCFSetupOld."Cta. Ret. Gubernamental";
+                NCFSetupNew."Cod. Audit. Ret. Gubernamental" := NCFSetupOld."Cod. Audit. Ret. Gubernamental";
+                NCFSetupNew."Libro Diario Ret. Gub." := NCFSetupOld."Libro Diario Ret. Gub.";
+                NCFSetupNew."Seccion Diario Ret. Gub." := NCFSetupOld."Seccion Diario Ret. Gub.";
+                NCFSetupNew."Directorio Archivo ITBIS (606)" := NCFSetupOld."Directorio Archivo ITBIS (606)";
+                NCFSetupNew."Fecha Cierre" := NCFSetupOld."Fecha Cierre";
+                NCFSetupNew."Directorio Ret. Guber623" := NCFSetupOld."Directorio Ret. Guber623";
+                NCFSetupNew."Directorio Pagos Supl. Inter." := NCFSetupOld."Directorio Pagos Supl. Inter.";
+                NCFSetupNew."Cod. Audit. Pagos Supl. inter." := NCFSetupOld."Cod. Audit. Pagos Supl. inter.";
+                NCFSetupNew."RNC Oblig. en Proveedores" := NCFSetupOld."RNC Oblig. en Proveedores";
+                NCFSetupNew."RNC Oblig. en Clientes" := NCFSetupOld."RNC Oblig. en Clientes";
+                NCFSetupNew."Cat. NCF Oblig. en Cuentas" := NCFSetupOld."Cat. NCF Oblig. en Cuentas";
+                NCFSetupNew."No. Serie Regist. Cargo Banc." := NCFSetupOld."No. Serie Regist. Cargo Banc.";
+                NCFSetupNew."No. Serie Regist. C. Tarj. Cr." := NCFSetupOld."No. Serie Regist. C. Tarj. Cr.";
+                NCFSetupNew."Libro Diario Ret. Proveedor" := NCFSetupOld."Libro Diario Ret. Proveedor";
+                NCFSetupNew."Seccion Diario Ret. Proveedor" := NCFSetupOld."Seccion Diario Ret. Proveedor";
+                NCFSetupNew."No. Serie Ret. Proveedor" := NCFSetupOld."No. Serie Ret. Proveedor";
+                NCFSetupNew."No. Serie Regist. Ret. Gub." := NCFSetupOld."No. Serie Regist. Ret. Gub.";
+                NCFSetupNew."Libro Diario Productos" := NCFSetupOld."Libro Diario Productos";
+                NCFSetupNew."Seccion Diario Productos" := NCFSetupOld."Seccion Diario Productos";
+                NCFSetupNew."Codigo Almacen Diario" := NCFSetupOld."Codigo Almacen Diario";
+                NCFSetupNew."NCF Ventas" := NCFSetupOld."NCF Ventas";
+                NCFSetupNew."Recibo de Ingreso" := NCFSetupOld."Recibo de Ingreso";
+                NCFSetupNew."NCF Punto de Venta" := NCFSetupOld."NCF Punto de Venta";
+                NCFSetupNew."Cargos Bancario" := NCFSetupOld."Cargos Bancario";
+                NCFSetupNew.Cheques := NCFSetupOld.Cheques;
+                NCFSetupNew."Cargos Tarjetas de Credito" := NCFSetupOld."Cargos Tarjetas de Credito";
+                NCFSetupNew."Retenciones Gubernamentales" := NCFSetupOld."Retenciones Gubernamentales";
+                NCFSetupNew."NCF Compras" := NCFSetupOld."NCF Compras";
+                NCFSetupNew."Impresora Fiscal" := NCFSetupOld."Impresora Fiscal";
+                NCFSetupNew."Block posting in zero prices" := NCFSetupOld."Block posting in zero prices";
+                NCFSetupNew."Impedir Precio Cero POS" := NCFSetupOld."Impedir Precio Cero POS";
+                NCFSetupNew."Exempt group" := NCFSetupOld."Exempt group";
+                NCFSetupNew."Exempt Product group" := NCFSetupOld."Exempt Product group";
+                NCFSetupNew."Keep Original VAT Reg. No." := NCFSetupOld."Keep Original VAT Reg. No.";
+                // "Tax Rule" and "Grupo Contable Prop." are plain (non-Enum) Option fields on both
+                // tables, with identical OptionMembers/order on each side - AL permits direct
+                // cross-record Option field assignment (unlike Enum, Option is not nominally typed).
+                NCFSetupNew."Tax Rule" := NCFSetupOld."Tax Rule";
+                NCFSetupNew."Max Amount without RNC/Cedula" := NCFSetupOld."Max Amount without RNC/Cedula";
+                // ObsoleteState = Pending on both sides (still readable/writable) - copied per
+                // TransferFields(OldRec, true) parity; see codeunit-level comment.
+                NCFSetupNew."Allow NCF 32 in Consumer 607" := NCFSetupOld."Allow NCF 32 in Consumer 607";
+                NCFSetupNew."Fiscal Controls" := NCFSetupOld."Fiscal Controls";
+                NCFSetupNew."POS Transactions in 607" := NCFSetupOld."POS Transactions in 607";
+                NCFSetupNew."Grupo Contable Prop." := NCFSetupOld."Grupo Contable Prop.";
+                NCFSetupNew."Funcionalidad e-CF" := NCFSetupOld."Funcionalidad e-CF";
+                NCFSetupNew."Digitos e-CF" := NCFSetupOld."Digitos e-CF";
+                NCFSetupNew."Use Localization DR" := NCFSetupOld."Use Localization DR";
+                NCFSetupNew."NCF Debit Note" := NCFSetupOld."NCF Debit Note";
+                NCFSetupNew."No. Serie NDB" := NCFSetupOld."No. Serie NDB";
+                NCFSetupNew."Libro Diario Ret. Customer" := NCFSetupOld."Libro Diario Ret. Customer";
+                NCFSetupNew."Seccion Diario Ret. Customer" := NCFSetupOld."Seccion Diario Ret. Customer";
+                NCFSetupNew."No. Serie Ret. Customer" := NCFSetupOld."No. Serie Ret. Customer";
+                NCFSetupNew."Other Feeds Percentage" := NCFSetupOld."Other Feeds Percentage";
+                // "Prepayment Acct. Credit Card" (36002767/36002768) is skipped deliberately -
+                // ObsoleteState = Removed on BOTH old and new tables (referencing it is AL0499).
+                NCFSetupNew."Loan Acct. Credit Card" := NCFSetupOld."Loan Acct. Credit Card";
+                // "Use Additional Currency" (36002769) is skipped deliberately - ObsoleteState =
+                // Removed on BOTH old and new tables (referencing it is AL0499).
+                NCFSetupNew."Directorio Archivo (609)" := NCFSetupOld."Directorio Archivo (609)";
+                NCFSetupNew."Allow Diff. Margen Legal Tip" := NCFSetupOld."Allow Diff. Margen Legal Tip";
+                NCFSetupNew."Check Cust.A.NCF Ledg. Entries" := NCFSetupOld."Check Cust.A.NCF Ledg. Entries";
+                NCFSetupNew."VAT Bus. ITBIS For Advance" := NCFSetupOld."VAT Bus. ITBIS For Advance";
+                NCFSetupNew.PrintNCFindCheck := NCFSetupOld.PrintNCFindCheck;
+                NCFSetupNew."Fixed Asset NCF" := NCFSetupOld."Fixed Asset NCF";
+                NCFSetupNew."VAT Bus. ITBIS Taken To Cost" := NCFSetupOld."VAT Bus. ITBIS Taken To Cost";
+                NCFSetupNew."Uses Electronic Invoice" := NCFSetupOld."Uses Electronic Invoice";
+                NCFSetupNew."Purchase NCF Debit Note" := NCFSetupOld."Purchase NCF Debit Note";
+                NCFSetupNew."Purchase No. Series NDP" := NCFSetupOld."Purchase No. Series NDP";
+                NCFSetupNew."Report 606 on vend header DXR" := NCFSetupOld."Report 606 on vend header DXR";
+                NCFSetupNew."Show Withholdings Info" := NCFSetupOld."Show Withholdings Info";
+                NCFSetupNew."Show Additional Amounts" := NCFSetupOld."Show Additional Amounts";
+                NCFSetupNew."Show Cust. Withholding Fields" := NCFSetupOld."Show Cust. Withholding Fields";
+                NCFSetupNew."Show Settled Amount" := NCFSetupOld."Show Settled Amount";
+                // ObsoleteState = Pending on both sides (still readable/writable) - copied per
+                // TransferFields(OldRec, true) parity; see codeunit-level comment.
+                NCFSetupNew."EnableCustomerWithholdings" := NCFSetupOld."EnableCustomerWithholdings";
+                NCFSetupNew."EnableBankCommission" := NCFSetupOld."EnableBankCommission";
+                NCFSetupNew."Bank Commission Account" := NCFSetupOld."Bank Commission Account";
+                NCFSetupNew."Allow Edit Taxes in Cr. Memo" := NCFSetupOld."Allow Edit Taxes in Cr. Memo";
+                NCFSetupNew."Enable Customer Withholdings" := NCFSetupOld."Enable Customer Withholdings";
+                // ObsoleteState = Pending on the NEW side only (still readable/writable) - copied
+                // per TransferFields(OldRec, true) parity; see codeunit-level comment.
+                NCFSetupNew."CR Customer Withholding" := NCFSetupOld."CR Customer Withholding";
+                NCFSetupNew."Enable CR Bank Commission" := NCFSetupOld."Enable CR Bank Commission";
+                NCFSetupNew."Bank Fee G/L Account" := NCFSetupOld."Bank Fee G/L Account";
+                NCFSetupNew."No. Serie Cash Receipt Doc" := NCFSetupOld."No. Serie Cash Receipt Doc";
+                if not NCFSetupNew.Insert(false) then
+                    NCFSetupNew.Modify(false);
+            until NCFSetupOld.Next() = 0;
+    end;
+
+    local procedure MigrateNCFPurchaseSetupTable()
+    var
+        NCFPurchaseSetupOld: Record "DXNCF Purchase Setup";
+        NCFPurchaseSetupNew: Record "DXR_NCF Purchase Setup";
+    begin
+        if NCFPurchaseSetupOld.IsEmpty() then
+            exit;
+        if NCFPurchaseSetupOld.FindSet() then
+            repeat
+                NCFPurchaseSetupNew."DXCodigo" := NCFPurchaseSetupOld."DXCodigo";
+                NCFPurchaseSetupNew."DXDescripcion" := NCFPurchaseSetupOld."DXDescripcion";
+                NCFPurchaseSetupNew."No. Serie NCF Fact." := NCFPurchaseSetupOld."No. Serie NCF Fact.";
+                NCFPurchaseSetupNew."No. Serie NCF Abono" := NCFPurchaseSetupOld."No. Serie NCF Abono";
+                NCFPurchaseSetupNew."Tipo NCF" := NCFPurchaseSetupOld."Tipo NCF";
+                NCFPurchaseSetupNew."DXAuto ECF34 Internal Cr. Memo" := NCFPurchaseSetupOld."DXAuto ECF34 Internal Cr. Memo";
+                if not NCFPurchaseSetupNew.Insert(false) then
+                    NCFPurchaseSetupNew.Modify(false);
+            until NCFPurchaseSetupOld.Next() = 0;
+    end;
+
+    // Real source has no IsEmpty() guard for this one table (unlike its 4 siblings above/below) -
+    // ported exactly as-is (FindSet() on an empty table simply returns false, so behavior is
+    // identical either way; kept faithful to source rather than "improving" it).
+    local procedure MigrateNCFSalesSetupTable()
+    var
+        NCFSalesSetupOld: Record "DXNCF Sales Setup";
+        NCFSalesSetupNew: Record "DXR_NCF Sales Setup";
+    begin
+        if NCFSalesSetupOld.FindSet() then
+            repeat
+                NCFSalesSetupNew."Codigo" := NCFSalesSetupOld."Codigo";
+                NCFSalesSetupNew."Descripcion" := NCFSalesSetupOld."Descripcion";
+                NCFSalesSetupNew."No. Serie NCF Fact." := NCFSalesSetupOld."No. Serie NCF Fact.";
+                NCFSalesSetupNew."No. Serie NCF NCR" := NCFSalesSetupOld."No. Serie NCF NCR";
+                // Explicit conversion required - "Tipo Doc. Fiscal" is a different Enum object on
+                // each table ("DXR_Fiscal Doc. Type" vs. legacy "DX Fiscal Doc. Type"), even though
+                // both enums share the identical 11-value set (0..10, same names/order in the same
+                // order - confirmed against Base/Enums/DXR_FiscalDocType.enum.al and
+                // Base/Enums.old/DXFiscalDocType.enum.al). AL does not implicitly convert between
+                // different Enum types on assignment (AL0122), so FromInteger/AsInteger is used
+                // (same pattern as Batch 1's Customer "Apply Cust Withhold_DXR" conversion).
+                NCFSalesSetupNew."Tipo Doc. Fiscal" :=
+                    Enum::"DXR_Fiscal Doc. Type".FromInteger(NCFSalesSetupOld."Tipo Doc. Fiscal".AsInteger());
+                NCFSalesSetupNew."Tipo NCF" := NCFSalesSetupOld."Tipo NCF";
+                if not NCFSalesSetupNew.Insert(false) then
+                    NCFSalesSetupNew.Modify(false);
+            until NCFSalesSetupOld.Next() = 0;
+    end;
+
+    // ===== seq14: Item NCF Category backfill (V27 data) =====
+    // Ported from TryRunItemNCFCategoryBackfill() / MigrateItemNCFCategoryInBatches()
+    // (DXR_Migr_Phase_2_Fiscal.Codeunit.al, ~line 289 / ~line 403). The real source runs inside a
+    // checkpoint/batch-commit loop (StatusMgt.GetCheckpoint/SaveCheckpoint/ClearCheckpoint,
+    // Commit() every ProductBatchSize() rows) purely for TaskScheduler-background resilience on
+    // very large Item tables; that checkpoint/commit infrastructure is DR-Localization-internal
+    // plumbing, not migrated business logic, so it is intentionally not ported here - a single
+    // unbroken FindSet loop is used instead, matching this file's established simpler convention
+    // (same simplification already implicit in every other procedure in this codeunit, none of
+    // which replicate DR-Localization's own TaskScheduler/checkpoint machinery either).
+    // TryGetItemNcfCategory() (DXR_LocalizationFiscalMgt.Codeunit.al, ~line 1559) is inlined below
+    // as TryGetItemNcfCategoryLocal() rather than calling into DR-Localization's own codeunit, for
+    // the same "typed, self-contained" reason as every other procedure in this file. The real
+    // caller always passes a blank GenBusPostingGroup argument (see MigrateItemNCFCategoryInBatches
+    // calling TryGetItemNcfCategory(Item, '', NCFCategory)), so the GenBusPostingGroup parameter and
+    // its associated filter branch (never exercised for this specific call site) are omitted here.
+    local procedure BootstrapItemNCFCategoryBackfill()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DXR-T20260716-BackfillItemNCFCategory') then begin
+            MigrateItemNCFCategoryBackfill();
+            UpgradeTag.SetUpgradeTag('DXR-T20260716-BackfillItemNCFCategory');
+        end;
+    end;
+
+    local procedure MigrateItemNCFCategoryBackfill()
+    var
+        Item: Record Item;
+        NCFCategory: Code[20];
+    begin
+        if Item.FindSet(true) then
+            repeat
+                if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then begin
+                    Item."NCF Category_DXR" := NCFCategory;
+                    Item.Modify(false);
+                end;
+            until Item.Next() = 0;
+    end;
+
+    local procedure TryGetItemNcfCategoryLocal(Item: Record Item; var NCFCategory: Code[20]): Boolean
+    var
+        GeneralPostingSetup: Record "General Posting Setup";
+        GLAccount: Record "G/L Account";
+    begin
+        Clear(NCFCategory);
+        if Item."Gen. Prod. Posting Group" = '' then
+            exit(false);
+
+        GeneralPostingSetup.SetRange("Gen. Prod. Posting Group", Item."Gen. Prod. Posting Group");
+        GeneralPostingSetup.SetFilter("Purch. Account", '<>%1', '');
+        if GeneralPostingSetup.FindSet() then
+            repeat
+                if GLAccount.Get(GeneralPostingSetup."Purch. Account") and (GLAccount."NCFCategories_DXR" <> '') then begin
+                    NCFCategory := GLAccount."NCFCategories_DXR";
+                    exit(true);
+                end;
+            until GeneralPostingSetup.Next() = 0;
+
+        exit(false);
+    end;
+
+    // ===== seq16: NAV POS Customer legacy table restore (54128 -> 52175) =====
+    // Ported from MigrateTable_NAVPOSCustomer() (~line 3490). Whole-table clone in DR-Localization
+    // own source, using NewRec.TransferFields(OldRec, true) - expanded below into explicit,
+    // per-field typed assignment (TransferFields is banned plan-wide in this MCC project). Real
+    // source also has a fast-path branch using "DXR_Background Data Transfer"
+    // (AddFieldValue/CopyRows) when the new table is still empty; that branch is intentionally NOT
+    // ported (Global Constraint: zero-RecordRef/zero-FieldRef/zero-TransferFields plan-wide -
+    // DataTransfer's AddFieldValue/CopyRows operate on the same field-number-matching mechanism
+    // internally). The always-manual typed loop below (the real source's OWN fallback branch, used
+    // when the new table already has data) is used unconditionally instead - functionally
+    // equivalent, just without the bulk-copy performance optimization for a first-time run against
+    // an empty target on a very large legacy table.
+    local procedure BootstrapNAVPOSCustomerTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NAVPOSCUSTOMER-20260522') then begin
+            MigrateNAVPOSCustomerTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-NAVPOSCUSTOMER-20260522');
+        end;
+    end;
+
+    local procedure MigrateNAVPOSCustomerTable()
+    var
+        NAVPOSCustomerOld: Record "DXNAV_POS_Customer";
+        NAVPOSCustomerNew: Record "DXR_NAV_POS_Customer";
+    begin
+        if NAVPOSCustomerOld.IsEmpty() then
+            exit;
+        if NAVPOSCustomerOld.FindSet() then
+            repeat
+                NAVPOSCustomerNew.No := NAVPOSCustomerOld.No;
+                NAVPOSCustomerNew.CodCliePOS := NAVPOSCustomerOld.CodCliePOS;
+                NAVPOSCustomerNew.Name := NAVPOSCustomerOld.Name;
+                NAVPOSCustomerNew.Address := NAVPOSCustomerOld.Address;
+                NAVPOSCustomerNew.City := NAVPOSCustomerOld.City;
+                NAVPOSCustomerNew.PhoneNo := NAVPOSCustomerOld.PhoneNo;
+                NAVPOSCustomerNew.BalanceDue := NAVPOSCustomerOld.BalanceDue;
+                NAVPOSCustomerNew.CreditLimit := NAVPOSCustomerOld.CreditLimit;
+                NAVPOSCustomerNew.Document := NAVPOSCustomerOld.Document;
+                NAVPOSCustomerNew.PaymentTermsCode := NAVPOSCustomerOld.PaymentTermsCode;
+                NAVPOSCustomerNew.CustomerPostingGroup := NAVPOSCustomerOld.CustomerPostingGroup;
+                NAVPOSCustomerNew.ForCheckBankCode := NAVPOSCustomerOld.ForCheckBankCode;
+                NAVPOSCustomerNew.ForCheckBankAccountNo := NAVPOSCustomerOld.ForCheckBankAccountNo;
+                NAVPOSCustomerNew.ForCheckLimit := NAVPOSCustomerOld.ForCheckLimit;
+                NAVPOSCustomerNew.ForCheckStatus := NAVPOSCustomerOld.ForCheckStatus;
+                NAVPOSCustomerNew.CorpClientCode := NAVPOSCustomerOld.CorpClientCode;
+                NAVPOSCustomerNew.CorpBalance := NAVPOSCustomerOld.CorpBalance;
+                NAVPOSCustomerNew.PayrollNo := NAVPOSCustomerOld.PayrollNo;
+                NAVPOSCustomerNew.PayrollPostingDate := NAVPOSCustomerOld.PayrollPostingDate;
+                if not NAVPOSCustomerNew.Insert(false) then
+                    NAVPOSCustomerNew.Modify(false);
+            until NAVPOSCustomerOld.Next() = 0;
+    end;
+
+    // ===== seq17: Extract Cards legacy table restore (54120 -> 52160) =====
+    // Ported from MigrateTable_ExtractCards() (~line 3222). Same shape/reasoning as
+    // MigrateNAVPOSCustomerTable() above (whole-table clone, TransferFields expanded per-field,
+    // DataTransfer fast-path branch intentionally not ported).
+    local procedure BootstrapExtractCardsTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-EXTRACTCARDS-20260522') then begin
+            MigrateExtractCardsTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-EXTRACTCARDS-20260522');
+        end;
+    end;
+
+    local procedure MigrateExtractCardsTable()
+    var
+        ExtractCardsOld: Record "DXExtract Cards";
+        ExtractCardsNew: Record "DXR_Extract Cards";
+    begin
+        if ExtractCardsOld.IsEmpty() then
+            exit;
+        if ExtractCardsOld.FindSet() then
+            repeat
+                ExtractCardsNew."Cuenta Banco" := ExtractCardsOld."Cuenta Banco";
+                ExtractCardsNew."Fecha Posteo" := ExtractCardsOld."Fecha Posteo";
+                ExtractCardsNew."No Referencia" := ExtractCardsOld."No Referencia";
+                ExtractCardsNew."Monto Transaccion" := ExtractCardsOld."Monto Transaccion";
+                ExtractCardsNew.Credito := ExtractCardsOld.Credito;
+                ExtractCardsNew.Debito := ExtractCardsOld.Debito;
+                ExtractCardsNew.Peaje := ExtractCardsOld.Peaje;
+                ExtractCardsNew.Descripcion := ExtractCardsOld.Descripcion;
+                ExtractCardsNew."No. Afiliado" := ExtractCardsOld."No. Afiliado";
+                ExtractCardsNew.NCF := ExtractCardsOld.NCF;
+                ExtractCardsNew."Ind Peaje" := ExtractCardsOld."Ind Peaje";
+                ExtractCardsNew."No. Lote" := ExtractCardsOld."No. Lote";
+                ExtractCardsNew.Estacion := ExtractCardsOld.Estacion;
+                if not ExtractCardsNew.Insert(false) then
+                    ExtractCardsNew.Modify(false);
+            until ExtractCardsOld.Next() = 0;
+    end;
+
+    // ===== seq18: Gubernamentales(623) legacy table restore (54155 -> 52220) =====
+    // Ported from MigrateTable_Gubernamentales623() (~line 3294). Whole-table clone, TransferFields
+    // expanded per-field. Real source has no IsEmpty() guard for this one table either (same as
+    // MigrateNCFSalesSetupTable() above) - ported exactly as-is.
+    local procedure BootstrapGubernamentales623Table()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-GUBERNAMENTALES623-20260522') then begin
+            MigrateGubernamentales623Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-GUBERNAMENTALES623-20260522');
+        end;
+    end;
+
+    local procedure MigrateGubernamentales623Table()
+    var
+        Gubernamentales623Old: Record "DXGubernamentales(623)";
+        Gubernamentales623New: Record "DXR_Gubernamentales(623)";
+    begin
+        if Gubernamentales623Old.FindSet() then
+            repeat
+                Gubernamentales623New."No." := Gubernamentales623Old."No.";
+                Gubernamentales623New."No. Linea" := Gubernamentales623Old."No. Linea";
+                Gubernamentales623New."Cod. Cliente" := Gubernamentales623Old."Cod. Cliente";
+                Gubernamentales623New."Nombre Cliente" := Gubernamentales623Old."Nombre Cliente";
+                Gubernamentales623New.RNC := Gubernamentales623Old.RNC;
+                Gubernamentales623New."Fecha Registro" := Gubernamentales623Old."Fecha Registro";
+                Gubernamentales623New."Fecha Retencion" := Gubernamentales623Old."Fecha Retencion";
+                Gubernamentales623New."No. Referencia" := Gubernamentales623Old."No. Referencia";
+                // Explicit conversion required - different Enum objects (DXR_TipoReferencia623 vs.
+                // legacy DXTipoReferencia623), identical 3-value set (0=" ", 1=Transferencia,
+                // 2=Cheque - confirmed against Base/Enums/DXR_TipoReferencia623.Enum.al and
+                // Base/Enums.old/DXTipoReferencia623.Enum.al).
+                Gubernamentales623New."Tipo Referencia" :=
+                    Enum::"DXR_TipoReferencia623".FromInteger(Gubernamentales623Old."Tipo Referencia".AsInteger());
+                Gubernamentales623New."Valor Retencion" := Gubernamentales623Old."Valor Retencion";
+                Gubernamentales623New."Nombre Banco" := Gubernamentales623Old."Nombre Banco";
+                Gubernamentales623New.Periodo := Gubernamentales623Old.Periodo;
+                if not Gubernamentales623New.Insert(false) then
+                    Gubernamentales623New.Modify(false);
+            until Gubernamentales623Old.Next() = 0;
     end;
 }
