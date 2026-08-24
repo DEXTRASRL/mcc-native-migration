@@ -64,13 +64,13 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     var
         ErrorText: Text;
     begin
-        if not MergeTableStep(Database::"DXR_VP Setup_Old", Database::"DXR_VP Setup", 'TBL-SETUP', ErrorText) then
+        if not MergeVPSetupTable(ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Payload Header_Old", Database::"DXR_VP Payload Header", 'TBL-PAYLOAD-HEADER', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Payload Journal Lin_Old", Database::"DXR_VP Payload Journal Lines", 'TBL-PAYLOAD-JOURNAL-LINES', ErrorText) then
             Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP VendorPay Group_Old", Database::"DXR_VP VendorPay Group", 'TBL-VENDORPAY-GROUP', ErrorText) then
+        if not MergeVPVendorPayGroupTable(ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Historic Payload He_Old", Database::"DXR_VP Historic Payload Header", 'TBL-HISTORIC-PAYLOAD-HEADER', ErrorText) then
             Error(ErrorText);
@@ -88,7 +88,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Bank_Old", Database::"DXR_VP Bank", 'TBL-BANK', ErrorText) then
             Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Currency Relation_Old", Database::"DXR_VP Currency Relation", 'TBL-CURRENCY-RELATION', ErrorText) then
+        if not MergeVPCurrencyRelationTable(ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VPCargaMasBeneficiario_Old", Database::DXR_VPCargaMasBeneficiariosBPD, 'TBL-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
@@ -100,7 +100,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VPLineasCargaMasivaBen_Old", Database::"DXR_VPLineasCargaMasivaBen.BPD", 'TBL-LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Provincia_Old", Database::"DXR_VP Provincia", 'TBL-PROVINCIA', ErrorText) then
+        if not MergeVPProvinciaTable(ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP API Log Entry_Old", Database::"DXR_VP API Log Entry", 'TBL-API-LOG-ENTRY', ErrorText) then
             Error(ErrorText);
@@ -186,6 +186,237 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     local procedure TryInsertRow(var DestRecRef: RecordRef)
     begin
         DestRecRef.Insert(false);
+    end;
+
+    // VP-P7 concepts 1/4/13/19 (Category=SETUP): typed, zero-RecordRef, zero-TransferFields
+    // replacements for the 4 in-scope table-level merges below. Same never-overwrite/fill-gaps
+    // semantics as TryMergeMissingRows (only rows absent in the destination by primary key are
+    // inserted), just expressed as a typed Get()-before-Insert() check with EXPLICIT per-field
+    // assignment (no TransferFields, no RecordRef/FieldRef of any kind - both banned after a real
+    // production "The record is already open." failure traced to RecordRef-heavy code elsewhere
+    // in this portfolio). Field layouts independently re-verified 1:1 identical between source and
+    // destination for all 4 tables against the real VP source (every field, its type, and the
+    // primary key byte-for-byte the same in every case), so every Normal-class field is copied
+    // explicitly by name below:
+    //   - DXR_VP Setup_Old (55325) / DXR_VP Setup (52684): 51 fields (1-8,14-54,55-57), PK
+    //     "Primary Key" - see
+    //     .../vendorpayload/DxPayloads-BC/Vendor Payloads/src/Base/Tables.old/DXR_ePagosSetup_Old.Table.al
+    //     and .../Tables/DXR_ePagosSetup.Table.al. Field 34 "VP Method Process" is enum
+    //     "DXR_VP Method Process" on both sides here, so a plain assignment compiles and is exact.
+    //   - DXR_VP VendorPay Group_Old (55328) / DXR_VP VendorPay Group (52691): 29 simple Normal
+    //     fields + 3 BLOB Normal fields (NCF/Memo/Remarks, copied via CreateInStream/
+    //     CreateOutStream/CopyStream, the documented way to move BLOB content since AL has no
+    //     `:=` operator for Blob) + 8 FlowFields deliberately skipped (NetAmount, Amount, Status,
+    //     "Qty Inv", OrderStatus, StatusProcess, StatusReject, "NetAmount BPD LCY" - these are
+    //     calculated, never stored, and TransferFields itself never copied them either). PK
+    //     "Payload No.","Vendor No.",Currency,"VendorPay No." (4 fields, this order) - see
+    //     .../Tables.old/DXR_VendorPayGroup_Old.Table.al and .../Tables/DXR_VendorPayGroup.Table.al
+    //   - DXR_VP Currency Relation_Old (55337) / DXR_VP Currency Relation (52707): fields 1-3,
+    //     PK "Bank Code","Currency Code","Currency External Code" - see
+    //     .../Tables.old/DXR_CurrencyRelation_Old.Table.al and .../Tables/DXR_CurrencyRelation.Table.al
+    //   - DXR_VP Provincia_Old (55343) / DXR_VP Provincia (52713): fields 1-3, PK "Code" - see
+    //     .../Tables.old/DXR_Provincia_Old.Table.al and .../Tables/DXR_Provincia.Table.al
+    local procedure MergeVPSetupTable(var ErrorText: Text): Boolean
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        SourceSetup: Record "DXR_VP Setup_Old";
+        DestSetup: Record "DXR_VP Setup";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetStepTag('TBL-SETUP')) then
+            exit(true);
+
+        if not SourceSetup.IsEmpty() then
+            if SourceSetup.FindSet() then
+                repeat
+                    if not DestSetup.Get(SourceSetup."Primary Key") then begin
+                        DestSetup.Init();
+                        DestSetup."Primary Key" := SourceSetup."Primary Key";
+                        DestSetup."Journal Template Name" := SourceSetup."Journal Template Name";
+                        DestSetup."Journal Batch Name" := SourceSetup."Journal Batch Name";
+                        DestSetup."Epago WS url" := SourceSetup."Epago WS url";
+                        DestSetup.User := SourceSetup.User;
+                        DestSetup.Password := SourceSetup.Password;
+                        DestSetup."No Series Payload" := SourceSetup."No Series Payload";
+                        DestSetup."Use Approval" := SourceSetup."Use Approval";
+                        DestSetup."EndPoint Login" := SourceSetup."EndPoint Login";
+                        DestSetup."EndPoint SendData" := SourceSetup."EndPoint SendData";
+                        DestSetup."EndPoint StatusGlobal" := SourceSetup."EndPoint StatusGlobal";
+                        DestSetup."Url" := SourceSetup."Url";
+                        DestSetup."Payment Method Code" := SourceSetup."Payment Method Code";
+                        DestSetup."No Series to Journal Line" := SourceSetup."No Series to Journal Line";
+                        DestSetup."No Series to VendorPay" := SourceSetup."No Series to VendorPay";
+                        DestSetup."No Series to Credit to" := SourceSetup."No Series to Credit to";
+                        DestSetup."ShowJson" := SourceSetup."ShowJson";
+                        DestSetup."Deny Multi Currency" := SourceSetup."Deny Multi Currency";
+                        DestSetup."Use StartSession" := SourceSetup."Use StartSession";
+                        DestSetup."Register Movs. Consolidated" := SourceSetup."Register Movs. Consolidated";
+                        DestSetup."Automatic Posting" := SourceSetup."Automatic Posting";
+                        DestSetup."Use Limit ACH" := SourceSetup."Use Limit ACH";
+                        DestSetup."Amount Limit ACH" := SourceSetup."Amount Limit ACH";
+                        DestSetup."Days To" := SourceSetup."Days To";
+                        DestSetup."Days From" := SourceSetup."Days From";
+                        DestSetup."Next Day" := SourceSetup."Next Day";
+                        DestSetup."Use Status Logs" := SourceSetup."Use Status Logs";
+                        DestSetup."VP Method Process" := SourceSetup."VP Method Process";
+                        DestSetup."Validate Vendor Bank Acc." := SourceSetup."Validate Vendor Bank Acc.";
+                        DestSetup."Register in Journal" := SourceSetup."Register in Journal";
+                        DestSetup."Export File" := SourceSetup."Export File";
+                        DestSetup."EndPoint" := SourceSetup."EndPoint";
+                        DestSetup.VPPostNoSeriesBeneficiBPD := SourceSetup.VPPostNoSeriesBeneficiBPD;
+                        DestSetup."Add Beneficiaries URL" := SourceSetup."Add Beneficiaries URL";
+                        DestSetup."Filter Only Sent BPD Vendors" := SourceSetup."Filter Only Sent BPD Vendors";
+                        DestSetup."Enable Bank Journal Curr Val" := SourceSetup."Enable Bank Journal Curr Val";
+                        DestSetup."Use Payment Description" := SourceSetup."Use Payment Description";
+                        DestSetup."Payment Description" := SourceSetup."Payment Description";
+                        DestSetup."Test Request Process" := SourceSetup."Test Request Process";
+                        DestSetup."LCY Code VP" := SourceSetup."LCY Code VP";
+                        DestSetup."Allow Add Orders" := SourceSetup."Allow Add Orders";
+                        DestSetup."Allow Currency Exchange" := SourceSetup."Allow Currency Exchange";
+                        DestSetup."Change Status List" := SourceSetup."Change Status List";
+                        DestSetup."Enable Flex Currency Filt" := SourceSetup."Enable Flex Currency Filt";
+                        DestSetup."Use Default LCY in Vend Bank" := SourceSetup."Use Default LCY in Vend Bank";
+                        DestSetup."Show Order No. Column" := SourceSetup."Show Order No. Column";
+                        DestSetup."EPG Note Filter By Payload" := SourceSetup."EPG Note Filter By Payload";
+                        DestSetup."VP Enhanced Report" := SourceSetup."VP Enhanced Report";
+                        DestSetup."Allow Currency Diff.Validation" := SourceSetup."Allow Currency Diff.Validation";
+                        DestSetup."Allow Edit PaymentDate OnSent" := SourceSetup."Allow Edit PaymentDate OnSent";
+                        DestSetup."View BPD Amounts" := SourceSetup."View BPD Amounts";
+                        DestSetup.Insert(false);
+                    end;
+                until SourceSetup.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetStepTag('TBL-SETUP'));
+        exit(true);
+    end;
+
+    local procedure MergeVPVendorPayGroupTable(var ErrorText: Text): Boolean
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        SourceGroup: Record "DXR_VP VendorPay Group_Old";
+        DestGroup: Record "DXR_VP VendorPay Group";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetStepTag('TBL-VENDORPAY-GROUP')) then
+            exit(true);
+
+        if not SourceGroup.IsEmpty() then
+            if SourceGroup.FindSet() then
+                repeat
+                    if not DestGroup.Get(SourceGroup."Payload No.", SourceGroup."Vendor No.", SourceGroup.Currency, SourceGroup."VendorPay No.") then begin
+                        DestGroup.Init();
+                        DestGroup."Payload No." := SourceGroup."Payload No.";
+                        DestGroup."Vendor No." := SourceGroup."Vendor No.";
+                        DestGroup.Currency := SourceGroup.Currency;
+                        DestGroup."VendorPay No." := SourceGroup."VendorPay No.";
+                        DestGroup.Name1 := SourceGroup.Name1;
+                        DestGroup.OrderNr := SourceGroup.OrderNr;
+                        DestGroup.DocumentClassId := SourceGroup.DocumentClassId;
+                        DestGroup.DocumentDate := SourceGroup.DocumentDate;
+                        DestGroup.PaymentDate := SourceGroup.PaymentDate;
+                        DestGroup.PaymentMethodId := SourceGroup.PaymentMethodId;
+                        DestGroup.BankAccountFromKey := SourceGroup.BankAccountFromKey;
+                        DestGroup.BankAccountToKey := SourceGroup.BankAccountToKey;
+                        DestGroup.IdentityNr := SourceGroup.IdentityNr;
+                        DestGroup.IdentityTypeId := SourceGroup.IdentityTypeId;
+                        DestGroup."No. Lote" := SourceGroup."No. Lote";
+                        DestGroup.Reference := SourceGroup.Reference;
+                        DestGroup.Name2 := SourceGroup.Name2;
+                        DestGroup.OrderStatusID := SourceGroup.OrderStatusID;
+                        DestGroup."Posted Journal" := SourceGroup."Posted Journal";
+                        DestGroup.VendorID := SourceGroup.VendorID;
+                        DestGroup.Cancelled := SourceGroup.Cancelled;
+                        DestGroup."Vendor Invoice No." := SourceGroup."Vendor Invoice No.";
+                        DestGroup."Has Error" := SourceGroup."Has Error";
+                        DestGroup."Error Message" := SourceGroup."Error Message";
+                        DestGroup."Error Code" := SourceGroup."Error Code";
+                        DestGroup."Dimension Set ID" := SourceGroup."Dimension Set ID";
+                        DestGroup."Shortcut Dimension 1 Code" := SourceGroup."Shortcut Dimension 1 Code";
+                        DestGroup."Shortcut Dimension 2 Code" := SourceGroup."Shortcut Dimension 2 Code";
+                        DestGroup."External Document No." := SourceGroup."External Document No.";
+                        CopyVendorPayGroupBlobFields(SourceGroup, DestGroup);
+                        DestGroup.Insert(false);
+                    end;
+                until SourceGroup.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetStepTag('TBL-VENDORPAY-GROUP'));
+        exit(true);
+    end;
+
+    // BLOB fields (NCF, Memo, Remarks) have no `:=` assignment operator in AL - the documented way
+    // to copy their content is CreateInStream/CreateOutStream + CopyStream.
+    local procedure CopyVendorPayGroupBlobFields(var SourceGroup: Record "DXR_VP VendorPay Group_Old"; var DestGroup: Record "DXR_VP VendorPay Group")
+    var
+        InStr: InStream;
+        OutStr: OutStream;
+    begin
+        SourceGroup.CalcFields(NCF, Memo, Remarks);
+
+        if SourceGroup.NCF.HasValue() then begin
+            SourceGroup.NCF.CreateInStream(InStr);
+            DestGroup.NCF.CreateOutStream(OutStr);
+            CopyStream(OutStr, InStr);
+        end;
+
+        if SourceGroup.Memo.HasValue() then begin
+            SourceGroup.Memo.CreateInStream(InStr);
+            DestGroup.Memo.CreateOutStream(OutStr);
+            CopyStream(OutStr, InStr);
+        end;
+
+        if SourceGroup.Remarks.HasValue() then begin
+            SourceGroup.Remarks.CreateInStream(InStr);
+            DestGroup.Remarks.CreateOutStream(OutStr);
+            CopyStream(OutStr, InStr);
+        end;
+    end;
+
+    local procedure MergeVPCurrencyRelationTable(var ErrorText: Text): Boolean
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        SourceRelation: Record "DXR_VP Currency Relation_Old";
+        DestRelation: Record "DXR_VP Currency Relation";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetStepTag('TBL-CURRENCY-RELATION')) then
+            exit(true);
+
+        if not SourceRelation.IsEmpty() then
+            if SourceRelation.FindSet() then
+                repeat
+                    if not DestRelation.Get(SourceRelation."Bank Code", SourceRelation."Currency Code", SourceRelation."Currency External Code") then begin
+                        DestRelation.Init();
+                        DestRelation."Currency Code" := SourceRelation."Currency Code";
+                        DestRelation."Currency External Code" := SourceRelation."Currency External Code";
+                        DestRelation."Bank Code" := SourceRelation."Bank Code";
+                        DestRelation.Insert(false);
+                    end;
+                until SourceRelation.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetStepTag('TBL-CURRENCY-RELATION'));
+        exit(true);
+    end;
+
+    local procedure MergeVPProvinciaTable(var ErrorText: Text): Boolean
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        SourceProvincia: Record "DXR_VP Provincia_Old";
+        DestProvincia: Record "DXR_VP Provincia";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetStepTag('TBL-PROVINCIA')) then
+            exit(true);
+
+        if not SourceProvincia.IsEmpty() then
+            if SourceProvincia.FindSet() then
+                repeat
+                    if not DestProvincia.Get(SourceProvincia.Code) then begin
+                        DestProvincia.Init();
+                        DestProvincia.Code := SourceProvincia.Code;
+                        DestProvincia.Name := SourceProvincia.Name;
+                        DestProvincia."Cod. BPD" := SourceProvincia."Cod. BPD";
+                        DestProvincia.Insert(false);
+                    end;
+                until SourceProvincia.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetStepTag('TBL-PROVINCIA'));
+        exit(true);
     end;
 
     local procedure MergeBankAccountFields()
