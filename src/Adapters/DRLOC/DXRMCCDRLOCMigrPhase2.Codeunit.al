@@ -14,6 +14,10 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // generic forwarding adapter (60069, "DXR MCC Adapt DRLOC Dispatch") to this codeunit as part
     // of the same change that adds this file.
     //
+    // Batch 3 (2026-08-24) added seq54-64 - 11 more whole-table-clone registry rows (Withholding/
+    // Payment/Other setup tables), also repointed from 60069 to this codeunit. See the
+    // "seq54-64" section comment below for full detail.
+    //
     // Shadow-field check (2026-08-24): every destination field in all 13 ported procedures was
     // independently verified against DR-Localization real tableextension sources
     // (DXR_CustomerExt.TableExt.al, DXR_VendorExt.TableExt.Al, DXR_BankAccountExt.TableExt.al,
@@ -90,7 +94,29 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "DXR_Gubernamentales(623)" = RIM,
         tabledata Item = RM,
         tabledata "General Posting Setup" = R,
-        tabledata "G/L Account" = R;
+        tabledata "G/L Account" = R,
+        tabledata "DXPayment Methods 606-607" = R,
+        tabledata "DXR_Payment Methods 606-607" = RIM,
+        tabledata "DXPurchase Type Relation" = R,
+        tabledata "DXR_Purchase Type Relation" = RIM,
+        tabledata "DXTender Types Relation" = R,
+        tabledata "DXR_Tender Types Relation" = RIM,
+        tabledata "DXIncome Types Setup" = R,
+        tabledata "DXR_Income Types Setup" = RIM,
+        tabledata "DXISR withholding Type" = R,
+        tabledata "DXR_ISR withholding Type" = RIM,
+        tabledata "DXType of Income" = R,
+        tabledata "Type of Income_DXR" = RIM,
+        tabledata "DXCustomer Withholding Setup" = R,
+        tabledata "DXR_Customer Withholding Setup" = RIM,
+        tabledata "DXVendor Withholding Setup" = R,
+        tabledata "DXR_Vendor Withholding Setup" = RIM,
+        tabledata "DXProporcionality 606" = R,
+        tabledata "DXR_Proporcionality 606" = RIM,
+        tabledata "DXProporcionality Group 606" = R,
+        tabledata "DXR_Proporcionality Group 606" = RIM,
+        tabledata "DXPOS-Nav Setup" = R,
+        tabledata "DXR_POS-Nav Setup" = RIM;
 
     trigger OnRun()
     begin
@@ -107,6 +133,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         BootstrapNAVPOSCustomerTable();
         BootstrapExtractCardsTable();
         BootstrapGubernamentales623Table();
+        BootstrapWithholdingPaymentOtherSetupTables();
     end;
 
     // ===== seq9: Bootstrap: CompanyInformation fields =====
@@ -986,5 +1013,349 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                 if not Gubernamentales623New.Insert(false) then
                     Gubernamentales623New.Modify(false);
             until Gubernamentales623Old.Next() = 0;
+    end;
+
+    // ===== seq54-64: Withholding/Payment/Other setup tables legacy table restore (11 registry rows) =====
+    // Ported from MigrateTable_PaymentMethods606607() (~line 3617), MigrateTable_PurchaseTypeRelation()
+    // (~line 3744), MigrateTable_TenderTypesRelation() (~line 3795), MigrateTable_IncomeTypesSetup()
+    // (~line 3307), MigrateTable_ISRwithholdingType() (~line 3325), MigrateTable_TypeofIncome()
+    // (~line 3813), MigrateTable_CustomerWithholdingSetup() (~line 3143),
+    // MigrateTable_VendorWithholdingSetup() (~line 3871), MigrateTable_Proporcionality606()
+    // (~line 3666), MigrateTable_ProporcionalityGroup606() (~line 3684) and MigrateTable_POSNavSetup()
+    // (~line 3648), all in DXR_Internal_Closure_Migration_Upgrade_Clean.al. All 11 are whole-table
+    // CLONES in DR-Localization own source, each using NewRec.TransferFields(OldRec, true) - expanded
+    // below into explicit, per-field typed assignment (TransferFields is banned plan-wide in this MCC
+    // project). Bundled under one orchestrator (matching seq9/10/11/12's own bundling pattern), but
+    // each of the 11 sub-procedures still gates on its OWN real DR-Localization completion tag
+    // (UpgradeTagInternalClosureTable<X>() in DXR_UpgradeTagMgt.Codeunit.al).
+    //
+    // Shadow-field check (this task): every destination field in all 11 procedures below was
+    // independently verified against the real table pair (src/Tables.old/DX<Name>.Table.al vs.
+    // src/Base/Tables/DXR_<Name>.Table.al in DR-Localization's own repo) - field-by-field, including
+    // types, so no FlowField/BLOB/AutoIncrement field is silently mis-copied. Two real findings from
+    // that check:
+    //   1) "DXIncome Types Setup"/"DXR_Income Types Setup" (seq57) - fields "Description" (2) and
+    //      "Account Description" (4) are FlowFields (CalcFormula lookups) on BOTH old and new tables,
+    //      not stored data. TransferFields never copies FlowFields either (only stored fields), so
+    //      MigrateIncomeTypesSetupTable() below only copies the two real stored fields ("Code",
+    //      "Income Account"); this matches DR-Localization's own TransferFields(OldRec, true)
+    //      behavior exactly, not a gap introduced by this port.
+    //   2) "DXCustomer Withholding Setup"/"DXVendor Withholding Setup" (seq60/seq61) - real source
+    //      copies field 54100 explicitly (DXRCustomerWithholdingSetupNew."DXR_ISR withholding Type" :=
+    //      DXCustomerWithholdingSetupOld."DXISR withholding Type") in ADDITION to TransferFields,
+    //      because the field was renamed ("DXISR withholding Type" -> "DXR_ISR withholding Type") and
+    //      TransferFields matches by field NAME, not field number, so it would silently miss this one
+    //      field. Ported below exactly as DR-Localization's own source does (explicit copy kept).
+    // No AutoIncrement or BLOB fields exist on any of the 11 old/new table pairs (confirmed against
+    // every real table source read for this task) - no special handling needed beyond ordinary typed
+    // assignment.
+    //
+    // No field-level Enum/Option type mismatch requiring FromInteger/AsInteger conversion exists in
+    // this batch (unlike Batch 1's Customer/seq10 and Batch 2's NCFSalesSetup/Gubernamentales623/
+    // seq12/seq18) - the two Option fields present ("Tipo" on PurchaseTypeRelation/
+    // CustomerWithholdingSetup/VendorWithholdingSetup) have identical OptionMembers/order on both old
+    // and new tables, and Option (unlike Enum) is not a nominally-typed AL object, so direct
+    // cross-record assignment compiles and behaves correctly.
+    //
+    // Commit() placement (per this task's resilience-gap instruction, see Batch 2's Item table fix):
+    // none of these 11 tables get a periodic Commit(). All are small setup/master-data registries
+    // (payment method codes, withholding-type codes, proportionality percentage-by-period rows,
+    // single-record POS-Nav Setup, etc.) with realistically at most dozens to low hundreds of rows in
+    // production - the same size class as Batch 2's FiscalReceiptTypes/NCFCategories/NCFPurchaseSetup/
+    // NCFSalesSetup/NAVPOSCustomer/ExtractCards/Gubernamentales623 (none of which got a Commit()
+    // either); only Item (a genuinely large master-data table) warranted one. A single uncommitted
+    // transaction across a table this size does not reproduce the large-synchronous-loop timeout shape
+    // documented in DXRMCCExecutor.Codeunit.al.
+    //
+    // IsEmpty() guard fidelity: ported exactly as DR-Localization's own source does per table -
+    // PaymentMethods606607/TenderTypesRelation/IncomeTypesSetup/ISRwithholdingType/TypeofIncome/
+    // CustomerWithholdingSetup/VendorWithholdingSetup/Proporcionality606/ProporcionalityGroup606/
+    // POSNavSetup all have a real source IsEmpty() guard (kept below); PurchaseTypeRelation's real
+    // source has NO IsEmpty() guard (same faithful-to-source choice already established for
+    // MigrateNCFSalesSetupTable()/MigrateGubernamentales623Table() above) - kept exactly as-is.
+    local procedure BootstrapWithholdingPaymentOtherSetupTables()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PAYMENTMETHODS606607-20260522') then begin
+            MigratePaymentMethods606607Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PAYMENTMETHODS606607-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PURCHASETYPERELATION-20260522') then begin
+            MigratePurchaseTypeRelationTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PURCHASETYPERELATION-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-TENDERTYPESRELATION-20260522') then begin
+            MigrateTenderTypesRelationTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-TENDERTYPESRELATION-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-INCOMETYPESSETUP-20260522') then begin
+            MigrateIncomeTypesSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-INCOMETYPESSETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ISRWITHHOLDINGTYPE-20260522') then begin
+            MigrateISRwithholdingTypeTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ISRWITHHOLDINGTYPE-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-TYPEOFINCOME-20260522') then begin
+            MigrateTypeofIncomeTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-TYPEOFINCOME-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CUSTOMERWITHHOLDINGSETUP-20260522') then begin
+            MigrateCustomerWithholdingSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CUSTOMERWITHHOLDINGSETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-VENDORWITHHOLDINGSETUP-20260522') then begin
+            MigrateVendorWithholdingSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-VENDORWITHHOLDINGSETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PROPORCIONALITY606-20260522') then begin
+            MigrateProporcionality606Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PROPORCIONALITY606-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PROPORCIONALITYGROUP606-20260522') then begin
+            MigrateProporcionalityGroup606Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-PROPORCIONALITYGROUP606-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-POSNAVSETUP-20260522') then begin
+            MigratePOSNavSetupTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-POSNAVSETUP-20260522');
+        end;
+    end;
+
+    // seq54: Payment Methods 606-607 legacy table restore (54134 -> 52181)
+    local procedure MigratePaymentMethods606607Table()
+    var
+        PaymentMethods606607Old: Record "DXPayment Methods 606-607";
+        PaymentMethods606607New: Record "DXR_Payment Methods 606-607";
+    begin
+        if PaymentMethods606607Old.IsEmpty() then
+            exit;
+        if PaymentMethods606607Old.FindSet() then
+            repeat
+                PaymentMethods606607New."Code" := PaymentMethods606607Old."Code";
+                PaymentMethods606607New.Description := PaymentMethods606607Old.Description;
+                if not PaymentMethods606607New.Insert(false) then
+                    PaymentMethods606607New.Modify(false);
+            until PaymentMethods606607Old.Next() = 0;
+    end;
+
+    // seq55: Purchase Type Relation legacy table restore (54140 -> 52242). Real source has no
+    // IsEmpty() guard for this one table (same faithful-to-source choice as
+    // MigrateNCFSalesSetupTable()/MigrateGubernamentales623Table() above) - ported exactly as-is.
+    local procedure MigratePurchaseTypeRelationTable()
+    var
+        PurchaseTypeRelationOld: Record "DXPurchase Type Relation";
+        PurchaseTypeRelationNew: Record "DXR_Purchase Type Relation";
+    begin
+        if PurchaseTypeRelationOld.FindSet() then
+            repeat
+                PurchaseTypeRelationNew."Grupo Contable Prod." := PurchaseTypeRelationOld."Grupo Contable Prod.";
+                // "Tipo" is a plain (non-Enum) Option field on both tables, with identical
+                // OptionMembers/order (" ",Bienes,Servicios) - AL permits direct cross-record Option
+                // field assignment (unlike Enum, Option is not nominally typed).
+                PurchaseTypeRelationNew.Tipo := PurchaseTypeRelationOld.Tipo;
+                if not PurchaseTypeRelationNew.Insert(false) then
+                    PurchaseTypeRelationNew.Modify(false);
+            until PurchaseTypeRelationOld.Next() = 0;
+    end;
+
+    // seq56: Tender Types Relation legacy table restore (54142 -> 52198)
+    local procedure MigrateTenderTypesRelationTable()
+    var
+        TenderTypesRelationOld: Record "DXTender Types Relation";
+        TenderTypesRelationNew: Record "DXR_Tender Types Relation";
+    begin
+        if TenderTypesRelationOld.IsEmpty() then
+            exit;
+        if TenderTypesRelationOld.FindSet() then
+            repeat
+                TenderTypesRelationNew."Code" := TenderTypesRelationOld."Code";
+                TenderTypesRelationNew.Description := TenderTypesRelationOld.Description;
+                if not TenderTypesRelationNew.Insert(false) then
+                    TenderTypesRelationNew.Modify(false);
+            until TenderTypesRelationOld.Next() = 0;
+    end;
+
+    // seq57: Income Types Setup legacy table restore (54123 -> 52166). "Description" (2) and
+    // "Account Description" (4) are FlowFields on both tables (see codeunit-level shadow-field
+    // comment above) - not copied, matching TransferFields(OldRec, true) behavior (FlowFields are
+    // never stored/copied).
+    local procedure MigrateIncomeTypesSetupTable()
+    var
+        IncomeTypesSetupOld: Record "DXIncome Types Setup";
+        IncomeTypesSetupNew: Record "DXR_Income Types Setup";
+    begin
+        if IncomeTypesSetupOld.IsEmpty() then
+            exit;
+        if IncomeTypesSetupOld.FindSet() then
+            repeat
+                IncomeTypesSetupNew."Code" := IncomeTypesSetupOld."Code";
+                IncomeTypesSetupNew."Income Account" := IncomeTypesSetupOld."Income Account";
+                if not IncomeTypesSetupNew.Insert(false) then
+                    IncomeTypesSetupNew.Modify(false);
+            until IncomeTypesSetupOld.Next() = 0;
+    end;
+
+    // seq58: ISR withholding Type legacy table restore (54124 -> 52167)
+    local procedure MigrateISRwithholdingTypeTable()
+    var
+        ISRwithholdingTypeOld: Record "DXISR withholding Type";
+        ISRwithholdingTypeNew: Record "DXR_ISR withholding Type";
+    begin
+        if ISRwithholdingTypeOld.IsEmpty() then
+            exit;
+        if ISRwithholdingTypeOld.FindSet() then
+            repeat
+                ISRwithholdingTypeNew."Code" := ISRwithholdingTypeOld."Code";
+                ISRwithholdingTypeNew.Description := ISRwithholdingTypeOld.Description;
+                if not ISRwithholdingTypeNew.Insert(false) then
+                    ISRwithholdingTypeNew.Modify(false);
+            until ISRwithholdingTypeOld.Next() = 0;
+    end;
+
+    // seq59: Type of Income legacy table restore (54143 -> 52200). Target table's real AL object
+    // name is "Type of Income_DXR" (a "_DXR"-suffix name, not the usual "DXR_"-prefix convention used
+    // by every other table in this batch) - confirmed against DR-Localization's own
+    // Base/Tables/DXR_TypeOfIncome.Table.al; not a field rename, just this one table's own naming
+    // convention.
+    local procedure MigrateTypeofIncomeTable()
+    var
+        TypeofIncomeOld: Record "DXType of Income";
+        TypeofIncomeNew: Record "Type of Income_DXR";
+    begin
+        if TypeofIncomeOld.IsEmpty() then
+            exit;
+        if TypeofIncomeOld.FindSet() then
+            repeat
+                TypeofIncomeNew."Code" := TypeofIncomeOld."Code";
+                TypeofIncomeNew.Description := TypeofIncomeOld.Description;
+                if not TypeofIncomeNew.Insert(false) then
+                    TypeofIncomeNew.Modify(false);
+            until TypeofIncomeOld.Next() = 0;
+    end;
+
+    // seq60: Customer Withholding Setup legacy table restore (54118 -> 52152). Field 54100 was
+    // renamed ("DXISR withholding Type" -> "DXR_ISR withholding Type"), so it is copied via an
+    // explicit assignment below (see codeunit-level shadow-field comment above) - matching DR-
+    // Localization's own real source exactly.
+    local procedure MigrateCustomerWithholdingSetupTable()
+    var
+        CustomerWithholdingSetupOld: Record "DXCustomer Withholding Setup";
+        CustomerWithholdingSetupNew: Record "DXR_Customer Withholding Setup";
+    begin
+        if CustomerWithholdingSetupOld.IsEmpty() then
+            exit;
+        if CustomerWithholdingSetupOld.FindSet() then
+            repeat
+                CustomerWithholdingSetupNew.Codigo := CustomerWithholdingSetupOld.Codigo;
+                CustomerWithholdingSetupNew.Descripcion := CustomerWithholdingSetupOld.Descripcion;
+                CustomerWithholdingSetupNew.Norma := CustomerWithholdingSetupOld.Norma;
+                CustomerWithholdingSetupNew."%Retencion" := CustomerWithholdingSetupOld."%Retencion";
+                // "Tipo" is a plain (non-Enum) Option field on both tables, identical OptionMembers
+                // (" ",ITBIS,ISR) - direct cross-record Option field assignment.
+                CustomerWithholdingSetupNew.Tipo := CustomerWithholdingSetupOld.Tipo;
+                CustomerWithholdingSetupNew."Cta. Retencion" := CustomerWithholdingSetupOld."Cta. Retencion";
+                CustomerWithholdingSetupNew."Cod. Auditoria" := CustomerWithholdingSetupOld."Cod. Auditoria";
+                CustomerWithholdingSetupNew."DXR_ISR withholding Type" := CustomerWithholdingSetupOld."DXISR withholding Type";
+                if not CustomerWithholdingSetupNew.Insert(false) then
+                    CustomerWithholdingSetupNew.Modify(false);
+            until CustomerWithholdingSetupOld.Next() = 0;
+    end;
+
+    // seq61: Vendor Withholding Setup legacy table restore (54146 -> 52205). Same field-54100 rename
+    // as MigrateCustomerWithholdingSetupTable() above - explicit copy kept for the same reason.
+    local procedure MigrateVendorWithholdingSetupTable()
+    var
+        VendorWithholdingSetupOld: Record "DXVendor Withholding Setup";
+        VendorWithholdingSetupNew: Record "DXR_Vendor Withholding Setup";
+    begin
+        if VendorWithholdingSetupOld.IsEmpty() then
+            exit;
+        if VendorWithholdingSetupOld.FindSet() then
+            repeat
+                VendorWithholdingSetupNew.Codigo := VendorWithholdingSetupOld.Codigo;
+                VendorWithholdingSetupNew.Descripcion := VendorWithholdingSetupOld.Descripcion;
+                VendorWithholdingSetupNew.Norma := VendorWithholdingSetupOld.Norma;
+                VendorWithholdingSetupNew."%Retencion" := VendorWithholdingSetupOld."%Retencion";
+                // "Tipo" is a plain (non-Enum) Option field on both tables, identical OptionMembers
+                // (" ",ITBIS,ISR) - direct cross-record Option field assignment.
+                VendorWithholdingSetupNew.Tipo := VendorWithholdingSetupOld.Tipo;
+                VendorWithholdingSetupNew."Cta. Retencion" := VendorWithholdingSetupOld."Cta. Retencion";
+                VendorWithholdingSetupNew."Cod. Auditoria" := VendorWithholdingSetupOld."Cod. Auditoria";
+                VendorWithholdingSetupNew."DXR_ISR withholding Type" := VendorWithholdingSetupOld."DXISR withholding Type";
+                if not VendorWithholdingSetupNew.Insert(false) then
+                    VendorWithholdingSetupNew.Modify(false);
+            until VendorWithholdingSetupOld.Next() = 0;
+    end;
+
+    // seq62: Proporcionality 606 legacy table restore (54137 -> 52188)
+    local procedure MigrateProporcionality606Table()
+    var
+        Proporcionality606Old: Record "DXProporcionality 606";
+        Proporcionality606New: Record "DXR_Proporcionality 606";
+    begin
+        if Proporcionality606Old.IsEmpty() then
+            exit;
+        if Proporcionality606Old.FindSet() then
+            repeat
+                Proporcionality606New.Periodo := Proporcionality606Old.Periodo;
+                Proporcionality606New."% Proporcionalidad" := Proporcionality606Old."% Proporcionalidad";
+                Proporcionality606New.Fecha := Proporcionality606Old.Fecha;
+                Proporcionality606New."Taxed Amount" := Proporcionality606Old."Taxed Amount";
+                Proporcionality606New."Exempt Amount" := Proporcionality606Old."Exempt Amount";
+                Proporcionality606New."User Id" := Proporcionality606Old."User Id";
+                if not Proporcionality606New.Insert(false) then
+                    Proporcionality606New.Modify(false);
+            until Proporcionality606Old.Next() = 0;
+    end;
+
+    // seq63: Proporcionality Group 606 legacy table restore (54138 -> 52191)
+    local procedure MigrateProporcionalityGroup606Table()
+    var
+        ProporcionalityGroup606Old: Record "DXProporcionality Group 606";
+        ProporcionalityGroup606New: Record "DXR_Proporcionality Group 606";
+    begin
+        if ProporcionalityGroup606Old.IsEmpty() then
+            exit;
+        if ProporcionalityGroup606Old.FindSet() then
+            repeat
+                ProporcionalityGroup606New."Codigo Grupo" := ProporcionalityGroup606Old."Codigo Grupo";
+                ProporcionalityGroup606New.Excluir := ProporcionalityGroup606Old.Excluir;
+                if not ProporcionalityGroup606New.Insert(false) then
+                    ProporcionalityGroup606New.Modify(false);
+            until ProporcionalityGroup606Old.Next() = 0;
+    end;
+
+    // seq64: POS-Nav Setup legacy table restore (54136 -> 52185)
+    local procedure MigratePOSNavSetupTable()
+    var
+        POSNavSetupOld: Record "DXPOS-Nav Setup";
+        POSNavSetupNew: Record "DXR_POS-Nav Setup";
+    begin
+        if POSNavSetupOld.IsEmpty() then
+            exit;
+        if POSNavSetupOld.FindSet() then
+            repeat
+                POSNavSetupNew."Primary Key" := POSNavSetupOld."Primary Key";
+                POSNavSetupNew."Payroll Journal Template Name" := POSNavSetupOld."Payroll Journal Template Name";
+                POSNavSetupNew."Payroll Journal Batch Name" := POSNavSetupOld."Payroll Journal Batch Name";
+                POSNavSetupNew."Auto Register Payroll Entries" := POSNavSetupOld."Auto Register Payroll Entries";
+                POSNavSetupNew."Payroll Global Dim. 1 Code" := POSNavSetupOld."Payroll Global Dim. 1 Code";
+                POSNavSetupNew."Payroll Global Dim. 2 Code" := POSNavSetupOld."Payroll Global Dim. 2 Code";
+                POSNavSetupNew."Payroll Cust. Posting Group" := POSNavSetupOld."Payroll Cust. Posting Group";
+                if not POSNavSetupNew.Insert(false) then
+                    POSNavSetupNew.Modify(false);
+            until POSNavSetupOld.Next() = 0;
     end;
 }
