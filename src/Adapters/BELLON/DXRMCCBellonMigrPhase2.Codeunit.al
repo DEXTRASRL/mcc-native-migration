@@ -332,15 +332,18 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_AssemblySetupFields()
     var
-        RecRef: RecordRef;
+        AssemblySetup: Record "Assembly Setup";
     begin
-        RecRef.Open(Database::"Assembly Setup");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 52000, 52001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+        // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 52000, 52001))
+        // copied "Tolerance%" into "Tolerance%_Old" (field 52001), a dead shadow field - the real
+        // active target "Tolerance%_DXR" (field 52787, confirmed via AssemblySetup.TableExt.al's
+        // ObsoleteReason on field 52000) was NEVER populated by this codeunit despite it running
+        // and reporting success. Direct typed fields close that gap.
+        if AssemblySetup.Get() then
+            if AssemblySetup."Tolerance%_DXR" <> AssemblySetup."Tolerance%" then begin
+                AssemblySetup."Tolerance%_DXR" := AssemblySetup."Tolerance%";
+                AssemblySetup.Modify();
+            end;
     end;
 
     local procedure MigrateTableExt_VendorLedgerEntryFields()
