@@ -157,17 +157,22 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P4', 31, 'Sales Header/Line field restore', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 32, 'Sales Invoice Header/Line field restore', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 33, 'Sales Cr. Memo Header field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 34, 'Cust. Ledger Entry field restore (bulk + FlowFields)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 34, 'Cust. Ledger Entry field restore (bulk + FlowFields)', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 35, 'Archived Sales 607 legacy table restore (54106 -> 52115)', 60069, 54106, 52115, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P4', 36, 'ITBIS Sales (607) legacy table restore (54126 -> 52171)', 60069, 54126, 52171, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 37, 'Consumer (02) Sales (607) legacy table restore (54112 -> 52136)', 60069, 54112, 52136, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 38, 'Customer Withholding Lines legacy table restore (54117 -> 52147)', 60069, 54117, 52147, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 39, 'Cash Journal Receipt List legacy table restore ("DXCash Journal Receipt List" 54111 Pending -> active "DXR_Cash Journal Receipt List" 52132 - CORRECTED 2026-08-22, was briefly logged here as ->54184, that was wrong, see DRLOC''s Extension Notes)', 60069, 54111, 52132, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 40, 'Bank Account/Check Ledger Entry field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 41, 'G/L Entry/G/L Register field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 42, 'Gen. Journal Line/Item Ledger Entry field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 43, 'Price List Line/Reversal Entry field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields) + withholding migration repair', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 40, 'Bank Account/Check Ledger Entry field restore', 60165, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 41, 'G/L Entry/G/L Register field restore', 60165, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 42, 'Gen. Journal Line/Item Ledger Entry field restore', 60165, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 43, 'Price List Line/Reversal Entry field restore', 60165, 0, 0, 'MA');
+        // "+ withholding migration repair" in this description does NOT match real source: that call
+        // (DXR_Vend. Withhold Migr Repair.Repair()) lives in DXR_Migr_Phase_5_Ledger's OWN main-line
+        // OnRun(), not in RunOrphanedFieldMigrationsRetroactive() - it is intentionally NOT ported
+        // into codeunit 60165 (see that codeunit's own header comment, "seq44 naming note"). Only the
+        // Bulk+FlowFields field restore is covered by this row/codeunit.
+        InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields) + withholding migration repair', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 45, 'Detailed Cust. Ledg. Entry field restore', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60069, 54108, 52120, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60069, 54102, 52107, 'MA');
@@ -245,6 +250,11 @@ codeunit 60012 "DXR MCC Registry Loader"
         // both fields in its own Permissions block), but had no own Concept row - added for
         // visibility/audit, same category as the sibling Item NCF Category backfill (seq14).
         InsConcept('DRLOC', 'DRLOC-P2', 105, 'G/L Account: NCF Category field restore (DXNCF Categories -> NCFCategories_DXR, same row)', 60069, 0, 0, 'MA');
+        // Found 2026-08-24 (Batch 4 task): DR-Localization's own RunOrphanedFieldMigrationsRetroactive()
+        // calls MigrateFields_ApplicationAreaSetup() unconditionally, alongside the other 12 field
+        // restores this batch ports, but this table had ZERO registry row anywhere in MCC before now
+        // (confirmed via grep, zero matches) - a genuine untracked gap, same class as seq96-104 above.
+        InsConcept('DRLOC', 'DRLOC-P2', 106, 'Application Area Setup field restore (Dextra Business Central/LS Central/Empty Labels flags)', 60165, 0, 0, 'SETUP');
 
         // ---- VP: Vendor Payloads (Phase 1-6 legacy population + Phase 7 Id Cutover, 23 table pairs) ----
         InsConcept('VP', 'VP-P7', 1, 'VP Setup legacy table restore', 60121, 55325, 52684, 'SETUP');

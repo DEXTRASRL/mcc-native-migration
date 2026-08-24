@@ -64,6 +64,77 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // above and bumped the tag to force a re-run - reusing it here is exactly correct, not a
     // coincidence. All 13 tags below were confirmed to exist as real procedures in
     // DXR_UpgradeTagMgt.Codeunit.al; none needed to be invented.
+    //
+    // ===== Batch 4 (2026-08-24) - final batch for this codeunit's Phase 2 OnRun-triggered scope =====
+    // Registry rows DRLOC-P4 seq34 and DRLOC-P5 seq40/41/42/43/44 are repointed from 60069 to this
+    // codeunit, same as Batches 1-3, even though their Concept Code labels say P4/P5 (business-domain
+    // categorization only - Cust. Ledger Entry is Sales/P4, the rest are Ledger/P5). The REAL 12
+    // source procedures all live in DR-Localization's "DXR_Internal Closure Migration" codeunit and
+    // are called unconditionally from "DXR_Migr. Phase 2 Fiscal"'s own OnRun() trigger via
+    // InternalClosureMigration.RunOrphanedFieldMigrationsRetroactive() - confirmed by reading that
+    // orchestrator's real body (13 calls: ApplicationAreaSetup, BankAccountLedgerEntry,
+    // CheckLedgerEntry, CustLedgerEntry_Bulk, CustLedgerEntry_FlowFields, GLEntry, GLRegister,
+    // GenJournalLine, ItemLedgerEntry, PriceListLine, ReversalEntry, VendorLedgerEntry_Bulk,
+    // VendorLedgerEntry_FlowFields). Since that call happens on every single Phase 2 invocation,
+    // before Phase2CompletedTag()'s own gate check, and this codeunit already replicates Phase 2's
+    // OnRun() shape (see Batch 1-3 comment above), all 12 of those procedures belong in this same
+    // codeunit, not a separate Phase4/Phase5 codeunit (those don't exist yet - they'll be built later
+    // for Phase 4/5's own main-line OnRun() logic, a different scope).
+    //
+    // seq44 naming note: the registry row's description ("... + withholding migration repair") does
+    // NOT match RunOrphanedFieldMigrationsRetroactive()'s real call list. The withholding repair call
+    // (Codeunit "DXR_Vend. Withhold Migr Repair".Repair(), via TryRepairVendorWithholdingMigration())
+    // was found instead inside "DXR_Migr_Phase_5_Ledger.Codeunit.al"'s OWN main-line OnRun() - a
+    // different, not-yet-ported codeunit, and NOT part of the orchestrator this batch's scope note
+    // binds to. Porting it here would call it unconditionally from every Phase 2 invocation, which
+    // does not match real source behavior. It is deliberately NOT ported in this batch; it belongs
+    // with the future Phase 5 Ledger port instead.
+    //
+    // ApplicationAreaSetup gap (seq106, new registry row added this batch, DRLOC-P2/'SETUP'): real
+    // MigrateFields_ApplicationAreaSetup() IS called unconditionally from
+    // RunOrphanedFieldMigrationsRetroactive() (confirmed, line ~423 of the real source) but had ZERO
+    // registry row anywhere in MCC before this batch (confirmed via grep, zero matches) - a genuine
+    // untracked gap, not merely a mislabeled one like seq44. Added as its own new row rather than
+    // silently dropped, matching this batch's real 13th call.
+    //
+    // Shadow-field check (2026-08-24, Batch 4): all destination fields for the 12 ledger-entry/
+    // journal-line procedures independently verified against DXR_CustLedgerEntryExtDx.TableExt.al,
+    // DXR_BankAccountLedgerEntryExt.TableExt.al, DXR_CheckLedgerEntryExt.TableExt.al,
+    // DXR_GLEntryExt.TableExt.al, DXR_GLRegisterExt.TableExt.al, DXR_GenJournalLineExt.TableExt.al,
+    // DXR_ItemLedgerEntry.TableExt.al, DXR_PriceListLineExt.TableExt.al,
+    // DXR_ReversalEntryExt.TableExt.al, DXR_VendorLedgerEntryExt.TableExt.AL - all "_DXR" targets
+    // confirmed real, non-obsolete, correct type (including two Option fields, "Withholding Type"/
+    // "_DXR" and "DX Withholding Apply Type"/"_DXR", both confirmed identical OptionMembers/order on
+    // old and new side, so direct assignment is safe per the Option-is-not-nominally-typed rule
+    // already established in Batch 3). ApplicationAreaSetup verified against
+    // DXR_ApplicationAreaSetupExt.TableExt.al: found THREE generations of fields on that table (the
+    // oldest "Dx..." fields, a MIDDLE "..._DXR"-suffixed generation that is ALSO ObsoleteState =
+    // Pending/superseded, and the true final active fields with no separator, e.g.
+    // "DextraBusinessCentralDXR") - the real source's own target is correctly the no-separator active
+    // field, NOT the "_DXR"-suffixed one (which would have been the natural guess given every other
+    // table in this codeunit); ported verbatim to match, with the middle-generation field reset to
+    // false exactly as DR-Localization's own DataTransfer.AddConstantValue(false, ...) calls do.
+    //
+    // No-op observation (matching real source behavior, not a bug - same pattern as the GLAccount
+    // no-op above): MigrateFields_CustLedgerEntry_FlowFields()'s "Settled Amount_DXR" and
+    // MigrateFields_VendorLedgerEntry_FlowFields()'s "Vendor Name_DXR"/"Settled Amount_DXR" are
+    // themselves FlowFields (confirmed against the TableExt sources above) with formulas identical to
+    // their source FlowFields - assigning one FlowField's calculated value to another FlowField's
+    // in-memory value has no persisted effect (Modify() never writes FlowField columns), so these two
+    // ported procedures reproduce DR-Localization's own real no-op exactly as written, without
+    // "fixing" it (out of scope - DR-Localization's own source has the same characteristic).
+    //
+    // Commit() placement (per this task's resilience-gap instruction, same rationale as Batch 2's
+    // Item table): periodic Commit() every 100 rows added to the 6 tables explicitly called out as
+    // unbounded/transaction-volume-scale - Cust. Ledger Entry (both Bulk and FlowFields scans),
+    // Vendor Ledger Entry (both Bulk and FlowFields scans), Bank Account Ledger Entry, Check Ledger
+    // Entry, G/L Entry, and Item Ledger Entry. Deliberately NOT added to G/L Register (one row per
+    // posting batch/register, not per transaction line - orders of magnitude smaller than G/L Entry),
+    // Gen. Journal Line (a staging table for not-yet-posted lines, cleared down as batches post - not
+    // an ever-growing history table like the ledger entry tables), Price List Line (bounded by
+    // item/price-list catalog size, not transaction volume), Reversal Entry (one row per reversal
+    // action, not per line), or Application Area Setup (one row per company) - same size-class
+    // reasoning already applied to Batch 2/3's small tables.
     Permissions =
         tabledata "Company Information" = RM,
         tabledata "Bank Account" = RM,
@@ -116,7 +187,18 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "DXProporcionality Group 606" = R,
         tabledata "DXR_Proporcionality Group 606" = RIM,
         tabledata "DXPOS-Nav Setup" = R,
-        tabledata "DXR_POS-Nav Setup" = RIM;
+        tabledata "DXR_POS-Nav Setup" = RIM,
+        tabledata "Application Area Setup" = RM,
+        tabledata "Cust. Ledger Entry" = RM,
+        tabledata "Bank Account Ledger Entry" = RM,
+        tabledata "Check Ledger Entry" = RM,
+        tabledata "G/L Entry" = RM,
+        tabledata "G/L Register" = RM,
+        tabledata "Gen. Journal Line" = RM,
+        tabledata "Item Ledger Entry" = RM,
+        tabledata "Price List Line" = RM,
+        tabledata "Reversal Entry" = RM,
+        tabledata "Vendor Ledger Entry" = RM;
 
     trigger OnRun()
     begin
@@ -134,6 +216,19 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         BootstrapExtractCardsTable();
         BootstrapGubernamentales623Table();
         BootstrapWithholdingPaymentOtherSetupTables();
+        // Batch 4 (2026-08-24) additions - seq34/40/41/42/43/44 (registry rows labeled DRLOC-P4/
+        // DRLOC-P5, but kept in THIS codeunit - see the "Batch 4" section comment below for why) plus
+        // the ApplicationAreaSetup gap-fill (seq106, DRLOC-P2). All 13 procedures below are the same
+        // ones DR-Localization's own RunOrphanedFieldMigrationsRetroactive() calls unconditionally
+        // from "DXR_Migr. Phase 2 Fiscal"'s OnRun(), before that codeunit's own Phase2CompletedTag()
+        // gate check.
+        BootstrapApplicationAreaSetupFields();
+        BootstrapCustLedgerEntryFields();
+        BootstrapBankAccountCheckLedgerEntryFields();
+        BootstrapGLEntryGLRegisterFields();
+        BootstrapGenJournalLineItemLedgerEntryFields();
+        BootstrapPriceListLineReversalEntryFields();
+        BootstrapVendorLedgerEntryFields();
     end;
 
     // ===== seq9: Bootstrap: CompanyInformation fields =====
@@ -1357,5 +1452,484 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                 if not POSNavSetupNew.Insert(false) then
                     POSNavSetupNew.Modify(false);
             until POSNavSetupOld.Next() = 0;
+    end;
+
+    // ===== Batch 4: ApplicationAreaSetup gap-fill (seq106) =====
+    // Ported from MigrateFields_ApplicationAreaSetup() (~line 1541). Real source uses
+    // "DXR_Background Data Transfer" (AddFieldValue/AddConstantValue/CopyFields) - expanded below
+    // into explicit typed assignment (Global Constraint: zero-RecordRef/zero-FieldRef/
+    // zero-TransferFields plan-wide), same pattern already used for BootstrapNAVPOSCustomerTable's
+    // real DataTransfer fast path. See codeunit-level comment above for the three-generation shadow-
+    // field finding on this table.
+    local procedure BootstrapApplicationAreaSetupFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-APPLICATIONAREASETUP-20260522') then begin
+            MigrateApplicationAreaSetupFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-APPLICATIONAREASETUP-20260522');
+        end;
+    end;
+
+    local procedure MigrateApplicationAreaSetupFields()
+    var
+        ApplicationAreaSetupRec: Record "Application Area Setup";
+    begin
+        if ApplicationAreaSetupRec.FindSet(true) then
+            repeat
+                if (ApplicationAreaSetupRec.DextraBusinessCentralDXR <> ApplicationAreaSetupRec."DxDextra Business Central") or
+                   (ApplicationAreaSetupRec.DextraLSCentralDXR <> ApplicationAreaSetupRec."DxDextra LS Central") or
+                   (ApplicationAreaSetupRec.DextraEmptyLabelsDXR <> ApplicationAreaSetupRec."DxDextra Empty Labels") or
+                   ApplicationAreaSetupRec."Dextra Business Central_DXR" or
+                   ApplicationAreaSetupRec."Dextra LS Central_DXR" or
+                   ApplicationAreaSetupRec."Dextra Empty Labels_DXR" then begin
+                    ApplicationAreaSetupRec.DextraBusinessCentralDXR := ApplicationAreaSetupRec."DxDextra Business Central";
+                    ApplicationAreaSetupRec.DextraLSCentralDXR := ApplicationAreaSetupRec."DxDextra LS Central";
+                    ApplicationAreaSetupRec.DextraEmptyLabelsDXR := ApplicationAreaSetupRec."DxDextra Empty Labels";
+                    // Real source resets these obsolete middle-generation fields to constant false
+                    // via DataTransfer.AddConstantValue(false, ...) - preserved verbatim.
+                    ApplicationAreaSetupRec."Dextra Business Central_DXR" := false;
+                    ApplicationAreaSetupRec."Dextra LS Central_DXR" := false;
+                    ApplicationAreaSetupRec."Dextra Empty Labels_DXR" := false;
+                    ApplicationAreaSetupRec.Modify(false);
+                end;
+            until ApplicationAreaSetupRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq34: Cust. Ledger Entry field restore (bulk + FlowFields) =====
+    // Ported from MigrateFields_CustLedgerEntry_Bulk() (~line 1649) and
+    // MigrateFields_CustLedgerEntry_FlowFields() (~line 1666). "Settled Amount_DXR" is itself a
+    // FlowField with a formula identical to the source "DX Settled Amount" FlowField - see
+    // codeunit-level "No-op observation" comment (ported verbatim, not fixed).
+    local procedure BootstrapCustLedgerEntryFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTLEDGERENTRY-BULK-20260522') then begin
+            MigrateCustLedgerEntryBulkFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTLEDGERENTRY-BULK-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTLEDGERENTRY-FLOWFIELDS-20260522') then begin
+            MigrateCustLedgerEntryFlowFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTLEDGERENTRY-FLOWFIELDS-20260522');
+        end;
+    end;
+
+    // Cust. Ledger Entry is transaction-volume-scale (unbounded) - periodic Commit() every 100 rows.
+    local procedure MigrateCustLedgerEntryBulkFields()
+    var
+        CustLedgerEntryRec: Record "Cust. Ledger Entry";
+        BatchCount: Integer;
+    begin
+        if CustLedgerEntryRec.FindSet(true) then
+            repeat
+                if (CustLedgerEntryRec."NCF_DXR" <> CustLedgerEntryRec."DXNCF") or
+                   (CustLedgerEntryRec."Reporta en 607_DXR" <> CustLedgerEntryRec."DXReporta en 607") or
+                   (CustLedgerEntryRec."Withholding Payment_DXR" <> CustLedgerEntryRec."Dx Withholding Payment") then begin
+                    CustLedgerEntryRec."NCF_DXR" := CustLedgerEntryRec."DXNCF";
+                    CustLedgerEntryRec."Reporta en 607_DXR" := CustLedgerEntryRec."DXReporta en 607";
+                    CustLedgerEntryRec."Withholding Payment_DXR" := CustLedgerEntryRec."Dx Withholding Payment";
+                    CustLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until CustLedgerEntryRec.Next() = 0;
+    end;
+
+    local procedure MigrateCustLedgerEntryFlowFields()
+    var
+        CustLedgerEntryRec: Record "Cust. Ledger Entry";
+        BatchCount: Integer;
+    begin
+        CustLedgerEntryRec.SetAutoCalcFields("DX Settled Amount");
+        if CustLedgerEntryRec.FindSet(true) then
+            repeat
+                if CustLedgerEntryRec."Settled Amount_DXR" <> CustLedgerEntryRec."DX Settled Amount" then begin
+                    CustLedgerEntryRec."Settled Amount_DXR" := CustLedgerEntryRec."DX Settled Amount";
+                    CustLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until CustLedgerEntryRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq40: Bank Account/Check Ledger Entry field restore =====
+    // Ported from MigrateFields_BankAccountLedgerEntry() (~line 1573) and
+    // MigrateFields_CheckLedgerEntry() (~line 1598). Both tables are transaction-volume-scale
+    // (unbounded) - periodic Commit() every 100 rows on each.
+    local procedure BootstrapBankAccountCheckLedgerEntryFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-BANKACCOUNTLEDGERENTRY-20260522') then begin
+            MigrateBankAccountLedgerEntryFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-BANKACCOUNTLEDGERENTRY-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CHECKLEDGERENTRY-20260522') then begin
+            MigrateCheckLedgerEntryFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CHECKLEDGERENTRY-20260522');
+        end;
+    end;
+
+    local procedure MigrateBankAccountLedgerEntryFields()
+    var
+        BankAccountLedgerEntryRec: Record "Bank Account Ledger Entry";
+        BatchCount: Integer;
+    begin
+        if BankAccountLedgerEntryRec.FindSet(true) then
+            repeat
+                if (BankAccountLedgerEntryRec."Beneficiario_DXR" <> BankAccountLedgerEntryRec."DxBeneficiario") or
+                   (BankAccountLedgerEntryRec."Recibo Ingreso_DXR" <> BankAccountLedgerEntryRec."DxRecibo Ingreso") or
+                   (BankAccountLedgerEntryRec."Importe Efectivo_DXR" <> BankAccountLedgerEntryRec."DxImporte Efectivo") or
+                   (BankAccountLedgerEntryRec."Importe Tcr._DXR" <> BankAccountLedgerEntryRec."DxImporte Tcr.") or
+                   (BankAccountLedgerEntryRec."Importe Cheque_DXR" <> BankAccountLedgerEntryRec."DxImporte Cheque") or
+                   (BankAccountLedgerEntryRec."Importe Transf._DXR" <> BankAccountLedgerEntryRec."DxImporte Transf.") or
+                   (BankAccountLedgerEntryRec."Provider_DXR" <> BankAccountLedgerEntryRec."DxProvider") then begin
+                    BankAccountLedgerEntryRec."Beneficiario_DXR" := BankAccountLedgerEntryRec."DxBeneficiario";
+                    BankAccountLedgerEntryRec."Recibo Ingreso_DXR" := BankAccountLedgerEntryRec."DxRecibo Ingreso";
+                    BankAccountLedgerEntryRec."Importe Efectivo_DXR" := BankAccountLedgerEntryRec."DxImporte Efectivo";
+                    BankAccountLedgerEntryRec."Importe Tcr._DXR" := BankAccountLedgerEntryRec."DxImporte Tcr.";
+                    BankAccountLedgerEntryRec."Importe Cheque_DXR" := BankAccountLedgerEntryRec."DxImporte Cheque";
+                    BankAccountLedgerEntryRec."Importe Transf._DXR" := BankAccountLedgerEntryRec."DxImporte Transf.";
+                    BankAccountLedgerEntryRec."Provider_DXR" := BankAccountLedgerEntryRec."DxProvider";
+                    BankAccountLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until BankAccountLedgerEntryRec.Next() = 0;
+    end;
+
+    local procedure MigrateCheckLedgerEntryFields()
+    var
+        CheckLedgerEntryRec: Record "Check Ledger Entry";
+        BatchCount: Integer;
+    begin
+        if CheckLedgerEntryRec.FindSet(true) then
+            repeat
+                if (CheckLedgerEntryRec."Beneficiario_DXR" <> CheckLedgerEntryRec."DxBeneficiario") or
+                   (CheckLedgerEntryRec."Entregado_DXR" <> CheckLedgerEntryRec."DxEntregado") or
+                   (CheckLedgerEntryRec."Fecha Entrega_DXR" <> CheckLedgerEntryRec."DxFecha Entrega") or
+                   (CheckLedgerEntryRec."Usuario entrega_DXR" <> CheckLedgerEntryRec."DxUsuario entrega") or
+                   (CheckLedgerEntryRec."Check Concept_DXR" <> CheckLedgerEntryRec."DX Check Concept") then begin
+                    CheckLedgerEntryRec."Beneficiario_DXR" := CheckLedgerEntryRec."DxBeneficiario";
+                    CheckLedgerEntryRec."Entregado_DXR" := CheckLedgerEntryRec."DxEntregado";
+                    CheckLedgerEntryRec."Fecha Entrega_DXR" := CheckLedgerEntryRec."DxFecha Entrega";
+                    CheckLedgerEntryRec."Usuario entrega_DXR" := CheckLedgerEntryRec."DxUsuario entrega";
+                    CheckLedgerEntryRec."Check Concept_DXR" := CheckLedgerEntryRec."DX Check Concept";
+                    CheckLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until CheckLedgerEntryRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq41: G/L Entry/G/L Register field restore =====
+    // Ported from MigrateFields_GLEntry() (~line 1760) and MigrateFields_GLRegister() (~line 1785).
+    // G/L Entry is transaction-volume-scale (unbounded) - periodic Commit() every 100 rows. G/L
+    // Register is one row per posting batch/register (orders of magnitude smaller) - no Commit().
+    local procedure BootstrapGLEntryGLRegisterFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        // "-V2" tag - DR-Localization's own real tag, already bumped when they added
+        // "NCFCategories_DXR" to this procedure's dirty-check condition. Reusing it here (not the
+        // superseded V1 tag) is required for tenants who ran the migration under DRLOC's real
+        // dispatcher after that bump to be correctly recognized as done.
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLENTRY-20260522-V2') then begin
+            MigrateGLEntryFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLENTRY-20260522-V2');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLREGISTER-20260522') then begin
+            MigrateGLRegisterFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLREGISTER-20260522');
+        end;
+    end;
+
+    local procedure MigrateGLEntryFields()
+    var
+        GLEntryRec: Record "G/L Entry";
+        BatchCount: Integer;
+    begin
+        if GLEntryRec.FindSet(true) then
+            repeat
+                if (GLEntryRec."NCF_DXR" <> GLEntryRec."DXNCF") or
+                   (GLEntryRec."Name_DXR" <> GLEntryRec."DX Name") or
+                   (GLEntryRec."Withholding Type_DXR" <> GLEntryRec."Withholding Type") or
+                   (GLEntryRec."Concepto Cheque_DXR" <> GLEntryRec."Concepto Cheque") or
+                   (GLEntryRec."NCFCategories_DXR" <> GLEntryRec."DXNCF Categories") then begin
+                    GLEntryRec."NCF_DXR" := GLEntryRec."DXNCF";
+                    GLEntryRec."Name_DXR" := GLEntryRec."DX Name";
+                    GLEntryRec."Withholding Type_DXR" := GLEntryRec."Withholding Type";
+                    GLEntryRec."Concepto Cheque_DXR" := GLEntryRec."Concepto Cheque";
+                    GLEntryRec."NCFCategories_DXR" := GLEntryRec."DXNCF Categories";
+                    GLEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until GLEntryRec.Next() = 0;
+    end;
+
+    local procedure MigrateGLRegisterFields()
+    var
+        GLRegisterRec: Record "G/L Register";
+    begin
+        if GLRegisterRec.FindSet(true) then
+            repeat
+                if GLRegisterRec."Recibo Ingreso_DXR" <> GLRegisterRec."DXRecibo Ingreso" then begin
+                    GLRegisterRec."Recibo Ingreso_DXR" := GLRegisterRec."DXRecibo Ingreso";
+                    GLRegisterRec.Modify(false);
+                end;
+            until GLRegisterRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq42: Gen. Journal Line/Item Ledger Entry field restore =====
+    // Ported from MigrateFields_GenJournalLine() (~line 1815) and MigrateFields_ItemLedgerEntry()
+    // (~line 1907). Gen. Journal Line is a staging table for not-yet-posted lines (cleared down as
+    // batches post) - no Commit(). Item Ledger Entry is transaction-volume-scale (unbounded) -
+    // periodic Commit() every 100 rows.
+    local procedure BootstrapGenJournalLineItemLedgerEntryFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALLINE-20260522') then begin
+            MigrateGenJournalLineFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALLINE-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-ITEMLEDGERENTRY-20260522') then begin
+            MigrateItemLedgerEntryFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-ITEMLEDGERENTRY-20260522');
+        end;
+    end;
+
+    // Shadow-field check: all 24 destination fields independently verified against
+    // DXR_GenJournalLineExt.TableExt.al, including "Withholding Type_DXR" (Option, identical
+    // OptionMembers/order to the source "Withholding Type" - safe direct assignment).
+    local procedure MigrateGenJournalLineFields()
+    var
+        GenJournalLineRec: Record "Gen. Journal Line";
+    begin
+        if GenJournalLineRec.FindSet(true) then
+            repeat
+                if (GenJournalLineRec."NCF_DXR" <> GenJournalLineRec."DXNCF") or
+                   (GenJournalLineRec."Beneficiario_DXR" <> GenJournalLineRec."DXBeneficiario") or
+                   (GenJournalLineRec."Recibo Ingreso_DXR" <> GenJournalLineRec."DXRecibo Ingreso") or
+                   (GenJournalLineRec."Importe Efectivo_DXR" <> GenJournalLineRec."DXImporte Efectivo") or
+                   (GenJournalLineRec."Importe Tcr._DXR" <> GenJournalLineRec."DXImporte Tcr.") or
+                   (GenJournalLineRec."Importe Cheque_DXR" <> GenJournalLineRec."DXImporte Cheque") or
+                   (GenJournalLineRec."Reporta en 606_DXR" <> GenJournalLineRec."DXReporta en 606") or
+                   (GenJournalLineRec."Correccion Int._DXR" <> GenJournalLineRec."DXCorreccion Int.") or
+                   (GenJournalLineRec."Tot. Monto Recibido_DXR" <> GenJournalLineRec."DXTot. Monto Recibido") or
+                   (GenJournalLineRec."Concepto Cheque_DXR" <> GenJournalLineRec."DXConcepto Cheque") or
+                   (GenJournalLineRec."Importe Transf._DXR" <> GenJournalLineRec."DXImporte Transf.") or
+                   (GenJournalLineRec."Venta Bonos_DXR" <> GenJournalLineRec."DXVenta Bonos") or
+                   (GenJournalLineRec."Withholding Payment_DXR" <> GenJournalLineRec."Dx Withholding Payment") or
+                   (GenJournalLineRec."Withholding Type_DXR" <> GenJournalLineRec."Withholding Type") or
+                   (GenJournalLineRec."Cust ITBIS Withhold_DXR" <> GenJournalLineRec."DXCustomer ITBIS Withholding") or
+                   (GenJournalLineRec."Customer ISR Withholding_DXR" <> GenJournalLineRec."DXCustomer ISR Withholding") or
+                   (GenJournalLineRec."Bank Commission Amount_DXR" <> GenJournalLineRec."DXBank Commission Amount") or
+                   (GenJournalLineRec."ITBIS Withholding Code_DXR" <> GenJournalLineRec."DXITBIS Withholding Code") or
+                   (GenJournalLineRec."ITBIS Withholding %_DXR" <> GenJournalLineRec."DXITBIS Withholding %") or
+                   (GenJournalLineRec."ITBIS Withholding Base_DXR" <> GenJournalLineRec."DXITBIS Withholding Base") or
+                   (GenJournalLineRec."ITBIS Withholding Amount_DXR" <> GenJournalLineRec."DXITBIS Withholding Amount") or
+                   (GenJournalLineRec."ISR Withholding Code_DXR" <> GenJournalLineRec."DXISR Withholding Code") or
+                   (GenJournalLineRec."ISR Withholding %_DXR" <> GenJournalLineRec."DXISR Withholding %") or
+                   (GenJournalLineRec."ISR Withholding Base_DXR" <> GenJournalLineRec."DXISR Withholding Base") or
+                   (GenJournalLineRec."ISR Withholding Amount_DXR" <> GenJournalLineRec."DXISR Withholding Amount") or
+                   (GenJournalLineRec."Bank Fee Amount_DXR" <> GenJournalLineRec."DXBank Fee Amount") then begin
+                    GenJournalLineRec."NCF_DXR" := GenJournalLineRec."DXNCF";
+                    GenJournalLineRec."Beneficiario_DXR" := GenJournalLineRec."DXBeneficiario";
+                    GenJournalLineRec."Recibo Ingreso_DXR" := GenJournalLineRec."DXRecibo Ingreso";
+                    GenJournalLineRec."Importe Efectivo_DXR" := GenJournalLineRec."DXImporte Efectivo";
+                    GenJournalLineRec."Importe Tcr._DXR" := GenJournalLineRec."DXImporte Tcr.";
+                    GenJournalLineRec."Importe Cheque_DXR" := GenJournalLineRec."DXImporte Cheque";
+                    GenJournalLineRec."Reporta en 606_DXR" := GenJournalLineRec."DXReporta en 606";
+                    GenJournalLineRec."Correccion Int._DXR" := GenJournalLineRec."DXCorreccion Int.";
+                    GenJournalLineRec."Tot. Monto Recibido_DXR" := GenJournalLineRec."DXTot. Monto Recibido";
+                    GenJournalLineRec."Concepto Cheque_DXR" := GenJournalLineRec."DXConcepto Cheque";
+                    GenJournalLineRec."Importe Transf._DXR" := GenJournalLineRec."DXImporte Transf.";
+                    GenJournalLineRec."Venta Bonos_DXR" := GenJournalLineRec."DXVenta Bonos";
+                    GenJournalLineRec."Withholding Payment_DXR" := GenJournalLineRec."Dx Withholding Payment";
+                    GenJournalLineRec."Withholding Type_DXR" := GenJournalLineRec."Withholding Type";
+                    GenJournalLineRec."Cust ITBIS Withhold_DXR" := GenJournalLineRec."DXCustomer ITBIS Withholding";
+                    GenJournalLineRec."Customer ISR Withholding_DXR" := GenJournalLineRec."DXCustomer ISR Withholding";
+                    GenJournalLineRec."Bank Commission Amount_DXR" := GenJournalLineRec."DXBank Commission Amount";
+                    GenJournalLineRec."ITBIS Withholding Code_DXR" := GenJournalLineRec."DXITBIS Withholding Code";
+                    GenJournalLineRec."ITBIS Withholding %_DXR" := GenJournalLineRec."DXITBIS Withholding %";
+                    GenJournalLineRec."ITBIS Withholding Base_DXR" := GenJournalLineRec."DXITBIS Withholding Base";
+                    GenJournalLineRec."ITBIS Withholding Amount_DXR" := GenJournalLineRec."DXITBIS Withholding Amount";
+                    GenJournalLineRec."ISR Withholding Code_DXR" := GenJournalLineRec."DXISR Withholding Code";
+                    GenJournalLineRec."ISR Withholding %_DXR" := GenJournalLineRec."DXISR Withholding %";
+                    GenJournalLineRec."ISR Withholding Base_DXR" := GenJournalLineRec."DXISR Withholding Base";
+                    GenJournalLineRec."ISR Withholding Amount_DXR" := GenJournalLineRec."DXISR Withholding Amount";
+                    GenJournalLineRec."Bank Fee Amount_DXR" := GenJournalLineRec."DXBank Fee Amount";
+                    GenJournalLineRec.Modify(false);
+                end;
+            until GenJournalLineRec.Next() = 0;
+    end;
+
+    local procedure MigrateItemLedgerEntryFields()
+    var
+        ItemLedgerEntryRec: Record "Item Ledger Entry";
+        BatchCount: Integer;
+    begin
+        if ItemLedgerEntryRec.FindSet(true) then
+            repeat
+                if ItemLedgerEntryRec."User Id_DXR" <> ItemLedgerEntryRec."DX User Id" then begin
+                    ItemLedgerEntryRec."User Id_DXR" := ItemLedgerEntryRec."DX User Id";
+                    ItemLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until ItemLedgerEntryRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq43: Price List Line/Reversal Entry field restore =====
+    // Ported from MigrateFields_PriceListLine() (~line 1935) and MigrateFields_ReversalEntry()
+    // (~line 2279). Both tables are bounded by catalog/reversal-action count, not transaction
+    // volume - no Commit().
+    local procedure BootstrapPriceListLineReversalEntryFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-PRICELISTLINE-20260522') then begin
+            MigratePriceListLineFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-PRICELISTLINE-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-REVERSALENTRY-20260522') then begin
+            MigrateReversalEntryFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-REVERSALENTRY-20260522');
+        end;
+    end;
+
+    local procedure MigratePriceListLineFields()
+    var
+        PriceListLineRec: Record "Price List Line";
+    begin
+        if PriceListLineRec.FindSet(true) then
+            repeat
+                if PriceListLineRec."Item Category Code_DXR" <> PriceListLineRec."Item Category Code" then begin
+                    PriceListLineRec."Item Category Code_DXR" := PriceListLineRec."Item Category Code";
+                    PriceListLineRec.Modify(false);
+                end;
+            until PriceListLineRec.Next() = 0;
+    end;
+
+    local procedure MigrateReversalEntryFields()
+    var
+        ReversalEntryRec: Record "Reversal Entry";
+    begin
+        if ReversalEntryRec.FindSet(true) then
+            repeat
+                if ReversalEntryRec."Reporta en 606_DXR" <> ReversalEntryRec."DXReporta en 606" then begin
+                    ReversalEntryRec."Reporta en 606_DXR" := ReversalEntryRec."DXReporta en 606";
+                    ReversalEntryRec.Modify(false);
+                end;
+            until ReversalEntryRec.Next() = 0;
+    end;
+
+    // ===== Batch 4, seq44: Vendor Ledger Entry field restore (bulk + FlowFields) =====
+    // Ported from MigrateFields_VendorLedgerEntry_Bulk() (~line 2452) and
+    // MigrateFields_VendorLedgerEntry_FlowFields() (~line 2478). "Withholding migration repair"
+    // (registry row description) is deliberately NOT included - see codeunit-level "seq44 naming
+    // note" comment. "Vendor Name_DXR"/"Settled Amount_DXR" are themselves FlowFields - see
+    // codeunit-level "No-op observation" comment (ported verbatim, not fixed).
+    local procedure BootstrapVendorLedgerEntryFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDORLEDGERENTRY-BULK-20260522') then begin
+            MigrateVendorLedgerEntryBulkFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDORLEDGERENTRY-BULK-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDORLEDGERENTRY-FLOWFIELDS-20260522') then begin
+            MigrateVendorLedgerEntryFlowFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDORLEDGERENTRY-FLOWFIELDS-20260522');
+        end;
+    end;
+
+    // Vendor Ledger Entry is transaction-volume-scale (unbounded) - periodic Commit() every 100 rows.
+    local procedure MigrateVendorLedgerEntryBulkFields()
+    var
+        VendorLedgerEntryRec: Record "Vendor Ledger Entry";
+        BatchCount: Integer;
+    begin
+        if VendorLedgerEntryRec.FindSet(true) then
+            repeat
+                if (VendorLedgerEntryRec."NCF_DXR" <> VendorLedgerEntryRec."DXNCF") or
+                   (VendorLedgerEntryRec."Reporta en 606_DXR" <> VendorLedgerEntryRec."DXReporta en 606") or
+                   (VendorLedgerEntryRec."Withholding Payment_DXR" <> VendorLedgerEntryRec."Dx Withholding Payment") or
+                   (VendorLedgerEntryRec."Cod. Retencion ITBIS_DXR" <> VendorLedgerEntryRec."DXCod. Retencion ITBIS") or
+                   (VendorLedgerEntryRec."Cod. Retencion ISR_DXR" <> VendorLedgerEntryRec."DXCod. Retencion ISR") or
+                   (VendorLedgerEntryRec."Utiliza NCF Externo_DXR" <> VendorLedgerEntryRec."DXUtiliza NCF Externo") or
+                   (VendorLedgerEntryRec."Withholding Apply Type_DXR" <> VendorLedgerEntryRec."DX Withholding Apply Type") then begin
+                    VendorLedgerEntryRec."NCF_DXR" := VendorLedgerEntryRec."DXNCF";
+                    VendorLedgerEntryRec."Reporta en 606_DXR" := VendorLedgerEntryRec."DXReporta en 606";
+                    VendorLedgerEntryRec."Withholding Payment_DXR" := VendorLedgerEntryRec."Dx Withholding Payment";
+                    VendorLedgerEntryRec."Cod. Retencion ITBIS_DXR" := VendorLedgerEntryRec."DXCod. Retencion ITBIS";
+                    VendorLedgerEntryRec."Cod. Retencion ISR_DXR" := VendorLedgerEntryRec."DXCod. Retencion ISR";
+                    VendorLedgerEntryRec."Utiliza NCF Externo_DXR" := VendorLedgerEntryRec."DXUtiliza NCF Externo";
+                    VendorLedgerEntryRec."Withholding Apply Type_DXR" := VendorLedgerEntryRec."DX Withholding Apply Type";
+                    VendorLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until VendorLedgerEntryRec.Next() = 0;
+    end;
+
+    local procedure MigrateVendorLedgerEntryFlowFields()
+    var
+        VendorLedgerEntryRec: Record "Vendor Ledger Entry";
+        BatchCount: Integer;
+    begin
+        VendorLedgerEntryRec.SetAutoCalcFields("Dx Vendor Name", "DX Settled Amount");
+        if VendorLedgerEntryRec.FindSet(true) then
+            repeat
+                if (VendorLedgerEntryRec."Vendor Name_DXR" <> VendorLedgerEntryRec."Dx Vendor Name") or
+                   (VendorLedgerEntryRec."Settled Amount_DXR" <> VendorLedgerEntryRec."DX Settled Amount") then begin
+                    VendorLedgerEntryRec."Vendor Name_DXR" := VendorLedgerEntryRec."Dx Vendor Name";
+                    VendorLedgerEntryRec."Settled Amount_DXR" := VendorLedgerEntryRec."DX Settled Amount";
+                    VendorLedgerEntryRec.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until VendorLedgerEntryRec.Next() = 0;
     end;
 }
