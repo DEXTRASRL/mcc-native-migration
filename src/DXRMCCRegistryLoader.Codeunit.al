@@ -593,6 +593,21 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P6', 267, 'DXR_Valoracion de Inventario Old2 legacy table restore (59343 -> 53413)', 60150, 59343, 53413, 'MA');
         InsConcept('BELLON', 'BELLON-P6', 268, 'DXR_VAT Bus. Settings Old2 legacy table restore (59344 -> 53414)', 60150, 59344, 53414, 'SETUP');
         InsConcept('BELLON', 'BELLON-P6', 269, 'DXR_Printing Invoice Log BO Old2 legacy table restore (59345 -> 53415)', 60150, 59345, 53415, 'HIST');
+        // Phase 13/14 added 2026-08-23: real phases in Bellon Customization's own Dispatcher
+        // (56112, runs them last, after Phase 11) that no old MCC delegation adapter ever called -
+        // each old adapter called a specific sibling phase codeunit directly, never the sibling's
+        // own Dispatcher, and Phase 13/14 had no direct-call adapter of their own. A genuine,
+        // real gap in this MCC extension's coverage, predating the native-migration pivot - not
+        // something the native port invented. Native codeunits 60157/60158 were ported and
+        // compiled clean before these rows existed; see their own header comments for full detail.
+        InsConcept('BELLON', 'BELLON-P13', 270, 'Item Charge Assignment (Purch): Monto Cargo Liq. Old->DXR bridge field restore', 60157, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P13', 271, 'DXR_Cash Journal Receipt List (52132) Old->DXR bridge field restore (4 fields)', 60157, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P13', 272, 'DXR_NCF Setup (52179) Old->DXR bridge field restore (2 fields)', 60157, 0, 0, 'SETUP');
+        InsConcept('BELLON', 'BELLON-P13', 273, 'Vendor: 13-field legacy->DXR direct restore (no _Old bridge ever declared for these)', 60157, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P14', 274, 'Contact: 13-field cross-table ID collision bridge restore (incl. the reported crash field, Next Order Selection)', 60158, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P14', 275, 'Transfer Header: 3-field cross-table ID collision bridge restore', 60158, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P14', 276, 'Sales Header: 1-field cross-table ID collision bridge restore (PriceReleaseControlFlag)', 60158, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P14', 277, 'Purchase Line: 1-field cross-table ID collision bridge restore (Transito)', 60158, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P7', 4, '55 tableextension field restore (audited count - registry previously said "87 tables/171 fields", that figure did not reconcile; ApprovalEntry/AssemblySetup/BankAccReconciliation(+Line)/BankAccount(+LedgerEntry)/CheckLedgerEntry/CompanyInformation/CountryRegion/Currency(+ExchangeRate)/CustLedgerEntry/CustomerPriceGroup/GenJournalBatch/GenJournalLine/GenProductPostingGroup/GeneralLedgerSetup/IssuedReminderHeader/ItemCategory/ItemChargeAssignmentPurch/ItemSpecialGroups/ListadoRecibodeIngreso/Location/MemberContact/MemberPointOffer/NCFSetup/PaymentMethod/PeriodicDiscount/PostedStatement/ProductGroup/PurchCommentLine(+Archive)/PurchInvLine/ReasonCodeTableExt/ReplenJournalLines/ReplenTemplate/RetailSetup/RetailUser/SalesPrice/SalesReceivablesSetup/SalesType/SalespersonPurchaser/ShiptoAddress/Statement/Store/TariffNumber/TenderType/TransSalesEntry/TransactionHeader/TransferReceiptHeader/TransferShipmentHeader/UserSetup/ValueEntry/Vendor/WarehouseReceiptLine - excl. Customer/Item/Sales/Purchase/Contact, those are P5/P3/P8)', 60151, 0, 0, 'OTHER');
         InsConcept('BELLON', 'BELLON-P8', 5, 'Contact field restore (19 fields)', 60152, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P9', 6, 'Transfer Header field restore (2 fields, posting-copy ID collision fix) - Release 2 (retire colliding original) still deferred: unlike P10, these are LIVE active fields on both sides, not dead bridges, so relocating one needs a call-site audit first', 60153, 0, 0, 'MA');
