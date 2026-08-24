@@ -13,57 +13,63 @@ codeunit 60092 "DXR MCC BC Migr P2 Warehouse"
     var
         OldSetup: Record "DXR_Warehouse Ctrl Setup Old2";
         NewSetup: Record "DXR_Warehouse Controls Setup";
-        OldRecRef: RecordRef;
+        NewSetupExists: Boolean;
     begin
         if not OldSetup.Get('') then
             exit;
-        OldRecRef.GetTable(OldSetup);
-        if IsSetupRowBlank(OldRecRef) then
+        if IsOldSetupRowBlank(OldSetup) then
             exit;
 
-        if NewSetup.Get('') then begin
-            NewSetup.TransferFields(OldSetup, true);
-            NewSetup.Modify(false);
-        end else begin
-            NewSetup.TransferFields(OldSetup, true);
+        NewSetupExists := NewSetup.Get('');
+        if not NewSetupExists then
+            NewSetup.Init();
+
+        NewSetup."Code" := OldSetup."Code";
+        NewSetup.Active := OldSetup.Active;
+        NewSetup."WHS. Receipt Posting Date" := OldSetup."WHS. Receipt Posting Date";
+        NewSetup."WHS. Shipment Posting Date" := OldSetup."WHS. Shipment Posting Date";
+        NewSetup."Validate Transfer Reopen" := OldSetup."Validate Transfer Reopen";
+        NewSetup."Show Vendor in Shipment" := OldSetup."Show Vendor in Shipment";
+        NewSetup."Show Customer in Receipt" := OldSetup."Show Customer in Receipt";
+        NewSetup."Show Receipt Detail" := OldSetup."Show Receipt Detail";
+        NewSetup."Show Shipment Detail" := OldSetup."Show Shipment Detail";
+        NewSetup."Show Customer in Shipment" := OldSetup."Show Customer in Shipment";
+        NewSetup."Show Vendor in Receipt" := OldSetup."Show Vendor in Receipt";
+        NewSetup."Show Customer in Ship List" := OldSetup."Show Customer in Ship List";
+        NewSetup."Show Vendor in Ship List" := OldSetup."Show Vendor in Ship List";
+        NewSetup."Show Customer in Rcpt List" := OldSetup."Show Customer in Rcpt List";
+        NewSetup."Show Vendor in Rcpt List" := OldSetup."Show Vendor in Rcpt List";
+        NewSetup."Show Ship Factbox" := OldSetup."Show Ship Factbox";
+        NewSetup."Show Rcpt Factbox" := OldSetup."Show Rcpt Factbox";
+        NewSetup."Show Receipt Totals" := OldSetup."Show Receipt Totals";
+        NewSetup."Show Shipment Totals" := OldSetup."Show Shipment Totals";
+
+        if NewSetupExists then
+            NewSetup.Modify(false)
+        else
             NewSetup.Insert(false);
-        end;
     end;
 
-    local procedure IsSetupRowBlank(var RecRef: RecordRef): Boolean
-    var
-        BlankRecRef: RecordRef;
-        FieldRef: FieldRef;
-        BlankFieldRef: FieldRef;
-        KeyRef: KeyRef;
-        FieldIndex: Integer;
-        KeyFieldIndex: Integer;
-        IsKeyField: Boolean;
+    local procedure IsOldSetupRowBlank(var OldSetup: Record "DXR_Warehouse Ctrl Setup Old2"): Boolean
     begin
-        BlankRecRef.Open(RecRef.Number);
-        BlankRecRef.Init();
-        KeyRef := RecRef.KeyIndex(1);
-
-        for FieldIndex := 1 to RecRef.FieldCount do begin
-            FieldRef := RecRef.FieldIndex(FieldIndex);
-            if FieldRef.Class <> FieldClass::Normal then
-                continue;
-
-            IsKeyField := false;
-            for KeyFieldIndex := 1 to KeyRef.FieldCount do
-                if KeyRef.FieldIndex(KeyFieldIndex).Number = FieldRef.Number then
-                    IsKeyField := true;
-            if IsKeyField then
-                continue;
-
-            BlankFieldRef := BlankRecRef.Field(FieldRef.Number);
-            if Format(FieldRef.Value) <> Format(BlankFieldRef.Value) then begin
-                BlankRecRef.Close();
-                exit(false);
-            end;
-        end;
-
-        BlankRecRef.Close();
-        exit(true);
+        exit(
+            (not OldSetup.Active) and
+            (not OldSetup."WHS. Receipt Posting Date") and
+            (not OldSetup."WHS. Shipment Posting Date") and
+            (not OldSetup."Validate Transfer Reopen") and
+            (not OldSetup."Show Vendor in Shipment") and
+            (not OldSetup."Show Customer in Receipt") and
+            (not OldSetup."Show Receipt Detail") and
+            (not OldSetup."Show Shipment Detail") and
+            (not OldSetup."Show Customer in Shipment") and
+            (not OldSetup."Show Vendor in Receipt") and
+            (not OldSetup."Show Customer in Ship List") and
+            (not OldSetup."Show Vendor in Ship List") and
+            (not OldSetup."Show Customer in Rcpt List") and
+            (not OldSetup."Show Vendor in Rcpt List") and
+            (not OldSetup."Show Ship Factbox") and
+            (not OldSetup."Show Rcpt Factbox") and
+            (not OldSetup."Show Receipt Totals") and
+            (not OldSetup."Show Shipment Totals"));
     end;
 }

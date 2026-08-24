@@ -9,57 +9,73 @@ codeunit 60093 "DXR MCC BC Migr P2 Purchase"
     var
         OldSetup: Record "DXR_Purchase Ctrl Setup Old2";
         NewSetup: Record "DXR_Purchase Controls Setup";
-        OldRecRef: RecordRef;
+        NewSetupExists: Boolean;
     begin
         if not OldSetup.Get('') then
             exit;
-        OldRecRef.GetTable(OldSetup);
-        if IsSetupRowBlank(OldRecRef) then
+        if IsOldSetupRowBlank(OldSetup) then
             exit;
 
-        if NewSetup.Get('') then begin
-            NewSetup.TransferFields(OldSetup, true);
-            NewSetup.Modify(false);
-        end else begin
-            NewSetup.TransferFields(OldSetup, true);
+        NewSetupExists := NewSetup.Get('');
+        if not NewSetupExists then
+            NewSetup.Init();
+
+        NewSetup."Code" := OldSetup."Code";
+        NewSetup.Active := OldSetup.Active;
+        NewSetup."Mandatory Purchaser Code" := OldSetup."Mandatory Purchaser Code";
+        NewSetup."Purch. Warehouse Qty" := OldSetup."Purch. Warehouse Qty";
+        NewSetup."Purch. Received Lines" := OldSetup."Purch. Received Lines";
+        NewSetup."Purch. Date overdue" := OldSetup."Purch. Date overdue";
+        NewSetup."Posting Date + Delivery" := OldSetup."Posting Date + Delivery";
+        NewSetup."Date of arrival" := OldSetup."Date of arrival";
+        NewSetup."Trim Barcode" := OldSetup."Trim Barcode";
+        NewSetup."Mandatory Shipment Method Code" := OldSetup."Mandatory Shipment Method Code";
+        NewSetup."Purch. Allow Delete Manually" := OldSetup."Purch. Allow Delete Manually";
+        NewSetup."Purch. Archive on Delete" := OldSetup."Purch. Archive on Delete";
+        NewSetup."Mandatory Direct unit cost" := OldSetup."Mandatory Direct unit cost";
+        NewSetup."Dates FactBox" := OldSetup."Dates FactBox";
+        NewSetup."Validate Docs. Approval" := OldSetup."Validate Docs. Approval";
+        NewSetup."Validate Docs. Release" := OldSetup."Validate Docs. Release";
+        NewSetup."Mandatory Country/Region Code" := OldSetup."Mandatory Country/Region Code";
+        NewSetup."Restrict Non Qty to Receipt" := OldSetup."Restrict Non Qty to Receipt";
+        NewSetup."Restrict Non Qty to Assign" := OldSetup."Restrict Non Qty to Assign";
+        NewSetup."Restrict Non Qty On Posted Doc" := OldSetup."Restrict Non Qty On Posted Doc";
+        NewSetup."Sales Sell/Buy Mismatch" := OldSetup."Sales Sell/Buy Mismatch";
+        NewSetup."Purch. Post Date to workdate" := OldSetup."Purch. Post Date to workdate";
+        NewSetup."Purch. Mandatory Currency Code" := OldSetup."Purch. Mandatory Currency Code";
+        NewSetup."Validate Document Date" := OldSetup."Validate Document Date";
+
+        if NewSetupExists then
+            NewSetup.Modify(false)
+        else
             NewSetup.Insert(false);
-        end;
     end;
 
-    local procedure IsSetupRowBlank(var RecRef: RecordRef): Boolean
-    var
-        BlankRecRef: RecordRef;
-        FieldRef: FieldRef;
-        BlankFieldRef: FieldRef;
-        KeyRef: KeyRef;
-        FieldIndex: Integer;
-        KeyFieldIndex: Integer;
-        IsKeyField: Boolean;
+    local procedure IsOldSetupRowBlank(var OldSetup: Record "DXR_Purchase Ctrl Setup Old2"): Boolean
     begin
-        BlankRecRef.Open(RecRef.Number);
-        BlankRecRef.Init();
-        KeyRef := RecRef.KeyIndex(1);
-
-        for FieldIndex := 1 to RecRef.FieldCount do begin
-            FieldRef := RecRef.FieldIndex(FieldIndex);
-            if FieldRef.Class <> FieldClass::Normal then
-                continue;
-
-            IsKeyField := false;
-            for KeyFieldIndex := 1 to KeyRef.FieldCount do
-                if KeyRef.FieldIndex(KeyFieldIndex).Number = FieldRef.Number then
-                    IsKeyField := true;
-            if IsKeyField then
-                continue;
-
-            BlankFieldRef := BlankRecRef.Field(FieldRef.Number);
-            if Format(FieldRef.Value) <> Format(BlankFieldRef.Value) then begin
-                BlankRecRef.Close();
-                exit(false);
-            end;
-        end;
-
-        BlankRecRef.Close();
-        exit(true);
+        exit(
+            (not OldSetup.Active) and
+            (not OldSetup."Mandatory Purchaser Code") and
+            (not OldSetup."Purch. Warehouse Qty") and
+            (not OldSetup."Purch. Received Lines") and
+            (not OldSetup."Purch. Date overdue") and
+            (not OldSetup."Posting Date + Delivery") and
+            (not OldSetup."Date of arrival") and
+            (not OldSetup."Trim Barcode") and
+            (not OldSetup."Mandatory Shipment Method Code") and
+            (not OldSetup."Purch. Allow Delete Manually") and
+            (not OldSetup."Purch. Archive on Delete") and
+            (not OldSetup."Mandatory Direct unit cost") and
+            (not OldSetup."Dates FactBox") and
+            (not OldSetup."Validate Docs. Approval") and
+            (not OldSetup."Validate Docs. Release") and
+            (not OldSetup."Mandatory Country/Region Code") and
+            (not OldSetup."Restrict Non Qty to Receipt") and
+            (not OldSetup."Restrict Non Qty to Assign") and
+            (not OldSetup."Restrict Non Qty On Posted Doc") and
+            (not OldSetup."Sales Sell/Buy Mismatch") and
+            (not OldSetup."Purch. Post Date to workdate") and
+            (not OldSetup."Purch. Mandatory Currency Code") and
+            (not OldSetup."Validate Document Date"));
     end;
 }

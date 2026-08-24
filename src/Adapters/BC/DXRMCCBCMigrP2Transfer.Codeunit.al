@@ -9,57 +9,33 @@ codeunit 60096 "DXR MCC BC Migr P2 Transfer"
     var
         OldSetup: Record "DXR_Transfer Ctrl Setup Old2";
         NewSetup: Record "DXR_Transfer Controls Setup";
-        OldRecRef: RecordRef;
+        NewSetupExists: Boolean;
     begin
         if not OldSetup.Get('') then
             exit;
-        OldRecRef.GetTable(OldSetup);
-        if IsSetupRowBlank(OldRecRef) then
+        if IsOldSetupRowBlank(OldSetup) then
             exit;
 
-        if NewSetup.Get('') then begin
-            NewSetup.TransferFields(OldSetup, true);
-            NewSetup.Modify(false);
-        end else begin
-            NewSetup.TransferFields(OldSetup, true);
+        NewSetupExists := NewSetup.Get('');
+        if not NewSetupExists then
+            NewSetup.Init();
+
+        NewSetup."Code" := OldSetup."Code";
+        NewSetup.Active := OldSetup.Active;
+        NewSetup."Change Expected Date" := OldSetup."Change Expected Date";
+        NewSetup."Skip Zero Qty to Ship Lines" := OldSetup."Skip Zero Qty to Ship Lines";
+
+        if NewSetupExists then
+            NewSetup.Modify(false)
+        else
             NewSetup.Insert(false);
-        end;
     end;
 
-    local procedure IsSetupRowBlank(var RecRef: RecordRef): Boolean
-    var
-        BlankRecRef: RecordRef;
-        FieldRef: FieldRef;
-        BlankFieldRef: FieldRef;
-        KeyRef: KeyRef;
-        FieldIndex: Integer;
-        KeyFieldIndex: Integer;
-        IsKeyField: Boolean;
+    local procedure IsOldSetupRowBlank(var OldSetup: Record "DXR_Transfer Ctrl Setup Old2"): Boolean
     begin
-        BlankRecRef.Open(RecRef.Number);
-        BlankRecRef.Init();
-        KeyRef := RecRef.KeyIndex(1);
-
-        for FieldIndex := 1 to RecRef.FieldCount do begin
-            FieldRef := RecRef.FieldIndex(FieldIndex);
-            if FieldRef.Class <> FieldClass::Normal then
-                continue;
-
-            IsKeyField := false;
-            for KeyFieldIndex := 1 to KeyRef.FieldCount do
-                if KeyRef.FieldIndex(KeyFieldIndex).Number = FieldRef.Number then
-                    IsKeyField := true;
-            if IsKeyField then
-                continue;
-
-            BlankFieldRef := BlankRecRef.Field(FieldRef.Number);
-            if Format(FieldRef.Value) <> Format(BlankFieldRef.Value) then begin
-                BlankRecRef.Close();
-                exit(false);
-            end;
-        end;
-
-        BlankRecRef.Close();
-        exit(true);
+        exit(
+            (not OldSetup.Active) and
+            (not OldSetup."Change Expected Date") and
+            (not OldSetup."Skip Zero Qty to Ship Lines"));
     end;
 }
