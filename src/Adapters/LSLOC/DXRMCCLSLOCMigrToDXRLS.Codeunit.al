@@ -46,8 +46,8 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     local procedure TableExtFieldsExecute()
     begin
-        CopySameTableFieldRange(Database::"Gen. Journal Line", 54300, 54500, 1); // seq2, MA - out of scope
-        CopySameTableFieldRange(Database::Item, 54300, 54500, 1); // seq5, MA - out of scope
+        CopyGenJournalLineFields(); // seq2, MA
+        CopyItemFields(); // seq5, MA
         CopyLSCHospitalityTypeFields(); // seq6, SETUP
         CopyLSCLabelFunctionsFields(); // seq7, SETUP
         CopyLSCPOSPrintSetupHeaderFields(); // seq8, SETUP
@@ -56,7 +56,7 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4); // seq10, OTHER - out of scope
         CopyLSCSalesTypeFields(); // seq11, SETUP
         CopyLSCStoreFields(); // seq12, SETUP
-        CopySameTableFieldRange(Database::"LSC Store Inventory Line", 54300, 54500, 1); // seq13, MA - out of scope
+        CopyLSCStoreInventoryLineFields(); // seq13, MA
         CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8); // seq14, OTHER - out of scope
         CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5); // seq14, OTHER - out of scope
         CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2); // seq14, OTHER - out of scope
@@ -153,6 +153,44 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
                 Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
                 Rec."Address 3_DXR" := Rec."LSDX Address 3";
                 Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    // ===== In-scope MA same-table field-range restores (LSLOC-TOLOC seq2/5/13) =====
+    // Direct typed field assignment, one line per field - no RecordRef/FieldRef, no TransferFields.
+    // Field pairs confirmed against the real compiled symbols (LSLOC's own old/new TableExts) -
+    // every source field below is ObsoleteState = Pending (not Removed), so it is still readable.
+
+    local procedure CopyGenJournalLineFields()
+    var
+        Rec: Record "Gen. Journal Line";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."No. Ticket_DXR" := Rec."LSDX No. Ticket";
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyItemFields()
+    var
+        Rec: Record Item;
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Factor_DXR" := Rec.Factor;
+                Rec.Modify(false);
+            until Rec.Next() = 0;
+    end;
+
+    local procedure CopyLSCStoreInventoryLineFields()
+    var
+        Rec: Record "LSC Store Inventory Line";
+    begin
+        if Rec.FindSet(true) then
+            repeat
+                Rec."Recalculate Time_DXR" := Rec."DX Recalculate Time";
                 Rec.Modify(false);
             until Rec.Next() = 0;
     end;
