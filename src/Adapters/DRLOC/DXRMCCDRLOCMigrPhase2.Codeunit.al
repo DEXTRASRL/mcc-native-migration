@@ -30,17 +30,36 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // MigrateFields_Customer() checks "Apply Cust Withhold_DXR" against
     // "DX Apply Customer Withholding" in its dirty-check condition (added 2026-08-22 per that
     // procedure own comment) but never actually assigns the field in the following if-block - the
-    // 20th condition has no matching 20th assignment. Both fields are confirmed real, non-FlowField,
-    // non-obsolete Enum fields on DXR_CustomerExt.TableExt.al (51831 / "DX Apply Customer
-    // Withholding" respectively). This port adds the missing assignment so the ported version
-    // actually does what the dirty-check condition promises; DR-Localization own source is left
-    // unmodified (out of scope - this MCC repo only).
+    // 20th condition has no matching 20th assignment. Both fields are confirmed real, non-FlowField
+    // Enum fields on Customer (field 51831 for the target "_DXR" field): the target enum is
+    // "DXR_ApplyCustomerWithholding" (52201, current, not obsolete) and the legacy source enum is
+    // "DXApplyCustomerWithholding" (54203, ObsoleteState = Pending). This port adds the missing
+    // assignment so the ported version actually does what the dirty-check condition promises;
+    // DR-Localization own source is left unmodified (out of scope - this MCC repo only).
     //
     // "GLAccount" (part of seq11) is a deliberate no-op, matching DR-Localization own source: both
     // "DXNCF" and "NCF_DXR" on G/L Account are ObsoleteState = Removed (confirmed against
     // DXR_GLAccountExt.TableExt.al) - nothing left to migrate for that table via this procedure.
     // (G/L Account still-active "DXNCF Categories" -> "NCFCategories_DXR" field is a different,
     // already-tracked registry row, DRLOC-P2 seq105 - out of scope here.)
+    //
+    // Upgrade Tag reuse (2026-08-24, review fix): every one of the 13 procedures below is gated by
+    // DR-Localization's OWN real per-procedure completion tag, copied verbatim (as literals, not a
+    // runtime call into DRLOC's codeunit) from DXR_UpgradeTagMgt.Codeunit.al
+    // (UpgradeTagInternalClosureFields<X>() for each table) - same rationale and pattern already
+    // documented in DXRMCCBellonMigrPhase2.Codeunit.al's own header: reusing the sibling's own exact
+    // tag strings means a tenant that already ran this migration via the old bridge path (registry
+    // rows seq9/10/11 previously pointed at codeunit 60069, which called into DRLOC's own real
+    // dispatcher, codeunit 52208) is correctly recognized as already done and this codeunit's first
+    // run after cutover skips the redundant FindSet(true) scan on every table, instead of treating
+    // every tenant as if none of this had ever run. Not a data-integrity risk either way (each
+    // procedure's own dirty-check before Modify makes a redundant scan safe), but avoiding it matters
+    // more for later DRLOC batches that touch Ledger Entry-scale tables. The Customer tag
+    // (...-CUSTOMER-20260522-V2) is DRLOC's own already-bumped V2 tag, which happens to exist
+    // specifically because DRLOC's own team found the same "Apply Cust Withhold_DXR" gap documented
+    // above and bumped the tag to force a re-run - reusing it here is exactly correct, not a
+    // coincidence. All 13 tags below were confirmed to exist as real procedures in
+    // DXR_UpgradeTagMgt.Codeunit.al; none needed to be invented.
     Permissions =
         tabledata "Company Information" = RM,
         tabledata "Bank Account" = RM,
@@ -55,23 +74,15 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "VAT Product Posting Group" = RM;
 
     trigger OnRun()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if not UpgradeTag.HasUpgradeTag('DXR-DRLOCP2-Bootstrap-CompanyInfo') then begin
-            BootstrapCompanyInformationFields();
-            UpgradeTag.SetUpgradeTag('DXR-DRLOCP2-Bootstrap-CompanyInfo');
-        end;
-
-        if not UpgradeTag.HasUpgradeTag('DXR-DRLOCP2-Bootstrap-BankCustVendor') then begin
-            BootstrapBankAccountCustomerVendorFields();
-            UpgradeTag.SetUpgradeTag('DXR-DRLOCP2-Bootstrap-BankCustVendor');
-        end;
-
-        if not UpgradeTag.HasUpgradeTag('DXR-DRLOCP2-Bootstrap-GLUserSetupJournal') then begin
-            BootstrapGLUserSetupJournalFields();
-            UpgradeTag.SetUpgradeTag('DXR-DRLOCP2-Bootstrap-GLUserSetupJournal');
-        end;
+        // No concept-level Upgrade Tag gating here (deliberately) - each of the 13 individual
+        // procedures below is already gated by its own real DR-Localization completion tag (see
+        // codeunit-level comment), so an outer tag here would be redundant at best and, if this
+        // codeunit ever needed to re-run one single table's procedure in isolation (e.g. a future
+        // hotfix), an outer tag would incorrectly skip the whole group after the first successful run.
+        BootstrapCompanyInformationFields();
+        BootstrapBankAccountCustomerVendorFields();
+        BootstrapGLUserSetupJournalFields();
     end;
 
     // ===== seq9: Bootstrap: CompanyInformation fields =====
@@ -79,9 +90,18 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // MigrateFields_CompanyInformation_SpecialConversions() (~line 1636).
 
     local procedure BootstrapCompanyInformationFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        MigrateCompanyInformationBulk();
-        MigrateCompanyInformationSpecialConversions();
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522') then begin
+            MigrateCompanyInformationBulk();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522') then begin
+            MigrateCompanyInformationSpecialConversions();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522');
+        end;
     end;
 
     // "Company Information" is a single-record table (no key) - Get() with no arguments, exactly
@@ -124,11 +144,32 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // of the RunMigrateFields_Vendor() wrapper at ~line 927).
 
     local procedure BootstrapBankAccountCustomerVendorFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        MigrateBankAccountFields();
-        MigrateCustomerFields();
-        MigrateCustomerTemplFields();
-        MigrateVendorFields();
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-BANKACCOUNT-20260522') then begin
+            MigrateBankAccountFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-BANKACCOUNT-20260522');
+        end;
+
+        // "-V2" tag - DR-Localization's own real tag, already bumped by DRLOC's team when they added
+        // "Apply Cust Withhold_DXR" to this procedure's dirty-check condition (see codeunit-level
+        // comment). Reusing it here (not the superseded V1 tag) is required for tenants who ran the
+        // migration under DRLOC's real dispatcher after that bump to be correctly recognized as done.
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTOMER-20260522-V2') then begin
+            MigrateCustomerFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTOMER-20260522-V2');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTOMERTEMPL-20260522') then begin
+            MigrateCustomerTemplFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-CUSTOMERTEMPL-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDOR-20260522') then begin
+            MigrateVendorFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VENDOR-20260522');
+        end;
     end;
 
     local procedure MigrateBankAccountFields()
@@ -287,14 +328,45 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // (~line 2495), MigrateFields_VATProductPostingGroup() (~line 3984).
 
     local procedure BootstrapGLUserSetupJournalFields()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        MigrateGLAccountFields();
-        MigrateUserSetupFields();
-        MigrateNoSeriesLineFields();
-        MigrateGenJournalTemplateFields();
-        MigrateGenJournalBatchFields();
-        MigrateWorkflowStepArgumentFields();
-        MigrateVATProductPostingGroupFields();
+        // GLAccount is a no-op (see codeunit-level comment) but is still gated by its own real tag
+        // for consistency with the other 12 procedures and with DR-Localization's own dispatcher.
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLACCOUNT-20260522') then begin
+            MigrateGLAccountFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GLACCOUNT-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-USERSETUP-20260522') then begin
+            MigrateUserSetupFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-USERSETUP-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-NOSERIESLINE-20260522') then begin
+            MigrateNoSeriesLineFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-NOSERIESLINE-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALTEMPLATE-20260522') then begin
+            MigrateGenJournalTemplateFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALTEMPLATE-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALBATCH-20260522') then begin
+            MigrateGenJournalBatchFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-GENJOURNALBATCH-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-WORKFLOWSTEPARGUMENT-20260522') then begin
+            MigrateWorkflowStepArgumentFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-WORKFLOWSTEPARGUMENT-20260522');
+        end;
+
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VATPRODUCTPOSTINGGROUP-20260522') then begin
+            MigrateVATProductPostingGroupFields();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-VATPRODUCTPOSTINGGROUP-20260522');
+        end;
     end;
 
     // Deliberate no-op - see codeunit-level comment. Both "DXNCF" and "NCF_DXR" on G/L Account are
