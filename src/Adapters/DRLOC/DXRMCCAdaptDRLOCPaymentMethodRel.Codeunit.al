@@ -10,6 +10,10 @@ codeunit 60164 "DXR MCC Adapt DRLOC PmtMethod"
     // (both tables share the same 3-field shape: Code, Description, Payment Method Code).
     // DRLOC's own RunBootstrap_PaymentMethodRelation() procedure is left in place, unmodified,
     // now orphaned/unused (harmless - established safe default this session).
+    Permissions =
+        tabledata "DXPayment Method Relation" = R,
+        tabledata "DXR_Payment Method Relation" = RI;
+
     trigger OnRun()
     begin
         Execute();

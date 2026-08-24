@@ -7,18 +7,22 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     // after PCM's "Renumerar objetos y campos DXR_ a rango global 51801-54999" commit. Unlike
     // Phase2-4, the real source has no retry-on-transient-lock logic here - preserved as-is.
     // Tables 54605 "DXR_Prices Ctrl Setup" and 54609 "DXR_Approval History" are Access = Internal
-    // on PCM's side (restored 570xx predecessors, pending removal), so neither is named in this
-    // Permissions block. 54609/MigrateApprovalHistory below still crosses via RecordRef by numeric
-    // table ID (Task A.4 scope was 54605/Setup only). 54605/MigratePricesCtrlSetup below instead
-    // uses the typed thin-wrapper pattern: it calls a public procedure PCM's own codeunit 54620
-    // exposes, rather than declaring Record/RecordRef on the Internal table here.
+    // on PCM's side (restored 570xx predecessors, pending removal). 54609/MigrateApprovalHistory
+    // below still crosses via RecordRef by numeric table ID (Task A.4 scope was 54605/Setup only).
+    // 54605/MigratePricesCtrlSetup below instead uses the native Direct pattern (see
+    // MigratePricesCtrlSetupDirect()): PCM now grants MCC internalsVisibleTo, so MCC declares
+    // Record "DXR_Prices Ctrl Setup_Old" and Record "DXR_Prices Ctrl Setup" directly and does the
+    // field-by-field copy inline, instead of calling PCM's own codeunit 54620's typed thin-wrapper
+    // procedure.
     Permissions =
         tabledata "Approval Entry" = RM,
         tabledata Customer = RM,
         tabledata "LSC Store Price Group" = RM,
         tabledata Workflow = RM,
         tabledata "Sales Header" = RM,
-        tabledata "Sales Line" = RM;
+        tabledata "Sales Line" = RM,
+        tabledata "DXR_Prices Ctrl Setup_Old" = R,
+        tabledata "DXR_Prices Ctrl Setup" = RI;
 
 #pragma warning disable AL0432
     trigger OnRun()
