@@ -511,8 +511,9 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // DR-Localization's full source tree for both names: zero matches in either
     // Tables.old/DXNCFSetup.Table.al or Base/Tables/DXR_NCFSetup.Table.al). They are purely
     // BELLON-added tableextension fields layered on top of DR-Localization's "DXNCF Setup"/
-    // "DXR_NCF Setup". MigrateNCFSetupTable() below instead ports DR-Localization's OWN ~73
-    // base-table fields (the real schema DR-Localization itself declares on both tables) - a
+    // "DXR_NCF Setup". MigrateNCFSetupTable() below instead ports DR-Localization's OWN 92
+    // base-table fields (94 total minus the 2 Removed fields below; the real schema DR-Localization
+    // itself declares on both tables) - a
     // completely disjoint field set from all three existing mechanisms; it never reads or writes
     // "Grupo Contable BS_DXR"/"Legal Tip %_DXR"/either "_Old" or legacy-tableextension counterpart.
     // This confirms MigrateNCFSetupTable() is a genuine 4th, independent/complementary mechanism
@@ -592,7 +593,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
             until NCFCategoriesOld.Next() = 0;
     end;
 
-    // ~73-field whole-table clone (see codeunit-level "NCF Setup investigation" comment above for
+    // 92-field whole-table clone (see codeunit-level "NCF Setup investigation" comment above for
     // the field-count/Removed-field rationale). Field order below matches the real table
     // declaration order in Base/Tables/DXR_NCFSetup.Table.al / Tables.old/DXNCFSetup.Table.al.
     local procedure MigrateNCFSetupTable()
@@ -768,11 +769,24 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // (DXR_Migr_Phase_2_Fiscal.Codeunit.al, ~line 289 / ~line 403). The real source runs inside a
     // checkpoint/batch-commit loop (StatusMgt.GetCheckpoint/SaveCheckpoint/ClearCheckpoint,
     // Commit() every ProductBatchSize() rows) purely for TaskScheduler-background resilience on
-    // very large Item tables; that checkpoint/commit infrastructure is DR-Localization-internal
-    // plumbing, not migrated business logic, so it is intentionally not ported here - a single
-    // unbroken FindSet loop is used instead, matching this file's established simpler convention
-    // (same simplification already implicit in every other procedure in this codeunit, none of
-    // which replicate DR-Localization's own TaskScheduler/checkpoint machinery either).
+    // very large Item tables; the full checkpoint/resume infrastructure (StatusMgt checkpoint
+    // key/resume-from-last-item) is DR-Localization-internal plumbing, not migrated business
+    // logic, so it is NOT ported here - that would be a bigger architectural change than this
+    // task warrants. However, DR-Localization's own periodic Commit() (every ProductBatchSize(),
+    // 100 rows) IS ported below (same 100-row batch size), because the entry points that reach
+    // this procedure ("Run Concept" on this registry row, "Run Extension" on DRLOC - both via
+    // DXRMCCExecutor.Codeunit.al ScheduleConcept/ScheduleExtension) run synchronously in the
+    // caller's own web-client session, not through MCC's background TaskScheduler path (see
+    // DXRMCCExecutor.Codeunit.al's own documented real-world failure of exactly this per-row-loop-
+    // over-a-large-table shape, ~line 476-486/546-556). Without periodic commits, (a) a tenant
+    // with a large Item table risks reproducing that same session-timeout failure, and (b) a
+    // mid-run failure would lose 100% of progress (the UpgradeTag is only set once the whole loop
+    // completes), forcing every retry to restart from the first Item - strictly worse resilience
+    // than DR-Localization's own original design for this one table. Periodic Commit() alone (no
+    // resume-from-checkpoint) fixes both: each transaction stays bounded in size, and a retry
+    // after a mid-run failure re-scans from the first Item but is cheap and safe to repeat because
+    // this procedure's own dirty-check ("NCF Category_DXR" <> NCFCategory) already skips any Item
+    // whose value is already correct from a prior partial run.
     // TryGetItemNcfCategory() (DXR_LocalizationFiscalMgt.Codeunit.al, ~line 1559) is inlined below
     // as TryGetItemNcfCategoryLocal() rather than calling into DR-Localization's own codeunit, for
     // the same "typed, self-contained" reason as every other procedure in this file. The real
@@ -793,12 +807,22 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         Item: Record Item;
         NCFCategory: Code[20];
+        BatchCount: Integer;
     begin
+        // Periodic Commit() every 100 rows (matching DR-Localization's own ProductBatchSize()) -
+        // see the codeunit-level comment above BootstrapItemNCFCategoryBackfill() for why this is
+        // required here even without the full checkpoint/resume machinery.
         if Item.FindSet(true) then
             repeat
                 if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then begin
                     Item."NCF Category_DXR" := NCFCategory;
                     Item.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
                 end;
             until Item.Next() = 0;
     end;
