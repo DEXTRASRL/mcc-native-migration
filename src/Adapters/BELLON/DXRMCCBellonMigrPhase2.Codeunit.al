@@ -47,6 +47,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // "Assembly Setup" (already typed/Direct from an earlier, out-of-band commit within this same
     // seq136 concept, bc6cae7, which never added its own Permissions entry - closing that gap here
     // rather than leaving a third undocumented instance of the same recurring mistake).
+    //
+    // Extended 2026-08-24 (Task B.1, BELLON-P2 MA-category tableextension field-group batch B2,
+    // seq142/143/144/147/148): same RM rationale as batch B1 above. Covers every table with a typed
+    // Record declared by this batch's 11 non-no-op procedures (6 of the batch's 17 procedures are
+    // pure no-ops - FlowField-only pairs with no stored value to migrate - and declare no Record, so
+    // need no grant).
     Permissions =
         tabledata "DXR_NCF Setup" = RM,
         tabledata "Bancos - Extracto Bancario" = R,
@@ -136,7 +142,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata "Customer Price Group" = RM,
         tabledata "Issued Reminder Header" = RM,
         tabledata Item = RM,
-        tabledata "Item Category" = RM;
+        tabledata "Item Category" = RM,
+        tabledata "Item Charge Assignment (Purch)" = RM,
+        tabledata "Item Journal Line" = RM,
+        tabledata "LSC Item Special Groups" = RM,
+        tabledata "DXR_Cash Journal Receipt List" = RM,
+        tabledata Location = RM,
+        tabledata "LSC Member Contact" = RM,
+        tabledata "LSC Member Point Offer" = RM,
+        tabledata "LSC Periodic Discount" = RM,
+        tabledata "LSC Posted Statement" = RM,
+        tabledata "LSC Retail Product Group" = RM,
+        tabledata "Purch. Comment Line" = RM,
+        tabledata "Purch. Comment Line Archive" = RM,
+        tabledata "Purch. Inv. Line" = RM;
 
     trigger OnRun()
     var
@@ -3142,151 +3161,203 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_ItemChargeAssignmentPurchFields()
     var
-        RecRef: RecordRef;
+        ItemChargeAssignmentPurch: Record "Item Charge Assignment (Purch)";
     begin
-        RecRef.Open(Database::"Item Charge Assignment (Purch)");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: ItemChargeAssignmentPurch.TableExt.al's real active target, confirmed
+        // via ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Monto Cargo
+        // Liq._DXR" (52787) - not the dead "Monto Cargo Liq._Old" shadow field (50001) the old
+        // RecordRef code wrote into.
+        if ItemChargeAssignmentPurch.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" <> ItemChargeAssignmentPurch."Monto Cargo Liq." then begin
+                    ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" := ItemChargeAssignmentPurch."Monto Cargo Liq.";
+                    ItemChargeAssignmentPurch.Modify(false);
+                end;
+            until ItemChargeAssignmentPurch.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): ItemJournalBatch.TableExt.al defines exactly one Bellon field
+    // pair here - source field 50000 "Exclude Rec" and its replacement 52787 "Exclude Rec_DXR" -
+    // and BOTH are FlowFields (identical CalcFormula); there is no stored value to migrate for a
+    // FlowField, matching the fact that the old code's RecordRef destination (50001) never existed
+    // in the schema either (CopyFieldIfExists was already a guaranteed no-op on every row). Nothing
+    // to open, nothing to copy.
     local procedure MigrateTableExt_ItemJournalBatchFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Item Journal Batch");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     local procedure MigrateTableExt_ItemJournalLineFields()
     var
-        RecRef: RecordRef;
+        ItemJournalLine: Record "Item Journal Line";
     begin
-        RecRef.Open(Database::"Item Journal Line");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: ItemJournalLine.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50003 (52787 is not itself obsolete), is "No. Discrepancia_DXR"
+        // (52787) - the old RecordRef code's destination (50004) never existed in the schema at
+        // all (CopyFieldIfExists was already a guaranteed no-op on every row).
+        if ItemJournalLine.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 50004);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if ItemJournalLine."No. Discrepancia_DXR" <> ItemJournalLine."No. Discrepancia" then begin
+                    ItemJournalLine."No. Discrepancia_DXR" := ItemJournalLine."No. Discrepancia";
+                    ItemJournalLine.Modify(false);
+                end;
+            until ItemJournalLine.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): ItemLedgerEntry.TableExt.al defines two Bellon field pairs
+    // here - source fields 50003 "Existencia Ventas"/50004 "Transito Internacional" and their
+    // replacements 52787/52788 - and every field in both pairs is a FlowField (CalcFormula lookups
+    // onto Location); there is no stored value to migrate for a FlowField, matching the fact that
+    // the old code's RecordRef destinations (50005/50006) never existed in the schema either.
+    // Nothing to open, nothing to copy.
     local procedure MigrateTableExt_ItemLedgerEntryFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Item Ledger Entry");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50003, 50005);
-                CopyFieldIfExists(RecRef, 50004, 50006);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     local procedure MigrateTableExt_LSCItemSpecialGroupsFields()
     var
-        RecRef: RecordRef;
+        LSCItemSpecialGroups: Record "LSC Item Special Groups";
     begin
-        RecRef.Open(Database::"LSC Item Special Groups");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: ItemSpecialGroups.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "% Comision_DXR"
+        // (52787) - not the dead "% Comision_Old" shadow field (50001) the old RecordRef code
+        // wrote into.
+        if LSCItemSpecialGroups.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if LSCItemSpecialGroups."% Comision_DXR" <> LSCItemSpecialGroups."% Comision" then begin
+                    LSCItemSpecialGroups."% Comision_DXR" := LSCItemSpecialGroups."% Comision";
+                    LSCItemSpecialGroups.Modify(false);
+                end;
+            until LSCItemSpecialGroups.Next() = 0;
     end;
 
     local procedure MigrateTableExt_DXCashJournalReceiptListFields()
     var
-        RecRef: RecordRef;
+        CashJournalReceiptList: Record "DXR_Cash Journal Receipt List";
     begin
-        RecRef.Open(52132); // DXR_Cash Journal Receipt List (Access = Internal in DR-Localization)
-        if RecRef.FindSet(true) then
+        // Retrofitted 2026-08-24 (bridge retirement): "DXR_Cash Journal Receipt List" (table
+        // 52132, DR-Localization) is declared Access = Internal there, but DR-Localization now
+        // grants MCC's own app ID internalsVisibleTo directly (confirmed via DR-Localization\
+        // Localization\app.json), so a typed Record can be declared directly in MCC - no bridge
+        // codeunit needed. Zero RecordRef/FieldRef/TransferFields.
+        //
+        // Field mapping: ListadoRecibodeIngreso.TableExt.al's real active targets, confirmed via
+        // ObsoleteReason on the source fields (none of the _DXR replacements are themselves
+        // obsolete):
+        //   50000 "Documento Registrado" -> 52787 "Documento Registrado_DXR" (old code wrote into
+        //     the dead "..._Old" shadow field 50006 instead).
+        //   50005 "Fecha Vencimiento" -> 52789 "Fecha Vencimiento_DXR" (old code wrote into dead
+        //     shadow 50008).
+        //   50003 IsRecaudo -> 52791 "IsRecaudo_DXR" (old code wrote into dead shadow 50010).
+        //   50004 "No. Authorizacion" -> 52792 "No. Authorizacion_DXR" (old code wrote into dead
+        //     shadow 50011).
+        //   50001 Cobrador / 50002 Gestor and their _DXR replacements (52788/52790) are all
+        //     FlowFields (CalcFormula lookups onto Customer) - no stored value to migrate, so those
+        //     two field pairs are dropped entirely (the old code's destinations 50007/50009 never
+        //     existed in the schema either, so they were already guaranteed no-ops).
+        if CashJournalReceiptList.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50006);
-                CopyFieldIfExists(RecRef, 50001, 50007);
-                CopyFieldIfExists(RecRef, 50005, 50008);
-                CopyFieldIfExists(RecRef, 50002, 50009);
-                CopyFieldIfExists(RecRef, 50003, 50010);
-                CopyFieldIfExists(RecRef, 50004, 50011);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (CashJournalReceiptList."Documento Registrado_DXR" <> CashJournalReceiptList."Documento Registrado") or
+                   (CashJournalReceiptList."Fecha Vencimiento_DXR" <> CashJournalReceiptList."Fecha Vencimiento") or
+                   (CashJournalReceiptList."IsRecaudo_DXR" <> CashJournalReceiptList.IsRecaudo) or
+                   (CashJournalReceiptList."No. Authorizacion_DXR" <> CashJournalReceiptList."No. Authorizacion")
+                then begin
+                    CashJournalReceiptList."Documento Registrado_DXR" := CashJournalReceiptList."Documento Registrado";
+                    CashJournalReceiptList."Fecha Vencimiento_DXR" := CashJournalReceiptList."Fecha Vencimiento";
+                    CashJournalReceiptList."IsRecaudo_DXR" := CashJournalReceiptList.IsRecaudo;
+                    CashJournalReceiptList."No. Authorizacion_DXR" := CashJournalReceiptList."No. Authorizacion";
+                    CashJournalReceiptList.Modify(false);
+                end;
+            until CashJournalReceiptList.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LocationFields()
     var
-        RecRef: RecordRef;
+        Location: Record Location;
     begin
-        RecRef.Open(Database::"Location");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: Location.TableExt.al's real active targets, confirmed via
+        // ObsoleteReason on each source field (none of the _DXR replacements are themselves
+        // obsolete), are the 52787-52792 fields - not the dead "..._Old" shadow fields
+        // (50006-50011) the old RecordRef code wrote into.
+        if Location.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50006);
-                CopyFieldIfExists(RecRef, 50001, 50007);
-                CopyFieldIfExists(RecRef, 50002, 50008);
-                CopyFieldIfExists(RecRef, 50003, 50009);
-                CopyFieldIfExists(RecRef, 50004, 50010);
-                CopyFieldIfExists(RecRef, 50005, 50011);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (Location."Req._Transport_DXR" <> Location."Req. Transport") or
+                   (Location."Existencia Ventas_DXR" <> Location."Existencia Ventas") or
+                   (Location."Transito Internacional_DXR" <> Location."Transito Internacional") or
+                   (Location."Req. Cod. Audit Transf_DXR" <> Location."Req. Cod. Auditoria Transf.") or
+                   (Location."Visible in Trafico_DXR" <> Location."Visible in Trafico") or
+                   (Location."Req. Cod. Pos. & Neg._DXR" <> Location."Req. Cod. Pos. & Neg.")
+                then begin
+                    Location."Req._Transport_DXR" := Location."Req. Transport";
+                    Location."Existencia Ventas_DXR" := Location."Existencia Ventas";
+                    Location."Transito Internacional_DXR" := Location."Transito Internacional";
+                    Location."Req. Cod. Audit Transf_DXR" := Location."Req. Cod. Auditoria Transf.";
+                    Location."Visible in Trafico_DXR" := Location."Visible in Trafico";
+                    Location."Req. Cod. Pos. & Neg._DXR" := Location."Req. Cod. Pos. & Neg.";
+                    Location.Modify(false);
+                end;
+            until Location.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCMemberContactFields()
     var
-        RecRef: RecordRef;
+        LSCMemberContact: Record "LSC Member Contact";
     begin
-        RecRef.Open(Database::"LSC Member Contact");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: MemberContact.TableExt.al's real active targets, confirmed via
+        // ObsoleteReason on each source field (none of the _DXR replacements are themselves
+        // obsolete), are the 52787-52792 fields - not the dead "..._Old" shadow fields
+        // (50006-50011) the old RecordRef code wrote into.
+        if LSCMemberContact.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50006);
-                CopyFieldIfExists(RecRef, 50001, 50007);
-                CopyFieldIfExists(RecRef, 50002, 50008);
-                CopyFieldIfExists(RecRef, 50003, 50009);
-                CopyFieldIfExists(RecRef, 50004, 50010);
-                CopyFieldIfExists(RecRef, 50005, 50011);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (LSCMemberContact."Cedula_DXR" <> LSCMemberContact.Cedula) or
+                   (LSCMemberContact."Newsletter_DXR" <> LSCMemberContact.Newsletter) or
+                   (LSCMemberContact."Profesion_DXR" <> LSCMemberContact.Profesion) or
+                   (LSCMemberContact."Area de Trabajo_DXR" <> LSCMemberContact."Area de Trabajo") or
+                   (LSCMemberContact."Cantidad De Hijos_DXR" <> LSCMemberContact."Cantidad De Hijos") or
+                   (LSCMemberContact."Sucursal Preferida_DXR" <> LSCMemberContact."Sucursal Preferida")
+                then begin
+                    LSCMemberContact."Cedula_DXR" := LSCMemberContact.Cedula;
+                    LSCMemberContact."Newsletter_DXR" := LSCMemberContact.Newsletter;
+                    LSCMemberContact."Profesion_DXR" := LSCMemberContact.Profesion;
+                    LSCMemberContact."Area de Trabajo_DXR" := LSCMemberContact."Area de Trabajo";
+                    LSCMemberContact."Cantidad De Hijos_DXR" := LSCMemberContact."Cantidad De Hijos";
+                    LSCMemberContact."Sucursal Preferida_DXR" := LSCMemberContact."Sucursal Preferida";
+                    LSCMemberContact.Modify(false);
+                end;
+            until LSCMemberContact.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCMemberPointOfferFields()
     var
-        RecRef: RecordRef;
+        LSCMemberPointOffer: Record "LSC Member Point Offer";
     begin
-        RecRef.Open(Database::"LSC Member Point Offer");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: MemberPointOffer.TableExt.al's real active targets, confirmed via
+        // ObsoleteReason on each source field (none of the _DXR replacements are themselves
+        // obsolete), are the 52787-52790 fields - not the dead "..._Old" shadow fields
+        // (50004-50007) the old RecordRef code wrote into.
+        if LSCMemberPointOffer.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50004);
-                CopyFieldIfExists(RecRef, 50001, 50005);
-                CopyFieldIfExists(RecRef, 50002, 50006);
-                CopyFieldIfExists(RecRef, 50003, 50007);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (LSCMemberPointOffer."isTickets_DXR" <> LSCMemberPointOffer.isTickets) or
+                   (LSCMemberPointOffer."Promotion Status_DXR" <> LSCMemberPointOffer."Promotion Status") or
+                   (LSCMemberPointOffer."Multiplier for members_DXR" <> LSCMemberPointOffer."Multiplier for members") or
+                   (LSCMemberPointOffer."Calc. Type_DXR" <> LSCMemberPointOffer."Calc. Type")
+                then begin
+                    LSCMemberPointOffer."isTickets_DXR" := LSCMemberPointOffer.isTickets;
+                    LSCMemberPointOffer."Promotion Status_DXR" := LSCMemberPointOffer."Promotion Status";
+                    LSCMemberPointOffer."Multiplier for members_DXR" := LSCMemberPointOffer."Multiplier for members";
+                    LSCMemberPointOffer."Calc. Type_DXR" := LSCMemberPointOffer."Calc. Type";
+                    LSCMemberPointOffer.Modify(false);
+                end;
+            until LSCMemberPointOffer.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): MemberPointOfferLine.TableExt.al defines exactly one Bellon
+    // field pair here - source field 50001 Status and its replacement 52787 "Status_DXR" - and
+    // BOTH are FlowFields (identical CalcFormula = Lookup("LSC Member Point Offer".Status ...));
+    // there is no stored value to migrate for a FlowField, matching the fact that the old code's
+    // RecordRef destination (50002) never existed in the schema either. Nothing to open, nothing to
+    // copy.
     local procedure MigrateTableExt_LSCMemberPointOfferLineFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"LSC Member Point Offer Line");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50001, 50002);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     // No-op by design (2026-08-24): MovsRetencionProveedor.TableExt.al (extends DR-Localization's
@@ -3376,101 +3447,123 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_LSCPeriodicDiscountFields()
     var
-        RecRef: RecordRef;
+        LSCPeriodicDiscount: Record "LSC Periodic Discount";
     begin
-        RecRef.Open(Database::"LSC Periodic Discount");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: PeriodicDiscount.TableExt.al defines 8 Bellon field pairs; 7 of them
+        // (source fields 50000-50006, "Item Offers"/"BackOffice ..." metrics) are FlowField pairs
+        // with their _DXR replacements (52787-52793) - no stored value to migrate, and the old
+        // RecordRef code's destinations (50011-50017) never existed in the schema either, so those
+        // 7 were already guaranteed no-ops - dropped entirely here. The 8th pair, source field
+        // 50010 Global (a real stored Boolean, not a FlowField), IS a genuine bug: its real active
+        // target, confirmed via ObsoleteReason on field 50010 (52794 is not itself obsolete), is
+        // "Global_DXR" (52794) - the old code instead wrote into the dead-but-real "Global_Old"
+        // field (50018), which DOES exist in the schema (unlike the other 7 dead destinations), so
+        // that copy was silently succeeding into the wrong field on every run.
+        if LSCPeriodicDiscount.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50011);
-                CopyFieldIfExists(RecRef, 50001, 50012);
-                CopyFieldIfExists(RecRef, 50002, 50013);
-                CopyFieldIfExists(RecRef, 50003, 50014);
-                CopyFieldIfExists(RecRef, 50004, 50015);
-                CopyFieldIfExists(RecRef, 50005, 50016);
-                CopyFieldIfExists(RecRef, 50006, 50017);
-                CopyFieldIfExists(RecRef, 50010, 50018);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if LSCPeriodicDiscount."Global_DXR" <> LSCPeriodicDiscount.Global then begin
+                    LSCPeriodicDiscount."Global_DXR" := LSCPeriodicDiscount.Global;
+                    LSCPeriodicDiscount.Modify(false);
+                end;
+            until LSCPeriodicDiscount.Next() = 0;
     end;
 
+    // No-op by design (2026-08-24): PostedAssemblyHeader.TableExt.al defines exactly one Bellon
+    // field pair here - source field 50000 "Importe Total Costo" and its replacement 52787 "Importe
+    // Total Costo_DXR" - and BOTH are FlowFields (identical CalcFormula); there is no stored value
+    // to migrate for a FlowField, matching the fact that the old code's RecordRef destination
+    // (50001) never existed in the schema either. Nothing to open, nothing to copy.
     local procedure MigrateTableExt_PostedAssemblyHeaderFields()
-    var
-        RecRef: RecordRef;
     begin
-        RecRef.Open(Database::"Posted Assembly Header");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
     end;
 
     local procedure MigrateTableExt_LSCPostedStatementFields()
     var
-        RecRef: RecordRef;
+        LSCPostedStatement: Record "LSC Posted Statement";
     begin
-        RecRef.Open(Database::"LSC Posted Statement");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: PostedStatement.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Listo para
+        // Registrar_DXR" (52787) - not the dead "Listo para Registrar_Old" shadow field (50001) the
+        // old RecordRef code wrote into.
+        if LSCPostedStatement.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if LSCPostedStatement."Listo para Registrar_DXR" <> LSCPostedStatement."Listo para Registrar" then begin
+                    LSCPostedStatement."Listo para Registrar_DXR" := LSCPostedStatement."Listo para Registrar";
+                    LSCPostedStatement.Modify(false);
+                end;
+            until LSCPostedStatement.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCRetailProductGroupFields()
     var
-        RecRef: RecordRef;
+        LSCRetailProductGroup: Record "LSC Retail Product Group";
     begin
-        RecRef.Open(Database::"LSC Retail Product Group");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: ProductGroup.TableExt.al's real active targets, confirmed via
+        // ObsoleteReason on each source field (neither _DXR replacement is itself obsolete), are
+        // "Block, Sand And Cement_DXR" (52787) and "Comision_Cobro_DXR." (52788, field name
+        // includes a trailing period as declared in source) - not the dead "..._Old" shadow fields
+        // (50002/50003) the old RecordRef code wrote into.
+        if LSCRetailProductGroup.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50002);
-                CopyFieldIfExists(RecRef, 50001, 50003);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (LSCRetailProductGroup."Block, Sand And Cement_DXR" <> LSCRetailProductGroup."Block, Sand And Cement") or
+                   (LSCRetailProductGroup."Comision_Cobro_DXR." <> LSCRetailProductGroup."Comision_Cobro")
+                then begin
+                    LSCRetailProductGroup."Block, Sand And Cement_DXR" := LSCRetailProductGroup."Block, Sand And Cement";
+                    LSCRetailProductGroup."Comision_Cobro_DXR." := LSCRetailProductGroup."Comision_Cobro";
+                    LSCRetailProductGroup.Modify(false);
+                end;
+            until LSCRetailProductGroup.Next() = 0;
     end;
 
     local procedure MigrateTableExt_PurchCommentLineFields()
     var
-        RecRef: RecordRef;
+        PurchCommentLine: Record "Purch. Comment Line";
     begin
-        RecRef.Open(Database::"Purch. Comment Line");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: PurchCommentLine.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Comentario
+        // Extendido_DXR" (52787) - not the dead "Comentario Extendido_Old" shadow field (50001) the
+        // old RecordRef code wrote into.
+        if PurchCommentLine.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if PurchCommentLine."Comentario Extendido_DXR" <> PurchCommentLine."Comentario Extendido" then begin
+                    PurchCommentLine."Comentario Extendido_DXR" := PurchCommentLine."Comentario Extendido";
+                    PurchCommentLine.Modify(false);
+                end;
+            until PurchCommentLine.Next() = 0;
     end;
 
     local procedure MigrateTableExt_PurchCommentLineArchiveFields()
     var
-        RecRef: RecordRef;
+        PurchCommentLineArchive: Record "Purch. Comment Line Archive";
     begin
-        RecRef.Open(Database::"Purch. Comment Line Archive");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: PurchCommentLineArchive.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Comentario
+        // Extendido_DXR" (52787) - not the dead "Comentario Extendido_Old" shadow field (50001) the
+        // old RecordRef code wrote into.
+        if PurchCommentLineArchive.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50001);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if PurchCommentLineArchive."Comentario Extendido_DXR" <> PurchCommentLineArchive."Comentario Extendido" then begin
+                    PurchCommentLineArchive."Comentario Extendido_DXR" := PurchCommentLineArchive."Comentario Extendido";
+                    PurchCommentLineArchive.Modify(false);
+                end;
+            until PurchCommentLineArchive.Next() = 0;
     end;
 
     local procedure MigrateTableExt_PurchInvLineFields()
     var
-        RecRef: RecordRef;
+        PurchInvLine: Record "Purch. Inv. Line";
     begin
-        RecRef.Open(Database::"Purch. Inv. Line");
-        if RecRef.FindSet(true) then
+        // Fixed 2026-08-24: PurchInvLine.TableExt.al's real active target, confirmed via
+        // ObsoleteReason on field 50017 (52787 is not itself obsolete), is "Liquidacion_DXR"
+        // (52787) - not the dead "Liquidacion_Old" shadow field (50018) the old RecordRef code
+        // wrote into.
+        if PurchInvLine.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50017, 50018);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if PurchInvLine."Liquidacion_DXR" <> PurchInvLine.Liquidacion then begin
+                    PurchInvLine."Liquidacion_DXR" := PurchInvLine.Liquidacion;
+                    PurchInvLine.Modify(false);
+                end;
+            until PurchInvLine.Next() = 0;
     end;
 
     local procedure MigrateTableExt_ReasonCodeFields()
