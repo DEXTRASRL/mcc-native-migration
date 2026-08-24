@@ -130,11 +130,11 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateEmailSourceTemplateRelationTable(); // Email Source Template Relation -> DXR_Email Source Tmpl Rel (native)
         MigrateLegacyTableData(50057, 53334); // Entrega Facturas CxC - Lines -> DXR_Entrega Fact CxC - Lines
         MigrateLegacyTableData(50058, 53335); // Envio Compras -> DXR_Envio Compras
-        MigrateLegacyTableData(50061, 53336); // EPagos Setup -> DXR_EPagos Setup
-        MigrateLegacyTableData(50063, 53337); // Exclude Filter Journal -> DXR_Exclude Filter Journal
-        MigrateLegacyTableData(50064, 53338); // Excluir Terminos  - ItemSearch -> DXR_Excluir Term - ItemSearch
-        MigrateLegacyTableData(50065, 53339); // File Structure -> DXR_File Structure
-        MigrateLegacyTableData(50068, 53340); // Forma de Pago -> DXR_Forma de Pago
+        MigrateEPagosSetupTable(); // EPagos Setup -> DXR_EPagos Setup (native)
+        MigrateExcludeFilterJournalTable(); // Exclude Filter Journal -> DXR_Exclude Filter Journal (native)
+        MigrateExcluirTerminosItemSearchTable(); // Excluir Terminos  - ItemSearch -> DXR_Excluir Term - ItemSearch (native)
+        MigrateFileStructureTable(); // File Structure -> DXR_File Structure (native)
+        MigrateFormaDePagoTable(); // Forma de Pago -> DXR_Forma de Pago (native)
         MigrateLegacyTableData(50071, 53341); // HisCargaMasivaBeneficiariosBPD -> DXR_HisCargaMasivaBenefBPD
         MigrateLegacyTableData(50072, 53342); // Grupo Venta -> DXR_Grupo Venta
         MigrateLegacyTableData(50073, 53343); // HisLineasCargaMasivaBenefBPD -> DXR_HisLinCargaMasivaBenefBPD
@@ -152,7 +152,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateLegacyTableData(50093, 53355); // Internal Consumption Header -> DXR_Int Consump Header
         MigrateLegacyTableData(50094, 53356); // Internal Consumption Line -> DXR_Internal Consumption Line
         MigrateLegacyTableData(50095, 53357); // Internal Consumption Log -> DXR_Internal Consumption Log
-        MigrateLegacyTableData(50096, 53358); // BE Inventory Masks -> DXR_Inventory Masks
+        MigrateBEInventoryMasksTable(); // BE Inventory Masks -> DXR_Inventory Masks (native)
         MigrateLegacyTableData(50098, 53359); // Item HTML -> DXR_Item HTML
         MigrateLegacyTableData(50099, 53360); // Item Image View -> DXR_Item Image View
         MigrateLegacyTableData(50100, 53361); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion
@@ -165,10 +165,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateLegacyTableData(50115, 53368); // Log Transaccion Azul -> DXR_Log Transaccion Azul
         MigrateLegacyTableData(50116, 53369); // Log Transaccion Medallia -> DXR_Log Transaccion Medallia
         MigrateLegacyTableData(50117, 53370); // Log Transfer error -> DXR_Log Transfer error
-        MigrateLegacyTableData(50118, 53371); // Marcas -> DXR_Marcas
-        MigrateLegacyTableData(50119, 53372); // Member Management Setup -> DXR_Member Management Setup
-        MigrateLegacyTableData(50121, 53373); // Motivo Cierre - Discrepancias -> DXR_Motivo Cierre - Discr
-        MigrateLegacyTableData(50122, 53374); // Motivo Discrepancia -> DXR_Motivo Discrepancia
+        MigrateMarcasTable(); // Marcas -> DXR_Marcas (native)
+        MigrateMemberManagementSetupTable(); // Member Management Setup -> DXR_Member Management Setup (native)
+        MigrateMotivoCierreDiscrepanciasTable(); // Motivo Cierre - Discrepancias -> DXR_Motivo Cierre - Discr (native)
+        MigrateMotivoDiscrepanciaTable(); // Motivo Discrepancia -> DXR_Motivo Discrepancia (native)
         MigrateLegacyTableData(50123, 53375); // Movimientos de Cilindro -> DXR_Movimientos de Cilindro
         MigrateLegacyTableData(50127, 53376); // Order Item Status -> DXR_Order Item Status
         MigrateLegacyTableData(50132, 53377); // Posted Jnl Promotion Tickets -> DXR_Posted Jnl Promo Tickets
@@ -179,20 +179,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateLegacyTableData(50139, 53382); // Pre-Requisicion Line No Stock -> DXR_Pre-Req Line No Stock
         MigrateLegacyTableData(50140, 53383); // Pre-Requisicion no Stock -> DXR_Pre-Requisicion no Stock
         MigrateLegacyTableData(50141, 53384); // Printing Invoice Log -> DXR_Printing Invoice Log
-        MigrateLegacyTableData(50142, 53385); // Profesion -> DXR_Profesion
-        MigrateLegacyTableData(50143, 53386); // Promotion Setup -> DXR_Promotion Setup
+        MigrateProfesionTable(); // Profesion -> DXR_Profesion (native)
+        MigratePromotionSetupTable(); // Promotion Setup -> DXR_Promotion Setup (native)
         MigrateLegacyTableData(50144, 53387); // Promotion Tickets Relation -> DXR_Promotion Tickets Relation
-        MigrateLegacyTableData(50145, 53388); // Provincia -> DXR_Provincia
+        MigrateProvinciaTable(); // Provincia -> DXR_Provincia (native)
         MigrateLegacyTableData(50151, 53389); // Requisicion -> DXR_Requisicion
         MigrateLegacyTableData(50152, 53390); // Requisicion Comment Line -> DXR_Requisicion Comment Line
         MigrateLegacyTableData(50153, 53391); // Requisicion Line -> DXR_Requisicion Line
-        MigrateLegacyTableData(50154, 53392); // Sales Dept -> DXR_Sales Dept
-        MigrateLegacyTableData(50155, 53393); // Sales Groups -> DXR_Sales Groups
-        MigrateLegacyTableData(50159, 53394); // Sales SubGroups -> DXR_Sales SubGroups
+        MigrateSalesDeptTable(); // Sales Dept -> DXR_Sales Dept (native)
+        MigrateSalesGroupsTable(); // Sales Groups -> DXR_Sales Groups (native)
+        MigrateSalesSubGroupsTable(); // Sales SubGroups -> DXR_Sales SubGroups (native)
         MigrateLegacyTableData(50160, 53395); // Send Email Log -> DXR_Send Email Log
-        MigrateLegacyTableData(50165, 53396); // Standard POS DASCOM Paymt Eqv -> DXR_Std POS DASCOM Paymt Eqv
-        MigrateLegacyTableData(50168, 53397); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments
-        MigrateLegacyTableData(50172, 53398); // Standard POS Users -> DXR_Standard POS Users
+        MigrateStandardPOSDASCOMPaymtEqvTable(); // Standard POS DASCOM Paymt Eqv -> DXR_Std POS DASCOM Paymt Eqv (native)
+        MigrateStandardPOSGenCommentsTable(); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments (native)
+        MigrateStandardPOSUsersTable(); // Standard POS Users -> DXR_Standard POS Users (native)
         MigrateLegacyTableData(50173, 53399); // Store Statement Posting -> DXR_Store Statement Posting
         MigrateLegacyTableData(50174, 53400); // Summary Reconciliation Setup -> DXR_Summary Recon Setup
         MigrateLegacyTableData(50176, 53401); // Tasas BC -> DXR_Tasas BC
@@ -659,6 +659,488 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Field Email No." := Legacy."Field Email No.";
                     New.CC := Legacy.CC;
                     New."Requerir Correo" := Legacy."Requerir Correo";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // ===== 1c) 19 more SETUP-category whole-table restores converted to native typed logic =====
+    // Task A.4 Batch 2: zero RecordRef/FieldRef, zero TransferFields - every field assigned
+    // explicitly. Replaces 19 more of the MigrateLegacyTableData(...) calls above (still used by
+    // ~99 other, out-of-scope tables in MigrateAllNormalizedTables()) and eliminates, for these 19
+    // tables specifically, the same real production bug in MigrateLegacyTableData documented above
+    // Batch 1 (NewRecRef.Open inside the repeat/until loop without closing between iterations).
+    // Field lists and primary keys verified against Bellon_Customization's real Tables.old\*.Table.al
+    // (legacy) and Tables\*.Table.al (DXR_) sources - field-for-field identical on both sides for
+    // all 19 tables in this batch, no renamed/shadow fields found.
+
+    // seq51: EPagos Setup (50061) -> DXR_EPagos Setup (53336). PK = "Primary Key".
+    local procedure MigrateEPagosSetupTable()
+    var
+        Legacy: Record "EPagos Setup";
+        New: Record "DXR_EPagos Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Primary Key") then begin
+                    New.Init();
+                    New."Primary Key" := Legacy."Primary Key";
+                    New."Journal Template Name" := Legacy."Journal Template Name";
+                    New."Journal Batch Name" := Legacy."Journal Batch Name";
+                    New."Epago WS url" := Legacy."Epago WS url";
+                    New.User := Legacy.User;
+                    New.Password := Legacy.Password;
+                    New."No Series" := Legacy."No Series";
+                    New."Use Upproval" := Legacy."Use Upproval";
+                    New.UserBPD := Legacy.UserBPD;
+                    New.PassBPD := Legacy.PassBPD;
+                    New.PathCert := Legacy.PathCert;
+                    New.passCert := Legacy.passCert;
+                    New.NoLote := Legacy.NoLote;
+                    New."Url Login" := Legacy."Url Login";
+                    New."Url Send Data" := Legacy."Url Send Data";
+                    New."Url Status Global" := Legacy."Url Status Global";
+                    New.Url := Legacy.Url;
+                    New."Payment Method Code" := Legacy."Payment Method Code";
+                    New."No Series Journal" := Legacy."No Series Journal";
+                    New."VendorPay No. Series" := Legacy."VendorPay No. Series";
+                    New."CreditTo No. Series" := Legacy."CreditTo No. Series";
+                    New.ShowJson := Legacy.ShowJson;
+                    New."Deny Multi Currency" := Legacy."Deny Multi Currency";
+                    New."Use StartSession" := Legacy."Use StartSession";
+                    New."Registrar Movs. Consolidados" := Legacy."Registrar Movs. Consolidados";
+                    New."Registro Automatico" := Legacy."Registro Automatico";
+                    New."Use Limit ACH" := Legacy."Use Limit ACH";
+                    New."Amount Limit ACH" := Legacy."Amount Limit ACH";
+                    New.DaysTo := Legacy.DaysTo;
+                    New.DaysFrom := Legacy.DaysFrom;
+                    New.NextDay := Legacy.NextDay;
+                    New."Use Status LOG" := Legacy."Use Status LOG";
+                    New."Max Days  Allow Payment" := Legacy."Max Days  Allow Payment";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq52: Exclude Filter Journal (50063) -> DXR_Exclude Filter Journal (53337).
+    // PK = ("Journal Template", "Journal Batch").
+    local procedure MigrateExcludeFilterJournalTable()
+    var
+        Legacy: Record "Exclude Filter Journal";
+        New: Record "DXR_Exclude Filter Journal";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Journal Template", Legacy."Journal Batch") then begin
+                    New.Init();
+                    New."Journal Template" := Legacy."Journal Template";
+                    New."Journal Batch" := Legacy."Journal Batch";
+                    New.Excluir := Legacy.Excluir;
+                    New.Type := Legacy.Type;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq53: Excluir Terminos  - ItemSearch (50064) -> DXR_Excluir Term - ItemSearch (53338).
+    // PK = Termino. (Legacy object name has two spaces between "Terminos" and the dash - confirmed
+    // via Tables.old\ExcluirTerminosItemSearch.Table.al line 1.)
+    local procedure MigrateExcluirTerminosItemSearchTable()
+    var
+        Legacy: Record "Excluir Terminos  - ItemSearch";
+        New: Record "DXR_Excluir Term - ItemSearch";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Termino) then begin
+                    New.Init();
+                    New.Termino := Legacy.Termino;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq54: File Structure (50065) -> DXR_File Structure (53339). PK = (Bank, "Field No").
+    local procedure MigrateFileStructureTable()
+    var
+        Legacy: Record "File Structure";
+        New: Record "DXR_File Structure";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Bank, Legacy."Field No") then begin
+                    New.Init();
+                    New."Field No" := Legacy."Field No";
+                    New."Field Name" := Legacy."Field Name";
+                    New."Length Field" := Legacy."Length Field";
+                    New."From Field" := Legacy."From Field";
+                    New.Bank := Legacy.Bank;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq55: Forma de Pago (50068) -> DXR_Forma de Pago (53340). PK = "Code".
+    local procedure MigrateFormaDePagoTable()
+    var
+        Legacy: Record "Forma de Pago";
+        New: Record "DXR_Forma de Pago";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq73: BE Inventory Masks (50096) -> DXR_Inventory Masks (53358). PK = "Seq. No.".
+    local procedure MigrateBEInventoryMasksTable()
+    var
+        Legacy: Record "BE Inventory Masks";
+        New: Record "DXR_Inventory Masks";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Seq. No.") then begin
+                    New.Init();
+                    New.Templates := Legacy.Templates;
+                    New."Handheld User" := Legacy."Handheld User";
+                    New."Store No." := Legacy."Store No.";
+                    New."Entry Type" := Legacy."Entry Type";
+                    New."Reason Code" := Legacy."Reason Code";
+                    New.Unit := Legacy.Unit;
+                    New."Vendor No." := Legacy."Vendor No.";
+                    New.Description := Legacy.Description;
+                    New."Journal Type" := Legacy."Journal Type";
+                    New.Printing := Legacy.Printing;
+                    New.Posting := Legacy.Posting;
+                    New."Type of Entering" := Legacy."Type of Entering";
+                    New."Shortcut Dimension 2 Code" := Legacy."Shortcut Dimension 2 Code";
+                    New."New Store Code" := Legacy."New Store Code";
+                    New."Source Code" := Legacy."Source Code";
+                    New."Seq. No." := Legacy."Seq. No.";
+                    New."Product Strict" := Legacy."Product Strict";
+                    New.Accepted := Legacy.Accepted;
+                    New.Location := Legacy.Location;
+                    New."New Location" := Legacy."New Location";
+                    New.Batch := Legacy.Batch;
+                    New."Use Variants" := Legacy."Use Variants";
+                    New."Shortcut Dimension 1 Code" := Legacy."Shortcut Dimension 1 Code";
+                    New."Pre-Process" := Legacy."Pre-Process";
+                    New."Pre-Process Object ID" := Legacy."Pre-Process Object ID";
+                    New."Close Process" := Legacy."Close Process";
+                    New."Close Process Object ID" := Legacy."Close Process Object ID";
+                    New."Confirm Codeunit" := Legacy."Confirm Codeunit";
+                    New."Report Object ID" := Legacy."Report Object ID";
+                    New."Product Group Filter" := Legacy."Product Group Filter";
+                    New."Inv. Posting Gr. Filter" := Legacy."Inv. Posting Gr. Filter";
+                    New."Use Area" := Legacy."Use Area";
+                    New."Handheld Type" := Legacy."Handheld Type";
+                    New."Blocked for RF" := Legacy."Blocked for RF";
+                    New."Leading Behavior" := Legacy."Leading Behavior";
+                    New."Needs to Be in Distribution" := Legacy."Needs to Be in Distribution";
+                    New."Needs to Be in Worksheet" := Legacy."Needs to Be in Worksheet";
+                    New."Needs to Be Ordered by Hand" := Legacy."Needs to Be Ordered by Hand";
+                    New."Needs to Be Ordered at Store" := Legacy."Needs to Be Ordered at Store";
+                    New."Search for Item by" := Legacy."Search for Item by";
+                    New."Quantity Method" := Legacy."Quantity Method";
+                    New."Order Date Type" := Legacy."Order Date Type";
+                    New."Order Date Calculation" := Legacy."Order Date Calculation";
+                    New."End Date Type" := Legacy."End Date Type";
+                    New."End Date Calculation" := Legacy."End Date Calculation";
+                    New."Change Vendor in Line" := Legacy."Change Vendor in Line";
+                    New."Change UOM in Line" := Legacy."Change UOM in Line";
+                    New."Item Check" := Legacy."Item Check";
+                    New."Quick-default Quantity" := Legacy."Quick-default Quantity";
+                    New."Inv. Adjust. Group" := Legacy."Inv. Adjust. Group";
+                    New."Vendor to Use in Returns" := Legacy."Vendor to Use in Returns";
+                    New."Return Reason Code" := Legacy."Return Reason Code";
+                    New."Item Journal Doc No." := Legacy."Item Journal Doc No.";
+                    New.Status := Legacy.Status;
+                    New."Use Batch Posting" := Legacy."Use Batch Posting";
+                    New."Order Status" := Legacy."Order Status";
+                    New."Standalone Store Action" := Legacy."Standalone Store Action";
+                    New."Document Group" := Legacy."Document Group";
+                    New.ID := Legacy.ID;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq86: Marcas (50118) -> DXR_Marcas (53371). PK = ID.
+    local procedure MigrateMarcasTable()
+    var
+        Legacy: Record Marcas;
+        New: Record "DXR_Marcas";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.ID) then begin
+                    New.Init();
+                    New.ID := Legacy.ID;
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Comision_Venta := Legacy.Comision_Venta;
+                    New.Comision_Cobro := Legacy.Comision_Cobro;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq87: Member Management Setup (50119) -> DXR_Member Management Setup (53372). PK = "Code".
+    local procedure MigrateMemberManagementSetupTable()
+    var
+        Legacy: Record "Member Management Setup";
+        New: Record "DXR_Member Management Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New."Campaign No. Series" := Legacy."Campaign No. Series";
+                    New."Discount Tracking No. Series" := Legacy."Discount Tracking No. Series";
+                    New."Member Point Offer No. Series" := Legacy."Member Point Offer No. Series";
+                    New."Missing  Attribute Handling" := Legacy."Missing  Attribute Handling";
+                    New."Reason Blocking By Attribute" := Legacy."Reason Blocking By Attribute";
+                    New."Reason Codes Devices" := Legacy."Reason Codes Devices";
+                    New."Amount Type for Point Calc." := Legacy."Amount Type for Point Calc.";
+                    New."Mobile Default Club Code" := Legacy."Mobile Default Club Code";
+                    New."Mobile Card No. Series" := Legacy."Mobile Card No. Series";
+                    New."Min. Point Balance" := Legacy."Min. Point Balance";
+                    New."Min. Point Qty. in Redemption" := Legacy."Min. Point Qty. in Redemption";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq88: Motivo Cierre - Discrepancias (50121) -> DXR_Motivo Cierre - Discr (53373). PK = "Code".
+    local procedure MigrateMotivoCierreDiscrepanciasTable()
+    var
+        Legacy: Record "Motivo Cierre - Discrepancias";
+        New: Record "DXR_Motivo Cierre - Discr";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Anular := Legacy.Anular;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq89: Motivo Discrepancia (50122) -> DXR_Motivo Discrepancia (53374). PK = "Code".
+    local procedure MigrateMotivoDiscrepanciaTable()
+    var
+        Legacy: Record "Motivo Discrepancia";
+        New: Record "DXR_Motivo Discrepancia";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New.Habilitado := Legacy.Habilitado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq100: Profesion (50142) -> DXR_Profesion (53385). PK = "Code".
+    local procedure MigrateProfesionTable()
+    var
+        Legacy: Record Profesion;
+        New: Record "DXR_Profesion";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq101: Promotion Setup (50143) -> DXR_Promotion Setup (53386). PK = "Key".
+    local procedure MigratePromotionSetupTable()
+    var
+        Legacy: Record "Promotion Setup";
+        New: Record "DXR_Promotion Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New."Key" := Legacy."Key";
+                    New."Promotion Active" := Legacy."Promotion Active";
+                    New."No Series Tickets" := Legacy."No Series Tickets";
+                    New."No Series Promotions" := Legacy."No Series Promotions";
+                    New."Journal Template Name" := Legacy."Journal Template Name";
+                    New."Journal Batch Name" := Legacy."Journal Batch Name";
+                    New."Registro Automatico" := Legacy."Registro Automatico";
+                    New.InfocedePOS := Legacy.InfocedePOS;
+                    New.InfocedePOSRnc := Legacy.InfocedePOSRnc;
+                    New.InfocedePOStlf := Legacy.InfocedePOStlf;
+                    New."Max Point Change" := Legacy."Max Point Change";
+                    New."Min Point Change" := Legacy."Min Point Change";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq103: Provincia (50145) -> DXR_Provincia (53388). PK = "Code".
+    local procedure MigrateProvinciaTable()
+    var
+        Legacy: Record Provincia;
+        New: Record "DXR_Provincia";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Name := Legacy.Name;
+                    New."Cod. BPD" := Legacy."Cod. BPD";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq107: Sales Dept (50154) -> DXR_Sales Dept (53392). PK = "Code".
+    local procedure MigrateSalesDeptTable()
+    var
+        Legacy: Record "Sales Dept";
+        New: Record "DXR_Sales Dept";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New."Visible in Webshop" := Legacy."Visible in Webshop";
+                    New."Sort No." := Legacy."Sort No.";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq108: Sales Groups (50155) -> DXR_Sales Groups (53393). PK = "Code".
+    local procedure MigrateSalesGroupsTable()
+    var
+        Legacy: Record "Sales Groups";
+        New: Record "DXR_Sales Groups";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New."Visible in Webshop" := Legacy."Visible in Webshop";
+                    New."Sales Dept Code" := Legacy."Sales Dept Code";
+                    New."Sort No." := Legacy."Sort No.";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq109: Sales SubGroups (50159) -> DXR_Sales SubGroups (53394). PK = "Code".
+    local procedure MigrateSalesSubGroupsTable()
+    var
+        Legacy: Record "Sales SubGroups";
+        New: Record "DXR_Sales SubGroups";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Description := Legacy.Description;
+                    New."Visible in Webshop" := Legacy."Visible in Webshop";
+                    New."Sort No." := Legacy."Sort No.";
+                    New."Sales Group" := Legacy."Sales Group";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq111: Standard POS DASCOM Paymt Eqv (50165) -> DXR_Std POS DASCOM Paymt Eqv (53396).
+    // PK = "Payment Code".
+    local procedure MigrateStandardPOSDASCOMPaymtEqvTable()
+    var
+        Legacy: Record "Standard POS DASCOM Paymt Eqv";
+        New: Record "DXR_Std POS DASCOM Paymt Eqv";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Payment Code") then begin
+                    New.Init();
+                    New."Payment Code" := Legacy."Payment Code";
+                    New.Description := Legacy.Description;
+                    New."DASCOM Eqv" := Legacy."DASCOM Eqv";
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq112: Standard POS Gen. Comments (50168) -> DXR_Standard POS Gen. Comments (53397).
+    // PK = ("Fiscal Doc. Type", "Line No.").
+    local procedure MigrateStandardPOSGenCommentsTable()
+    var
+        Legacy: Record "Standard POS Gen. Comments";
+        New: Record "DXR_Standard POS Gen. Comments";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Fiscal Doc. Type", Legacy."Line No.") then begin
+                    New.Init();
+                    New."Fiscal Doc. Type" := Legacy."Fiscal Doc. Type";
+                    New."Line No." := Legacy."Line No.";
+                    New."Text Message" := Legacy."Text Message";
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq113: Standard POS Users (50172) -> DXR_Standard POS Users (53398). PK = "User Code".
+    local procedure MigrateStandardPOSUsersTable()
+    var
+        Legacy: Record "Standard POS Users";
+        New: Record "DXR_Standard POS Users";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."User Code") then begin
+                    New.Init();
+                    New."User Code" := Legacy."User Code";
+                    New."Standard POS Store" := Legacy."Standard POS Store";
+                    New."Standard POS Terminal" := Legacy."Standard POS Terminal";
+                    New."User Name" := Legacy."User Name";
+                    New.Inactive := Legacy.Inactive;
+                    New."User Created" := Legacy."User Created";
+                    New."Date Created" := Legacy."Date Created";
+                    New."User Last Modified" := Legacy."User Last Modified";
+                    New."Last Date Modified" := Legacy."Last Date Modified";
+                    New."Filter Reg" := Legacy."Filter Reg";
                     New.Insert(false);
                 end;
             until Legacy.Next() = 0;
