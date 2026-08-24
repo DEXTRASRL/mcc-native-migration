@@ -97,37 +97,37 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     begin
         MigrateLegacyTableData(50001, 53301); // Agente -> DXR_Agente
         MigrateLegacyTableData(50004, 53302); // AGR Log -> DXR_AGR Log
-        MigrateLegacyTableData(50005, 53303); // AGR Setup -> DXR_AGR Setup
-        MigrateLegacyTableData(50006, 53304); // Ajuste Inventario Config -> DXR_Ajuste Inventario Config
+        MigrateAGRSetupTable(); // AGR Setup -> DXR_AGR Setup (native - fixes NewRecRef.Open-inside-loop leak, see MigrateLegacyTableData)
+        MigrateAjusteInventarioConfigTable(); // Ajuste Inventario Config -> DXR_Ajuste Inventario Config (native)
         MigrateLegacyTableData(50007, 53305); // Archivo - Discrepancias -> DXR_Archivo - Discrepancias
-        MigrateLegacyTableData(50008, 53306); // Area de Trabajo -> DXR_Area de Trabajo
+        MigrateAreaDeTrabajoTable(); // Area de Trabajo -> DXR_Area de Trabajo (native)
         MigrateLegacyTableData(50009, 53307); // Bancos - Extracto Bancario -> DXR_Bancos - Extracto Bancario
         MigrateLegacyTableData(50010, 53308); // Bank -> DXR_Bank
         MigrateLegacyTableData(50011, 53309); // Bank Relation -> DXR_Bank Relation
         MigrateLegacyTableData(50012, 53310); // Black List Promotion -> DXR_Black List Promotion
         MigrateLegacyTableData(50013, 53311); // Cabecera Discrepancia -> DXR_Cabecera Discrepancia
         MigrateLegacyTableData(50016, 53312); // Carga Masiva Beneficiarios BPD -> DXR_Carga Masiva Benef BPD
-        MigrateLegacyTableData(50020, 53313); // Categoria Servicios -> DXR_Categoria Servicios
+        MigrateCategoriaServiciosTable(); // Categoria Servicios -> DXR_Categoria Servicios (native)
         MigrateLegacyTableData(50021, 53314); // Cilindros -> DXR_Cilindros
-        MigrateLegacyTableData(50022, 53315); // Cilindros - Setup -> DXR_Cilindros - Setup
-        MigrateLegacyTableData(50024, 53316); // Codigos de Auditoria -> DXR_Codigos de Auditoria.
+        MigrateCilindrosSetupTable(); // Cilindros - Setup -> DXR_Cilindros - Setup (native)
+        MigrateCodigosDeAuditoriaTable(); // Codigos de Auditoria -> DXR_Codigos de Auditoria. (native)
         MigrateLegacyTableData(50025, 53317); // Comentario - Discrepancias -> DXR_Comentario - Discrepancias
-        MigrateLegacyTableData(50029, 53318); // Conf. Extracto Bancario -> DXR_Conf. Extracto Bancario
-        MigrateLegacyTableData(50032, 53319); // Config. NCF Ventas -> DXR_Config. NCF Ventas
-        MigrateLegacyTableData(50033, 53320); // Config. NCF Ventas STD -> DXR_Config. NCF Ventas STD
-        MigrateLegacyTableData(50034, 53321); // Config. Polizas -> DXR_Config. Polizas
-        MigrateLegacyTableData(50035, 53322); // Configuracion CB -> DXR_Configuracion CB
-        MigrateLegacyTableData(50036, 53323); // Configuracion - Discrepancias -> DXR_Config - Discr
-        MigrateLegacyTableData(50037, 53324); // Configuracion Encuestas - POS -> DXR_Config Encuestas - POS
-        MigrateLegacyTableData(50038, 53325); // Configuraciones Requisicion -> DXR_Config Req
-        MigrateLegacyTableData(50039, 53326); // Configuracion - MEDALLIA -> DXR_Configuracion - MEDALLIA
-        MigrateLegacyTableData(50040, 53327); // Conf. Pagos Ecommerce Azul -> DXR_Conf. Pagos Ecommerce Azul
-        MigrateLegacyTableData(50042, 53328); // Control Procesos por Almacen -> DXR_Control Proc por Almacen
+        MigrateConfExtractoBancarioTable(); // Conf. Extracto Bancario -> DXR_Conf. Extracto Bancario (native)
+        MigrateConfigNCFVentasTable(); // Config. NCF Ventas -> DXR_Config. NCF Ventas (native)
+        MigrateConfigNCFVentasSTDTable(); // Config. NCF Ventas STD -> DXR_Config. NCF Ventas STD (native)
+        MigrateConfigPolizasTable(); // Config. Polizas -> DXR_Config. Polizas (native)
+        MigrateConfiguracionCBTable(); // Configuracion CB -> DXR_Configuracion CB (native)
+        MigrateConfiguracionDiscrepanciasTable(); // Configuracion - Discrepancias -> DXR_Config - Discr (native)
+        MigrateConfiguracionEncuestasPOSTable(); // Configuracion Encuestas - POS -> DXR_Config Encuestas - POS (native)
+        MigrateConfiguracionesRequisicionTable(); // Configuraciones Requisicion -> DXR_Config Req (native)
+        MigrateConfiguracionMedalliaTable(); // Configuracion - MEDALLIA -> DXR_Configuracion - MEDALLIA (native)
+        MigrateConfPagosEcommerceAzulTable(); // Conf. Pagos Ecommerce Azul -> DXR_Conf. Pagos Ecommerce Azul (native)
+        MigrateControlProcesosPorAlmacenTable(); // Control Procesos por Almacen -> DXR_Control Proc por Almacen (native)
         MigrateLegacyTableData(50043, 53329); // Conversion Costo -> DXR_Conversion Costo
         MigrateLegacyTableData(50048, 53330); // Departamento - Discrepancias -> DXR_Departamento - Discr
         MigrateLegacyTableData(50050, 53331); // Detalle - Extracto Bancario -> DXR_Detalle - Extr Bancario
-        MigrateLegacyTableData(50052, 53332); // Draw Setup -> DXR_Draw Setup
-        MigrateLegacyTableData(50055, 53333); // Email Source Template Relation -> DXR_Email Source Tmpl Rel
+        MigrateDrawSetupTable(); // Draw Setup -> DXR_Draw Setup (native)
+        MigrateEmailSourceTemplateRelationTable(); // Email Source Template Relation -> DXR_Email Source Tmpl Rel (native)
         MigrateLegacyTableData(50057, 53334); // Entrega Facturas CxC - Lines -> DXR_Entrega Fact CxC - Lines
         MigrateLegacyTableData(50058, 53335); // Envio Compras -> DXR_Envio Compras
         MigrateLegacyTableData(50061, 53336); // EPagos Setup -> DXR_EPagos Setup
@@ -220,6 +220,448 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateLegacyTableData(50027, 55005); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor
         MigrateLegacyTableData(50097, 55004); // Inventory View -> DXR_Inventory View.
         MigrateLegacyTableData(50126, 55007); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2
+    end;
+
+    // ===== 1b) 19 SETUP-category whole-table restores converted to native typed logic =====
+    // Task A.4 Batch 1: zero RecordRef/FieldRef, zero TransferFields - every field assigned
+    // explicitly. Replaces 19 of the MigrateLegacyTableData(...) calls above (still used by ~118
+    // other, out-of-scope tables in MigrateAllNormalizedTables()) and eliminates, for these 19
+    // tables specifically, the real production bug in MigrateLegacyTableData: it calls
+    // NewRecRef.Open(NewTableId) INSIDE the repeat/until loop without ever closing it between
+    // iterations, so the 2nd+ legacy row of any multi-row table throws "The record is already
+    // open." Field lists and primary keys verified against Bellon_Customization's real
+    // Tables.old\*.Table.al (legacy) and Tables\*.Table.al (DXR_) sources.
+
+    // seq18: AGR Setup (50005) -> DXR_AGR Setup (53303). PK = "Primary Key".
+    local procedure MigrateAGRSetupTable()
+    var
+        Legacy: Record "AGR Setup";
+        New: Record "DXR_AGR Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Primary Key") then begin
+                    New.Init();
+                    New."Primary Key" := Legacy."Primary Key";
+                    New."SQL Server" := Legacy."SQL Server";
+                    New."SQL User ID" := Legacy."SQL User ID";
+                    New."SQL Password" := Legacy."SQL Password";
+                    New."SQL Database" := Legacy."SQL Database";
+                    New."SQL Connection Timeout" := Legacy."SQL Connection Timeout";
+                    New."Enable Log Cleanup" := Legacy."Enable Log Cleanup";
+                    New."Keep History for" := Legacy."Keep History for";
+                    New."Last Cleanup" := Legacy."Last Cleanup";
+                    New."Req. Worksh. Template Name" := Legacy."Req. Worksh. Template Name";
+                    New."Req. Worksh. Jrnl. Batch Name" := Legacy."Req. Worksh. Jrnl. Batch Name";
+                    New."Plan. Worksh. Template Name" := Legacy."Plan. Worksh. Template Name";
+                    New."Plan. Worksh. Jrnl. Batch Name" := Legacy."Plan. Worksh. Jrnl. Batch Name";
+                    New.ProdOrderChoice := Legacy.ProdOrderChoice;
+                    New.PurchOrderChoice := Legacy.PurchOrderChoice;
+                    New.TransOrderChoice := Legacy.TransOrderChoice;
+                    New.AsmOrderChoice := Legacy.AsmOrderChoice;
+                    New."Auto Refresh Production Order" := Legacy."Auto Refresh Production Order";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq19: Ajuste Inventario Config (50006) -> DXR_Ajuste Inventario Config (53304).
+    // PK = ("Item Padre", "Item Padre UM").
+    local procedure MigrateAjusteInventarioConfigTable()
+    var
+        Legacy: Record "Ajuste Inventario Config";
+        New: Record "DXR_Ajuste Inventario Config";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Item Padre", Legacy."Item Padre UM") then begin
+                    New.Init();
+                    New."Item Padre" := Legacy."Item Padre";
+                    New."Item Padre UM" := Legacy."Item Padre UM";
+                    New."Item Hijo" := Legacy."Item Hijo";
+                    New."Item Hijo UM" := Legacy."Item Hijo UM";
+                    New."Cant. x UM Padre" := Legacy."Cant. x UM Padre";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq21: Area de Trabajo (50008) -> DXR_Area de Trabajo (53306). PK = "Code".
+    local procedure MigrateAreaDeTrabajoTable()
+    var
+        Legacy: Record "Area de Trabajo";
+        New: Record "DXR_Area de Trabajo";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Code") then begin
+                    New.Init();
+                    New."Code" := Legacy."Code";
+                    New.Descripcion := Legacy.Descripcion;
+                    New.Estado := Legacy.Estado;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq28: Categoria Servicios (50020) -> DXR_Categoria Servicios (53313). PK = "ID Services".
+    local procedure MigrateCategoriaServiciosTable()
+    var
+        Legacy: Record "Categoria Servicios";
+        New: Record "DXR_Categoria Servicios";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."ID Services") then begin
+                    New.Init();
+                    New."ID Services" := Legacy."ID Services";
+                    New."Type Services" := Legacy."Type Services";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq30: Cilindros - Setup (50022) -> DXR_Cilindros - Setup (53315). PK = "Key".
+    local procedure MigrateCilindrosSetupTable()
+    var
+        Legacy: Record "Cilindros - Setup";
+        New: Record "DXR_Cilindros - Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New."Key" := Legacy."Key";
+                    New."Cilindros No. Series" := Legacy."Cilindros No. Series";
+                    New."Mov. Cilindros No. Series" := Legacy."Mov. Cilindros No. Series";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq31: Codigos de Auditoria (50024) -> DXR_Codigos de Auditoria. (53316, trailing period is
+    // part of the real object name). PK = Code.
+    local procedure MigrateCodigosDeAuditoriaTable()
+    var
+        Legacy: Record "Codigos de Auditoria";
+        New: Record "DXR_Codigos de Auditoria.";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Code) then begin
+                    New.Init();
+                    New.Code := Legacy.Code;
+                    New.Description := Legacy.Description;
+                    New."Default Location Code" := Legacy."Default Location Code";
+                    New."Inventory Value Zero" := Legacy."Inventory Value Zero";
+                    New."Tipo Proceso" := Legacy."Tipo Proceso";
+                    New."Key" := Legacy."Key";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq33: Conf. Extracto Bancario (50029) -> DXR_Conf. Extracto Bancario (53318). PK = "Key".
+    local procedure MigrateConfExtractoBancarioTable()
+    var
+        Legacy: Record "Conf. Extracto Bancario";
+        New: Record "DXR_Conf. Extracto Bancario";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New."Key" := Legacy."Key";
+                    New.Active := Legacy.Active;
+                    New."Folder Patch" := Legacy."Folder Patch";
+                    New."Days Run" := Legacy."Days Run";
+                    New."Date Tolerance" := Legacy."Date Tolerance";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq34: Config. NCF Ventas (50032) -> DXR_Config. NCF Ventas (53319). PK = "Código".
+    // Field 52120031 renamed on the target: "EF Alternal No. Series" (legacy) ->
+    // "Alternal No. Series_DXR" (new), same field number/type - confirmed via
+    // Tables.old\ConfigNCFVentas.Table.al vs Tables\ConfigNCFVentas.Table.al.
+    local procedure MigrateConfigNCFVentasTable()
+    var
+        Legacy: Record "Config. NCF Ventas";
+        New: Record "DXR_Config. NCF Ventas";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Código") then begin
+                    New.Init();
+                    New."Código" := Legacy."Código";
+                    New."Descripción" := Legacy."Descripción";
+                    New."No. Serie NCF Fact." := Legacy."No. Serie NCF Fact.";
+                    New."No. Serie NCF NCR" := Legacy."No. Serie NCF NCR";
+                    New."Tipo Doc. Fiscal" := Legacy."Tipo Doc. Fiscal";
+                    New."Tipo NCF" := Legacy."Tipo NCF";
+                    New."Alternal No. Series_DXR" := Legacy."EF Alternal No. Series";
+                    New."EF Alternal No. Series NC" := Legacy."EF Alternal No. Series NC";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq35: Config. NCF Ventas STD (50033) -> DXR_Config. NCF Ventas STD (53320).
+    // PK = ("Código", "Terminal No."). Same field 52120031 rename as Config. NCF Ventas above.
+    local procedure MigrateConfigNCFVentasSTDTable()
+    var
+        Legacy: Record "Config. NCF Ventas STD";
+        New: Record "DXR_Config. NCF Ventas STD";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Código", Legacy."Terminal No.") then begin
+                    New.Init();
+                    New."Código" := Legacy."Código";
+                    New."Descripción" := Legacy."Descripción";
+                    New."No. Serie NCF Fact." := Legacy."No. Serie NCF Fact.";
+                    New."No. Serie NCF NCR" := Legacy."No. Serie NCF NCR";
+                    New."Tipo Doc. Fiscal" := Legacy."Tipo Doc. Fiscal";
+                    New."Store No." := Legacy."Store No.";
+                    New."Terminal No." := Legacy."Terminal No.";
+                    New."Tipo NCF" := Legacy."Tipo NCF";
+                    New."Alternal No. Series_DXR" := Legacy."EF Alternal No. Series";
+                    New."EF Alternal No. Series NC" := Legacy."EF Alternal No. Series NC";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq36: Config. Polizas (50034) -> DXR_Config. Polizas (53321).
+    // PK = ("Fecha Desde", "Fecha Hasta", "Monto Minimo", "Monto Maximo").
+    local procedure MigrateConfigPolizasTable()
+    var
+        Legacy: Record "Config. Polizas";
+        New: Record "DXR_Config. Polizas";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Fecha Desde", Legacy."Fecha Hasta", Legacy."Monto Minimo", Legacy."Monto Maximo") then begin
+                    New.Init();
+                    New."Fecha Desde" := Legacy."Fecha Desde";
+                    New."Fecha Hasta" := Legacy."Fecha Hasta";
+                    New."Monto Minimo" := Legacy."Monto Minimo";
+                    New."Monto Maximo" := Legacy."Monto Maximo";
+                    New."Cantidad Cilindros" := Legacy."Cantidad Cilindros";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq37: Configuracion CB (50035) -> DXR_Configuracion CB (53322).
+    // PK = (Bloque, "Reason Codes Filter", Orden).
+    local procedure MigrateConfiguracionCBTable()
+    var
+        Legacy: Record "Configuracion CB";
+        New: Record "DXR_Configuracion CB";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy.Bloque, Legacy."Reason Codes Filter", Legacy.Orden) then begin
+                    New.Init();
+                    New.Bloque := Legacy.Bloque;
+                    New.Orden := Legacy.Orden;
+                    New."Descripcion Renglon" := Legacy."Descripcion Renglon";
+                    New."Reason Codes Filter" := Legacy."Reason Codes Filter";
+                    New.Orientacion := Legacy.Orientacion;
+                    New.Transito := Legacy.Transito;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq38: Configuracion - Discrepancias (50036) -> DXR_Config - Discr (53323). PK = "key".
+    local procedure MigrateConfiguracionDiscrepanciasTable()
+    var
+        Legacy: Record "Configuracion - Discrepancias";
+        New: Record "DXR_Config - Discr";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."key") then begin
+                    New.Init();
+                    New."key" := Legacy."key";
+                    New."URL - Archivos Temporal" := Legacy."URL - Archivos Temporal";
+                    New."URL  - Archivos Registrados" := Legacy."URL  - Archivos Registrados";
+                    New."URL - Archivos Eliminados" := Legacy."URL - Archivos Eliminados";
+                    New."No. Serie Discrepancia" := Legacy."No. Serie Discrepancia";
+                    New."No. Serie Discrep. Registrada" := Legacy."No. Serie Discrep. Registrada";
+                    New.AutoPost := Legacy.AutoPost;
+                    New."Max Cantidad Dias retrocede" := Legacy."Max Cantidad Dias retrocede";
+                    New."URL Lectura - Archivos Temp." := Legacy."URL Lectura - Archivos Temp.";
+                    New."URL Lectura - Archivos Regis." := Legacy."URL Lectura - Archivos Regis.";
+                    New."URL Lectura - Archivos Elimin." := Legacy."URL Lectura - Archivos Elimin.";
+                    New."Reg Prod. in Discre." := Legacy."Reg Prod. in Discre.";
+                    New."Control Disc. sin Attch" := Legacy."Control Disc. sin Attch";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq39: Configuracion Encuestas - POS (50037) -> DXR_Config Encuestas - POS (53324).
+    // PK = ("Store No.", "Pos Terminal No.", "Transacction No.").
+    local procedure MigrateConfiguracionEncuestasPOSTable()
+    var
+        Legacy: Record "Configuracion Encuestas - POS";
+        New: Record "DXR_Config Encuestas - POS";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Store No.", Legacy."Pos Terminal No.", Legacy."Transacction No.") then begin
+                    New.Init();
+                    New."Store No." := Legacy."Store No.";
+                    New."Pos Terminal No." := Legacy."Pos Terminal No.";
+                    New."Transacction No." := Legacy."Transacction No.";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq40: Configuraciones Requisicion (50038) -> DXR_Config Req (53325). PK = "Key".
+    local procedure MigrateConfiguracionesRequisicionTable()
+    var
+        Legacy: Record "Configuraciones Requisicion";
+        New: Record "DXR_Config Req";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New."Key" := Legacy."Key";
+                    New."No. Serie Pre-Req" := Legacy."No. Serie Pre-Req";
+                    New."No Serie Req" := Legacy."No Serie Req";
+                    New."No Serie Pre-Req No Stock" := Legacy."No Serie Pre-Req No Stock";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq41: Configuracion - MEDALLIA (50039) -> DXR_Configuracion - MEDALLIA (53326). PK = "Key".
+    local procedure MigrateConfiguracionMedalliaTable()
+    var
+        Legacy: Record "Configuracion - MEDALLIA";
+        New: Record "DXR_Configuracion - MEDALLIA";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New."Key" := Legacy."Key";
+                    New."Log Request" := Legacy."Log Request";
+                    New."Log Response" := Legacy."Log Response";
+                    New.MedalliaURL := Legacy.MedalliaURL;
+                    New.UserCredentials := Legacy.UserCredentials;
+                    New.PasswordCredentials := Legacy.PasswordCredentials;
+                    New."Pedido Ventas" := Legacy."Pedido Ventas";
+                    New.Transportacion := Legacy.Transportacion;
+                    New."Facturas POS" := Legacy."Facturas POS";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq42: Conf. Pagos Ecommerce Azul (50040) -> DXR_Conf. Pagos Ecommerce Azul (53327).
+    // PK = "Key".
+    local procedure MigrateConfPagosEcommerceAzulTable()
+    var
+        Legacy: Record "Conf. Pagos Ecommerce Azul";
+        New: Record "DXR_Conf. Pagos Ecommerce Azul";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Key") then begin
+                    New.Init();
+                    New.MerchantID := Legacy.MerchantID;
+                    New.MerchantName := Legacy.MerchantName;
+                    New.MerchantType := Legacy.MerchantType;
+                    New.CurrencyCode := Legacy.CurrencyCode;
+                    New.ApprovedURL := Legacy.ApprovedURL;
+                    New.DeclinedURL := Legacy.DeclinedURL;
+                    New.CancelURL := Legacy.CancelURL;
+                    New.LogoURL := Legacy.LogoURL;
+                    New.ProductImageURL := Legacy.ProductImageURL;
+                    New.DesignV2 := Legacy.DesignV2;
+                    New.Locale := Legacy.Locale;
+                    New.AuthKey := Legacy.AuthKey;
+                    New.PaymentPageUrl := Legacy.PaymentPageUrl;
+                    New."Key" := Legacy."Key";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq43: Control Procesos por Almacen (50042) -> DXR_Control Proc por Almacen (53328).
+    // PK = "Location Code".
+    local procedure MigrateControlProcesosPorAlmacenTable()
+    var
+        Legacy: Record "Control Procesos por Almacen";
+        New: Record "DXR_Control Proc por Almacen";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Location Code") then begin
+                    New.Init();
+                    New."Location Code" := Legacy."Location Code";
+                    New.Ventas := Legacy.Ventas;
+                    New.Compras := Legacy.Compras;
+                    New.Ajustes := Legacy.Ajustes;
+                    New.Ensamblados := Legacy.Ensamblados;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq47: Draw Setup (50052) -> DXR_Draw Setup (53332). PK = "Entry No.".
+    // Field "Ready" (6) is a FlowField (CalcFormula) on both sides - not copied, calculated on
+    // read.
+    local procedure MigrateDrawSetupTable()
+    var
+        Legacy: Record "Draw Setup";
+        New: Record "DXR_Draw Setup";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Entry No.") then begin
+                    New.Init();
+                    New.Promotions := Legacy.Promotions;
+                    New."Draw Date" := Legacy."Draw Date";
+                    New.Description := Legacy.Description;
+                    New."Winning customer" := Legacy."Winning customer";
+                    New."Winning Ticket" := Legacy."Winning Ticket";
+                    New."Entry No." := Legacy."Entry No.";
+                    New.Done := Legacy.Done;
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
+    end;
+
+    // seq48: Email Source Template Relation (50055) -> DXR_Email Source Tmpl Rel (53333).
+    // PK = ("Email Template ID", "Email Source Table ID", "Field Email No."). Field
+    // "Field Email Name" (5) is a FlowField (CalcFormula) on both sides - not copied.
+    local procedure MigrateEmailSourceTemplateRelationTable()
+    var
+        Legacy: Record "Email Source Template Relation";
+        New: Record "DXR_Email Source Tmpl Rel";
+    begin
+        if Legacy.FindSet() then
+            repeat
+                if not New.Get(Legacy."Email Template ID", Legacy."Email Source Table ID", Legacy."Field Email No.") then begin
+                    New.Init();
+                    New."Email Template ID" := Legacy."Email Template ID";
+                    New."Email Source Table ID" := Legacy."Email Source Table ID";
+                    New."Email Source Table Name" := Legacy."Email Source Table Name";
+                    New."Field Email No." := Legacy."Field Email No.";
+                    New.CC := Legacy.CC;
+                    New."Requerir Correo" := Legacy."Requerir Correo";
+                    New.Insert(false);
+                end;
+            until Legacy.Next() = 0;
     end;
 
     // ===== 2) ~74 active tableextension field-copy procedures (untracked-gap logic) =====
