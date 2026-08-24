@@ -132,9 +132,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-NCF', 6, 'Sales family NCF field cross-table ID collision fix (20 fields, live crash root cause)', 0, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-NCF', 7, 'Purchase family NCF field cross-table ID collision fix (98 fields, latent same bug)', 0, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P1', 8, 'Internal Closure Migration (Subtype=Upgrade, hard blocking prerequisite that Phase 2-6''s dispatcher checks via EnsurePhase1Completed - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs on its own publish/upgrade cycle only)', 0, 0, 0, 'OTHER');
-        InsConcept('DRLOC', 'DRLOC-P2', 9, 'Bootstrap: CompanyInformation fields', 60069, 0, 0, 'SETUP');
-        InsConcept('DRLOC', 'DRLOC-P2', 10, 'Bootstrap: BankAccount/Customer/Vendor fields', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 11, 'Bootstrap: GL/UserSetup/Journal fields', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 9, 'Bootstrap: CompanyInformation fields', 60165, 0, 0, 'SETUP');
+        InsConcept('DRLOC', 'DRLOC-P2', 10, 'Bootstrap: BankAccount/Customer/Vendor fields', 60165, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 11, 'Bootstrap: GL/UserSetup/Journal fields', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 12, 'Bootstrap: NCF Setup tables', 60069, 0, 0, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 13, 'Payment Method Relation legacy table restore (54133 -> 52180)', 60164, 54133, 52180, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 14, 'Item NCF Category backfill (V27 data)', 60069, 0, 0, 'MA');
