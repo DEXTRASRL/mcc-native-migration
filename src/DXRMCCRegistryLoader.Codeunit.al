@@ -83,6 +83,17 @@ codeunit 60012 "DXR MCC Registry Loader"
             'Depends on Base App DR Localization. 28.3.5.1: fixed 4 dangling NCF field refs (Sales Invoice/Cr.Memo Header _DXR->_DXR_V2) after DRLOC 28.3.5.3. 7-phase dispatcher (Phase 7 Bootstrap - Phase 13 NCF Cleanup), own DXR_Migration Status page already implements the Run Migration Now pattern. 2026-08-22 follow-up completed: P7''s earlier "may be a no-op" suspicion was confirmed real - DXR_Upgrade_Clean.Codeunit.al''s MigrateLegacyDependencyTableFields had wrong target field numbers (55501-55504 instead of the real 52333/52334) for all 4 of its table pairs (NCF Purchase/Sales/general Setup, Payment Method Relation), so it ran "successfully" (tag set) while copying zero data - confirmed by the user hitting exactly this on DXR_Payment Method Relation. Fixed in EF 28.3.6.1 (corrected field numbers + tag bumped to DXR-EF-LEGACY-DEPS-20260822 to force re-run) and split into 4 individually-tracked rows here (FE-P7 seq1/304-306) instead of one opaque "Phase 7 Bootstrap" bucket. P8/P9/P10 also expanded to one row per table (seq2-4, 307-319), read directly from each phase''s own CopySameTableFields FieldMap.Add() calls - none of those had the wrong-field-number bug (only the Phase 7 dependency-migration procedure did).');
         InsExt('LSFE', 'LS Facturacion Electronica', '4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2', 20,
             'Depends on Facturacion Electronica, LS Central DR Localization, Base App DR Localization. 28.5.0.3: fixed same NCF dangling refs after dependency chain refresh. Own DXR_LSFE Migration Status page already implements the Run Migration Now pattern (2 background repairs: PermSet assignment, POS contingency + legacy field migration). 2026-08-22: audited - LSFE-P2''s description bundles 2 things but its source is one inline OnRun trigger with no separable sub-steps found; left as one row rather than splitting blind.');
+        // 2026-08-24 (Task 0.1, Phase 0 registry-completeness audit): 4 extensions confirmed to have
+        // real DXR_ migration surface (ObsoleteReason.*DXR_/_DXR" hits in their source) but were
+        // entirely missing from this registry until now. Only seeded here - no concepts yet, that's
+        // a later task. VendorPay_TXT (sibling of VendorPay_API under vendorpayload\DxPayloads-BC\)
+        // is explicitly excluded per direct user ruling, not evaluated.
+        InsExt('ES', 'Base Email Sender', '40bf4f60-a31e-4104-a36c-bc3b36f8c9ed', 0, '');
+        InsExt('RES', 'Retail Email Sender', '85fc1f3a-6b23-4f45-8465-c5067449b097', 10,
+            'Depends on Base Email Sender, LS Central, LS Central System App.');
+        InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 0, '');
+        InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 10,
+            'Depends on Vendor Payloads (VP).');
     end;
 
     local procedure LoadConcepts()
