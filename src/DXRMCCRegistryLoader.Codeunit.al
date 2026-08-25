@@ -173,7 +173,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         // into codeunit 60165 (see that codeunit's own header comment, "seq44 naming note"). Only the
         // Bulk+FlowFields field restore is covered by this row/codeunit.
         InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields) + withholding migration repair', 60165, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 45, 'Detailed Cust. Ledg. Entry field restore', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 45, 'Detailed Cust. Ledg. Entry field restore', 60169, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60069, 54108, 52120, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60069, 54102, 52107, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60069, 54147, 52207, 'MA');
