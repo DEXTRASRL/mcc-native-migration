@@ -23,15 +23,20 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     // 1) CONFIRMED the live-crash root cause directly in the tableextension source: Sales Invoice
     //    Header and Sales Cr.Memo Header both share the SAME "_DXR" field-ID block (51811-51829) as
     //    Sales Header, but at those shared IDs the concepts differ table-to-table with incompatible
-    //    types. A real ObsoleteReason on nearly every one of these fields quotes "TransferFields
-    //    \"must have the same type\" crash" / "the exact user-reported crash" and documents each
-    //    field's relocation to a new, non-colliding ID with a "_V2" suffix. On BOTH tables the
-    //    ORIGINAL (non-suffixed) field at the old shared ID is ObsoleteState = Removed; the renamed
-    //    "_V2" field at the new ID is the live, current one. This is the OPPOSITE direction of
-    //    Phase 3's "_V1 removed intermediate" pattern (there, the SHORTER name was dead; here, the
-    //    SHORTER name is dead and the "_V2"-suffixed name is live) - confirmed by direct read of
-    //    every field's own ObsoleteState/ObsoleteReason property, not inferred from naming
-    //    convention.
+    //    types. A real ObsoleteReason on MOST of these fields quotes "TransferFields \"must have the
+    //    same type\" crash" / "the exact user-reported crash" and documents each field's relocation
+    //    to a new, non-colliding ID with a "_V2" suffix. On BOTH tables the ORIGINAL (non-suffixed)
+    //    field at the old shared ID is ObsoleteState = Removed; the renamed "_V2" field at the new
+    //    ID is the live, current one. This is the OPPOSITE direction of Phase 3's "_V1 removed
+    //    intermediate" pattern (there, the SHORTER name was dead; here, the SHORTER name is dead and
+    //    the "_V2"-suffixed name is live) - confirmed by direct read of every field's own
+    //    ObsoleteState/ObsoleteReason property, not inferred from naming convention. NUANCE: not
+    //    every relocation in this block is a hard type-mismatch crash - Sales Cr.Memo Header's
+    //    "Correccion Int._DXR" (51817, relocated to "Correccion Int._DXR_V2" 51860) collides with
+    //    Sales Header's Boolean field at the SAME field ID and SAME type (Boolean), just a DIFFERENT
+    //    concept - its own real ObsoleteReason explicitly describes this as a silent
+    //    wrong-value-copy risk during cross-table field access, not a TransferFields crash. Quoted
+    //    precisely per field below rather than generalized.
     // 2) Cross-checked DXR_Migr_Phase_4_Sales.Codeunit.al's own real procedure bodies
     //    (MigrateFields_SalesInvoiceHeader/MigrateFields_SalesCrMemoHeader) against this: DRLOC's
     //    own real source ALREADY correctly uses the "_V2" name on every field that was relocated
@@ -71,7 +76,19 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     //    the named block and none of these 6 - a genuine, confirmed gap in DR-Localization's own
     //    Phase 4 Sales Header migration, not something introduced or hidden by this port). The 14
     //    named-field pairs (already SourceRecord-typed in real source) are ported below verbatim.
-    // 5) Sales Cr.Memo Header's own #if __SAAS__ raw-numeric block is DIFFERENT from every other raw
+    // 5) Sales Invoice Header ALSO has live, non-obsolete target fields that neither the (dead) raw
+    //    block nor the named block ever reach: "NCF_DXR Afectado_DXR" (51816), Declaracion_DXR
+    //    (51826), "Type of Income_DXR_V2" (51847 - the live post-collision-fix replacement for
+    //    Removed 51817 "Type of Income_DXR") and "Apply Cust Withhold_DXR_V2" (51855 - the live
+    //    replacement for Removed 51829 "Apply Cust Withhold_DXR"). All 4 independently confirmed
+    //    live via direct read of DXR_SalesInvoiceHeaderExt.TableExt.AL; none referenced by
+    //    DR-Localization's own real MigrateFields_SalesInvoiceHeader() body (the raw block's would-be
+    //    source numbers for 2 of them - 54144->51847, 54142->51855 - also do not exist on the
+    //    current table, same dead-source pattern as the rest of that block; "NCF_DXR Afectado_DXR"
+    //    and Declaracion_DXR are not referenced by the raw block at all). A genuine, confirmed
+    //    pre-existing gap in DR-Localization's own Phase 4 Sales Invoice Header migration, not
+    //    introduced or hidden by this port. The 15 named-field pairs ARE ported below verbatim.
+    // 6) Sales Cr.Memo Header's own #if __SAAS__ raw-numeric block is DIFFERENT from every other raw
     //    block encountered in this campaign so far: several of its source field numbers
     //    (54125-54131, "DX Alternate NCF"/"DX Alternate No. Series"/"DX Has NCF Contingency"/"DX NCF
     //    Reconciliation Status"/"DX NCF Reconciliation Blocked"/"DX NCF Reconciliation
@@ -86,23 +103,51 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     //    for this concept regardless. This reinforces - independent of the zero-RecordRef/FieldRef
     //    global constraint that already excludes this whole block - that the raw block should not be
     //    ported even if RecordRef were allowed: it is neither reachable-and-correct nor safely
-    //    ignorable-as-dead, it is reachable-and-wrong. The 10 named-field pairs (already
-    //    SourceRecord-typed in real source, and independently confirmed live/correct-type/correct-ID
-    //    against the current tableextension) are ported below verbatim.
-    // 6) Sales Line and Sales Invoice Line have no raw-numeric block in real source at all (only a
+    //    ignorable-as-dead, it is reachable-and-wrong. THREE MORE live target fields on this table
+    //    are also never correctly reached, on top of the 7 above: "NCF_DXR Afectado_DXR" (51812) IS
+    //    technically reachable via the raw block (54126 "DX Alternate No. Series" -> 51812), but that
+    //    pairing is semantically wrong (an Alternate No. Series value would land in the NCF-Afectado
+    //    field) - functionally never correctly migrated either way; "Type of Income_DXR" (51813) and
+    //    "Apply Cust Withhold_DXR_V2" (51865, the live replacement for Removed 51822
+    //    "Apply Cust Withhold_DXR") both have dead raw-block source numbers (54137 and 54136
+    //    respectively do not exist on the current table) and are not referenced by the named block
+    //    either. All 3 confirmed live via direct read of DXR_SalesCrMemoHeaderExt.TableExt.AL; none
+    //    referenced by DR-Localization's own real MigrateFields_SalesCrMemoHeader() body - genuine,
+    //    confirmed pre-existing gaps, not introduced or hidden by this port. The 10 named-field pairs
+    //    (already SourceRecord-typed in real source, and independently confirmed live/correct-type/
+    //    correct-ID against the current tableextension) ARE ported below verbatim.
+    // 7) Sales Line and Sales Invoice Line have no raw-numeric block in real source at all (only a
     //    4-field named block each) - both sets of 4 pairs (Cod. Retencion ITBIS_DXR/Cod. Retencion
     //    ISR_DXR/ImporteRetenidoITBIS_DXR/ImporteRetenidoISR_DXR, both sides always plain "_DXR" -
     //    no collision, no relocation) independently confirmed live/non-obsolete against
     //    DXR_SalesLine.TableExt.al / DXR_SalesInvoiceLine.TableExt.al and cross-confirmed identical
     //    against the parallel "always-clean" DataTransfer implementation for both tables. Ported
-    //    below verbatim/typed.
+    //    below verbatim/typed. BOTH tables also carry a live "Is Debit Note_DXR" field (51815) with a
+    //    corresponding legacy "DX Is Debit Note" (54145, ObsoleteState = Pending) - a valid migration
+    //    candidate by the exact same live-source/live-target pattern as every other field already
+    //    ported in this campaign (including Sales Header's and Sales Invoice Header's own
+    //    "Is Debit Note_DXR" pairs, which DR-Localization's real source DOES migrate on those two
+    //    tables) - but DR-Localization's own real MigrateFields_SalesLine()/
+    //    MigrateFields_SalesInvoiceLine() bodies never reference this pair on Sales Line/Sales
+    //    Invoice Line specifically. A genuine, confirmed pre-existing gap, not introduced or hidden
+    //    by this port.
     //
     // Net effect: all 5 concepts in this batch port DR-Localization's own real, CURRENT, already
     // internally-consistent field-restore logic with zero shadow-field/dead-target substitutions.
-    // The only confirmed functional gaps versus real DR-Localization behavior are the 6 Sales Header
-    // fields (item 4 above) and the 7 relocated Alternate-NCF/Reconciliation fields on Sales
-    // Cr.Memo Header (item 5 above) - both are genuine gaps already present in DR-Localization's own
-    // real Phase 4 Sales Header/Sales Cr.Memo Header procedures, not introduced by this port.
+    // The confirmed functional gaps versus real DR-Localization behavior, ALL pre-existing in
+    // DR-Localization's own real Phase 4 Sales procedures and NOT introduced or silently papered over
+    // by this port (porting fields DR-Localization's own real source never migrates would be new
+    // behavior beyond this batch's scope - a decision for the controller/user later, not this port):
+    //   - Sales Header (6 fields, item 4): Declaracion_DXR (51825), "NCF_DXR Modificado_DXR" (51829),
+    //     "NCF_DXR Afectado_DXR" (51815), "NCF_DXR Factura_DXR" (51814), "Type of Income_DXR" (51816),
+    //     "Apply Cust Withhold_DXR" (51828).
+    //   - Sales Invoice Header (4 fields, item 5): "NCF_DXR Afectado_DXR" (51816), Declaracion_DXR
+    //     (51826), "Type of Income_DXR_V2" (51847), "Apply Cust Withhold_DXR_V2" (51855).
+    //   - Sales Cr.Memo Header (10 fields, item 6): the 7 relocated Alternate-NCF/Reconciliation
+    //     fields (item 6) plus "NCF_DXR Afectado_DXR" (51812), "Type of Income_DXR" (51813),
+    //     "Apply Cust Withhold_DXR_V2" (51865).
+    //   - Sales Line (1 field, item 7): "Is Debit Note_DXR" (51815).
+    //   - Sales Invoice Line (1 field, item 7): "Is Debit Note_DXR" (51815).
     //
     // Upgrade Tag reuse: every procedure below is gated by DR-Localization's OWN real per-procedure
     // completion tag, copied as literals from DXR_UpgradeTagMgt.Codeunit.al - the "DXR_Internal
@@ -194,7 +239,9 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
 
     // ===== seq31: Sales Line field restore =====
     // Ported from MigrateFields_SalesLine() - no raw-numeric block exists for this table in real
-    // source, only this 4-field named block.
+    // source, only this 4-field named block. "Is Debit Note_DXR" (51815) is live but never touched
+    // by DR-Localization's own real source on this table (not a gap in this port) - see codeunit-
+    // level comment item 7.
     local procedure BootstrapSalesLineFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -232,7 +279,9 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     // is dead, source numbers 54124-54144/54221 do not exist on
     // DXR_SalesInvoiceHeaderExt.TableExt.AL). Every "_V2"-suffixed target below is the LIVE
     // post-collision-fix field - independently re-verified field by field against the current
-    // tableextension source, see codeunit-level comment items 1-3.
+    // tableextension source, see codeunit-level comment items 1-3. 4 additional live fields on this
+    // table are never touched by DR-Localization's own real source (not a gap in this port) - see
+    // codeunit-level comment item 5.
     local procedure BootstrapSalesInvoiceHeaderFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -297,7 +346,9 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     // ===== seq32: Sales Invoice Line field restore =====
     // Ported from MigrateFields_SalesInvoiceLine() - no raw-numeric block exists for this table in
     // real source, only this 4-field named block (identical pair set to Sales Line - no collision,
-    // no relocation, both sides plain "_DXR").
+    // no relocation, both sides plain "_DXR"). "Is Debit Note_DXR" (51815) is live but never touched
+    // by DR-Localization's own real source on this table (not a gap in this port) - see codeunit-
+    // level comment item 7.
     local procedure BootstrapSalesInvoiceLineFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -339,10 +390,11 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
 
     // ===== seq33: Sales Cr.Memo Header field restore =====
     // Ported from MigrateFields_SalesCrMemoHeader() (named-field block only - the raw-numeric block
-    // is reachable-but-wrong, not merely dead, see codeunit-level shadow-field comment item 5).
+    // is reachable-but-wrong, not merely dead, see codeunit-level shadow-field comment item 6).
     // Every "_V2"-suffixed target below is the LIVE post-collision-fix field - independently
     // re-verified field by field against the current tableextension source, see codeunit-level
-    // comment items 1-3.
+    // comment items 1-3. 10 additional live fields on this table are never touched by
+    // DR-Localization's own real source (not a gap in this port) - see codeunit-level comment item 6.
     local procedure BootstrapSalesCrMemoHeaderFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
