@@ -17,6 +17,17 @@
             "enableSqlInformationDebugger": true,
             "tenant": "default",
             "usePublicURLFromServer": true
+        },
+        {
+            "name": "AL: Generated Attach request",
+            "request": "attach",
+            "type": "al",
+            "environmentType": "Sandbox",
+            "environmentName": "QA-Desarrollo-DX",
+            "sessionId": 65539,
+            "breakOnNext": "WebClient",
+            "breakOnError": "ExcludeTry",
+            "tenant": "a5aba6fb-8964-45ce-835a-20614cc908d3"
         }
     ]
 }

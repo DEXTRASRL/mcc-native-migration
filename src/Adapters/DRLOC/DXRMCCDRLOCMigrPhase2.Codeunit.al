@@ -267,15 +267,15 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522') then begin
+     //   if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522') then begin
             MigrateCompanyInformationBulk();
-            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522');
-        end;
+    //        UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-BULK-20260522');
+      //  end;
 
-        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522') then begin
+        //if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522') then begin
             MigrateCompanyInformationSpecialConversions();
-            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522');
-        end;
+          //  UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-FIELDS-COMPANYINFORMATION-SPECIALCONVERSIONS-20260522');
+       // end;
     end;
 
     // "Company Information" is a single-record table (no key) - Get() with no arguments, exactly
