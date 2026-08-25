@@ -255,7 +255,20 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         tabledata "DXR_Withholding Govern. Lines" = RIM;
 
     trigger OnRun()
+    var
+        UpgradeTagMgt: Codeunit "Upgrade Tag";
+        PhaseTags: Codeunit "DXR_Internal Migr. Phase Tags";
     begin
+        // 2026-08-25 fix: added the outer completion gate real DR-Localization's own
+        // "DXR_Migr. Phase 5 Ledger" OnRun() uses (Phase5CompletedTag(), reused verbatim) - same
+        // root-cause/fix as codeunit 60165's OnRun() comment (full re-scan on every invocation,
+        // forever, contributing to a real reported production hang). This tag correctly represents
+        // "everything currently ported for Phase 5 is done" - it does not claim the deliberately
+        // deferred Repair606CardChargeVLEs/Repair606BankChargeVLEs/Register606HistoryTable piece
+        // (never ported here, tracked separately) is complete.
+        if UpgradeTagMgt.HasUpgradeTag(PhaseTags.Phase5CompletedTag()) then
+            exit;
+
         RepairVendorWithholdingMigration();
         BootstrapDetailedCustLedgEntryFields();
         BootstrapUpdateWithholdingEntries();
@@ -278,6 +291,8 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         BootstrapCredCardChargesLinesTable();
         BootstrapMessageLogTable();
         BootstrapWithholdingGovernLinesTable();
+
+        UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase5CompletedTag());
     end;
 
     // ===== RepairVendorWithholdingMigration (unconditional, no registry row - see header note) =====

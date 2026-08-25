@@ -189,7 +189,19 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
         tabledata "DXR_Withholding Vendor Lines" = RIM;
 
     trigger OnRun()
+    var
+        UpgradeTagMgt: Codeunit "Upgrade Tag";
+        PhaseTags: Codeunit "DXR_Internal Migr. Phase Tags";
     begin
+        // 2026-08-25 fix: added the outer completion gate real DR-Localization's own
+        // "DXR_Migr. Phase 3 Purchase" OnRun() uses (Phase3CompletedTag(), reused verbatim) - this
+        // codeunit previously had none, meaning it fully re-scanned all 12 steps on every single
+        // invocation forever (MCC's own executor can't mark these 0/0 "Not Row-Based" concepts
+        // Completed either). Same root-cause/fix as codeunit 60165 - see that codeunit's OnRun()
+        // comment for the full explanation of the reported production hang this addresses.
+        if UpgradeTagMgt.HasUpgradeTag(PhaseTags.Phase3CompletedTag()) then
+            exit;
+
         BootstrapPurchaseHeaderFields();
         BootstrapPurchInvHeaderFields();
         BootstrapPurchCrMemoHdrFields();
@@ -202,6 +214,8 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
         BootstrapPurchaseWSSettlementTable();
         BootstrapVendorWithholdingHeaderTable();
         BootstrapWithholdingVendorLinesTable();
+
+        UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase3CompletedTag());
     end;
 
     // ===== seq19: Purchase Header field restore (bulk) =====

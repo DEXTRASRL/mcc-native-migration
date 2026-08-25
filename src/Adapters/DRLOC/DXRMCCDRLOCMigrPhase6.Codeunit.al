@@ -442,7 +442,17 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         tabledata DXR_R_TipoServicioAdquirido = RIM;
 
     trigger OnRun()
+    var
+        UpgradeTagMgt: Codeunit "Upgrade Tag";
+        PhaseTags: Codeunit "DXR_Internal Migr. Phase Tags";
     begin
+        // 2026-08-25 fix: added the outer completion gate real DR-Localization's own
+        // "DXR_Migr. Phase 6 History" OnRun() uses (Phase6CompletedTag(), reused verbatim) - same
+        // root-cause/fix as codeunit 60165's OnRun() comment (full re-scan on every invocation,
+        // forever, contributing to a real reported production hang).
+        if UpgradeTagMgt.HasUpgradeTag(PhaseTags.Phase6CompletedTag()) then
+            exit;
+
         MigrateOmittedStandardTableFields();
         MigrateEFSendRegistry();
         MigrateNCFFiscalQueue();
@@ -470,6 +480,8 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         MigrateReportSales607Buffer();
         MigrateSendingPayServicesAbroad609();
         MigrateTipoServicioAdquirido();
+
+        UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase6CompletedTag());
     end;
 
     // No periodic Commit() - Application Area Setup is a tiny per-company setup table; Purchase

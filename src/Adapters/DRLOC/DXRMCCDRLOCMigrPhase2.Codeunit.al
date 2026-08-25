@@ -201,27 +201,55 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "Vendor Ledger Entry" = RM;
 
     trigger OnRun()
+    var
+        UpgradeTagMgt: Codeunit "Upgrade Tag";
+        PhaseTags: Codeunit "DXR_Internal Migr. Phase Tags";
     begin
-        // No concept-level Upgrade Tag gating here (deliberately) - each of the 13 individual
-        // procedures below is already gated by its own real DR-Localization completion tag (see
-        // codeunit-level comment), so an outer tag here would be redundant at best and, if this
-        // codeunit ever needed to re-run one single table's procedure in isolation (e.g. a future
-        // hotfix), an outer tag would incorrectly skip the whole group after the first successful run.
-        BootstrapCompanyInformationFields();
-        BootstrapBankAccountCustomerVendorFields();
-        BootstrapGLUserSetupJournalFields();
-        BootstrapNCFSetupTables();
-        BootstrapItemNCFCategoryBackfill();
-        BootstrapNAVPOSCustomerTable();
-        BootstrapExtractCardsTable();
-        BootstrapGubernamentales623Table();
-        BootstrapWithholdingPaymentOtherSetupTables();
+        // 2026-08-25 fix: this codeunit had NO top-level completion gate at all (the comment
+        // previously here argued an outer tag would be "redundant" since each of the 9 steps below
+        // already has its own real per-step tag) - but that meant EVERY invocation of Codeunit.Run()
+        // for this dispatcher re-scanned and re-checked all 9 real Phase 2 steps (plus the 7
+        // orphaned-field steps below) from scratch, on every single portfolio/category/extension run,
+        // forever, since MCC's own executor also can't mark a "Not Row-Based" (0/0 table ID) concept
+        // like these Bootstrap steps as Completed (see DXRMCCExecutor's IsDispatcherAlreadyDone). For
+        // a company with real data volume, that full unconditional re-scan on every run - combined
+        // with normal BC record-lock contention on universally-touched tables like Company
+        // Information - is the confirmed root cause of a real, reported production hang ("se queda
+        // congelado en Bootstrap Company Information / NCF Sales y no avanza"). Added the exact same
+        // outer gate real DR-Localization's own "DXR_Migr. Phase 2 Fiscal" OnRun() uses
+        // (Phase2CompletedTag(), reused verbatim, same convention already used for every inner tag in
+        // this file) - once a company completes these 9 steps for real once, every subsequent
+        // invocation becomes a single tag-check no-op instead of a full re-scan. If a future hotfix
+        // ever needs to force ONE step to re-run in isolation after this outer tag is set, comment out
+        // this gate temporarily (same technique already used for local debugging elsewhere) rather
+        // than clearing the real tag in a live company.
+        //
+        // Scope of this gate: ONLY the 9 calls below (BootstrapCompanyInformationFields through
+        // BootstrapWithholdingPaymentOtherSetupTables) - these are the exact 9 steps real Phase 2's
+        // own OnRun() gates with Phase2CompletedTag(). The 7 "orphaned field migration" calls further
+        // below stay UNCONDITIONAL/ungated, exactly matching real source's own structure (real
+        // RunOrphanedFieldMigrationsRetroactive() is called BEFORE and independently of the
+        // Phase2CompletedTag() check - see DXR_Migr_Phase_2_Fiscal.Codeunit.al lines 111-114 - each of
+        // those 7 already has its own individual idempotency tag, which is correct/sufficient there).
+        if not UpgradeTagMgt.HasUpgradeTag(PhaseTags.Phase2CompletedTag()) then begin
+            BootstrapCompanyInformationFields();
+            BootstrapBankAccountCustomerVendorFields();
+            BootstrapGLUserSetupJournalFields();
+            BootstrapNCFSetupTables();
+            BootstrapItemNCFCategoryBackfill();
+            BootstrapNAVPOSCustomerTable();
+            BootstrapExtractCardsTable();
+            BootstrapGubernamentales623Table();
+            BootstrapWithholdingPaymentOtherSetupTables();
+            UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase2CompletedTag());
+        end;
+
         // Batch 4 (2026-08-24) additions - seq34/40/41/42/43/44 (registry rows labeled DRLOC-P4/
         // DRLOC-P5, but kept in THIS codeunit - see the "Batch 4" section comment below for why) plus
-        // the ApplicationAreaSetup gap-fill (seq106, DRLOC-P2). All 13 procedures below are the same
+        // the ApplicationAreaSetup gap-fill (seq106, DRLOC-P2). All 7 procedures below are the same
         // ones DR-Localization's own RunOrphanedFieldMigrationsRetroactive() calls unconditionally
         // from "DXR_Migr. Phase 2 Fiscal"'s OnRun(), before that codeunit's own Phase2CompletedTag()
-        // gate check.
+        // gate check - deliberately left OUTSIDE the gate above, matching that same real structure.
         BootstrapApplicationAreaSetupFields();
         BootstrapCustLedgerEntryFields();
         BootstrapBankAccountCheckLedgerEntryFields();

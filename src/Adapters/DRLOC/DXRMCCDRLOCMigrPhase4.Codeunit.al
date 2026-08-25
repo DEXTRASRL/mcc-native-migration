@@ -251,7 +251,17 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
         tabledata "DXR_Cash Journal Receipt List" = RIM;
 
     trigger OnRun()
+    var
+        UpgradeTagMgt: Codeunit "Upgrade Tag";
+        PhaseTags: Codeunit "DXR_Internal Migr. Phase Tags";
     begin
+        // 2026-08-25 fix: added the outer completion gate real DR-Localization's own
+        // "DXR_Migr. Phase 4 Sales" OnRun() uses (Phase4CompletedTag(), reused verbatim) - same
+        // root-cause/fix as codeunit 60165's OnRun() comment (full re-scan on every invocation,
+        // forever, contributing to a real reported production hang).
+        if UpgradeTagMgt.HasUpgradeTag(PhaseTags.Phase4CompletedTag()) then
+            exit;
+
         BootstrapSalesHeaderFields();
         BootstrapSalesLineFields();
         BootstrapSalesInvoiceHeaderFields();
@@ -262,6 +272,8 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
         BootstrapConsumer02Sales607Table();
         BootstrapCustomerWithholdingLinesTable();
         BootstrapCashJournalReceiptListTable();
+
+        UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase4CompletedTag());
     end;
 
     // ===== seq31: Sales Header field restore =====
