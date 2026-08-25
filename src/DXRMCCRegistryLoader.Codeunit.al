@@ -154,9 +154,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P3', 28, 'Purchase WS Settlement legacy table restore (54141 -> 52196)', 60167, 54141, 52196, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 29, 'Vendor Withholding Header legacy table restore (54144 -> 52202)', 60167, 54144, 52202, 'MA');
         InsConcept('DRLOC', 'DRLOC-P3', 30, 'Withholding Vendor Lines legacy table restore (54149 -> 52211)', 60167, 54149, 52211, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 31, 'Sales Header/Line field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 32, 'Sales Invoice Header/Line field restore', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 33, 'Sales Cr. Memo Header field restore', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 31, 'Sales Header/Line field restore', 60168, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 32, 'Sales Invoice Header/Line field restore', 60168, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 33, 'Sales Cr. Memo Header field restore', 60168, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 34, 'Cust. Ledger Entry field restore (bulk + FlowFields)', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 35, 'Archived Sales 607 legacy table restore (54106 -> 52115)', 60069, 54106, 52115, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P4', 36, 'ITBIS Sales (607) legacy table restore (54126 -> 52171)', 60069, 54126, 52171, 'MA');
