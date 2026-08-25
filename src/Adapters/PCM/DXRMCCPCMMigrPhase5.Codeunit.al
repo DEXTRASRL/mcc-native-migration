@@ -7,13 +7,11 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     // after PCM's "Renumerar objetos y campos DXR_ a rango global 51801-54999" commit. Unlike
     // Phase2-4, the real source has no retry-on-transient-lock logic here - preserved as-is.
     // Tables 54605 "DXR_Prices Ctrl Setup" and 54609 "DXR_Approval History" are Access = Internal
-    // on PCM's side (restored 570xx predecessors, pending removal). 54609/MigrateApprovalHistory
-    // below still crosses via RecordRef by numeric table ID (Task A.4 scope was 54605/Setup only).
-    // 54605/MigratePricesCtrlSetup below instead uses the native Direct pattern (see
-    // MigratePricesCtrlSetupDirect()): PCM now grants MCC internalsVisibleTo, so MCC declares
-    // Record "DXR_Prices Ctrl Setup_Old" and Record "DXR_Prices Ctrl Setup" directly and does the
-    // field-by-field copy inline, instead of calling PCM's own codeunit 54620's typed thin-wrapper
-    // procedure.
+    // on PCM's side (restored 570xx predecessors, pending removal). Both MigratePricesCtrlSetup and
+    // MigrateApprovalHistory below use the native Direct pattern (see MigratePricesCtrlSetupDirect()):
+    // PCM now grants MCC internalsVisibleTo, so MCC declares the Old/New Record pairs directly and
+    // does the field-by-field copy inline - zero RecordRef/FieldRef/TransferFields anywhere in this
+    // codeunit - instead of calling PCM's own codeunits as a cross-app bridge.
     Permissions =
         tabledata "Approval Entry" = RM,
         tabledata Customer = RM,
@@ -22,7 +20,9 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         tabledata "Sales Header" = RM,
         tabledata "Sales Line" = RM,
         tabledata "DXR_Prices Ctrl Setup_Old" = R,
-        tabledata "DXR_Prices Ctrl Setup" = RI;
+        tabledata "DXR_Prices Ctrl Setup" = RI,
+        tabledata "DXR_Approval History_Old" = R,
+        tabledata "DXR_Approval History" = RI;
 
 #pragma warning disable AL0432
     trigger OnRun()
@@ -146,38 +146,55 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     local procedure MigrateApprovalHistory()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        OldRef: RecordRef;
-        NewRef: RecordRef;
-        FieldIds: List of [Integer];
-        FieldId: Integer;
-        OldFld, NewFld : FieldRef;
+        OldHistory: Record "DXR_Approval History_Old";
+        NewHistory: Record "DXR_Approval History";
     begin
         if UpgradeTag.HasUpgradeTag(Step2Tag()) then
             exit;
 
-        // Field 1 "Entry No." is AutoIncrement on both tables - intentionally NOT copied, the new
-        // table generates its own sequence; only the descriptive fields are migrated.
-        FieldIds.Add(2); FieldIds.Add(3); FieldIds.Add(4); FieldIds.Add(5); FieldIds.Add(6);
-        FieldIds.Add(10); FieldIds.Add(11); FieldIds.Add(12); FieldIds.Add(13); FieldIds.Add(20);
-        FieldIds.Add(21); FieldIds.Add(28); FieldIds.Add(22); FieldIds.Add(23); FieldIds.Add(24);
-        FieldIds.Add(25); FieldIds.Add(26); FieldIds.Add(27); FieldIds.Add(54); FieldIds.Add(29);
-        FieldIds.Add(30); FieldIds.Add(31); FieldIds.Add(32); FieldIds.Add(33); FieldIds.Add(40);
-        FieldIds.Add(50); FieldIds.Add(51); FieldIds.Add(52); FieldIds.Add(53);
-
-        OldRef.Open(57024);
-        if OldRef.FindSet() then
+        // Native Direct pattern - PCM grants MCC internalsVisibleTo, so MCC declares both
+        // "DXR_Approval History_Old" (57024, Access=Internal) and "DXR_Approval History" (54609,
+        // Access=Internal) directly - zero RecordRef/FieldRef, explicit per-field typed assignment
+        // for all 29 fields the two tables share (verified 1:1 identical field IDs/names/types
+        // between src\Base\Tables.old and src\Base\Tables versions of DXRPRCApprovalHistory.Table.al
+        // in PCM's own repo). Field 1 "Entry No." is AutoIncrement on both tables - intentionally NOT
+        // copied, the new table generates its own sequence; only the descriptive fields are migrated.
+        // Insert only, no Modify/upsert - Approval History is append-only audit-trail data, matching
+        // the real source semantics.
+        if OldHistory.FindSet() then
             repeat
-                NewRef.Open(54609);
-                NewRef.Init();
-                foreach FieldId in FieldIds do begin
-                    OldFld := OldRef.Field(FieldId);
-                    NewFld := NewRef.Field(FieldId);
-                    NewFld.Value := OldFld.Value;
-                end;
-                NewRef.Insert(false);
-                NewRef.Close();
-            until OldRef.Next() = 0;
-        OldRef.Close();
+                NewHistory.Init();
+                NewHistory."Document Type" := OldHistory."Document Type";
+                NewHistory."Document No." := OldHistory."Document No.";
+                NewHistory."Source Type" := OldHistory."Source Type";
+                NewHistory."Document Type Text" := OldHistory."Document Type Text";
+                NewHistory."Purch. Document Type" := OldHistory."Purch. Document Type";
+                NewHistory."Action Type" := OldHistory."Action Type";
+                NewHistory."Action DateTime" := OldHistory."Action DateTime";
+                NewHistory."User ID" := OldHistory."User ID";
+                NewHistory."User Name" := OldHistory."User Name";
+                NewHistory."Workflow Code" := OldHistory."Workflow Code";
+                NewHistory."Approval Entry No." := OldHistory."Approval Entry No.";
+                NewHistory."Workflow Description" := OldHistory."Workflow Description";
+                NewHistory."Sender ID" := OldHistory."Sender ID";
+                NewHistory."Sender Name" := OldHistory."Sender Name";
+                NewHistory."Approver ID" := OldHistory."Approver ID";
+                NewHistory."Approver Name" := OldHistory."Approver Name";
+                NewHistory."Approval Code" := OldHistory."Approval Code";
+                NewHistory."Sequence No." := OldHistory."Sequence No.";
+                NewHistory."Delegation Date" := OldHistory."Delegation Date";
+                NewHistory."Due Date" := OldHistory."Due Date";
+                NewHistory."Previous Status" := OldHistory."Previous Status";
+                NewHistory."New Status" := OldHistory."New Status";
+                NewHistory."Previous Status Text" := OldHistory."Previous Status Text";
+                NewHistory."New Status Text" := OldHistory."New Status Text";
+                NewHistory."Comments" := OldHistory."Comments";
+                NewHistory."Salesperson Code" := OldHistory."Salesperson Code";
+                NewHistory."Customer No." := OldHistory."Customer No.";
+                NewHistory."Total Amount" := OldHistory."Total Amount";
+                NewHistory."Vendor No." := OldHistory."Vendor No.";
+                NewHistory.Insert(false);
+            until OldHistory.Next() = 0;
 
         UpgradeTag.SetUpgradeTag(Step2Tag());
     end;
