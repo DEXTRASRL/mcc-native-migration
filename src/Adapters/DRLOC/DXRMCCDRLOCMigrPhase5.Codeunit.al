@@ -21,14 +21,22 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     //         Fix606CategoriaNCFAndITBISAdelantar(), Fix606ISRWithholdingTypeBlank(),
     //         FixVLEWithholdingApplyType() (the last one called TWICE by real source, under two
     //         separate real tags - see its own section below for why).
-    //       - Sub-batch 2b (THIS batch): next 4 of 11 real sub-fixes -
+    //       - Sub-batch 2b (DONE): next 4 of 11 real sub-fixes -
     //         BackfillWithholdingPaymentAndCodes(), Fix606WithholdingByVendor(),
     //         Fix606WithholdingByVendorV2(), Fix606WithholdingByVendorV3() - see their own section
     //         below for the V1/V2/V3 progression story.
-    //       - Sub-batch 2c (later, dispatched after 2b review): remaining 3 real sub-fixes
-    //         (Sync606ChargeHistoryNCF + its helpers, Repair606CardChargeVLEs,
-    //         Repair606BankChargeVLEs) - the last sub-batch, which also repoints registry seq49's
-    //         Dispatcher Codeunit ID to this codeunit (60169).
+    //       - Sub-batch 2c (THIS batch): Sync606ChargeHistoryNCF() + its self-contained helper chain
+    //         ONLY (see that procedure's own section below) - narrower than originally planned.
+    //         Investigation found the remaining 2 real sub-fixes (Repair606CardChargeVLEs(),
+    //         Repair606BankChargeVLEs()) both call into a THIRD codeunit
+    //         (Codeunit "DXR_Localization Fiscal Mgt.", Register606HistoryTable()) that is ~1500+ lines,
+    //         carries live NCF fiscal-sequence-assignment logic, AND an unconditional interactive
+    //         Dialog.OPEN() call - DGII/NCF-fiscal-numbering-adjacent territory, same risk class as the
+    //         campaign's other explicitly-excluded DGII-RNC-Database-adjacent work, deliberately deferred
+    //         to a dedicated follow-up decision (NOT part of this batch, NOT ported here). Because of
+    //         this, registry seq49's Dispatcher Codeunit ID stays at 60069 for now, NOT repointed to this
+    //         codeunit (60169) yet - repointing (and porting the 2 remaining procedures, pending a
+    //         separate decision on Register606HistoryTable()) is left for a future, dedicated batch.
     //   - Batch 3 (later, registry seq46/47/48/65-72): the remaining 11 whole-table-clone steps.
     // OnRun() replicates Phase 5's real OnRun SHAPE (same pattern as 60165/60167/60168's own header
     // comments describe): every ported procedure is called unconditionally, each individually gated
@@ -151,7 +159,13 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         tabledata "Purch. Inv. Header" = R,
         tabledata "Purch. Cr. Memo Hdr." = R,
         tabledata NCFCategories_DXR = R,
-        tabledata "DXR_Vendor Withholding Setup" = R;
+        tabledata "DXR_Vendor Withholding Setup" = R,
+        tabledata "DXR_Archived Bank Charges Hdr" = R,
+        tabledata "DXR_Arch Bank Charges Lines" = R,
+        tabledata "DXR_Arch. C. C. Charges Header" = R,
+        tabledata "DXR_Arch. C. C. Charges Lines" = R,
+        tabledata "DXR_NCF Setup" = R,
+        tabledata "G/L Account" = R;
 
     trigger OnRun()
     begin
@@ -165,6 +179,7 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         BootstrapFix606WithholdingByVendor();
         BootstrapFix606WithholdingByVendorV2();
         BootstrapFix606WithholdingByVendorV3();
+        BootstrapSync606ChargeHistoryNCF();
     end;
 
     // ===== RepairVendorWithholdingMigration (unconditional, no registry row - see header note) =====
@@ -1362,5 +1377,303 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 BatchCount := 0;
             end;
         until Archive606.Next() = 0;
+    end;
+
+    // ===== Sub-batch 2c: Sync606ChargeHistoryNCF() and its self-contained helper chain =====
+    // Real source: DXR_LocUpgradeProcess.Codeunit.al lines 2031-2219, gated by real tag literal
+    // 'DX-T20260410.0001-Sync606ChargeHistoryNCF' (DXR_UpgradeTagMgt.Codeunit.al's own
+    // UpgradeTag606ChargeHistoryNCFSync(), reused verbatim). This is the LAST of the 11 real sub-fixes
+    // called by RunRecentV27DataUpgrades() ported into this codeunit so far - see the header note above
+    // for why the remaining 2 (Repair606CardChargeVLEs/Repair606BankChargeVLEs) are deliberately NOT
+    // part of this batch, and why registry seq49's Dispatcher Codeunit ID is NOT repointed here.
+    //
+    // What real gap it fixes: Sync606ChargeHistoryNCF() is a trivial dispatcher (calls the next 2
+    // procedures below, in order, unconditionally - no logic of its own). Both
+    // Sync606BankChargesFromHistory() and Sync606CardChargesFromHistory() scan their own processed-
+    // history table (DXR_Archived Bank Charges Hdr / DXR_Arch. C. C. Charges Header, both filtered to
+    // Procesado = true, Anulado = false) and, for each row, call the shared helper
+    // SyncChargeHistoryTo606() to back-fill NCF/NCF-Modificado/Document-Date/Vendor-Ledger-Entry-No./
+    // Categoria-NCF onto the matching DXR_Archived Purchase - (606) row(s) - i.e. these are DGII "606"
+    // purchase-reporting rows generated from posted bank/card charge documents that are missing fields
+    // their own source charge document actually has. SyncChargeHistoryTo606() itself is entirely
+    // fill-gaps-only (every field write is individually conditional on the target Archive606 field
+    // being blank/zero/mismatched from the source - see its own field-by-field comments below); it is
+    // never an unconditional overwrite of an already-populated field, matching this whole sub-campaign's
+    // established discipline.
+    //
+    // Matching shape: SyncChargeHistoryTo606() filters DXR_Archived Purchase - (606) by "Tipo Documento"
+    // = the caller's own ChargeDocumentType parameter (Enum "Gen. Journal Document Type"::"DX Bank
+    // Charge" from the bank-charge caller, ::"DX Card Charge" from the card-charge caller - used purely
+    // as a filter value, never branched on inside the shared helper itself, matching the task's own
+    // framing), "No. Documento" = the source document's own "No."/"No." (DocumentNo parameter), and
+    // "Reporta 606" = true; additionally filtered by "Cod. Proveedor" = VendorNo when VendorNo is
+    // non-blank (both callers always pass their own header's "Vendor No.", so this filter is always
+    // applied in practice for both charge types) - can match more than one Archive606 row per source
+    // document (loops with repeat/until), each independently fill-gapped.
+    //
+    // The 7 Get* helpers (GetArchivedBankChargeNCF/AffectedNCF, GetArchivedCardChargeNCF/AffectedNCF,
+    // GetBankChargeExpenseAccountNo/GetCardChargeExpenseAccountNo, GetChargeCategoryFromExpenseAccount)
+    // are short lookups/fallback chains ported verbatim: the bank-charge NCF/Affected-NCF getters prefer
+    // the header's own NCF/"NCF Afectado" field, falling back to the first DXR_Arch Bank Charges Lines
+    // row with a non-blank NCF/"NCF Afectado" (FindFirst, not a "latest" or "matching" search - real
+    // source's own choice, preserved exactly); the card-charge NCF getter prefers the header's own "NCF
+    // Mensual", falling back to the first DXR_Arch. C. C. Charges Lines row with a non-blank "Daily NCF";
+    // the card-charge Affected-NCF getter has NO line-level fallback at all (reads only the header's own
+    // "NCF Afectado", unlike its bank-charge sibling - a genuine, faithfully-preserved asymmetry between
+    // the two charge types, not an omission); the 2 expense-account getters each read a single field off
+    // the singleton DXR_NCF Setup row ("Cta. Gastos Cargos Banc." / "Cta. Gastos Cargos Tarjetas Cr");
+    // GetChargeCategoryFromExpenseAccount() resolves a G/L Account's own "NCFCategories_DXR" field from
+    // whichever expense-account no. its caller passed in, returning '' if the account no. is blank or
+    // the G/L Account itself doesn't exist. CopyStr(..., 1, 20) truncation guards preserved verbatim on
+    // every Code[19]-typed source value being assigned into a Code[20] target (a widening move, so this
+    // never actually truncates in practice, but kept exactly as real source writes it).
+    //
+    // Enum parameter note (task-specified): SyncChargeHistoryTo606()'s ChargeDocumentType parameter
+    // (Enum "Gen. Journal Document Type") is used purely as an outer SetRange filter value on Archive606's
+    // "Tipo Documento" - it is never branched/cased on inside the shared helper itself, preserved exactly
+    // as real source structures it (both callers pass their own already-resolved enum literal in).
+    //
+    // Shadow-field check: DXR_Archived Purchase - (606)'s NCF (7, Code[20]), "NCF Modificado" (8,
+    // Code[20]), "Document Date" (36002771, Date, has its own OnValidate trigger deriving
+    // AnoMes_FPago/Dia_FPago-style companions - Validate() used here, not a direct assignment, exactly
+    // matching real source's own call), "Vendor Ledger Entry No." (36002777, Integer), "Categoria NCF"
+    // (15, Code[20]), "Desc. Categoria NCF" (21, Text[60]), "Reporta 606" (41, Boolean), "Tipo Documento"
+    // (1, Enum "Gen. Journal Document Type"), "No. Documento" (2, Code[20]), "Cod. Proveedor" (5,
+    // Code[20]) all independently re-confirmed live/non-obsolete against the current
+    // DXR_ArchivedPurchase606.Table.al. DXR_Archived Bank Charges Hdr (table 52107/36002838, Access =
+    // Internal - No., Document Date, Vendor No., Procesado, Anulado, NCF, "NCF Afectado", "Document
+    // Type") and DXR_Arch Bank Charges Lines (table 52109/36002839, Access = Internal - "No.", NCF,
+    // "NCF Afectado") confirmed live against DXR_ArchivedBankChargesHdr.Table.al /
+    // DXR_ArchivedBankChargesLines.Table.al; DXR_Arch. C. C. Charges Header (table 52259/36002909,
+    // Access = Internal - No., Document Date, Vendor No., "NCF Mensual", Procesado, Anulado, "Document
+    // Type", "NCF Afectado", "Entry No.") and DXR_Arch. C. C. Charges Lines ("Daily NCF") confirmed live
+    // against DXR_ArchCCChargesHeader.Table.al / DXR_ArchCCChargesLines.Table.al; DXR_NCF Setup's "Cta.
+    // Gastos Cargos Banc." (10) / "Cta. Gastos Cargos Tarjetas Cr" (11) confirmed live against
+    // DXR_NCFSetup.Table.al; G/L Account's own "NCFCategories_DXR" (51812/36002754) confirmed live
+    // against DXR_GLAccountExt.TableExt.al. Enum "Gen. Journal Document Type" values "DX Bank Charge"
+    // (54100) / "DX Card Charge" (54101) confirmed live against DXR_GenJournalDocumentType.EnumExt.al.
+    // None of the fields/tables/enum values referenced by this whole sub-batch carry ObsoleteState.
+    //
+    // Commit() placement: real source has NO Commit() anywhere in this chain. Unlike every other
+    // procedure ported into this codeunit so far, the 2 outer-loop tables here (DXR_Archived Bank
+    // Charges Hdr / DXR_Arch. C. C. Charges Header, both further filtered to Procesado = true, Anulado =
+    // false) are bounded, processed-history-scale tables - one row per posted/processed bank-charge or
+    // credit-card-charge batch document, not a per-transaction ledger-entry-scale table like every prior
+    // sub-batch's own outer loop (Vendor Ledger Entry, DXR_VendWithholdLedgerEntry, DXR_Archived
+    // Purchase - (606) itself) - no periodic Commit() added here, a deliberate departure from this
+    // sub-campaign's own "add Commit() every 100 rows to any unbounded/transaction-volume scan lacking
+    // one" default, justified by the genuinely different (bounded, processed-document-count) scale of
+    // these 2 specific source tables. The inner SyncChargeHistoryTo606() helper's own Archive606 scan is
+    // additionally narrowed by "No. Documento"/"Reporta 606"/"Cod. Proveedor" per outer row (a handful of
+    // matches at most per source document), reinforcing that this whole chain is not transaction-volume
+    // scale the way the rest of this codeunit's ledger-entry/archive-history scans are.
+    local procedure BootstrapSync606ChargeHistoryNCF()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-T20260410.0001-Sync606ChargeHistoryNCF') then begin
+            Sync606ChargeHistoryNCF();
+            UpgradeTag.SetUpgradeTag('DX-T20260410.0001-Sync606ChargeHistoryNCF');
+        end;
+    end;
+
+    local procedure Sync606ChargeHistoryNCF()
+    begin
+        Sync606BankChargesFromHistory();
+        Sync606CardChargesFromHistory();
+    end;
+
+    local procedure Sync606BankChargesFromHistory()
+    var
+        ArchivedBankChargesHdr: Record "DXR_Archived Bank Charges Hdr";
+    begin
+        ArchivedBankChargesHdr.Reset();
+        ArchivedBankChargesHdr.SetRange(Procesado, true);
+        ArchivedBankChargesHdr.SetRange(Anulado, false);
+        if not ArchivedBankChargesHdr.FindSet() then
+            exit;
+
+        repeat
+            SyncChargeHistoryTo606(
+                ArchivedBankChargesHdr."No.",
+                ArchivedBankChargesHdr."Vendor No.",
+                Enum::"Gen. Journal Document Type"::"DX Bank Charge",
+                GetArchivedBankChargeNCF(ArchivedBankChargesHdr),
+                GetArchivedBankChargeAffectedNCF(ArchivedBankChargesHdr),
+                ArchivedBankChargesHdr."Document Type" = ArchivedBankChargesHdr."Document Type"::"Credit Memo",
+                ArchivedBankChargesHdr."Document Date",
+                0,
+                GetChargeCategoryFromExpenseAccount(GetBankChargeExpenseAccountNo()));
+        until ArchivedBankChargesHdr.Next() = 0;
+    end;
+
+    local procedure Sync606CardChargesFromHistory()
+    var
+        ArchCCChargesHeader: Record "DXR_Arch. C. C. Charges Header";
+    begin
+        ArchCCChargesHeader.Reset();
+        ArchCCChargesHeader.SetRange(Procesado, true);
+        ArchCCChargesHeader.SetRange(Anulado, false);
+        if not ArchCCChargesHeader.FindSet() then
+            exit;
+
+        repeat
+            SyncChargeHistoryTo606(
+                ArchCCChargesHeader."No.",
+                ArchCCChargesHeader."Vendor No.",
+                Enum::"Gen. Journal Document Type"::"DX Card Charge",
+                GetArchivedCardChargeNCF(ArchCCChargesHeader),
+                GetArchivedCardChargeAffectedNCF(ArchCCChargesHeader),
+                ArchCCChargesHeader."Document Type" = ArchCCChargesHeader."Document Type"::"Credit Memo",
+                ArchCCChargesHeader."Document Date",
+                ArchCCChargesHeader."Entry No.",
+                GetChargeCategoryFromExpenseAccount(GetCardChargeExpenseAccountNo()));
+        until ArchCCChargesHeader.Next() = 0;
+    end;
+
+    // Fill-gaps-only: every field write below is individually conditional on the target Archive606
+    // field currently being blank/zero/mismatched from the source - never an unconditional overwrite.
+    local procedure SyncChargeHistoryTo606(DocumentNo: Code[20]; VendorNo: Code[20]; ChargeDocumentType: Enum "Gen. Journal Document Type"; SourceNCF: Code[20]; SourceAffectedNCF: Code[20]; IsCreditMemo: Boolean; SourceDocumentDate: Date; SourceVendorLedgerEntryNo: Integer; SourceCategoryNCF: Code[20])
+    var
+        Archive606: Record "DXR_Archived Purchase - (606)";
+        NcfCategories: Record NCFCategories_DXR;
+        Modified: Boolean;
+    begin
+        if DocumentNo = '' then
+            exit;
+
+        Archive606.Reset();
+        Archive606.SetRange("Tipo Documento", ChargeDocumentType);
+        Archive606.SetRange("No. Documento", DocumentNo);
+        Archive606.SetRange("Reporta 606", true);
+        if VendorNo <> '' then
+            Archive606.SetRange("Cod. Proveedor", VendorNo);
+        if not Archive606.FindSet(true) then
+            exit;
+
+        repeat
+            Modified := false;
+
+            if (SourceNCF <> '') and (Archive606.NCF <> SourceNCF) then begin
+                Archive606.NCF := SourceNCF;
+                Modified := true;
+            end;
+
+            if IsCreditMemo and (SourceAffectedNCF <> '') and (Archive606."NCF Modificado" <> SourceAffectedNCF) then begin
+                Archive606."NCF Modificado" := SourceAffectedNCF;
+                Modified := true;
+            end;
+
+            if (SourceDocumentDate <> 0D) and (Archive606."Document Date" = 0D) then begin
+                Archive606.Validate("Document Date", SourceDocumentDate);
+                Modified := true;
+            end;
+
+            if (SourceVendorLedgerEntryNo <> 0) and (Archive606."Vendor Ledger Entry No." = 0) then begin
+                Archive606."Vendor Ledger Entry No." := SourceVendorLedgerEntryNo;
+                Modified := true;
+            end;
+
+            if (SourceCategoryNCF <> '') and (Archive606."Categoria NCF" = '') then begin
+                Archive606."Categoria NCF" := SourceCategoryNCF;
+                if NcfCategories.Get(SourceCategoryNCF) then
+                    Archive606."Desc. Categoria NCF" := NcfCategories.DXDescripcion;
+                Modified := true;
+            end;
+
+            if Modified then
+                Archive606.Modify(false);
+        until Archive606.Next() = 0;
+    end;
+
+    // Prefers the header's own NCF; falls back to the first DXR_Arch Bank Charges Lines row with a
+    // non-blank NCF (FindFirst - first match only, real source's own choice).
+    local procedure GetArchivedBankChargeNCF(ArchivedBankChargesHdr: Record "DXR_Archived Bank Charges Hdr"): Code[20]
+    var
+        ArchivedBankChargesLines: Record "DXR_Arch Bank Charges Lines";
+    begin
+        if ArchivedBankChargesHdr.NCF <> '' then
+            exit(CopyStr(ArchivedBankChargesHdr.NCF, 1, 20));
+
+        ArchivedBankChargesLines.Reset();
+        ArchivedBankChargesLines.SetRange("No.", ArchivedBankChargesHdr."No.");
+        ArchivedBankChargesLines.SetFilter(NCF, '<>%1', '');
+        if ArchivedBankChargesLines.FindFirst() then
+            exit(CopyStr(ArchivedBankChargesLines.NCF, 1, 20));
+
+        exit('');
+    end;
+
+    // Prefers the header's own "NCF Afectado"; falls back to the first DXR_Arch Bank Charges Lines row
+    // with a non-blank "NCF Afectado".
+    local procedure GetArchivedBankChargeAffectedNCF(ArchivedBankChargesHdr: Record "DXR_Archived Bank Charges Hdr"): Code[20]
+    var
+        ArchivedBankChargesLines: Record "DXR_Arch Bank Charges Lines";
+    begin
+        if ArchivedBankChargesHdr."NCF Afectado" <> '' then
+            exit(CopyStr(ArchivedBankChargesHdr."NCF Afectado", 1, 20));
+
+        ArchivedBankChargesLines.Reset();
+        ArchivedBankChargesLines.SetRange("No.", ArchivedBankChargesHdr."No.");
+        ArchivedBankChargesLines.SetFilter("NCF Afectado", '<>%1', '');
+        if ArchivedBankChargesLines.FindFirst() then
+            exit(CopyStr(ArchivedBankChargesLines."NCF Afectado", 1, 20));
+
+        exit('');
+    end;
+
+    // Prefers the header's own "NCF Mensual"; falls back to the first DXR_Arch. C. C. Charges Lines row
+    // with a non-blank "Daily NCF".
+    local procedure GetArchivedCardChargeNCF(ArchCCChargesHeader: Record "DXR_Arch. C. C. Charges Header"): Code[20]
+    var
+        ArchCCChargesLines: Record "DXR_Arch. C. C. Charges Lines";
+    begin
+        if ArchCCChargesHeader."NCF Mensual" <> '' then
+            exit(CopyStr(ArchCCChargesHeader."NCF Mensual", 1, 20));
+
+        ArchCCChargesLines.Reset();
+        ArchCCChargesLines.SetRange("No.", ArchCCChargesHeader."No.");
+        ArchCCChargesLines.SetFilter("Daily NCF", '<>%1', '');
+        if ArchCCChargesLines.FindFirst() then
+            exit(CopyStr(ArchCCChargesLines."Daily NCF", 1, 20));
+
+        exit('');
+    end;
+
+    // Reads only the header's own "NCF Afectado" - NO line-level fallback (unlike its bank-charge
+    // sibling above), a genuine, faithfully-preserved asymmetry between the two charge types.
+    local procedure GetArchivedCardChargeAffectedNCF(ArchCCChargesHeader: Record "DXR_Arch. C. C. Charges Header"): Code[20]
+    begin
+        exit(CopyStr(ArchCCChargesHeader."NCF Afectado", 1, 20));
+    end;
+
+    local procedure GetBankChargeExpenseAccountNo(): Code[20]
+    var
+        NCFSetup: Record "DXR_NCF Setup";
+    begin
+        if NCFSetup.Get() then
+            exit(CopyStr(NCFSetup."Cta. Gastos Cargos Banc.", 1, 20));
+
+        exit('');
+    end;
+
+    local procedure GetCardChargeExpenseAccountNo(): Code[20]
+    var
+        NCFSetup: Record "DXR_NCF Setup";
+    begin
+        if NCFSetup.Get() then
+            exit(CopyStr(NCFSetup."Cta. Gastos Cargos Tarjetas Cr", 1, 20));
+
+        exit('');
+    end;
+
+    local procedure GetChargeCategoryFromExpenseAccount(ExpenseAccountNo: Code[20]): Code[20]
+    var
+        GLAccount: Record "G/L Account";
+    begin
+        if (ExpenseAccountNo <> '') and GLAccount.Get(ExpenseAccountNo) then
+            exit(CopyStr(GLAccount."NCFCategories_DXR", 1, 20));
+
+        exit('');
     end;
 }
