@@ -17,13 +17,18 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     //     orchestrator calls them. Registry seq49's Dispatcher Codeunit ID stays at 60069 until the LAST
     //     sub-batch (2c) lands all 11 and repoints it - same "codeunit built across N batches" pattern
     //     60165 already used):
-    //       - Sub-batch 2a (THIS batch): first 4 of 11 real sub-fixes - updateWithholdingEntries(),
+    //       - Sub-batch 2a (DONE): first 4 of 11 real sub-fixes - updateWithholdingEntries(),
     //         Fix606CategoriaNCFAndITBISAdelantar(), Fix606ISRWithholdingTypeBlank(),
     //         FixVLEWithholdingApplyType() (the last one called TWICE by real source, under two
     //         separate real tags - see its own section below for why).
-    //       - Sub-batch 2b/2c (later, dispatched after 2a review): remaining 7 real sub-fixes
-    //         (BackfillWithholdingPaymentAndCodes, Fix606WithholdingByVendor/V2/V3,
-    //         Sync606ChargeHistoryNCF + its helpers, Repair606CardChargeVLEs, Repair606BankChargeVLEs).
+    //       - Sub-batch 2b (THIS batch): next 4 of 11 real sub-fixes -
+    //         BackfillWithholdingPaymentAndCodes(), Fix606WithholdingByVendor(),
+    //         Fix606WithholdingByVendorV2(), Fix606WithholdingByVendorV3() - see their own section
+    //         below for the V1/V2/V3 progression story.
+    //       - Sub-batch 2c (later, dispatched after 2b review): remaining 3 real sub-fixes
+    //         (Sync606ChargeHistoryNCF + its helpers, Repair606CardChargeVLEs,
+    //         Repair606BankChargeVLEs) - the last sub-batch, which also repoints registry seq49's
+    //         Dispatcher Codeunit ID to this codeunit (60169).
     //   - Batch 3 (later, registry seq46/47/48/65-72): the remaining 11 whole-table-clone steps.
     // OnRun() replicates Phase 5's real OnRun SHAPE (same pattern as 60165/60167/60168's own header
     // comments describe): every ported procedure is called unconditionally, each individually gated
@@ -156,6 +161,10 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         BootstrapFix606CategoriaNCFAndITBISAdelantar();
         BootstrapFix606ISRWithholdingTypeBlank();
         BootstrapFixVLEWithholdingApplyType();
+        BootstrapBackfillWithholdingPaymentAndCodes();
+        BootstrapFix606WithholdingByVendor();
+        BootstrapFix606WithholdingByVendorV2();
+        BootstrapFix606WithholdingByVendorV3();
     end;
 
     // ===== RepairVendorWithholdingMigration (unconditional, no registry row - see header note) =====
@@ -798,5 +807,560 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 BatchCount := 0;
             end;
         until WithholdingEntry.Next() = 0;
+    end;
+
+    // ===== Sub-batch 2b, procedure 1/4: BackfillWithholdingPaymentAndCodes() =====
+    // Real source: DXR_LocUpgradeProcess.Codeunit.al lines 1669-1706, gated by real tag literal
+    // 'DX-T20260401.0001-BackfillWithholdingPaymentAndCodes-V2' (DXR_UpgradeTagMgt.Codeunit.al's own
+    // UpgradeTagWithholdingPaymentAndCodesV2(), reused verbatim - note the tag literal itself carries a
+    // "-V2" suffix even though the procedure name/body have no separate V1; real source has only ever
+    // shipped this one body under this one (V2-named) tag, unlike the genuine V1/V2/V3 progression on
+    // Fix606WithholdingByVendor below - preserved exactly as real source names it, not renamed).
+    //
+    // What real gap it fixes: for every DXR_VendWithholdLedgerEntry row, finds matching "Vendor Ledger
+    // Entry" rows already of Document Type = "DX Withholding" (unlike updateWithholdingEntries()/
+    // BackfillWithholdingPaymentAndCodes's sub-batch-2a sibling, this procedure does NOT reclassify
+    // Payment -> "DX Withholding" itself - it only back-fills fields on rows that are ALREADY
+    // "DX Withholding") - matched by "NCF_DXR" when "NCF Afectado" is set, else by "Document No.",
+    // always also filtered by "Vendor No." (real source's own T20260401.0001 cross-vendor-contamination
+    // guard, same guard reused verbatim in sub-batch 2a's updateWithholdingEntries()). For each matched
+    // VLE row: unconditionally stamps "Withholding Payment_DXR" := true (no dirty-check, always set,
+    // exactly as real source does it - not gated on the field's current value), then back-fills
+    // whichever of "Cod. Retencion ITBIS_DXR" / "Cod. Retencion ISR_DXR" is still BLANK (never
+    // overwrites an already-populated code) from the withholding entry's own "Tipo Retencion"
+    // (ITBIS/ISR) branch - the same blank-only back-fill pattern as every other correction procedure in
+    // this sub-campaign.
+    //
+    // Modify()-with-triggers note: real source calls bare "VLE.Modify(false);" here (NOT the bare
+    // "VendorLedgerEntry.Modify();" with RunTrigger = true that sub-batch 2a's updateWithholdingEntries()
+    // uses) - preserved verbatim, Modify(false) matches every other repair procedure in this codeunit.
+    //
+    // Shadow-field check: all fields referenced (DXR_VendWithholdLedgerEntry's "NCF Afectado",
+    // "No. Documento", "Cod. Proveedor", "Tipo Retencion", "Cod. Retencion ITBIS"/"Cod. Retencion ISR";
+    // Vendor Ledger Entry's "NCF_DXR", "Document No.", "Vendor No.", "Withholding Payment_DXR",
+    // "Cod. Retencion ITBIS_DXR"/"Cod. Retencion ISR_DXR") already confirmed live in Batch 1 / sub-batch
+    // 2a's own field mapping - no new fields introduced by this procedure. Ported var name "VLE"
+    // normalized to "VendorLedgerEntry", matching this codeunit's own established naming (same
+    // normalization rationale as sub-batch 2a's header note).
+    //
+    // Commit() placement: real source has no Commit() at all - unfiltered outer scan of ALL
+    // DXR_VendWithholdLedgerEntry rows, each with its own inner Vendor Ledger Entry re-scan (same
+    // structural shape as sub-batch 2a's FixVLEWithholdingApplyType / Batch 1's
+    // RepairVendorLedgerEntryDocumentTypes) - periodic Commit() every 100 outer rows added, matching
+    // that established precedent.
+    local procedure BootstrapBackfillWithholdingPaymentAndCodes()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-T20260401.0001-BackfillWithholdingPaymentAndCodes-V2') then begin
+            BackfillWithholdingPaymentAndCodes();
+            UpgradeTag.SetUpgradeTag('DX-T20260401.0001-BackfillWithholdingPaymentAndCodes-V2');
+        end;
+    end;
+
+    local procedure BackfillWithholdingPaymentAndCodes()
+    var
+        WithholdingEntry: Record DXR_VendWithholdLedgerEntry;
+        VendorLedgerEntry: Record "Vendor Ledger Entry";
+        BatchCount: Integer;
+    begin
+        WithholdingEntry.Reset();
+        if not WithholdingEntry.FindSet() then
+            exit;
+
+        repeat
+            VendorLedgerEntry.Reset();
+            VendorLedgerEntry.SetRange("Document Type", VendorLedgerEntry."Document Type"::"DX Withholding");
+
+            if WithholdingEntry."NCF Afectado" <> '' then
+                VendorLedgerEntry.SetRange("NCF_DXR", WithholdingEntry."NCF Afectado")
+            else
+                VendorLedgerEntry.SetRange("Document No.", WithholdingEntry."No. Documento");
+
+            // T20260401.0001 - Always filter by vendor to prevent cross-vendor contamination.
+            VendorLedgerEntry.SetRange("Vendor No.", WithholdingEntry."Cod. Proveedor");
+
+            if VendorLedgerEntry.FindSet(true) then
+                repeat
+                    VendorLedgerEntry."Withholding Payment_DXR" := true;
+
+                    case WithholdingEntry."Tipo Retencion" of
+                        WithholdingEntry."Tipo Retencion"::ITBIS:
+                            if (VendorLedgerEntry."Cod. Retencion ITBIS_DXR" = '') and (WithholdingEntry."Cod. Retencion ITBIS" <> '') then
+                                VendorLedgerEntry."Cod. Retencion ITBIS_DXR" := WithholdingEntry."Cod. Retencion ITBIS";
+                        WithholdingEntry."Tipo Retencion"::ISR:
+                            if (VendorLedgerEntry."Cod. Retencion ISR_DXR" = '') and (WithholdingEntry."Cod. Retencion ISR" <> '') then
+                                VendorLedgerEntry."Cod. Retencion ISR_DXR" := WithholdingEntry."Cod. Retencion ISR";
+                    end;
+
+                    VendorLedgerEntry.Modify(false);
+                until VendorLedgerEntry.Next() = 0;
+
+            BatchCount += 1;
+            if BatchCount >= 100 then begin
+                Commit();
+                BatchCount := 0;
+            end;
+        until WithholdingEntry.Next() = 0;
+    end;
+
+    // ===== Sub-batch 2b, procedures 2-4/4: Fix606WithholdingByVendor() / V2() / V3() - the genuine
+    // V1/V2/V3 "fix the fix" progression =====
+    // Real source: DXR_LocUpgradeProcess.Codeunit.al lines 1710-1821 (V1), 1821-1925 (V2), 1925-2031
+    // (V3) - THREE separate, sequentially-gated procedures, each its own distinct body (not one
+    // procedure called 3 times like sub-batch 2a's FixVLEWithholdingApplyType). Real orchestrator
+    // (RunRecentV27DataUpgrades()) calls all three, in order, each under its own real tag literal:
+    //   V1: 'DX-T20260401.0001-Fix606WithholdingByVendor'  (UpgradeTag606WithholdingByVendorFix())
+    //   V2: 'DX-T20260406.0001-Fix606WithholdingByVendor-V2' (UpgradeTag606WithholdingByVendorFixV2())
+    //   V3: 'DX-T20260406.0001-Fix606WithholdingByVendor-V3' (UpgradeTag606WithholdingByVendorFixV3())
+    // On a fresh/never-run tenant all three still run unconditionally in sequence, per this task's
+    // instruction - NOT deduplicated or collapsed into a single "final" version.
+    //
+    // Common shape across all 3: for every DXR_Archived Purchase - (606) row with a non-blank "NCF"
+    // (SetFilter NCF <> ''), FIRST unconditionally clears 13 withholding-related fields ("Fecha Pago",
+    // "Withholding Date", AnoMes_FPago, Dia_FPago, "ITBIS Retenido"/ICY, "Importe Ret. Renta"/ICY,
+    // "ITBIS Percibido"/ICY, "ISR Percibido"/ICY, "ISR withholding Type") to 0D/0/'' - a full
+    // recompute-from-scratch pattern, not an incremental patch - THEN re-derives them from matching
+    // DXR_VendWithholdLedgerEntry rows, accumulating amounts with += (a single Archive606 row can be
+    // fed by multiple withholding entries) branched by "Withholding Apply Type" (On Payment -> "ITBIS
+    // Retenido"/"Importe Ret. Renta" fields; On Invoice -> "ITBIS Percibido"/"ISR Percibido" fields;
+    // blank/unknown Withholding Apply Type falls through to the On-Payment branch as a legacy default,
+    // per real source's own inline comment preserved above each case), and stamps "ISR withholding
+    // Type" from DXR_Vendor Withholding Setup only on ISR-type entries (never from ITBIS entries).
+    // Dates: "Withholding Date"/"Fecha Pago"/AnoMes_FPago/Dia_FPago are (re)assigned from EACH matched
+    // withholding entry in loop order (last-matched-wins, no explicit "latest date" comparison in any
+    // of the 3 versions) - prefers "Fecha Retencion", falls back to "Payment Date" only when
+    // "Fecha Retencion" is blank. Always unconditional Modify(false) at the end of each outer row (even
+    // when no withholding entries matched - the clear-first fields simply stay at their cleared values,
+    // per real source's own comment preserved above), matching V1's real comment exactly.
+    //
+    // ===== What actually changed V1 -> V2 -> V3 (the whole point of this sub-batch) =====
+    //   V1 -> V2 matching change: V1 matches withholding entries by "NCF Afectado" = Archive606.NCF AND
+    //     "Cod. Proveedor" = Archive606."Cod. Proveedor" (internal vendor code). V2 DROPS the vendor-code
+    //     match and instead matches by "NCF Afectado" = Archive606.NCF AND "RNC/Cedula" =
+    //     Archive606."Cod. Identificacion" (the vendor's fiscal ID / RNC-Cedula) - i.e. V2 switches the
+    //     cross-vendor-contamination guard from an internal-code join to a fiscal-ID join. V1's real
+    //     source also declares a local "FoundMatch" Boolean, set true when any withholding entry matches,
+    //     but never actually branches on it afterward (the "if no entries found, fields stay cleared"
+    //     comment describes what happens by fall-through, not by checking FoundMatch) - a vestigial/dead
+    //     variable in real, current V1 source, preserved verbatim here (not dropped) per this task's
+    //     no-simplification instruction; V2 removes this unused variable entirely (a genuine, faithfully
+    //     ported difference between the two real bodies, not an omission on this port's part). The
+    //     case/accumulation logic itself (Withholding Apply Type / Tipo Retencion branches) is IDENTICAL
+    //     between V1 and V2 - V2's own header comment ("Corrects bug where ITBIS entries incorrectly set
+    //     ISR withholding Type") describes a defect already absent from V1's own case structure as read
+    //     in this batch (ISR withholding Type is only ever stamped from the ISR branches in both V1 and
+    //     V2) - most likely describing a bug in a pre-V1 version not read as part of this campaign;
+    //     flagged for reviewer awareness rather than silently resolved.
+    //   V2 -> V3 change: matching filter is IDENTICAL to V2 (NCF Afectado + RNC/Cedula, no FoundMatch
+    //     variable). The only functional difference is a NEW final step added AFTER the withholding-entry
+    //     loop, before Modify(): if BOTH "Importe Ret. Renta ICY" = 0 AND "ISR Percibido ICY" = 0 (i.e.
+    //     no ISR amount was actually accumulated on this row from either apply-type branch), "ISR
+    //     withholding Type" is force-cleared to '' even if a withholding-entry iteration had stamped a
+    //     non-blank type onto it during the loop. This fixes a residual-stale-value bug in V1/V2: since
+    //     "ISR withholding Type" is stamped as a side effect of matching an ISR-type withholding entry
+    //     (via DxVendorWithHoldingSetup.Get()), but the loop can still process ITBIS-type entries for the
+    //     same NCF+vendor pair AFTER an ISR entry was processed, and neither ITBIS branch ever clears
+    //     "ISR withholding Type" - a row could end up with a non-blank ISR type even though its final ISR
+    //     retention amount actually is 0 (e.g. an ISR entry with a 0 "Importe Retenido"/zeroed
+    //     "Withhold Amount LCY" still stamps the type via Get() before the += accumulation, or NCF+RNC
+    //     grouping crosses ISR/ITBIS entries in a way that leaves a type/amount mismatch). V3's guard
+    //     enforces "type set <=> some ISR amount actually present" as a post-loop invariant.
+    //
+    // Shadow-field check: all DXR_Archived Purchase - (606) fields cleared/assigned across all 3
+    // versions (Fecha Pago, Withholding Date, AnoMes_FPago, Dia_FPago, ITBIS Retenido/ICY, Importe Ret.
+    // Renta/ICY, ITBIS Percibido/ICY, ISR Percibido/ICY, ISR withholding Type, NCF, Cod. Proveedor,
+    // Cod. Identificacion) independently re-confirmed live (non-obsolete, correct Decimal/Date/Text/Code
+    // types) against the current DXR_ArchivedPurchase606.Table.al. WithholdingEntry fields used
+    // ("NCF Afectado", "Cod. Proveedor", "RNC/Cedula", "Withholding Apply Type", "Tipo Retencion",
+    // "Importe Retenido", "Withhold Amount LCY", "Cod. Retencion ISR", "Fecha Retencion",
+    // "Payment Date") already confirmed live in Batch 1's own field mapping / sub-batch 2a. "Abs(...)"
+    // on "Withhold Amount LCY" preserved verbatim (real source's own sign-normalization for the ICY
+    // companion fields, same pattern already established). DXR_Vendor Withholding Setup's
+    // "DXR_ISR withholding Type" already confirmed live in sub-batch 2a's Fix606ISRWithholdingTypeBlank.
+    //
+    // Commit() placement: NONE of the 3 real bodies has a Commit() at all - each is a full
+    // recompute-from-scratch pass over every DXR_Archived Purchase - (606) row with a non-blank NCF, an
+    // unbounded 606-reportable-history-scale scan (same class of gap as sub-batch 2a's procedures 2/4
+    // and 3/4 over the same table) - periodic Commit() every 100 rows added independently to EACH of the
+    // 3 procedures (they never run concurrently within the same OnRun(), so no shared BatchCount needed
+    // across them), matching this sub-campaign's established judgment.
+    local procedure BootstrapFix606WithholdingByVendor()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-T20260401.0001-Fix606WithholdingByVendor') then begin
+            Fix606WithholdingByVendor();
+            UpgradeTag.SetUpgradeTag('DX-T20260401.0001-Fix606WithholdingByVendor');
+        end;
+    end;
+
+    local procedure Fix606WithholdingByVendor()
+    var
+        Archive606: Record "DXR_Archived Purchase - (606)";
+        WithholdingEntry: Record DXR_VendWithholdLedgerEntry;
+        VendorWithholdingSetup: Record "DXR_Vendor Withholding Setup";
+        FoundMatch: Boolean;
+        BatchCount: Integer;
+    begin
+        Archive606.Reset();
+        Archive606.SetFilter(NCF, '<>%1', '');
+        if not Archive606.FindSet(true) then
+            exit;
+
+        repeat
+            // Clear all withholding-related fields first, then repopulate only if matched.
+            Archive606."Fecha Pago" := 0D;
+            Archive606."Withholding Date" := 0D;
+            Archive606.AnoMes_FPago := '';
+            Archive606.Dia_FPago := '';
+            Archive606."ITBIS Retenido" := 0;
+            Archive606."ITBIS Retenido ICY" := 0;
+            Archive606."Importe Ret. Renta" := 0;
+            Archive606."Importe Ret. Renta ICY" := 0;
+            Archive606."ITBIS Percibido" := 0;
+            Archive606."ITBIS Percibido ICY" := 0;
+            Archive606."ISR Percibido" := 0;
+            Archive606."ISR Percibido ICY" := 0;
+            Archive606."ISR withholding Type" := '';
+
+            FoundMatch := false;
+
+            // Search withholding entries filtered by Vendor + NCF.
+            WithholdingEntry.Reset();
+            WithholdingEntry.SetRange("NCF Afectado", Archive606.NCF);
+            WithholdingEntry.SetRange("Cod. Proveedor", Archive606."Cod. Proveedor");
+            if WithholdingEntry.FindSet() then begin
+                FoundMatch := true;
+                repeat
+                    // T20260406.0001 - ISR type only from ISR entries; else branch for blank Withholding
+                    // Apply Type; amounts accumulated with +=.
+                    case WithholdingEntry."Withholding Apply Type" of
+                        WithholdingEntry."Withholding Apply Type"::"On Payment":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        WithholdingEntry."Withholding Apply Type"::"On Invoice":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."ISR Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ISR Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        else
+                            // Blank/unknown Withholding Apply Type -> treat as On Payment (legacy default).
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                    end;
+
+                    // Assign dates from the matched withholding entry: prefer Fecha Retencion, fallback
+                    // to Payment Date.
+                    if WithholdingEntry."Fecha Retencion" <> 0D then begin
+                        Archive606."Withholding Date" := WithholdingEntry."Fecha Retencion";
+                        Archive606."Fecha Pago" := WithholdingEntry."Fecha Retencion";
+                        Archive606.AnoMes_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Year4>') + Format(WithholdingEntry."Fecha Retencion", 0, '<Month,2>');
+                        Archive606.Dia_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Day,2>');
+                    end else
+                        if WithholdingEntry."Payment Date" <> 0D then begin
+                            Archive606."Withholding Date" := WithholdingEntry."Payment Date";
+                            Archive606."Fecha Pago" := WithholdingEntry."Payment Date";
+                            Archive606.AnoMes_FPago := Format(WithholdingEntry."Payment Date", 0, '<Year4>') + Format(WithholdingEntry."Payment Date", 0, '<Month,2>');
+                            Archive606.Dia_FPago := Format(WithholdingEntry."Payment Date", 0, '<Day,2>');
+                        end;
+                until WithholdingEntry.Next() = 0;
+            end;
+
+            // If no withholding entries found for this vendor+NCF, fields stay cleared (0D / 0).
+            Archive606.Modify(false);
+
+            BatchCount += 1;
+            if BatchCount >= 100 then begin
+                Commit();
+                BatchCount := 0;
+            end;
+        until Archive606.Next() = 0;
+    end;
+
+    local procedure BootstrapFix606WithholdingByVendorV2()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-T20260406.0001-Fix606WithholdingByVendor-V2') then begin
+            Fix606WithholdingByVendorV2();
+            UpgradeTag.SetUpgradeTag('DX-T20260406.0001-Fix606WithholdingByVendor-V2');
+        end;
+    end;
+
+    // V2 change vs V1 (see the combined header note above this procedure block): matches withholding
+    // entries by "NCF Afectado" + "RNC/Cedula" (fiscal ID) instead of "NCF Afectado" + "Cod. Proveedor"
+    // (internal vendor code); drops the unused "FoundMatch" variable V1's real source still carries.
+    local procedure Fix606WithholdingByVendorV2()
+    var
+        Archive606: Record "DXR_Archived Purchase - (606)";
+        WithholdingEntry: Record DXR_VendWithholdLedgerEntry;
+        VendorWithholdingSetup: Record "DXR_Vendor Withholding Setup";
+        BatchCount: Integer;
+    begin
+        Archive606.Reset();
+        Archive606.SetFilter(NCF, '<>%1', '');
+        if not Archive606.FindSet(true) then
+            exit;
+
+        repeat
+            // Clear all withholding-related fields first, then repopulate only if matched.
+            Archive606."Fecha Pago" := 0D;
+            Archive606."Withholding Date" := 0D;
+            Archive606.AnoMes_FPago := '';
+            Archive606.Dia_FPago := '';
+            Archive606."ITBIS Retenido" := 0;
+            Archive606."ITBIS Retenido ICY" := 0;
+            Archive606."Importe Ret. Renta" := 0;
+            Archive606."Importe Ret. Renta ICY" := 0;
+            Archive606."ITBIS Percibido" := 0;
+            Archive606."ITBIS Percibido ICY" := 0;
+            Archive606."ISR Percibido" := 0;
+            Archive606."ISR Percibido ICY" := 0;
+            Archive606."ISR withholding Type" := '';
+
+            // Search withholding entries filtered by NCF + RNC/Cedula (fiscal ID, not internal vendor
+            // code - see V1/V2 note above).
+            WithholdingEntry.Reset();
+            WithholdingEntry.SetRange("NCF Afectado", Archive606.NCF);
+            WithholdingEntry.SetRange("RNC/Cedula", Archive606."Cod. Identificacion");
+            if WithholdingEntry.FindSet() then
+                repeat
+                    // T20260406.0001 - ISR type only from ISR entries; else branch for blank Withholding
+                    // Apply Type; amounts accumulated with +=.
+                    case WithholdingEntry."Withholding Apply Type" of
+                        WithholdingEntry."Withholding Apply Type"::"On Payment":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        WithholdingEntry."Withholding Apply Type"::"On Invoice":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."ISR Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ISR Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        else
+                            // Blank/unknown Withholding Apply Type -> treat as On Payment (legacy default).
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                    end;
+
+                    // Assign dates: prefer Fecha Retencion, fallback to Payment Date.
+                    if WithholdingEntry."Fecha Retencion" <> 0D then begin
+                        Archive606."Withholding Date" := WithholdingEntry."Fecha Retencion";
+                        Archive606."Fecha Pago" := WithholdingEntry."Fecha Retencion";
+                        Archive606.AnoMes_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Year4>') + Format(WithholdingEntry."Fecha Retencion", 0, '<Month,2>');
+                        Archive606.Dia_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Day,2>');
+                    end else
+                        if WithholdingEntry."Payment Date" <> 0D then begin
+                            Archive606."Withholding Date" := WithholdingEntry."Payment Date";
+                            Archive606."Fecha Pago" := WithholdingEntry."Payment Date";
+                            Archive606.AnoMes_FPago := Format(WithholdingEntry."Payment Date", 0, '<Year4>') + Format(WithholdingEntry."Payment Date", 0, '<Month,2>');
+                            Archive606.Dia_FPago := Format(WithholdingEntry."Payment Date", 0, '<Day,2>');
+                        end;
+                until WithholdingEntry.Next() = 0;
+
+            Archive606.Modify(false);
+
+            BatchCount += 1;
+            if BatchCount >= 100 then begin
+                Commit();
+                BatchCount := 0;
+            end;
+        until Archive606.Next() = 0;
+    end;
+
+    local procedure BootstrapFix606WithholdingByVendorV3()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-T20260406.0001-Fix606WithholdingByVendor-V3') then begin
+            Fix606WithholdingByVendorV3();
+            UpgradeTag.SetUpgradeTag('DX-T20260406.0001-Fix606WithholdingByVendor-V3');
+        end;
+    end;
+
+    // V3 change vs V2 (see the combined header note above the V1 procedure block): same NCF + RNC/Cedula
+    // matching as V2, plus a NEW post-loop guard that force-clears "ISR withholding Type" back to '' when
+    // neither "Importe Ret. Renta ICY" nor "ISR Percibido ICY" ended up non-zero on the row - fixes a
+    // residual-stale-type bug where V1/V2 could leave a non-blank ISR type stamped from an earlier ISR
+    // withholding-entry match even though the row's final accumulated ISR amount is 0.
+    local procedure Fix606WithholdingByVendorV3()
+    var
+        Archive606: Record "DXR_Archived Purchase - (606)";
+        WithholdingEntry: Record DXR_VendWithholdLedgerEntry;
+        VendorWithholdingSetup: Record "DXR_Vendor Withholding Setup";
+        BatchCount: Integer;
+    begin
+        Archive606.Reset();
+        Archive606.SetFilter(NCF, '<>%1', '');
+        if not Archive606.FindSet(true) then
+            exit;
+
+        repeat
+            // Clear all withholding-related fields first.
+            Archive606."Fecha Pago" := 0D;
+            Archive606."Withholding Date" := 0D;
+            Archive606.AnoMes_FPago := '';
+            Archive606.Dia_FPago := '';
+            Archive606."ITBIS Retenido" := 0;
+            Archive606."ITBIS Retenido ICY" := 0;
+            Archive606."Importe Ret. Renta" := 0;
+            Archive606."Importe Ret. Renta ICY" := 0;
+            Archive606."ITBIS Percibido" := 0;
+            Archive606."ITBIS Percibido ICY" := 0;
+            Archive606."ISR Percibido" := 0;
+            Archive606."ISR Percibido ICY" := 0;
+            Archive606."ISR withholding Type" := '';
+
+            // Search withholding entries by NCF + RNC/Cedula (Cod. Identificacion) - centralized matching.
+            WithholdingEntry.Reset();
+            WithholdingEntry.SetRange("NCF Afectado", Archive606.NCF);
+            WithholdingEntry.SetRange("RNC/Cedula", Archive606."Cod. Identificacion");
+            if WithholdingEntry.FindSet() then
+                repeat
+                    case WithholdingEntry."Withholding Apply Type" of
+                        WithholdingEntry."Withholding Apply Type"::"On Payment":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        WithholdingEntry."Withholding Apply Type"::"On Invoice":
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."ISR Percibido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ISR Percibido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                        else
+                            // Blank/unknown Withholding Apply Type -> treat as On Payment (legacy default).
+                            case WithholdingEntry."Tipo Retencion" of
+                                WithholdingEntry."Tipo Retencion"::ITBIS:
+                                    begin
+                                        Archive606."ITBIS Retenido" += WithholdingEntry."Importe Retenido";
+                                        Archive606."ITBIS Retenido ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                    end;
+                                WithholdingEntry."Tipo Retencion"::ISR:
+                                    begin
+                                        Archive606."Importe Ret. Renta" += WithholdingEntry."Importe Retenido";
+                                        Archive606."Importe Ret. Renta ICY" += Abs(WithholdingEntry."Withhold Amount LCY");
+                                        if VendorWithholdingSetup.Get(WithholdingEntry."Cod. Retencion ISR") then
+                                            Archive606."ISR withholding Type" := VendorWithholdingSetup."DXR_ISR withholding Type";
+                                    end;
+                            end;
+                    end;
+
+                    // Assign dates: prefer Fecha Retencion, fallback to Payment Date.
+                    if WithholdingEntry."Fecha Retencion" <> 0D then begin
+                        Archive606."Withholding Date" := WithholdingEntry."Fecha Retencion";
+                        Archive606."Fecha Pago" := WithholdingEntry."Fecha Retencion";
+                        Archive606.AnoMes_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Year4>') + Format(WithholdingEntry."Fecha Retencion", 0, '<Month,2>');
+                        Archive606.Dia_FPago := Format(WithholdingEntry."Fecha Retencion", 0, '<Day,2>');
+                    end else
+                        if WithholdingEntry."Payment Date" <> 0D then begin
+                            Archive606."Withholding Date" := WithholdingEntry."Payment Date";
+                            Archive606."Fecha Pago" := WithholdingEntry."Payment Date";
+                            Archive606.AnoMes_FPago := Format(WithholdingEntry."Payment Date", 0, '<Year4>') + Format(WithholdingEntry."Payment Date", 0, '<Month,2>');
+                            Archive606.Dia_FPago := Format(WithholdingEntry."Payment Date", 0, '<Day,2>');
+                        end;
+                until WithholdingEntry.Next() = 0;
+
+            // Clear ISR type only when NO ISR retention at all (neither On Payment nor On Invoice) -
+            // T20260406.0001 V3's own new post-loop invariant guard.
+            if (Archive606."Importe Ret. Renta ICY" = 0) and (Archive606."ISR Percibido ICY" = 0) then
+                Archive606."ISR withholding Type" := '';
+
+            Archive606.Modify(false);
+
+            BatchCount += 1;
+            if BatchCount >= 100 then begin
+                Commit();
+                BatchCount := 0;
+            end;
+        until Archive606.Next() = 0;
     end;
 }
