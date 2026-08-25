@@ -128,13 +128,26 @@ work above — the DRLOC native-porting campaign explicitly skips `seq15`.
 
 ## Sequencing summary
 
-1. **DRLOC native-porting campaign** (in progress) — Phase 2 remaining batches, then Phase 3, 4, 5,
-   6, excluding DGII-RNC throughout.
-2. **BELLON Sales/Purchase old-generation bridge** (`seq135`, 14 procedures).
+1. ~~**DRLOC native-porting campaign**~~ — **DONE (2026-08-25).** All 6 phases complete: Phase 2
+   (48/48), Phase 3 (12/12), Phase 4 (9/9), Phase 5 (19/24), Phase 6 (27/27) = 115/120 real
+   registry-tracked actions natively ported into MCC codeunits 60165-60170, zero cross-repo bridge
+   dependency remaining. Also retired 3 stale coarse "phase" bridge rows (DRLOC-P2/P3/P4, seq1-3) and
+   fixed a portfolio-wide missing-Execute-permission gap (DRLOC's 6 codeunits + BELLON's
+   SPOldGenBridge) found along the way. **Open items, not blocking anything below:**
+   - Phase 5's `seq49` (V27 data corrections) has 2 of 11 sub-procedures deliberately deferred
+     (`Repair606CardChargeVLEs`/`Repair606BankChargeVLEs`, which depend on a ~1500-line, dialog-
+     coupled, live NCF-sequence-generation procedure in a separate DRLOC codeunit — same risk class
+     as DGII-RNC). `seq49` and DRLOC-P5's own coarse bridge row (`seq4`) stay pointed at `60069`
+     until this gets its own dedicated task.
+   - MCC's own `DPP` Extension Notes registry comment (line ~62) looks stale/inaccurate against DPP's
+     real current source — a small documentation-correction follow-up, unrelated to DRLOC itself.
+   - `DGII-RNC Database` (`DRLOC-P2 seq15`) stays excluded, per Task D.1 below.
+2. ~~**BELLON Sales/Purchase old-generation bridge**~~ — **DONE** (`seq135`, confirmed a real no-op,
+   commit `950e4cd`).
 3. **Ordinary Task B.1 MA sweep** for the remaining 11 extensions (BELLON P6/small, DXP, FE, VP,
    DESB, RBPD, PCM, SD, TU, RC, BC, DESLS) — re-verify each extension isn't hiding its own
    DRLOC-style "forwards to a sibling repo" gap before assuming the ordinary RecordRef-conversion
-   pattern applies.
+   pattern applies. **Next task.**
 4. **Task C.1** — Historic-phase sweep, all extensions, after B.1 is fully re-verified complete.
 5. **Resolve the `OTHER`-category ruling.**
 6. **Task D.1** — DGII-RNC Database, the final task.
