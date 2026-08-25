@@ -78,11 +78,33 @@ page 60023 "DXR MCC Run Requests"
                 Caption = 'Cancel';
                 ApplicationArea = All;
                 Image = Cancel;
-                ToolTip = 'Requests cancellation of this run. Takes effect at the next safe boundary (between extensions/concepts, not mid-dispatcher-call - a dispatcher already running can''t be interrupted), same granularity as its own checkpointing. A Scheduled row not yet started is cancelled immediately.';
+                ToolTip = 'Requests cancellation of this run. Takes effect at the next safe boundary (between extensions/concepts, not mid-dispatcher-call - a dispatcher already running can''t be interrupted), same granularity as its own checkpointing. A Scheduled row not yet started is cancelled immediately (removed from the platform''s own task queue via TaskScheduler.CancelTask, not just a cooperative flag).';
                 Enabled = IsCancellableStatus;
                 trigger OnAction()
+                var
+                  
                 begin
                     if IsCancellableStatus then begin
+                        // 2026-08-25: for a Status = Scheduled row (CreateTask already called, task
+                        // not yet started), the cooperative "Cancel Requested" flag alone still lets
+                        // the background session spin up, run OnRun(), check the flag, and exit - a
+                        // wasted TaskScheduler slot, and (per Microsoft's own Task Scheduler docs,
+                        // https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/
+                        // developer/devenv-task-scheduler) not the documented way to remove a task
+                        // from the platform's own Scheduled Task queue (table 2000000175) - that's
+                        // TaskScheduler.CancelTask(Guid), gated by TaskExists() since a task that
+                        // already started (or never existed, e.g. "Task Id" left blank because
+                        // CanCreateTask() was false and the run went synchronous) can't be cancelled
+                        // this way. Once a task has actually STARTED executing as a background
+                        // session, AL offers no API to forcibly kill it - CancelTask only ever
+                        // touches the queue entry, never a live session (confirmed against the same
+                        // docs; killing an active session is an admin/Session-Management action, not
+                        // something callable from here) - the cooperative flag below remains the only
+                        // mechanism for a run that's already in progress, same as before this change.
+                        if not IsNullGuid(Rec."Task Id") then
+                            if TaskScheduler.TaskExists(Rec."Task Id") then
+                                TaskScheduler.CancelTask(Rec."Task Id");
+
                         Rec."Cancel Requested" := true;
                         Rec.Modify(true);
                         Message('Cancelación solicitada. El estado cambiará a Cancelled en el próximo punto seguro (no instantáneo si hay un dispatcher en ejecución).');

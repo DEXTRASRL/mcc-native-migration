@@ -886,6 +886,22 @@ codeunit 60011 "DXR MCC Executor"
         if not RunRequest.FindSet(true) then
             exit;
         repeat
+            // 2026-08-25: also cancel the stored Task Id via the official TaskScheduler API (guarded
+            // by TaskExists, since a task that already started - the normal case for a row that
+            // reached Status=Running at all - won't exist in the queue anymore, making this a safe
+            // no-op then). Covers the rare edge case where a task was created and this row was
+            // stamped Running, but the underlying scheduled entry hadn't actually been consumed yet
+            // (e.g. TaskScheduler capacity delay) - without this, that entry could still fire later
+            // and start real migration work concurrently with whatever picks up the freed lock next,
+            // exactly the overlapping-dispatcher-chain risk "DXR MCC Migration Lock Mgt." exists to
+            // prevent. Does NOT and cannot forcibly stop a session that is genuinely, actively
+            // running - AL has no API for that (confirmed against Microsoft's own Task Scheduler
+            // docs); this self-heal only fixes MCC's own bookkeeping/lock for that case, same as
+            // before this change.
+            if not IsNullGuid(RunRequest."Task Id") then
+                if TaskScheduler.TaskExists(RunRequest."Task Id") then
+                    TaskScheduler.CancelTask(RunRequest."Task Id");
+
             RunRequest.Status := RunRequest.Status::Failed;
             RunRequest."Completed At" := CurrentDateTime();
             RunRequest."Result Summary" := CopyStr(StrSubstNo(
