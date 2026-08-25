@@ -169,6 +169,80 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     numbers/types - all 40 common, nothing excluded (same ObsoleteState = Pending-on-destination-
     //     only note as seq78 applies to fields 40-47 here too). Same ever-growing rationale as seq78 -
     //     periodic Commit() every 100 rows added.
+    //
+    // ===== Batch 3: next 8 of 24 generic-loop whole-table clones (seq80-87) =====
+    // Continuation of Batch 2's discipline for the same real generic MigrateTable() helper (lines
+    // 239-264 of real source) - GetCommonCompatibleFieldNos() (lines 266-280) matches fields by SAME
+    // NUMBER + SAME "Field" system-table Type value only (Class = Normal); for two Option/Enum fields,
+    // "Type" reads as the same generic Option/Enum type regardless of which specific enum object each
+    // side declares, so CopyCommonFields() (lines 282-293) still copies them as a raw FieldRef.Value
+    // ordinal transfer - this is why seq85/86/87 below (ContributorType, a DIFFERENT Enum object on old
+    // vs new side but with identical member values 1/2/3) are still real-loop-copyable, ported here via
+    // FromInteger()/AsInteger() to replicate that exact ordinal-transfer semantic (same discipline as
+    // seq51/52's Batch 1 enum conversions).
+    //
+    // Registry cross-check for all 8 rows in this batch (seq80-87): independently re-verified every
+    // row's Old/New Table ID pair against real source's own MigrateTable() call arguments (lines 99-106)
+    // AND both real table object declarations - all 8 registry rows are CORRECT, no data error found
+    // this batch (unlike seq73 in Batch 2).
+    //
+    // Full field-by-field common-field derivation (independently re-read against real, current source
+    // for BOTH the legacy DX-prefixed table AND its DXR-prefixed replacement, per table):
+    //   - seq80 (Consumer Sales 607 Buffer, 54150 -> 52213): "DX Consumer Sales 607 Buffer"/
+    //     "DXR_Consumer Sales 607 Buffer" - 45 common fields (field 13 Mensajes is a FlowField on both;
+    //     fields 17-28, all "Total ... Amount" fields, are FlowFields on both too; field 36002769
+    //     "Additional Currency Code" carries ObsoleteState = Removed on both - all excluded, matching
+    //     real behavior exactly, same pattern as Batch 2's seq74 sibling table). History-scale table
+    //     (DGII 607 consumer-sales tax reporting data, registry Category HIST) - periodic Commit() every
+    //     100 rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento", "No. Linea") - safe
+    //     to re-run.
+    //   - seq81 (Customer Withholding Entries, 54115 -> 52143, active name shortened to "DXR_Cust
+    //     Withhold Entries"): 23 fields total on both sides, identical numbers/types - all 23 common,
+    //     nothing excluded. Note: this is a SEPARATE, legitimate whole-table clone of the same target
+    //     table that Phase 5's updateWithholdingEntries() already field-restores (both real, both
+    //     ObsoleteState = Pending module, confirmed real in an earlier batch this session) - not a
+    //     duplication. Ledger-entry-style history table - periodic Commit() every 100 rows added.
+    //     Upsert-by-primary-key ("Fecha Retencion", "No. Documento", "Tipo Retencion", "No. Linea") -
+    //     safe to re-run.
+    //   - seq82 (Customer Withholding Header, 54116 -> 52144, active name shortened to "DXR_Cust
+    //     Withhold Header"): 17 fields total on both sides, identical numbers/types - all 17 common,
+    //     nothing excluded. Document-header-style history table (pairs with seq81 above) - periodic
+    //     Commit() every 100 rows added. Upsert-by-primary-key ("No.") - safe to re-run.
+    //   - seq83 (Dependencies Metadata, 54157 -> 52225): "DX Dependencies Metadata"/"DXR_Dependencies
+    //     Metadata" - 5 fields total on both sides, identical numbers/types - all 5 common, nothing
+    //     excluded. DataPerCompany = false on both sides (global, not per-company, table) - tiny
+    //     installed-extension-list setup table - no periodic Commit() needed. Upsert-by-primary-key
+    //     (AppId) - safe to re-run.
+    //   - seq84 (Detalle Servicio Adquirido, 54154 -> 52219): "DxDetalleServicioAdquirido"/
+    //     "DXR_R_DetalleServicioAdquirido" - 3 fields total on both sides, identical numbers/types - all
+    //     3 common, nothing excluded. Small reference/lookup table (service-type sub-code + description,
+    //     not transactional despite registry Category HIST) - no periodic Commit() needed.
+    //     Upsert-by-primary-key ("Tipo Servicio Adquirido", "Code") - safe to re-run.
+    //   - seq85 (DGI API Services, 54160 -> 52233): "DX DGI ApiServices"/"DXR_DGI ApiServices" - 12
+    //     fields total on both sides; field 11 (ContributorType) is Enum "DX ApiDGIServices Contr.
+    //     Type" (54110, obsolete) vs Enum "DXR_ApiDGIServices Contr. Type" (52197, live) - a DIFFERENT
+    //     enum object on each side but with identical member values 1=" ", 2=Customer, 3=Vendor
+    //     (confirmed against both enum source files) - still real-loop-copyable per this batch's own
+    //     header note above, ported via FromInteger()/AsInteger(). All 12 fields common, nothing
+    //     excluded. Confirmed via DXR_DgiApiServices.Codeunit.al that current live code only ever
+    //     returns "Record ... temporary" instances shaped by this table (never inserts into the real,
+    //     persisted table) - its real row content is frozen legacy data from before that refactor,
+    //     history-scale - periodic Commit() every 100 rows added. Upsert-by-primary-key ("RNC") - safe
+    //     to re-run.
+    //   - seq86 (DGI API Services FindByName, 54161 -> 52234): "DX DGI ApiServices FindByName"/"DXR_DGI
+    //     ApiServices FindByName" - same 12-field shape/same field-11 enum-object difference as seq85
+    //     above. Neither side declares a `keys` block in real source - per AL's own default-key rule (no
+    //     keys property = the table's implicit primary key is ALL fields, in field-declaration order),
+    //     the primary key is the full 12-field tuple; ported via Target.Get() with all 12 source-derived
+    //     values (field 11 converted the same way as seq85). Same frozen-legacy-cache rationale as seq85
+    //     - periodic Commit() every 100 rows added.
+    //   - seq87 (DGII Temp Table, 54162 -> 52235): "DX DGII Temp Table"/"DXR_DGII Temp Table" - same
+    //     12-field shape/same field-11 enum difference/same no-explicit-keys (all-fields primary key) as
+    //     seq86 above. Confirmed via DXR_DgiApiServices.Codeunit.al (DGiServicesGetByName()) that this
+    //     table is fully DeleteAll()'d/Delete()'d at the START of every real use despite being a real
+    //     (non-AL-temporary) persisted table - genuinely transient/scratch, not accumulated history,
+    //     unlike its seq85/86 siblings - no periodic Commit() needed. Upsert-by-all-12-fields-as-key -
+    //     safe to re-run.
     Permissions =
         tabledata "DX EF Send Registry" = R,
         tabledata "DXR_EF Send Registry" = RIM,
@@ -192,7 +266,23 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         tabledata "DX Cash Receipt Header" = R,
         tabledata "DXR_Cash Receipt Header" = RIM,
         tabledata "DX Cash Receipt Line" = R,
-        tabledata "DXR_Cash Receipt Line" = RIM;
+        tabledata "DXR_Cash Receipt Line" = RIM,
+        tabledata "DX Consumer Sales 607 Buffer" = R,
+        tabledata "DXR_Consumer Sales 607 Buffer" = RIM,
+        tabledata "DXCustomer Withholding Entries" = R,
+        tabledata "DXR_Cust Withhold Entries" = RIM,
+        tabledata "DXCustomer Withholding Header" = R,
+        tabledata "DXR_Cust Withhold Header" = RIM,
+        tabledata "DX Dependencies Metadata" = R,
+        tabledata "DXR_Dependencies Metadata" = RIM,
+        tabledata DxDetalleServicioAdquirido = R,
+        tabledata DXR_R_DetalleServicioAdquirido = RIM,
+        tabledata "DX DGI ApiServices" = R,
+        tabledata "DXR_DGI ApiServices" = RIM,
+        tabledata "DX DGI ApiServices FindByName" = R,
+        tabledata "DXR_DGI ApiServices FindByName" = RIM,
+        tabledata "DX DGII Temp Table" = R,
+        tabledata "DXR_DGII Temp Table" = RIM;
 
     trigger OnRun()
     begin
@@ -207,6 +297,14 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         MigrateBankCommissionSetup();
         MigrateCashReceiptHeader();
         MigrateCashReceiptLine();
+        MigrateConsumerSales607Buffer();
+        MigrateCustomerWithholdingEntries();
+        MigrateCustomerWithholdingHeader();
+        MigrateDependenciesMetadata();
+        MigrateDetalleServicioAdquirido();
+        MigrateDGIApiServices();
+        MigrateDGIApiServicesFindByName();
+        MigrateDGIITempTable();
     end;
 
     // No periodic Commit() - Application Area Setup is a tiny per-company setup table; Purchase
@@ -761,6 +859,362 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
                     Commit();
                     BatchCount := 0;
                 end;
+            until Source.Next() = 0;
+    end;
+
+    // Consumer Sales 607 Buffer - 45 common fields (field 13 Mensajes and fields 17-28 "Total ..."
+    // fields are FlowFields on both sides, field 36002769 "Additional Currency Code" carries
+    // ObsoleteState = Removed on both sides - all excluded, see codeunit-level Batch 3 shadow-field
+    // comment). History-scale table (DGII 607 consumer-sales tax reporting data), periodic Commit()
+    // every 100 rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento", "No. Linea") -
+    // safe to re-run.
+    local procedure MigrateConsumerSales607Buffer()
+    var
+        Source: Record "DX Consumer Sales 607 Buffer";
+        Target: Record "DXR_Consumer Sales 607 Buffer";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea");
+                if not TargetExists then
+                    Target.Init();
+                Target."Tipo Documento" := Source."Tipo Documento";
+                Target."No. Documento" := Source."No. Documento";
+                Target."Tipo Identificacion" := Source."Tipo Identificacion";
+                Target."Cod. Identificacion" := Source."Cod. Identificacion";
+                Target."Cod. Cliente" := Source."Cod. Cliente";
+                Target."Nombre Cliente" := Source."Nombre Cliente";
+                Target.NCF := Source.NCF;
+                Target."NCF Modificado" := Source."NCF Modificado";
+                Target."Fecha Comprobante" := Source."Fecha Comprobante";
+                Target."ITBIS Facturado" := Source."ITBIS Facturado";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."No. Linea" := Source."No. Linea";
+                Target."Estado Reg." := Source."Estado Reg.";
+                Target."Report 607" := Source."Report 607";
+                Target."Date Filter" := Source."Date Filter";
+                Target."Cheque/Transf./Deposito ICY" := Source."Cheque/Transf./Deposito ICY";
+                Target."Type of Income" := Source."Type of Income";
+                Target."Fecha Retencion" := Source."Fecha Retencion";
+                Target."ITBIS Retenido por Terceros" := Source."ITBIS Retenido por Terceros";
+                Target."ITBIS Percibido" := Source."ITBIS Percibido";
+                Target."Retencion Renta por Terceros" := Source."Retencion Renta por Terceros";
+                Target."ISR Percibido" := Source."ISR Percibido";
+                Target."Imp. Selectivo al Consumo" := Source."Imp. Selectivo al Consumo";
+                Target."Otros Impuestos o Tasas" := Source."Otros Impuestos o Tasas";
+                Target."Monto Propina Legal" := Source."Monto Propina Legal";
+                Target.Efectivo := Source.Efectivo;
+                Target."Cheque/Transferencia/Deposito" := Source."Cheque/Transferencia/Deposito";
+                Target."Tarjeta Debito/Credito" := Source."Tarjeta Debito/Credito";
+                Target."Venta a Credito" := Source."Venta a Credito";
+                Target."Bonos o Certificados de Regalo" := Source."Bonos o Certificados de Regalo";
+                Target.Permuta := Source.Permuta;
+                Target."Otras Formas de Ventas" := Source."Otras Formas de Ventas";
+                Target."Fuente Datos" := Source."Fuente Datos";
+                Target."Additional Currency Factor" := Source."Additional Currency Factor";
+                Target."Addit. Currency Code" := Source."Addit. Currency Code";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."DX Original Amount" := Source."DX Original Amount";
+                Target."DX Original ITBIS Amount" := Source."DX Original ITBIS Amount";
+                Target."Efectivo ICY" := Source."Efectivo ICY";
+                Target."Tarjeta Debito/Credito ICY" := Source."Tarjeta Debito/Credito ICY";
+                Target."Venta a Credito ICY" := Source."Venta a Credito ICY";
+                Target."Bonos o Certif. de Regalo ICY" := Source."Bonos o Certif. de Regalo ICY";
+                Target."Permuta ICY" := Source."Permuta ICY";
+                Target."Otras Formas de Ventas ICY" := Source."Otras Formas de Ventas ICY";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Customer Withholding Entries - all 23 fields common (see codeunit-level Batch 3 shadow-field
+    // comment). Ledger-entry-style history table - periodic Commit() every 100 rows added. Upsert-by-
+    // primary-key ("Fecha Retencion", "No. Documento", "Tipo Retencion", "No. Linea") - safe to re-run.
+    local procedure MigrateCustomerWithholdingEntries()
+    var
+        Source: Record "DXCustomer Withholding Entries";
+        Target: Record "DXR_Cust Withhold Entries";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Fecha Retencion", Source."No. Documento", Source."Tipo Retencion", Source."No. Linea");
+                if not TargetExists then
+                    Target.Init();
+                Target."Fecha Retencion" := Source."Fecha Retencion";
+                Target."No. Documento" := Source."No. Documento";
+                Target."Nombre Beneficiario" := Source."Nombre Beneficiario";
+                Target."RNC/Cedula" := Source."RNC/Cedula";
+                Target."Tipo Retencion" := Source."Tipo Retencion";
+                Target."Importe Retenido" := Source."Importe Retenido";
+                Target."No. Factura" := Source."No. Factura";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."No. Linea" := Source."No. Linea";
+                Target."Fecha Factura" := Source."Fecha Factura";
+                Target."Cod. Customer" := Source."Cod. Customer";
+                Target."NCF Afectado" := Source."NCF Afectado";
+                Target."Cod. Retencion ITBIS" := Source."Cod. Retencion ITBIS";
+                Target."Cod. Retencion ISR" := Source."Cod. Retencion ISR";
+                Target.Reverse := Source.Reverse;
+                Target."Currency Code" := Source."Currency Code";
+                Target."Amount Excl. VAT" := Source."Amount Excl. VAT";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."Exchange Rate" := Source."Exchange Rate";
+                Target."Original Amount LCY" := Source."Original Amount LCY";
+                Target."Withhold Amount LCY" := Source."Withhold Amount LCY";
+                Target."Withholding Apply Type" := Source."Withholding Apply Type";
+                Target."Payment Date" := Source."Payment Date";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Customer Withholding Header - all 17 fields common (see codeunit-level Batch 3 shadow-field
+    // comment). Document-header-style history table (pairs with Customer Withholding Entries above) -
+    // periodic Commit() every 100 rows added. Upsert-by-primary-key ("No.") - safe to re-run.
+    local procedure MigrateCustomerWithholdingHeader()
+    var
+        Source: Record "DXCustomer Withholding Header";
+        Target: Record "DXR_Cust Withhold Header";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."No." := Source."No.";
+                Target.Fecha := Source.Fecha;
+                Target."Cod. Customer" := Source."Cod. Customer";
+                Target.Nombre := Source.Nombre;
+                Target."Cod. Divisa" := Source."Cod. Divisa";
+                Target."Factor Divisa" := Source."Factor Divisa";
+                Target."No. Serie" := Source."No. Serie";
+                Target."No. Serie Registro" := Source."No. Serie Registro";
+                Target."Aplicar a Factura No." := Source."Aplicar a Factura No.";
+                Target."Imp. ITBIS Facturado" := Source."Imp. ITBIS Facturado";
+                Target."Imp. Fact. Sin ITBIS" := Source."Imp. Fact. Sin ITBIS";
+                Target."Total Fact. Incl. ITBIS" := Source."Total Fact. Incl. ITBIS";
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target."Dimension Set ID" := Source."Dimension Set ID";
+                Target."Cod. Retencion ISR" := Source."Cod. Retencion ISR";
+                Target."Cod. Retencion ITBIS" := Source."Cod. Retencion ITBIS";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Dependencies Metadata - all 5 fields common (see codeunit-level Batch 3 shadow-field comment).
+    // DataPerCompany = false on both sides - tiny global installed-extension-list setup table - no
+    // periodic Commit() needed. Upsert-by-primary-key (AppId) - safe to re-run.
+    local procedure MigrateDependenciesMetadata()
+    var
+        Source: Record "DX Dependencies Metadata";
+        Target: Record "DXR_Dependencies Metadata";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source.AppId);
+                if not TargetExists then
+                    Target.Init();
+                Target.AppId := Source.AppId;
+                Target."App Name" := Source."App Name";
+                Target."App Version" := Source."App Version";
+                Target.Publisher := Source.Publisher;
+                Target."Is Activated" := Source."Is Activated";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Detalle Servicio Adquirido - all 3 fields common (see codeunit-level Batch 3 shadow-field
+    // comment). Small reference/lookup table (service-type sub-code + description) - no periodic
+    // Commit() needed. Upsert-by-primary-key ("Tipo Servicio Adquirido", "Code") - safe to re-run.
+    local procedure MigrateDetalleServicioAdquirido()
+    var
+        Source: Record DxDetalleServicioAdquirido;
+        Target: Record DXR_R_DetalleServicioAdquirido;
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Tipo Servicio Adquirido", Source."Code");
+                if not TargetExists then
+                    Target.Init();
+                Target."Tipo Servicio Adquirido" := Source."Tipo Servicio Adquirido";
+                Target."Code" := Source."Code";
+                Target.Description := Source.Description;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // DGI API Services - all 12 fields common, including ContributorType (Enum "DX ApiDGIServices
+    // Contr. Type" vs Enum "DXR_ApiDGIServices Contr. Type" - different enum objects, identical member
+    // values 1/2/3, ported via FromInteger()/AsInteger(), see codeunit-level Batch 3 shadow-field
+    // comment). Frozen legacy history-scale table (current live code only ever returns temporary
+    // records shaped by this table) - periodic Commit() every 100 rows added. Upsert-by-primary-key
+    // ("RNC") - safe to re-run.
+    local procedure MigrateDGIApiServices()
+    var
+        Source: Record "DX DGI ApiServices";
+        Target: Record "DXR_DGI ApiServices";
+        TargetContributorType: Enum "DXR_ApiDGIServices Contr. Type";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetExists := Target.Get(Source.RNC);
+                if not TargetExists then
+                    Target.Init();
+                Target."Code" := Source."Code";
+                Target.RNC := Source.RNC;
+                Target."Name" := Source."Name";
+                Target.ComercialName := Source.ComercialName;
+                Target.Category := Source.Category;
+                Target.PaymentScheme := Source.PaymentScheme;
+                Target.Status := Source.Status;
+                Target.Valid := Source.Valid;
+                Target.Date := Source.Date;
+                Target.Count := Source.Count;
+                Target.ContributorType := TargetContributorType;
+                Target.ReferenceNo := Source.ReferenceNo;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // DGI API Services FindByName - same 12-field shape/same ContributorType enum-object difference as
+    // MigrateDGIApiServices above (see codeunit-level Batch 3 shadow-field comment). Neither side
+    // declares a keys block in real source - the implicit primary key is ALL 12 fields, in field-
+    // declaration order (AL's own default-key rule for tables with no keys property) - Get() below
+    // supplies all 12 source-derived values (ContributorType converted first). Same frozen-legacy-cache
+    // rationale as MigrateDGIApiServices - periodic Commit() every 100 rows added.
+    local procedure MigrateDGIApiServicesFindByName()
+    var
+        Source: Record "DX DGI ApiServices FindByName";
+        Target: Record "DXR_DGI ApiServices FindByName";
+        TargetContributorType: Enum "DXR_ApiDGIServices Contr. Type";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetExists := Target.Get(
+                    Source."Code", Source.RNC, Source."Name", Source.ComercialName, Source.Category,
+                    Source.PaymentScheme, Source.Status, Source.Valid, Source.Date, Source.Count,
+                    TargetContributorType, Source.ReferenceNo);
+                if not TargetExists then
+                    Target.Init();
+                Target."Code" := Source."Code";
+                Target.RNC := Source.RNC;
+                Target."Name" := Source."Name";
+                Target.ComercialName := Source.ComercialName;
+                Target.Category := Source.Category;
+                Target.PaymentScheme := Source.PaymentScheme;
+                Target.Status := Source.Status;
+                Target.Valid := Source.Valid;
+                Target.Date := Source.Date;
+                Target.Count := Source.Count;
+                Target.ContributorType := TargetContributorType;
+                Target.ReferenceNo := Source.ReferenceNo;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // DGII Temp Table - same 12-field shape/same ContributorType enum-object difference/same no-
+    // explicit-keys (all-12-fields primary key) as MigrateDGIApiServicesFindByName above (see codeunit-
+    // level Batch 3 shadow-field comment). Confirmed via DXR_DgiApiServices.Codeunit.al
+    // (DGiServicesGetByName()) that this table is fully cleared at the start of every real use despite
+    // being a real (non-AL-temporary) persisted table - genuinely transient/scratch, not accumulated
+    // history - no periodic Commit() needed. Upsert-by-all-12-fields-as-key - safe to re-run.
+    local procedure MigrateDGIITempTable()
+    var
+        Source: Record "DX DGII Temp Table";
+        Target: Record "DXR_DGII Temp Table";
+        TargetContributorType: Enum "DXR_ApiDGIServices Contr. Type";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetExists := Target.Get(
+                    Source."Code", Source.RNC, Source."Name", Source.ComercialName, Source.Category,
+                    Source.PaymentScheme, Source.Status, Source.Valid, Source.Date, Source.Count,
+                    TargetContributorType, Source.ReferenceNo);
+                if not TargetExists then
+                    Target.Init();
+                Target."Code" := Source."Code";
+                Target.RNC := Source.RNC;
+                Target."Name" := Source."Name";
+                Target.ComercialName := Source.ComercialName;
+                Target.Category := Source.Category;
+                Target.PaymentScheme := Source.PaymentScheme;
+                Target.Status := Source.Status;
+                Target.Valid := Source.Valid;
+                Target.Date := Source.Date;
+                Target.Count := Source.Count;
+                Target.ContributorType := TargetContributorType;
+                Target.ReferenceNo := Source.ReferenceNo;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
             until Source.Next() = 0;
     end;
 }
