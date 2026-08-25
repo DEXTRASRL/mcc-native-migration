@@ -89,6 +89,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC TU Migr Dispatcher" = X,
         codeunit "DXR MCC DESB Migr Worker" = X,
         codeunit "DXR MCC DESB Migr Phase2" = X,
+        codeunit "DXR MCC DESB Sales Price Bulk" = X,
         codeunit "DXR MCC DESLS Migr Worker" = X,
         codeunit "DXR MCC DESLS Migr Phase1" = X,
         codeunit "DXR MCC RC Migr Phase1" = X,

@@ -43,9 +43,9 @@ codeunit 60010 "DXR MCC Counter"
         OldOpened := true;
         NewOpened := true;
         if Concept."Legacy Table ID" <> 0 then
-            OldOpened := TryCountTable(Concept."Legacy Table ID", OldCount);
+            OldOpened := TryCountTable(Concept."Extension Code", Concept."Legacy Table ID", OldCount);
         if Concept."New Table ID" <> 0 then
-            NewOpened := TryCountTable(Concept."New Table ID", NewCount);
+            NewOpened := TryCountTable(Concept."Extension Code", Concept."New Table ID", NewCount);
 
         if not (OldOpened and NewOpened) then begin
             // Explicit "couldn't count" state - never a silent -1 baked into Gap arithmetic.
@@ -73,10 +73,19 @@ codeunit 60010 "DXR MCC Counter"
     end;
 
     [TryFunction]
-    local procedure TryCountTable(TableId: Integer; var Count: Integer)
+    local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
         RecRef: RecordRef;
+        DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
     begin
+        // The owning adapter carries the external DESB table permissions. Generic RecordRef
+        // counting under the interactive caller can otherwise report a false open failure even
+        // though the typed migration worker just read and wrote the same table successfully.
+        if ExtensionCode = 'DESB' then begin
+            Count := DESBWorker.CountTable(TableId);
+            exit;
+        end;
+
         RecRef.Open(TableId);
         Count := RecRef.Count();
         RecRef.Close();

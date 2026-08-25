@@ -100,6 +100,17 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         RunOther();
     end;
 
+    procedure CountTable(TableId: Integer): Integer
+    var
+        RecRef: RecordRef;
+        RecordCount: Integer;
+    begin
+        RecRef.Open(TableId);
+        RecordCount := RecRef.Count();
+        RecRef.Close();
+        exit(RecordCount);
+    end;
+
     procedure RunSetup()
     begin
         AssignPermissionSetsToAllUsers();
@@ -121,10 +132,14 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         MigrateTable01();
         MigrateTable12();
         MigrateTable27();
-        MigrateTable29();
         MigrateTable33();
         MigrateTable38();
         MigrateTable39();
+    end;
+
+    procedure RunSalesPriceView()
+    begin
+        MigrateTable29();
     end;
 
     procedure RunAccounting()

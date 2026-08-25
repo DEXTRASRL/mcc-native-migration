@@ -602,6 +602,7 @@ codeunit 60011 "DXR MCC Executor"
             RunningLogIndex += 1;
             RunningLogEntryNos.Get(RunningLogIndex, RunningLogEntryNo);
             Concept.Get(ConceptEntryNo);
+            CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: verificando %2', ExtensionCode, ResolveConceptTableName(Concept)));
             LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo, RunningLogEntryNo);
             if ShowProgress then
                 UpdateProgressVerified(Concept."Extension Code", Concept.Description, Concept.Status, Concept."Old Record Count", Concept."Migrated Record Count", Concept.Gap);
@@ -952,6 +953,7 @@ codeunit 60011 "DXR MCC Executor"
         NotRowBased: Boolean;
         InformationalSkipped: Boolean;
         HasGap: Boolean;
+        DispatcherWarning: Text;
         VerificationStartedAt: DateTime;
     begin
         VerificationStartedAt := CurrentDateTime();
@@ -986,6 +988,17 @@ codeunit 60011 "DXR MCC Executor"
             (Concept."Legacy Table ID" <> 0) and (Concept."New Table ID" <> 0) and
             (Concept."Legacy Table ID" <> Concept."New Table ID") and
             (Concept."Migrated Record Count" < Concept."Old Record Count");
+
+        // This is portfolio-wide, not DESB-specific: shared dispatchers in any extension may
+        // finish one table successfully and only report a cancelled database command later. If
+        // this concept's own reconciliation proves no gap, preserve the cancellation as a warning
+        // instead of converting already-complete data into a false Error or launching fallback.
+        if (not TableOpenFailed) and (not NotRowBased) and (not HasGap) and
+           IsDatabaseCommandCancelled(ErrorText)
+        then begin
+            DispatcherWarning := ErrorText;
+            Clear(ErrorText);
+        end;
 
         // Fallback now also fires on a plain leftover gap (HasGap), not just ErrorText<>''/
         // Dispatcher=0 as before - MCC's own generic RecordRef reconciliation (see DXR MCC Fallback
@@ -1025,6 +1038,7 @@ codeunit 60011 "DXR MCC Executor"
         DurationMs += CurrentDateTime() - VerificationStartedAt;
         RunLog."Duration (ms)" := DurationMs;
         RunLog."User ID" := CopyStr(UserId(), 1, 50);
+        Clear(RunLog."Error Message");
 
         if UsedFallback then begin
             RunLog.Status := RunLog.Status::Completed;
@@ -1032,10 +1046,21 @@ codeunit 60011 "DXR MCC Executor"
             Concept.Status := Concept.Status::"Completed (Fallback)";
         end else
             if TableOpenFailed then begin
-                // Preserve Counter's own Error - do not let this fall through to Completed.
-                RunLog.Status := RunLog.Status::Error;
-                RunLog."Error Message" := CopyStr('Legacy y/o New Table ID no se pudo abrir en este entorno (tabla no publicada o ID incorrecto/renumerado) - ver DXR MCC Counter.', 1, MaxStrLen(RunLog."Error Message"));
-                Concept.Status := Concept.Status::Error;
+                if ErrorText = '' then begin
+                    // The owning dispatcher completed, but MCC's generic verification session
+                    // cannot open one of the external tables. This is an unverifiable concept, not
+                    // proof that migration failed. Log and continue so one missing indirect read
+                    // permission cannot stop the extension or leave subsequent concepts Running.
+                    RunLog.Status := RunLog.Status::Skipped;
+                    RunLog."Error Message" := CopyStr(
+                        'Verificación omitida: MCC no pudo abrir Legacy y/o New Table ID con los permisos de esta sesión. El dispatcher finalizó sin error; revise permisos del adaptador/extension.',
+                        1, MaxStrLen(RunLog."Error Message"));
+                    Concept.Status := Concept.Status::Skipped;
+                end else begin
+                    RunLog.Status := RunLog.Status::Error;
+                    RunLog."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(RunLog."Error Message"));
+                    Concept.Status := Concept.Status::Error;
+                end;
             end else
             if InformationalSkipped then begin
                 RunLog.Status := RunLog.Status::Skipped;
@@ -1068,6 +1093,10 @@ codeunit 60011 "DXR MCC Executor"
             end else begin
                 Concept.Status := Concept.Status::Completed;
                 RunLog.Status := RunLog.Status::Completed;
+                if DispatcherWarning <> '' then
+                    RunLog."Error Message" := CopyStr(
+                        StrSubstNo('Completado por reconciliación de conteos; el dispatcher reportó después: %1', DispatcherWarning),
+                        1, MaxStrLen(RunLog."Error Message"));
             end;
 
         Concept."Last Run DateTime" := CurrentDateTime();
@@ -1086,6 +1115,21 @@ codeunit 60011 "DXR MCC Executor"
         exit(
             ErrorText.Contains('does not exist. Identification fields and values:') or
             ErrorText.Contains('no existe. Campos y valores de identificación:'));
+    end;
+
+    local procedure IsDatabaseCommandCancelled(ErrorText: Text): Boolean
+    var
+        NormalizedError: Text;
+    begin
+        if ErrorText = '' then
+            exit(false);
+
+        NormalizedError := LowerCase(ErrorText);
+        exit(
+            ((StrPos(NormalizedError, 'database command') > 0) and
+             (StrPos(NormalizedError, 'cancel') > 0)) or
+            ((StrPos(NormalizedError, 'comando de base de datos') > 0) and
+             (StrPos(NormalizedError, 'cancel') > 0)));
     end;
 
     /// <summary>
