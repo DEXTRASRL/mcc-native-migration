@@ -52,6 +52,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         tabledata "DXR_Motive Code" = RIMD,
         tabledata "DXR-DE Non-Delivery Reason" = RM,
         tabledata "DXR_Non-Delivery Reason" = RIMD,
+        tabledata 50832 = RM, // "Pick Logs" - ambiguous name (collides with Bellon Customization's own table), referenced by numeric ID for the same reason MigrateTable21() types OldRec by numeric ID
         tabledata "DXR_Pick Logs" = RIMD,
         tabledata "DXR-DE Pickup Historic" = RM,
         tabledata "DXR_Pickup Historic" = RIMD,
@@ -830,45 +831,39 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
     end;
 
     // Table 21: old id 50832 "Pick Logs" -> new "DXR_Pick Logs". "Pick Logs" is an ambiguous object
-    // name (collides with an identically-named table in Bellon Customization) - accessed here
-    // purely via RecordRef by numeric table ID instead of a typed Record.
+    // name (collides with an identically-named table in Bellon Customization, a completely
+    // different extension) - plain `Record "Pick Logs"` would fail to compile with an
+    // ambiguous-reference error, so OldRec is typed by numeric ID, not by name (same technique as
+    // DXRMCCAdaptDRLOCDispatcher.Codeunit.al's own header comment), which resolves unambiguously to
+    // DESB's own table regardless of the name collision. Field 8 has no typed equivalent to skip -
+    // verified against DESB's own Tables\PickLogs.Table.al and Tables.old\PickLogs.Table.al: field
+    // numbering simply jumps from 7 to 9 on both the old and new table, field 8 was never declared
+    // on either (not a removed/FlowField, just a numbering gap).
     local procedure MigrateTable21()
     var
-        OldRef: RecordRef;
+        OldRec: Record 50832;
         NewRec: Record "DXR_Pick Logs";
-        EntryNoFld, DocumentNoFld, StatusFld, PickerFld, DateFld, TimeFld, UserIDFld, QtyFld : FieldRef;
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-21-50832-28.3') then
             exit;
 
-        OldRef.Open(50832);
-        if OldRef.FindSet() then
+        if OldRec.FindSet() then
             repeat
-                EntryNoFld := OldRef.Field(1);
-                if not NewRec.Get(EntryNoFld.Value()) then begin
-                    DocumentNoFld := OldRef.Field(2);
-                    StatusFld := OldRef.Field(3);
-                    PickerFld := OldRef.Field(4);
-                    DateFld := OldRef.Field(5);
-                    TimeFld := OldRef.Field(6);
-                    UserIDFld := OldRef.Field(7);
-                    QtyFld := OldRef.Field(9);
-
+                if not NewRec.Get(OldRec."Entry No.") then begin
                     NewRec.Init();
-                    NewRec."Entry No." := EntryNoFld.Value();
-                    NewRec."Document No." := DocumentNoFld.Value();
-                    NewRec."Status" := StatusFld.Value();
-                    NewRec."Picker" := PickerFld.Value();
-                    NewRec."Date" := DateFld.Value();
-                    NewRec."Time" := TimeFld.Value();
-                    NewRec."UserID" := UserIDFld.Value();
-                    NewRec."Qty" := QtyFld.Value();
+                    NewRec."Entry No." := OldRec."Entry No.";
+                    NewRec."Document No." := OldRec."Document No.";
+                    NewRec."Status" := OldRec."Status";
+                    NewRec."Picker" := OldRec."Picker";
+                    NewRec."Date" := OldRec."Date";
+                    NewRec."Time" := OldRec."Time";
+                    NewRec."UserID" := OldRec."UserID";
+                    NewRec."Qty" := OldRec."Qty";
                     NewRec.Insert(false);
                     Commit();
                 end;
-            until OldRef.Next() = 0;
-        OldRef.Close();
+            until OldRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-21-50832-28.3');
     end;
