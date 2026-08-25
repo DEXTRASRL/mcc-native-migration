@@ -12,6 +12,7 @@ codeunit 60135 "DXR MCC RC Migr Phase5"
         tabledata "DXR_LYT Controls Setup" = RIM,
         tabledata "DXR_Pos Controls Setup Old2" = R,
         tabledata "DXR_Pos Controls Setup" = RIM,
+        tabledata "DXR_Internal Migr Status Old2" = R,
         tabledata "DXR_Internal Migr Status" = RIM;
 
     trigger OnRun()
@@ -108,41 +109,36 @@ codeunit 60135 "DXR MCC RC Migr Phase5"
             (not OldSetup."Restrict Zero Price Items"));
     end;
 
-    // "DXR_Internal Migr Status Old2" (56543) is Access = Internal on RC's side - accessed here
-    // purely via RecordRef by numeric table ID. No blank-row guard in the real source for this
+    // "DXR_Internal Migr Status Old2" (56543) is Access = Internal on RC's side; RC grants MCC
+    // internalsVisibleTo, so it's referenced here as a typed Record like every other Access =
+    // Internal table elsewhere in this codeunit/campaign. Both tables' Status field are the SAME
+    // Option definition (OptionMembers "Pending,In Progress,Completed,Failed", identical order on
+    // both sides - verified against RC's own DXRInternalMigrStatusOld2.Table.al /
+    // DXRInternalMigrStatus.Table.al), so a direct typed assignment is value-safe (no FromInteger()/
+    // AsInteger() conversion needed - that pattern is only required when the two sides use distinct
+    // Enum objects, which is not the case here). No blank-row guard in the real source for this
     // table (unlike the two Setup tables above) - preserved as unconditional, matching source.
     local procedure CopyInternalMigrStatus()
     var
+        OldStatus: Record "DXR_Internal Migr Status Old2";
         NewStatus: Record "DXR_Internal Migr Status";
-        OldRef: RecordRef;
-        CompanyNameFld, PhaseNoFld, PhaseNameFld, StatusFld, StartedAtFld, CompletedAtFld, ErrorMessageFld, AttemptsFld : FieldRef;
     begin
-        OldRef.Open(56543);
-        if OldRef.FindSet() then
-            repeat
-                CompanyNameFld := OldRef.Field(1);
-                PhaseNoFld := OldRef.Field(2);
-                PhaseNameFld := OldRef.Field(3);
-                StatusFld := OldRef.Field(4);
-                StartedAtFld := OldRef.Field(5);
-                CompletedAtFld := OldRef.Field(6);
-                ErrorMessageFld := OldRef.Field(7);
-                AttemptsFld := OldRef.Field(8);
-
-                if not NewStatus.Get(CompanyNameFld.Value(), PhaseNoFld.Value()) then begin
-                    NewStatus.Init();
-                    NewStatus."Company Name" := CompanyNameFld.Value();
-                    NewStatus."Phase No." := PhaseNoFld.Value();
-                    NewStatus.Insert();
-                end;
-                NewStatus."Phase Name" := PhaseNameFld.Value();
-                NewStatus.Status := StatusFld.Value();
-                NewStatus."Started At" := StartedAtFld.Value();
-                NewStatus."Completed At" := CompletedAtFld.Value();
-                NewStatus."Error Message" := ErrorMessageFld.Value();
-                NewStatus.Attempts := AttemptsFld.Value();
-                NewStatus.Modify();
-            until OldRef.Next() = 0;
-        OldRef.Close();
+        if not OldStatus.FindSet() then
+            exit;
+        repeat
+            if not NewStatus.Get(OldStatus."Company Name", OldStatus."Phase No.") then begin
+                NewStatus.Init();
+                NewStatus."Company Name" := OldStatus."Company Name";
+                NewStatus."Phase No." := OldStatus."Phase No.";
+                NewStatus.Insert();
+            end;
+            NewStatus."Phase Name" := OldStatus."Phase Name";
+            NewStatus.Status := OldStatus.Status;
+            NewStatus."Started At" := OldStatus."Started At";
+            NewStatus."Completed At" := OldStatus."Completed At";
+            NewStatus."Error Message" := OldStatus."Error Message";
+            NewStatus.Attempts := OldStatus.Attempts;
+            NewStatus.Modify();
+        until OldStatus.Next() = 0;
     end;
 }

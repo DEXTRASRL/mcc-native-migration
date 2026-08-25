@@ -42,17 +42,14 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     local procedure CopySalesHeaderField()
     var
         SalesHeader: Record "Sales Header";
-        RecRef: RecordRef;
         Processed: Integer;
-        BlankOldValue: Text;
     begin
         if not SalesHeader.FindSet(true) then
             exit;
-        BlankOldValue := GetBlankFieldValueFormatted(Database::"Sales Header", SalesHeader.FieldNo("POS Special Order_DXR_Old"));
         repeat
-            RecRef.GetTable(SalesHeader);
-            CopyFieldValueIfSourceNonBlank(RecRef, SalesHeader.FieldNo("POS Special Order_DXR_Old"), SalesHeader.FieldNo("POS Special Order_DXR"), BlankOldValue);
-            RecRef.Modify();
+            if SalesHeader."POS Special Order_DXR_Old" then
+                SalesHeader."POS Special Order_DXR" := SalesHeader."POS Special Order_DXR_Old";
+            SalesHeader.Modify();
             Processed += 1;
             if Processed mod BatchSize = 0 then
                 Commit();
@@ -62,17 +59,14 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     local procedure CopySalesInvoiceHeaderField()
     var
         SalesInvHeader: Record "Sales Invoice Header";
-        RecRef: RecordRef;
         Processed: Integer;
-        BlankOldValue: Text;
     begin
         if not SalesInvHeader.FindSet(true) then
             exit;
-        BlankOldValue := GetBlankFieldValueFormatted(Database::"Sales Invoice Header", SalesInvHeader.FieldNo("POS Special Order_DXR_Old"));
         repeat
-            RecRef.GetTable(SalesInvHeader);
-            CopyFieldValueIfSourceNonBlank(RecRef, SalesInvHeader.FieldNo("POS Special Order_DXR_Old"), SalesInvHeader.FieldNo("POS Special Order_DXR"), BlankOldValue);
-            RecRef.Modify();
+            if SalesInvHeader."POS Special Order_DXR_Old" then
+                SalesInvHeader."POS Special Order_DXR" := SalesInvHeader."POS Special Order_DXR_Old";
+            SalesInvHeader.Modify();
             Processed += 1;
             if Processed mod BatchSize = 0 then
                 Commit();
@@ -82,106 +76,70 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     local procedure CopyPurchaseHeaderField()
     var
         PurchHeader: Record "Purchase Header";
-        RecRef: RecordRef;
         Processed: Integer;
-        BlankOldValue: Text;
     begin
         if not PurchHeader.FindSet(true) then
             exit;
-        BlankOldValue := GetBlankFieldValueFormatted(Database::"Purchase Header", PurchHeader.FieldNo(Toggle_DXR_Old));
         repeat
-            RecRef.GetTable(PurchHeader);
-            CopyFieldValueIfSourceNonBlank(RecRef, PurchHeader.FieldNo(Toggle_DXR_Old), PurchHeader.FieldNo(Toggle_DXR), BlankOldValue);
-            RecRef.Modify();
+            if PurchHeader.Toggle_DXR_Old then
+                PurchHeader.Toggle_DXR := PurchHeader.Toggle_DXR_Old;
+            PurchHeader.Modify();
             Processed += 1;
             if Processed mod BatchSize = 0 then
                 Commit();
         until PurchHeader.Next() = 0;
     end;
 
+    // No Commit() batching: "LSC POS Func. Profile" is a small master/setup table (a handful of
+    // functional POS profiles per environment, not a per-transaction table), matching the real
+    // source's own pattern - unlike the 3 document-header procedures above, which iterate
+    // transactional tables that can hold thousands of rows.
     local procedure CopyLSCPOSFuncProfileFields()
     var
         FuncProfile: Record "LSC POS Func. Profile";
-        RecRef: RecordRef;
-        BlankTSOldValue: Text;
-        BlankPSOOldValue: Text;
     begin
         if not FuncProfile.FindSet(true) then
             exit;
-        BlankTSOldValue := GetBlankFieldValueFormatted(Database::"LSC POS Func. Profile", FuncProfile.FieldNo("TS POS Special Order_DXR_Old"));
-        BlankPSOOldValue := GetBlankFieldValueFormatted(Database::"LSC POS Func. Profile", FuncProfile.FieldNo("PSO Distribution Location_Old"));
         repeat
-            RecRef.GetTable(FuncProfile);
-            CopyFieldValueIfSourceNonBlank(RecRef, FuncProfile.FieldNo("TS POS Special Order_DXR_Old"), FuncProfile.FieldNo("TS POS Special Order_DXR"), BlankTSOldValue);
-            CopyFieldValueIfSourceNonBlank(RecRef, FuncProfile.FieldNo("PSO Distribution Location_Old"), FuncProfile.FieldNo("PSO Distribution Location_DXR"), BlankPSOOldValue);
-            RecRef.Modify();
+            if FuncProfile."TS POS Special Order_DXR_Old" then
+                FuncProfile."TS POS Special Order_DXR" := FuncProfile."TS POS Special Order_DXR_Old";
+            if FuncProfile."PSO Distribution Location_Old" <> '' then
+                FuncProfile."PSO Distribution Location_DXR" := FuncProfile."PSO Distribution Location_Old";
+            FuncProfile.Modify();
         until FuncProfile.Next() = 0;
     end;
 
+    // No Commit() batching: "DXR_Sales Controls Setup" is a singleton setup table (accessed
+    // elsewhere in RC via Setup.Get() with no key), so it holds at most a handful of rows.
     local procedure CopySalesControlsSetupFields()
     var
         Setup: Record "DXR_Sales Controls Setup";
-        RecRef: RecordRef;
-        BlankSpecialOrderOldValue: Text;
-        BlankNonDecimalQtyOldValue: Text;
-        BlankMandReturnOldValue: Text;
     begin
         if not Setup.FindSet(true) then
             exit;
-        BlankSpecialOrderOldValue := GetBlankFieldValueFormatted(Database::"DXR_Sales Controls Setup", Setup.FieldNo("Special POS Order_DXR_Old"));
-        BlankNonDecimalQtyOldValue := GetBlankFieldValueFormatted(Database::"DXR_Sales Controls Setup", Setup.FieldNo("Non Decimal Qty on Lines_Old"));
-        BlankMandReturnOldValue := GetBlankFieldValueFormatted(Database::"DXR_Sales Controls Setup", Setup.FieldNo("Mand Return Reason Code_Old"));
         repeat
-            RecRef.GetTable(Setup);
-            CopyFieldValueIfSourceNonBlank(RecRef, Setup.FieldNo("Special POS Order_DXR_Old"), Setup.FieldNo("Special POS Order_DXR"), BlankSpecialOrderOldValue);
-            CopyFieldValueIfSourceNonBlank(RecRef, Setup.FieldNo("Non Decimal Qty on Lines_Old"), Setup.FieldNo("Non Decimal Qty on Lines_DXR"), BlankNonDecimalQtyOldValue);
-            CopyFieldValueIfSourceNonBlank(RecRef, Setup.FieldNo("Mand Return Reason Code_Old"), Setup.FieldNo("Mand Return Reason Code_DXR"), BlankMandReturnOldValue);
-            RecRef.Modify();
+            if Setup."Special POS Order_DXR_Old" then
+                Setup."Special POS Order_DXR" := Setup."Special POS Order_DXR_Old";
+            if Setup."Non Decimal Qty on Lines_Old" then
+                Setup."Non Decimal Qty on Lines_DXR" := Setup."Non Decimal Qty on Lines_Old";
+            if Setup."Mand Return Reason Code_Old" then
+                Setup."Mand Return Reason Code_DXR" := Setup."Mand Return Reason Code_Old";
+            Setup.Modify();
         until Setup.Next() = 0;
     end;
 
+    // No Commit() batching: "DXR_Purchase Controls Setup" is a singleton setup table, same as
+    // "DXR_Sales Controls Setup" above.
     local procedure CopyPurchaseControlsSetupFields()
     var
         Setup: Record "DXR_Purchase Controls Setup";
-        RecRef: RecordRef;
-        BlankOldValue: Text;
     begin
         if not Setup.FindSet(true) then
             exit;
-        BlankOldValue := GetBlankFieldValueFormatted(Database::"DXR_Purchase Controls Setup", Setup.FieldNo("BarCode Length_DXR_Old"));
         repeat
-            RecRef.GetTable(Setup);
-            CopyFieldValueIfSourceNonBlank(RecRef, Setup.FieldNo("BarCode Length_DXR_Old"), Setup.FieldNo("BarCode Length_DXR"), BlankOldValue);
-            RecRef.Modify();
+            if Setup."BarCode Length_DXR_Old" <> 0 then
+                Setup."BarCode Length_DXR" := Setup."BarCode Length_DXR_Old";
+            Setup.Modify();
         until Setup.Next() = 0;
-    end;
-
-    local procedure CopyFieldValueIfSourceNonBlank(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer; BlankOldValueFormatted: Text)
-    var
-        OldFieldRef: FieldRef;
-        NewFieldRef: FieldRef;
-    begin
-        OldFieldRef := RecRef.Field(OldFieldNo);
-        if Format(OldFieldRef.Value) = BlankOldValueFormatted then
-            exit;
-        NewFieldRef := RecRef.Field(NewFieldNo);
-        NewFieldRef.Value := OldFieldRef.Value;
-    end;
-
-    // Computed once per field (not per row): the formatted value of FieldNo on a freshly Init()'d
-    // record of TableId, i.e. that field's true type-default. Used to tell "this old-ID field was
-    // never written to" apart from "it holds a real value equal to the default".
-    local procedure GetBlankFieldValueFormatted(TableId: Integer; FieldNo: Integer): Text
-    var
-        BlankRecRef: RecordRef;
-        BlankFieldRef: FieldRef;
-        Result: Text;
-    begin
-        BlankRecRef.Open(TableId);
-        BlankRecRef.Init();
-        BlankFieldRef := BlankRecRef.Field(FieldNo);
-        Result := Format(BlankFieldRef.Value);
-        BlankRecRef.Close();
-        exit(Result);
     end;
 }
