@@ -278,6 +278,12 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     independent whole-table clones of two different legacy sources into the same live destination.
     //     No registry correction needed for seq91.
     //
+    // Registry seq5 ('DRLOC-P6', "History migration phase", Dispatcher Codeunit 60069, Old/New Table ID
+    // both 0) is a pre-existing coarse phase-marker row, NOT one of the 27 concrete Phase 6 steps this
+    // campaign covers (registry seq50-53/73-95) - correctly left untouched, same treatment as registry
+    // seq49's deferred piece elsewhere in this campaign (see Phase 5's own codeunit header). Not a missed
+    // row; do not repoint or retire it as part of this batch.
+    //
     // Two NEW cross-enum fields found this batch (same permissive-raw-copy situation as seq85/86/87's
     // ContributorType in Batch 3 - a DIFFERENT enum object on old vs new side, but the real generic loop's
     // GetCommonCompatibleFieldNos() still treats them as "the same Type" since both are generically enum-
@@ -295,7 +301,14 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     -shaped primary key (Header Key1: "Document Type", "No.", "Order Process Status"; Line Key1:
     //     "Document Type", "Document No.", "Line No.", "Order Process Status", both Clustered) - the
     //     converted value must be computed BEFORE calling Target.Get(), same pattern as seq51's Source
-    //     Type conversion in this codeunit's MigrateEFSendRegistry() above.
+    //     Type conversion in this codeunit's MigrateEFSendRegistry() above. Asymmetric risk vs.
+    //     ContributorType (Batch 3): because this field is part of the primary key here (unlike
+    //     ContributorType on seq85), if the two enums' member sets were ever to diverge in the future, two
+    //     source rows both falling into ConvertPOProcessStatus()'s unmapped-ordinal fallback with matching
+    //     other key fields would silently MERGE via Get-then-Modify - losing one whole target row, not
+    //     just one field's value like ContributorType's fallback would. Purely informational today: both
+    //     enums are provably identical (0/1/2 on both sides), so the fallback branch is unreachable in
+    //     practice - no functional change made here, just flagging the difference for future readers.
     //   - "Tipo Comprobante" (field 3, seq90 NCF Process Registration only, NOT part of that table's
     //     primary key "NCF, Document No."): Enum "DX Fiscal Doc. Type" (54100, obsolete) vs Enum
     //     "DXR_Fiscal Doc. Type" (52250, live) - ported via ConvertFiscalDocType() below. Both enums
@@ -349,7 +362,7 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     AutoIncrement) - safe to re-run (an explicitly-supplied non-zero AutoIncrement value is honored
     //     as-is by Insert(), same precedent as seq52's NCF Fiscal Queue in this codeunit).
     //   - seq93 (Report Sales 607 Buffer, 54151 -> 52215): "DX Report Sales 607 Buffer"/"DXR_Report Sales
-    //     607 Buffer" - 43 common fields out of 61 total field declarations: field 13 (Mensajes) and
+    //     607 Buffer" - 43 common fields out of 62 total field declarations: field 13 (Mensajes) and
     //     fields 17-33 (17 fields, all FlowFields aggregating 607-report totals) are FlowFields on both
     //     sides; field 16 "Date Filter" is FieldClass = FlowFilter on both sides - all 19 excluded (Class
     //     <> Normal on both). All remaining 43 fields (1-12, 14, 36002752-36002768, 36002770-36002782
@@ -1402,6 +1415,11 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     // is still applied here for consistency with this codeunit's own established discipline (see
     // ConvertContributorType() above) of never calling an unguarded FromInteger() for a genuinely
     // different-enum-object field.
+    // Asymmetric risk vs. ContributorType: "Order Process Status" is part of the real primary key on both
+    // callers (unlike ContributorType), so if the two enums' member sets ever diverge, two source rows
+    // both hitting the fallback with matching other key fields would silently merge one target row into
+    // another via Get-then-Modify, instead of just losing one field's value - unreachable today (see
+    // codeunit-level Batch 4 comment), purely informational.
     local procedure ConvertPOProcessStatus(SourceOrdinal: Integer): Enum "DXR_PO Process Status"
     begin
         if SourceOrdinal in [0, 1, 2] then
