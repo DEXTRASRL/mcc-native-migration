@@ -99,7 +99,8 @@ table 60003 "DXR MCC Run Request"
         field(12; "Category"; Option)
         {
             Caption = 'Category';
-            OptionMembers = Setup,"Master/Accounting",Historic,Other;
+            // Published ordinals 0..3 are immutable. New requests use the appended values.
+            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting;
             DataClassification = SystemMetadata;
             Editable = false;
             // Only meaningful when Scope = Category (see DXR MCC Executor.ScheduleCategory /
@@ -124,7 +125,7 @@ table 60003 "DXR MCC Run Request"
             DataClassification = SystemMetadata;
             Editable = false;
             // Extension-boundary resume point for Category/Portfolio/RecountAll scopes: the last
-            // extension Code (and, for Portfolio, which of the 4 category passes) that finished
+            // extension Code (and, for Portfolio, which of the 5 category passes) that finished
             // before a failure/timeout/cancel. On retry (the Background Runner's existing
             // exponential-backoff attempt loop), the run resumes filtering Extension."Order No."
             // strictly after this checkpoint instead of restarting the whole scope from its first
@@ -280,6 +281,56 @@ table 60003 "DXR MCC Run Request"
         field(35; "Other Phase Status"; Option)
         {
             Caption = 'Other Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(36; "Master Started At"; DateTime)
+        {
+            Caption = 'Master Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(37; "Master Completed At"; DateTime)
+        {
+            Caption = 'Master Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(38; "Master Duration"; Duration)
+        {
+            Caption = 'Master Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(39; "Master Phase Status"; Option)
+        {
+            Caption = 'Master Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(40; "Accounting Started At"; DateTime)
+        {
+            Caption = 'Accounting Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(41; "Accounting Completed At"; DateTime)
+        {
+            Caption = 'Accounting Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(42; "Accounting Duration"; Duration)
+        {
+            Caption = 'Accounting Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(43; "Accounting Phase Status"; Option)
+        {
+            Caption = 'Accounting Phase Status';
             OptionMembers = Pending,Running,Completed,Failed,Cancelled;
             DataClassification = SystemMetadata;
             Editable = false;

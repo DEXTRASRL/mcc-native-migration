@@ -107,3 +107,43 @@ codeunit 60334 "DXR MCC DRLOC P6 Other"
         Worker.RunOther(); Tag.SetUpgradeTag('DXR-MCC-DRLOC-P6-OTHER-20260825.');
     end;
 }
+
+codeunit 60350 "DXR MCC DRLOC P2 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC DRLOC Migr Phase2"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-DRLOC-P2-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-DRLOC-P2-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60351 "DXR MCC DRLOC P3 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC DRLOC Migr Phase3"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-DRLOC-P3-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-DRLOC-P3-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60352 "DXR MCC DRLOC P4 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC DRLOC Migr Phase4"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-DRLOC-P4-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-DRLOC-P4-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60353 "DXR MCC DRLOC P5 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC DRLOC Migr Phase5"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-DRLOC-P5-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-DRLOC-P5-ACCOUNTING-20260825.');
+    end;
+}

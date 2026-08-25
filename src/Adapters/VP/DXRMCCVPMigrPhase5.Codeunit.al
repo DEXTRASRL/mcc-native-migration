@@ -30,11 +30,12 @@ codeunit 60119 "DXR MCC VP Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         OldRec: Record "VP Response Log";
         NewRec: Record "DXR_VP Response Log";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('RESPONSE-LOG-BLOB')) then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if NewRec.Get(OldRec."Entry No.") then begin
                     OldRec.CalcFields("Response Body", "Request Body");
@@ -42,6 +43,7 @@ codeunit 60119 "DXR MCC VP Migr Phase5"
                     NewRec."Request Body" := OldRec."Request Body";
                     NewRec.Modify(false);
                 end;
+                CommitBatch(BatchCount);
             until OldRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag(GetStepTag('RESPONSE-LOG-BLOB'));
@@ -107,6 +109,7 @@ codeunit 60119 "DXR MCC VP Migr Phase5"
         DestRecRef: RecordRef;
         SourceFieldRef: FieldRef;
         DestFieldRef: FieldRef;
+        BatchCount: Integer;
     begin
         SourceField.SetRange(TableNo, SourceTableNo);
         SourceField.SetRange(Class, SourceField.Class::Normal);
@@ -114,13 +117,13 @@ codeunit 60119 "DXR MCC VP Migr Phase5"
             SourceField.SetFilter("No.", '<%1&<>12&<>13', 2000000000)
         else
             SourceField.SetFilter("No.", '<%1', 2000000000);
-        if SourceField.FindSet() then
+        if SourceField.FindSet(false) then
             repeat
                 FieldNos.Add(SourceField."No.");
             until SourceField.Next() = 0;
 
         SourceRecRef.Open(SourceTableNo);
-        if SourceRecRef.FindSet() then
+        if SourceRecRef.FindSet(false) then
             repeat
                 DestRecRef.Open(DestTableNo);
                 DestRecRef.Init();
@@ -136,8 +139,18 @@ codeunit 60119 "DXR MCC VP Migr Phase5"
                 end;
                 DestRecRef.Insert(false);
                 DestRecRef.Close();
+                CommitBatch(BatchCount);
             until SourceRecRef.Next() = 0;
         SourceRecRef.Close();
+    end;
+
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < 500 then
+            exit;
+        Commit();
+        BatchCount := 0;
     end;
 
     local procedure GetStepTag(Suffix: Text): Code[250]

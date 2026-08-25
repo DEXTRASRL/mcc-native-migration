@@ -23,10 +23,19 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
     trigger OnRun()
     begin
         RunMaster();
+        RunAccounting();
         RunHistoric();
     end;
 
     procedure RunMaster()
+    var
+        ErrorText: Text;
+    begin
+        if not MigrateTableStep(Database::"VP Order Item Status", Database::"DXR_VP Order Item Status", 'ORDER-ITEM-STATUS', ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunAccounting()
     var
         ErrorText: Text;
     begin
@@ -38,8 +47,6 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
             Error(ErrorText);
         MigrateVendorPayGroupBlobStep();
         if not MigrateTableStep(Database::"VP Jounal Bank Account", Database::"DXR_VP Jounal Bank Account", 'JOURNAL-BANK-ACCOUNT', ErrorText) then
-            Error(ErrorText);
-        if not MigrateTableStep(Database::"VP Order Item Status", Database::"DXR_VP Order Item Status", 'ORDER-ITEM-STATUS', ErrorText) then
             Error(ErrorText);
         if not MigrateTableStep(Database::VPOrderNoRelPayment, Database::DXR_VPOrderNoRelPayment, 'ORDER-NO-REL-PAYMENT', ErrorText) then
             Error(ErrorText);
@@ -58,11 +65,12 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         OldRec: Record "VP VendorPay Group";
         NewRec: Record "DXR_VP VendorPay Group";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('VENDORPAY-GROUP-BLOB')) then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if NewRec.Get(OldRec."Payload No.", OldRec."Vendor No.", OldRec.Currency, OldRec."VendorPay No.") then begin
                     OldRec.CalcFields(NCF, Memo, Remarks);
@@ -71,6 +79,7 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
                     NewRec.Remarks := OldRec.Remarks;
                     NewRec.Modify(false);
                 end;
+                CommitBatch(BatchCount);
             until OldRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag(GetStepTag('VENDORPAY-GROUP-BLOB'));
@@ -136,6 +145,7 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
         DestRecRef: RecordRef;
         SourceFieldRef: FieldRef;
         DestFieldRef: FieldRef;
+        BatchCount: Integer;
     begin
         SourceField.SetRange(TableNo, SourceTableNo);
         SourceField.SetRange(Class, SourceField.Class::Normal);
@@ -143,13 +153,13 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
             SourceField.SetFilter("No.", '<%1&<>7&<>19&<>22', 2000000000)
         else
             SourceField.SetFilter("No.", '<%1', 2000000000);
-        if SourceField.FindSet() then
+        if SourceField.FindSet(false) then
             repeat
                 FieldNos.Add(SourceField."No.");
             until SourceField.Next() = 0;
 
         SourceRecRef.Open(SourceTableNo);
-        if SourceRecRef.FindSet() then
+        if SourceRecRef.FindSet(false) then
             repeat
                 DestRecRef.Open(DestTableNo);
                 DestRecRef.Init();
@@ -165,8 +175,18 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
                 end;
                 DestRecRef.Insert(false);
                 DestRecRef.Close();
+                CommitBatch(BatchCount);
             until SourceRecRef.Next() = 0;
         SourceRecRef.Close();
+    end;
+
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < 500 then
+            exit;
+        Commit();
+        BatchCount := 0;
     end;
 
     local procedure GetStepTag(Suffix: Text): Code[250]

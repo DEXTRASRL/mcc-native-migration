@@ -43,12 +43,38 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
     end;
 
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    var
+        CandidateField: FieldRef;
+        SourceField: FieldRef;
+        TargetField: FieldRef;
+        FieldIndex: Integer;
+        SourceFound: Boolean;
+        TargetFound: Boolean;
     begin
-        if not RecRef.FieldExist(OldFieldNo) then
+        // Resolve the published identities once through metadata, then copy by the resolved field
+        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
+        for FieldIndex := 1 to RecRef.FieldCount() do begin
+            CandidateField := RecRef.FieldIndex(FieldIndex);
+            if CandidateField.Number() = OldFieldNo then begin
+                SourceField := CandidateField;
+                SourceFound := true;
+            end;
+            if CandidateField.Number() = NewFieldNo then begin
+                TargetField := CandidateField;
+                TargetFound := true;
+            end;
+        end;
+        if not SourceFound or not TargetFound then
             exit;
-        if not RecRef.FieldExist(NewFieldNo) then
+        if (SourceField.Class() <> FieldClass::Normal) or
+           (TargetField.Class() <> FieldClass::Normal) or
+           (SourceField.Type() <> TargetField.Type())
+        then
             exit;
-        RecRef.Field(NewFieldNo).Value := RecRef.Field(OldFieldNo).Value;
+
+        SourceField := RecRef.Field(SourceField.Name());
+        TargetField := RecRef.Field(TargetField.Name());
+        TargetField.Value := SourceField.Value();
     end;
 
     local procedure MigrateAllSalesPurchFieldIdDedup()

@@ -44,3 +44,18 @@ codeunit 60260 "DXR MCC RC Other"
         UpgradeTag.SetUpgradeTag('DXR-MCC-RC-OTHER-20260825.');
     end;
 }
+
+codeunit 60382 "DXR MCC RC Accounting"
+{
+    trigger OnRun()
+    var
+        Phase2: Codeunit "DXR MCC RC Migr Phase2";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-RC-ACCOUNTING-20260825.') then
+            exit;
+
+        Phase2.Run();
+        UpgradeTag.SetUpgradeTag('DXR-MCC-RC-ACCOUNTING-20260825.');
+    end;
+}

@@ -73,12 +73,12 @@ page 60020 "DXR Migration Control Center"
                 Caption = 'Run Entire Portfolio';
                 ApplicationArea = All;
                 Image = ExecuteBatch;
-                ToolTip = 'Schedules a background task that runs every non-blocked migration phase across the whole portfolio, in 4 passes - Setup, then Master/Accounting, then Historic, then Other - each pass in extension dependency order. Setup always finishes for every dependent module before Master/Accounting or Historic starts anywhere. Runs in the background (2026-08-22: reverted from inline execution - the whole portfolio in one interactive request caused a server-side timeout on a real tenant once the registry grew past ~600 concepts). Check DXR MCC Run Requests for the outcome.';
+                ToolTip = 'Schedules the complete portfolio in 5 independently traceable passes: Setup, Master, Accounting, Historic, and Other. Each pass follows extension dependency order. Check DXR MCC Run Requests for progress and phase timings.';
                 trigger OnAction()
                 var
                     Executor: Codeunit "DXR MCC Executor";
                 begin
-                    if not Confirm('Schedule a background run of every non-blocked migration phase across the whole portfolio (Setup pass, then Master/Accounting, then Historic, then Other - each in dependency order)? This is the whole portfolio and can take several minutes to finish.') then
+                    if not Confirm('Schedule the complete portfolio in dependency order (Setup, Master, Accounting, Historic, and Other)?') then
                         exit;
                     Executor.SchedulePortfolio();
                     Message('Scheduled. Open "DXR MCC Run Requests" to watch progress, or Run Log once it finishes.');
@@ -89,7 +89,7 @@ page 60020 "DXR Migration Control Center"
                 Caption = 'Run All Setup';
                 ApplicationArea = All;
                 Image = Setup;
-                ToolTip = 'Schedules a background task that runs every non-blocked Setup-category concept across every extension that has one, in dependency order (Order No.). Use this to bring every dependent module''s setup/configuration data current before running Master/Accounting or Historic. Runs in the background (2026-08-22: reverted from inline execution - a dispatcher can''t be scoped to only its Setup-tagged work, so this triggers each affected extension''s FULL migration workload, which caused a server-side timeout when run inline once the registry grew past ~600 concepts). Check DXR MCC Run Requests for the outcome.';
+                ToolTip = 'Runs only Setup concepts across the portfolio in dependency order. Complete this phase before Master, Accounting, or Historic data that depends on setup rows.';
                 trigger OnAction()
                 var
                     Executor: Codeunit "DXR MCC Executor";
@@ -101,20 +101,37 @@ page 60020 "DXR Migration Control Center"
                     Message('Scheduled. Open "DXR MCC Run Requests" to watch progress, or Run Log once it finishes.');
                 end;
             }
-            action(RunAllMasterAccounting)
+            action(RunAllMaster)
             {
-                Caption = 'Run All Master/Accounting';
+                Caption = 'Run All Master';
                 ApplicationArea = All;
-                Image = ChartOfAccounts;
-                ToolTip = 'Schedules a background task that runs every non-blocked Master/Accounting-category concept (master data, ledgers, transactional documents) across every extension that has one, in dependency order. Run All Setup first if it hasn''t already run - master/accounting data can reference setup rows. Runs in the background, same reason as Run All Setup. Check DXR MCC Run Requests for the outcome.';
+                Image = Customer;
+                ToolTip = 'Runs only master-data concepts across every extension in dependency order. It does not execute ledgers, journals, payments, or transactional accounting data.';
                 trigger OnAction()
                 var
                     Executor: Codeunit "DXR MCC Executor";
                     Concept: Record "DXR MCC Concept";
                 begin
-                    if not Confirm('Schedule a background run of every non-blocked Master/Accounting-category migration phase across the whole portfolio, in dependency order?') then
+                    if not Confirm('Schedule only Master data migrations across the whole portfolio, in dependency order?') then
                         exit;
-                    Executor.ScheduleCategory(Concept.Category::"Master/Accounting");
+                    Executor.ScheduleCategory(Concept.Category::Master);
+                    Message('Scheduled. Open "DXR MCC Run Requests" to watch Master progress and timing.');
+                end;
+            }
+            action(RunAllAccounting)
+            {
+                Caption = 'Run All Accounting';
+                ApplicationArea = All;
+                Image = ChartOfAccounts;
+                ToolTip = 'Runs only accounting concepts such as ledgers, journals, payments, and transactional financial data across every extension in dependency order.';
+                trigger OnAction()
+                var
+                    Executor: Codeunit "DXR MCC Executor";
+                    Concept: Record "DXR MCC Concept";
+                begin
+                    if not Confirm('Schedule only Accounting migrations across the whole portfolio, in dependency order?') then
+                        exit;
+                    Executor.ScheduleCategory(Concept.Category::Accounting);
                     Message('Scheduled. Open "DXR MCC Run Requests" to watch progress, or Run Log once it finishes.');
                 end;
             }

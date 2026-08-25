@@ -13,7 +13,7 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     trigger OnRun()
     begin
         RunSetup();
-        RunMaster();
+        RunAccounting();
     end;
 
     procedure RunSetup()
@@ -24,6 +24,10 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     end;
 
     procedure RunMaster()
+    begin
+    end;
+
+    procedure RunAccounting()
     begin
         CopyPOSTransLineFields();
         CopyTransPaymentEntryFields();

@@ -32,7 +32,9 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         tabledata "DX Consumer Sales 607 Buffer" = R,
         tabledata "DXR_Consumer Sales 607 Buffer" = RM,
         tabledata "DX Report Sales 607 Buffer" = R,
-        tabledata "DXArchived Sales 607" = RMD,
+        tabledata "DXR_Report Sales 607 Buffer" = RM,
+        tabledata "DXArchived Sales 607" = R,
+        tabledata "DXR_Archived Sales 607" = RM,
         tabledata "DXGaps Setup" = R,
         tabledata "DXR_Gaps Setup" = RIM,
         tabledata "DXNCF Setup" = R,
@@ -61,14 +63,18 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
 
     procedure RunMasterDependencies()
     begin
+    end;
+
+    procedure RunAccountingDependencies()
+    begin
         MigrateArchivedConsumerSales607();
         MigrateConsumerSales607Buffer();
     end;
 
     procedure RunHistoricDependencies()
     begin
-        CopyDependencyFieldRange(Database::"DX Report Sales 607 Buffer", 52215, 54300, 54500, 4);
-        CopyDependencyFieldRange(Database::"DXArchived Sales 607", 52115, 54300, 54500, 4);
+        MigrateReportSales607Buffer();
+        MigrateArchivedSales607();
     end;
 
     local procedure Execute()
@@ -77,9 +83,57 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         MigrateConsumerSales607Buffer(); // seq15, MA -> DXR_Consumer Sales 607 Buffer
         MigrateGapsSetup(); // seq16, SETUP -> DXR_Gaps Setup
         MigrateNCFSetup(); // seq17, SETUP -> DXR_NCF Setup
-        CopyDependencyFieldRange(Database::"DX Report Sales 607 Buffer", 52215, 54300, 54500, 4); // -> DXR_Report Sales 607 Buffer [HIST, out of scope]
-        CopyDependencyFieldRange(Database::"DXArchived Sales 607", 52115, 54300, 54500, 4); // -> DXR_Archived Sales 607 [HIST, out of scope]
+        MigrateReportSales607Buffer();
+        MigrateArchivedSales607();
         MigrateNCFSalesSetup(); // seq20, SETUP -> DXR_NCF Sales Setup
+    end;
+
+    local procedure MigrateReportSales607Buffer()
+    var
+        Source: Record "DX Report Sales 607 Buffer";
+        Target: Record "DXR_Report Sales 607 Buffer";
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea") then begin
+                    Target."Statement No._DXR" := Source."LSDX Statement No.";
+                    Target."Posted Statement No._DXR" := Source."LSDX Posted Statement No.";
+                    Target."Posted Statement Date_DXR" := Source."LSDX Posted Statement Date";
+                    Target."Stmt. Posting Date_DXR" := Source."LSDX Stmt. Posting Date";
+                    Target.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    local procedure MigrateArchivedSales607()
+    var
+        Source: Record "DXArchived Sales 607";
+        Target: Record "DXR_Archived Sales 607";
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea", Source.NCF) then begin
+                    Target."Statement No._DXR" := Source."LSDX Statement No.";
+                    Target."Posted Statement No._DXR" := Source."LSDX Posted Statement No.";
+                    Target."Posted Statement Date_DXR" := Source."LSDX Posted Statement Date";
+                    Target."Stmt. Posting Date_DXR" := Source."LSDX Stmt. Posting Date";
+                    Target.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
     end;
 
     local procedure MigrateArchivedConsumerSales607()
@@ -177,66 +231,4 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
             until Source.Next() = 0;
     end;
 
-    local procedure CopyDependencyFieldRange(SourceTableId: Integer; TargetTableId: Integer; SourceStartFieldNo: Integer; TargetStartFieldNo: Integer; FieldCount: Integer)
-    var
-        SourceRef: RecordRef;
-        TargetRef: RecordRef;
-        SourceKeyRef: KeyRef;
-        SourcePkFieldRef: FieldRef;
-        TargetPkFieldRef: FieldRef;
-        FieldOffset: Integer;
-        KeyFieldIndex: Integer;
-        AllKeyFieldsMapped: Boolean;
-    begin
-        SourceRef.Open(SourceTableId);
-        TargetRef.Open(TargetTableId);
-        SourceKeyRef := SourceRef.KeyIndex(1);
-
-        if SourceRef.FindSet() then
-            repeat
-                TargetRef.Reset();
-                AllKeyFieldsMapped := true;
-                for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
-                    SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    if TargetRef.FieldExist(SourcePkFieldRef.Name) then begin
-                        TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Name);
-                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
-                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
-                        else
-                            AllKeyFieldsMapped := false;
-                    end else
-                        AllKeyFieldsMapped := false;
-                end;
-
-                if AllKeyFieldsMapped and TargetRef.FindFirst() then begin
-                    for FieldOffset := 0 to FieldCount - 1 do
-                        CopyFieldValueIfExists(SourceRef, TargetRef, SourceStartFieldNo + FieldOffset, TargetStartFieldNo + FieldOffset);
-                    TargetRef.Modify(false);
-                end;
-            until SourceRef.Next() = 0;
-
-        TargetRef.Close();
-        SourceRef.Close();
-    end;
-
-    local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldNo: Integer; TargetFieldNo: Integer)
-    var
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
-        EnumOrdinal: Integer;
-    begin
-        if not SourceRef.FieldExist(SourceFieldNo) or not TargetRef.FieldExist(TargetFieldNo) then
-            exit;
-
-        SourceFieldRef := SourceRef.Field(SourceFieldNo);
-        TargetFieldRef := TargetRef.Field(TargetFieldNo);
-        if TargetFieldRef.Class <> FieldClass::Normal then
-            exit;
-
-        if TargetFieldRef.Type = FieldType::Option then begin
-            if Evaluate(EnumOrdinal, Format(SourceFieldRef.Value, 0, 2)) then
-                TargetFieldRef.Value := EnumOrdinal;
-        end else
-            TargetFieldRef.Value := SourceFieldRef.Value;
-    end;
 }

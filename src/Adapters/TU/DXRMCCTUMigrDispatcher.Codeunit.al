@@ -21,6 +21,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
     end;
 
     procedure RunSetup()
@@ -47,14 +48,29 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
+        if not UpgradeTag.HasUpgradeTag(CustomerFieldMigrationTag()) then begin
+            MigrateLegacyCustomerFields();
+            UpgradeTag.SetUpgradeTag(CustomerFieldMigrationTag());
+        end;
+
+        if not UpgradeTag.HasUpgradeTag(Gen2CustomerFieldMigrationTag()) then begin
+            MigrateGen2LegacyCustomerFields();
+            UpgradeTag.SetUpgradeTag(Gen2CustomerFieldMigrationTag());
+        end;
+    end;
+
+    procedure RunAccounting()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
         if not UpgradeTag.HasUpgradeTag(HeaderTableMigrationTag()) then begin
             MigrateLegacyHeaders();
             UpgradeTag.SetUpgradeTag(HeaderTableMigrationTag());
         end;
 
-        if not UpgradeTag.HasUpgradeTag(FieldMigrationTag()) then begin
-            MigrateLegacyCustomerFields();
-            UpgradeTag.SetUpgradeTag(FieldMigrationTag());
+        if not UpgradeTag.HasUpgradeTag(LedgerFieldMigrationTag()) then begin
+            MigrateLegacyCustLedgerEntryFields();
+            UpgradeTag.SetUpgradeTag(LedgerFieldMigrationTag());
         end;
 
         if not UpgradeTag.HasUpgradeTag(Gen2HeaderMigrationTag()) then begin
@@ -62,9 +78,9 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
             UpgradeTag.SetUpgradeTag(Gen2HeaderMigrationTag());
         end;
 
-        if not UpgradeTag.HasUpgradeTag(Gen2FieldMigrationTag()) then begin
-            MigrateGen2LegacyCustomerFields();
-            UpgradeTag.SetUpgradeTag(Gen2FieldMigrationTag());
+        if not UpgradeTag.HasUpgradeTag(Gen2LedgerFieldMigrationTag()) then begin
+            MigrateGen2LegacyCustLedgerEntryFields();
+            UpgradeTag.SetUpgradeTag(Gen2LedgerFieldMigrationTag());
         end;
     end;
 
@@ -141,7 +157,6 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure MigrateLegacyCustomerFields()
     var
         Customer: Record Customer;
-        CustLedgerEntry: Record "Cust. Ledger Entry";
     begin
         if Customer.FindSet(true) then
             repeat
@@ -153,6 +168,12 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                 Customer.Modify(false);
             until Customer.Next() = 0;
 
+    end;
+
+    local procedure MigrateLegacyCustLedgerEntryFields()
+    var
+        CustLedgerEntry: Record "Cust. Ledger Entry";
+    begin
         if CustLedgerEntry.FindSet(true) then
             repeat
                 CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."TU - Data Crédito VIP";
@@ -235,7 +256,6 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure MigrateGen2LegacyCustomerFields()
     var
         Customer: Record Customer;
-        CustLedgerEntry: Record "Cust. Ledger Entry";
     begin
         if Customer.FindSet(true) then
             repeat
@@ -247,6 +267,12 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                 Customer.Modify(false);
             until Customer.Next() = 0;
 
+    end;
+
+    local procedure MigrateGen2LegacyCustLedgerEntryFields()
+    var
+        CustLedgerEntry: Record "Cust. Ledger Entry";
+    begin
         if CustLedgerEntry.FindSet(true) then
             repeat
                 CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."Data Crédito VIP_Old";
@@ -319,6 +345,16 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         exit('DXR-TU-02-FieldMigration28.3-20260731');
     end;
 
+    local procedure CustomerFieldMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-MASTER-CUSTOMER-GEN0-20260825.');
+    end;
+
+    local procedure LedgerFieldMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-ACCOUNTING-CLE-GEN0-20260825.');
+    end;
+
     local procedure UserPermissionSetsAssignedTag(): Code[250]
     begin
         exit('DXR-TU-03-UserPermissionSetsAssigned28.3-20260817');
@@ -342,5 +378,15 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure Gen2FieldMigrationTag(): Code[250]
     begin
         exit('DXR-TU-05-Gen2FieldMigration28.3-20260820');
+    end;
+
+    local procedure Gen2CustomerFieldMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-MASTER-CUSTOMER-GEN2-20260825.');
+    end;
+
+    local procedure Gen2LedgerFieldMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-ACCOUNTING-CLE-GEN2-20260825.');
     end;
 }

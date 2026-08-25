@@ -106,8 +106,10 @@ table 60001 "DXR MCC Concept"
         field(17; "Category"; Option)
         {
             Caption = 'Category';
-            OptionMembers = Setup,"Master/Accounting",Historic,Other;
-            OptionCaption = 'Setup,Master/Accounting,Historic,Other';
+            // Keep the four published ordinals intact. Master and Accounting are appended so
+            // new runs can be traced independently without reinterpreting stored legacy rows.
+            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting;
+            OptionCaption = 'Setup,Master/Accounting (Legacy),Historic,Other,Master,Accounting';
             DataClassification = SystemMetadata;
             // Refreshed from source by Reload Registry (same treatment as Description/Dispatcher/
             // Legacy/New Table ID - this is derived classification metadata, not operator-set
@@ -128,6 +130,19 @@ table 60001 "DXR MCC Concept"
             // Derived registry metadata. Retired rows stay stored so historical Run Log entries
             // keep their Concept Entry No., but active pages, counters and executors exclude them.
         }
+        field(19; "Execution Band"; Option)
+        {
+            Caption = 'Execution Band';
+            OptionMembers = Normal,"Deferred/Bulk";
+            OptionCaption = 'Normal,Deferred/Bulk';
+            DataClassification = SystemMetadata;
+        }
+        field(20; "Batch Size"; Integer)
+        {
+            Caption = 'Batch Size';
+            DataClassification = SystemMetadata;
+            MinValue = 0;
+        }
     }
     keys
     {
@@ -136,6 +151,6 @@ table 60001 "DXR MCC Concept"
             Clustered = true;
         }
         key(Order; "Extension Code", "Sequence No.") { }
-        key(CategoryOrder; Category, "Extension Code", "Sequence No.") { }
+        key(CategoryOrder; Category, "Execution Band", "Extension Code", "Sequence No.") { }
     }
 }

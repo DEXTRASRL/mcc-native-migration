@@ -271,12 +271,16 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     procedure RunMaster()
     begin
         BootstrapBankAccountCustomerVendorFields();
-        BootstrapGLUserSetupJournalFields();
         BootstrapItemNCFCategoryBackfill();
         BootstrapNAVPOSCustomerTable();
         BootstrapExtractCardsTable();
         BootstrapGubernamentales623Table();
         BootstrapGLAccountNCFCategory();
+    end;
+
+    procedure RunAccounting()
+    begin
+        BootstrapGLUserSetupJournalFields();
         BootstrapCustLedgerEntryFields();
         BootstrapBankAccountCheckLedgerEntryFields();
         BootstrapGLEntryGLRegisterFields();

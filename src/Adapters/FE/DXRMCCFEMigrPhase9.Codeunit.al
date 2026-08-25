@@ -39,6 +39,10 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
 
     procedure RunMaster()
     begin
+    end;
+
+    procedure RunAccounting()
+    begin
         CopyPurchaseHeaderFields();
     end;
 

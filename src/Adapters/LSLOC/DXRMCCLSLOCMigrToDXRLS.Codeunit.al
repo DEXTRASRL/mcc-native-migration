@@ -97,8 +97,12 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     procedure RunMasterFields()
     begin
-        CopyGenJournalLineFields();
         CopyItemFields();
+    end;
+
+    procedure RunAccountingFields()
+    begin
+        CopyGenJournalLineFields();
         CopyLSCStoreInventoryLineFields();
     end;
 
@@ -483,12 +487,13 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
         AllKeyFieldsMapped: Boolean;
+        BatchCount: Integer;
     begin
         SourceRef.Open(SourceTableId);
         TargetRef.Open(TargetTableId);
         SourceKeyRef := SourceRef.KeyIndex(1);
 
-        if SourceRef.FindSet() then
+        if SourceRef.FindSet(false) then
             repeat
                 TargetRef.Reset();
                 AllKeyFieldsMapped := true;
@@ -532,6 +537,12 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
                     TargetRef.Modify(false)
                 else
                     TargetRef.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SourceRef.Next() = 0;
 
         TargetRef.Close();

@@ -195,3 +195,41 @@ codeunit 60225 "DXR MCC VP P7 Other"
         exit('DXR-MCC-VP-P7-OTHER-20260825.');
     end;
 }
+
+codeunit 60426 "DXR MCC VP P2 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC VP Migr Phase2";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-VP-P2-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60427 "DXR MCC VP P7 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC VP Migr Phase7";
+        Phase2Worker: Codeunit "DXR MCC VP Migr Phase2";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Phase2Worker.RunAccounting();
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-VP-P7-ACCOUNTING-20260825.');
+    end;
+}

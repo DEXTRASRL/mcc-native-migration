@@ -47,6 +47,21 @@ codeunit 60256 "DXR MCC DESLS Historic"
     end;
 }
 
+codeunit 60381 "DXR MCC DESLS Accounting"
+{
+    trigger OnRun()
+    var
+        Phase1: Codeunit "DXR MCC DESLS Migr Phase1";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-DESLS-ACCOUNTING-20260825.') then
+            exit;
+
+        Phase1.RunAccounting();
+        UpgradeTag.SetUpgradeTag('DXR-MCC-DESLS-ACCOUNTING-20260825.');
+    end;
+}
+
 codeunit 60257 "DXR MCC DESLS Other"
 {
     trigger OnRun()

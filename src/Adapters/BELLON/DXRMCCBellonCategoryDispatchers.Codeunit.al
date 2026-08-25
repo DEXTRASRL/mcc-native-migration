@@ -117,3 +117,63 @@ codeunit 60320 "DXR MCC Bellon P13 Master"
         Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P13-MASTER-20260825.');
     end;
 }
+
+codeunit 60383 "DXR MCC Bellon P2 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase2"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P2-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P2-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60384 "DXR MCC Bellon P6 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase6"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P6-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P6-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60385 "DXR MCC Bellon P11 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase11"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P11-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P11-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60386 "DXR MCC Bellon P13 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase13"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P13-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P13-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60387 "DXR MCC Bellon P14 Master"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase14"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P14-MASTER-20260825.') then exit;
+        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P14-MASTER-20260825.');
+    end;
+}
+
+codeunit 60388 "DXR MCC Bellon P14 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC Bellon Migr Phase14"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P14-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P14-ACCOUNTING-20260825.');
+    end;
+}

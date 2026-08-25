@@ -11,7 +11,7 @@ codeunit 60098 "DXR MCC BC Migr P2 StatusHist"
         OldStatus: Record "DXR_BC Migr Status Old2";
         NewStatus: Record "DXR_BC Migr Status";
     begin
-        if not OldStatus.FindSet() then
+        if not OldStatus.FindSet(false) then
             exit;
         repeat
             if not NewStatus.Get(OldStatus."Company Name", OldStatus."Phase No.") then begin

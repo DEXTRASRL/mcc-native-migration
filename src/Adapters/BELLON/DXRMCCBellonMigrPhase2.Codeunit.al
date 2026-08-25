@@ -272,83 +272,87 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     procedure RunMaster()
     begin
-        MigrateBancosExtractoBancarioTable(); // Bancos - Extracto Bancario -> DXR_Bancos - Extracto Bancario (native)
         MigrateBankTable(); // Bank -> DXR_Bank (native)
         MigrateBankRelationTable(); // Bank Relation -> DXR_Bank Relation (native)
-        MigrateCargaMasivaBeneficiariosBPDTable(); // Carga Masiva Beneficiarios BPD -> DXR_Carga Masiva Benef BPD (native)
         MigrateCilindrosTable(); // Cilindros -> DXR_Cilindros (native)
-        MigrateConversionCostoTable(); // Conversion Costo -> DXR_Conversion Costo (native)
-        MigrateDetalleExtractoBancarioTable(); // Detalle - Extracto Bancario -> DXR_Detalle - Extr Bancario (native)
-        MigrateEntregaFacturasCxCLinesTable(); // Entrega Facturas CxC - Lines -> DXR_Entrega Fact CxC - Lines (native)
-        MigrateEnvioComprasTable(); // Envio Compras -> DXR_Envio Compras (native)
         MigrateGrupoVentaTable(); // Grupo Venta -> DXR_Grupo Venta (native)
-        MigrateInternalConsumptionHeaderTable(); // Internal Consumption Header -> DXR_Int Consump Header (native)
-        MigrateInternalConsumptionLineTable(); // Internal Consumption Line -> DXR_Internal Consumption Line (native)
         MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
         MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
         MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
-        MigrateJournalPromotionTicketsTable(); // Journal Promotion Tickets -> DXR_Journal Promotion Tickets (native)
-        MigrateLineasCargaMasivaBenBPDTable(); // Lineas Carga Masiva Ben. BPD -> DXR_Lin Carga Masiva Ben. BPD (native)
-        MigrateMovimientosDeCilindroTable(); // Movimientos de Cilindro -> DXR_Movimientos de Cilindro (native)
         MigrateOrderItemStatusTable(); // Order Item Status -> DXR_Order Item Status (native)
-        MigratePreReqLineNoStockValidTable(); // Pre Req LineNoStockValid -> DXR_Pre Req LineNoStockValid (native)
-        MigratePreReqNoStockValidTable(); // Pre Req no Stock Valid -> DXR_Pre Req no Stock Valid (native)
-        MigratePreRequisicionTable(); // Pre-Requisicion -> DXR_Pre-Requisicion (native)
-        MigratePreRequisicionLineTable(); // Pre-Requisicion Line -> DXR_Pre-Requisicion Line (native)
-        MigratePreRequisicionLineNoStockTable(); // Pre-Requisicion Line No Stock -> DXR_Pre-Req Line No Stock (native)
-        MigratePreRequisicionNoStockTable(); // Pre-Requisicion no Stock -> DXR_Pre-Requisicion no Stock (native)
         MigratePromotionTicketsRelationTable(); // Promotion Tickets Relation -> DXR_Promotion Tickets Relation (native)
-        MigrateRequisicionTable(); // Requisicion -> DXR_Requisicion (native)
-        MigrateRequisicionCommentLineTable(); // Requisicion Comment Line -> DXR_Requisicion Comment Line (native)
-        MigrateRequisicionLineTable(); // Requisicion Line -> DXR_Requisicion Line (native)
-        MigrateStoreStatementPostingTable(); // Store Statement Posting -> DXR_Store Statement Posting (native)
-        MigrateTicketsByOfferTable(); // Tickets By Offer -> DXR_Tickets By Offer (native)
-        MigrateTicketsEntryTable(); // Tickets Entry -> DXR_Tickets Entry (native)
         MigrateUserPromoAppsTable(); // UserPromo Apps -> DXR_UserPromo Apps (native)
-        MigrateValoracionDeInventarioTable(); // Valoracion de Inventario -> DXR_Valoracion de Inventario (native)
         MigrateAGRExtendedItemTable(); // AGR Extended Item -> DXR_AGR Extended Item (native)
         MigrateComisionGrupoVendedorTable(); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor (native)
         MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
-        MigrateTableExt_ApprovalEntryFields();
-        MigrateTableExt_AssemblyHeaderFields();
         MigrateTableExt_AssemblySetupFields();
-        MigrateTableExt_VendorLedgerEntryFields();
-        MigrateTableExt_BankAccReconciliationFields();
-        MigrateTableExt_BankAccReconciliationLineFields();
         MigrateTableExt_BankAccountFields();
-        MigrateTableExt_BankAccountLedgerEntryFields();
         MigrateTableExt_ContactFields();
         MigrateTableExt_CurrencyFields();
         MigrateTableExt_CurrencyExchangeRateFields();
-        MigrateTableExt_CustLedgerEntryFields();
         MigrateTableExt_CustomerFields();
         MigrateTableExt_CustomerPriceGroupFields();
-        MigrateTableExt_IssuedReminderHeaderFields();
-        MigrateTableExt_IssuedReminderLineFields();
         MigrateTableExt_ItemFields();
         MigrateTableExt_ItemCategoryFields();
-        MigrateTableExt_ItemChargeAssignmentPurchFields();
         MigrateTableExt_ItemJournalBatchFields();
-        MigrateTableExt_ItemJournalLineFields();
-        MigrateTableExt_ItemLedgerEntryFields();
         MigrateTableExt_LSCItemSpecialGroupsFields();
-        MigrateTableExt_DXCashJournalReceiptListFields();
         MigrateTableExt_LocationFields();
         MigrateTableExt_LSCMemberContactFields();
         MigrateTableExt_LSCMemberPointOfferFields();
         MigrateTableExt_LSCMemberPointOfferLineFields();
         MigrateTableExt_LSCPeriodicDiscountFields();
-        MigrateTableExt_PostedAssemblyHeaderFields();
-        MigrateTableExt_LSCPostedStatementFields();
         MigrateTableExt_LSCRetailProductGroupFields();
-        MigrateTableExt_PurchCommentLineFields();
-        MigrateTableExt_PurchCommentLineArchiveFields();
-        MigrateTableExt_PurchInvLineFields();
         MigrateTableExt_ShiptoAddressFields();
-        MigrateTableExt_LSCStatementFields();
         MigrateTableExt_LSCSTOREFields();
         MigrateTableExt_TariffNumberFields();
         MigrateTableExt_LSCTenderTypeFields();
+    end;
+
+    procedure RunAccounting()
+    begin
+        MigrateBancosExtractoBancarioTable();
+        MigrateCargaMasivaBeneficiariosBPDTable();
+        MigrateConversionCostoTable();
+        MigrateDetalleExtractoBancarioTable();
+        MigrateEntregaFacturasCxCLinesTable();
+        MigrateEnvioComprasTable();
+        MigrateInternalConsumptionHeaderTable();
+        MigrateInternalConsumptionLineTable();
+        MigrateJournalPromotionTicketsTable();
+        MigrateLineasCargaMasivaBenBPDTable();
+        MigrateMovimientosDeCilindroTable();
+        MigratePreReqLineNoStockValidTable();
+        MigratePreReqNoStockValidTable();
+        MigratePreRequisicionTable();
+        MigratePreRequisicionLineTable();
+        MigratePreRequisicionLineNoStockTable();
+        MigratePreRequisicionNoStockTable();
+        MigrateRequisicionTable();
+        MigrateRequisicionCommentLineTable();
+        MigrateRequisicionLineTable();
+        MigrateStoreStatementPostingTable();
+        MigrateTicketsByOfferTable();
+        MigrateTicketsEntryTable();
+        MigrateValoracionDeInventarioTable();
+        MigrateTableExt_ApprovalEntryFields();
+        MigrateTableExt_AssemblyHeaderFields();
+        MigrateTableExt_VendorLedgerEntryFields();
+        MigrateTableExt_BankAccReconciliationFields();
+        MigrateTableExt_BankAccReconciliationLineFields();
+        MigrateTableExt_BankAccountLedgerEntryFields();
+        MigrateTableExt_CustLedgerEntryFields();
+        MigrateTableExt_IssuedReminderHeaderFields();
+        MigrateTableExt_IssuedReminderLineFields();
+        MigrateTableExt_ItemChargeAssignmentPurchFields();
+        MigrateTableExt_ItemJournalLineFields();
+        MigrateTableExt_ItemLedgerEntryFields();
+        MigrateTableExt_DXCashJournalReceiptListFields();
+        MigrateTableExt_PostedAssemblyHeaderFields();
+        MigrateTableExt_LSCPostedStatementFields();
+        MigrateTableExt_PurchCommentLineFields();
+        MigrateTableExt_PurchCommentLineArchiveFields();
+        MigrateTableExt_PurchInvLineFields();
+        MigrateTableExt_LSCStatementFields();
         MigrateTableExt_LSCTransSalesEntryFields();
         MigrateTableExt_LSCTransactionHeaderFields();
         MigrateTableExt_TransferHeaderFields();
@@ -419,16 +423,15 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         OldFieldRef: FieldRef;
         NewFieldRef: FieldRef;
         FieldIdx: Integer;
+        BatchCount: Integer;
+        TargetWasEmpty: Boolean;
     begin
         NewRecRef.Open(NewTableId);
-        if not NewRecRef.IsEmpty() then begin
-            NewRecRef.Close();
-            exit;
-        end;
+        TargetWasEmpty := NewRecRef.IsEmpty();
         NewRecRef.Close();
 
         OldRecRef.Open(OldTableId);
-        if OldRecRef.FindSet() then
+        if OldRecRef.FindSet(false) then
             repeat
                 NewRecRef.Open(NewTableId);
                 NewRecRef.Init();
@@ -445,7 +448,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                             NewFieldRef.Value := OldFieldRef.Value();
                     end;
                 end;
-                NewRecRef.Insert(false);
+                if TargetWasEmpty then begin
+                    NewRecRef.Insert(false);
+                    BatchCount += 1;
+                end else
+                    if TryInsertRecordRef(NewRecRef) then
+                        BatchCount += 1;
                 // 2026-08-25 fix: NewRecRef.Close() was missing here, so the 2nd+ legacy row of
                 // ANY multi-row table still served by this shared helper (~99 of BELLON-P2's 137
                 // tables, the ones not yet converted to native per-table procedures) threw "The
@@ -455,8 +463,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                 // applied to this shared helper itself (only to the tables already carved out into
                 // their own native procedures, which stopped sharing this bug by construction).
                 NewRecRef.Close();
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    [TryFunction]
+    local procedure TryInsertRecordRef(var TargetRecRef: RecordRef)
+    begin
+        TargetRecRef.Insert(false);
     end;
 
     // Copies OldFieldNo -> NewFieldNo on the current row only if both fields exist in the
@@ -464,12 +484,38 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // point at fields relocated/removed by a later renumbering round; RecRef.Field(N) on a
     // missing N throws and aborts the whole procedure otherwise).
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    var
+        CandidateField: FieldRef;
+        SourceField: FieldRef;
+        TargetField: FieldRef;
+        FieldIndex: Integer;
+        SourceFound: Boolean;
+        TargetFound: Boolean;
     begin
-        if not RecRef.FieldExist(OldFieldNo) then
+        // Resolve the published identities once through metadata, then copy by the resolved field
+        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
+        for FieldIndex := 1 to RecRef.FieldCount() do begin
+            CandidateField := RecRef.FieldIndex(FieldIndex);
+            if CandidateField.Number() = OldFieldNo then begin
+                SourceField := CandidateField;
+                SourceFound := true;
+            end;
+            if CandidateField.Number() = NewFieldNo then begin
+                TargetField := CandidateField;
+                TargetFound := true;
+            end;
+        end;
+        if not SourceFound or not TargetFound then
             exit;
-        if not RecRef.FieldExist(NewFieldNo) then
+        if (SourceField.Class() <> FieldClass::Normal) or
+           (TargetField.Class() <> FieldClass::Normal) or
+           (SourceField.Type() <> TargetField.Type())
+        then
             exit;
-        RecRef.Field(NewFieldNo).Value := RecRef.Field(OldFieldNo).Value;
+
+        SourceField := RecRef.Field(SourceField.Name());
+        TargetField := RecRef.Field(TargetField.Name());
+        TargetField.Value := SourceField.Value();
     end;
 
     // ===== 1) 137 legacy table restores =====

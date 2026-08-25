@@ -145,10 +145,12 @@ codeunit 60013 "DXR MCC Background Runner"
 
     [TryFunction]
     local procedure TryScheduleRetry(var RunRequest: Record "DXR MCC Run Request")
+    var
+        Executor: Codeunit "DXR MCC Executor";
     begin
         RunRequest."Task Id" := TaskScheduler.CreateTask(
             Codeunit::"DXR MCC Background Runner", 0, true, CompanyName(),
-            CurrentDateTime() + RetryDelay(RunRequest."Attempt No."), RunRequest.RecordId());
+            CurrentDateTime() + RetryDelay(RunRequest."Attempt No."), RunRequest.RecordId(), Executor.MigrationTaskTimeout());
         RunRequest.Modify(true);
     end;
 

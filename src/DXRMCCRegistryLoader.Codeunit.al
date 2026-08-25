@@ -13,12 +13,10 @@ codeunit 60012 "DXR MCC Registry Loader"
     // App ID, concepts, or local adapter in this repository yet. Additional registered modules
     // not present in that approved sequence use 900+ so they never interleave with it.
     //
-    // Category (added 2026-08-22, alongside Run All Setup/Master-Accounting/Historic on page
-    // 60020): classifies each concept by the KIND of table(s) it moves data for, so those three
-    // actions - and Run Portfolio's own restructured Setup-then-Master/Accounting-then-Historic-
-    // then-Other pass order - can filter across the whole portfolio instead of only within one
-    // extension. 'SETUP'/'MA'/'HIST'/'OTHER' short codes below map onto the Category option
-    // (Setup/"Master/Accounting"/Historic/Other) via CategoryOption() - kept as short call-site
+    // Category classifies each concept by the kind of data it moves. New runs use five explicit
+    // phases: Setup, Master, Accounting, Historic, and Other. MA remains only as a compatibility
+    // value for already-published rows; new registry calls use MASTER or ACCOUNTING so operators
+    // can run and time both workloads independently. The short codes map via CategoryOption(),
     // text rather than the Option's own '::' syntax because that requires a typed variable in
     // scope and would make this already-long call list far harder to scan. 'OTHER' is the honest
     // answer for any concept whose own single dispatcher genuinely spans more than one category in
@@ -441,7 +439,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         // ---- TU: TransUnion ----
         InsConcept('TU', 'TU-P1', 1, 'Transunion Setup legacy table restore', 60126, 57304, 53601, 'SETUP');
         InsConcept('TU', 'TU-P1', 2, 'Transunion Header legacy table restore', 60126, 57305, 53602, 'MA');
-        InsConcept('TU', 'TU-P1', 3, 'Customer/Cust. Ledger Entry duplicated field restore (10 fields)', 60126, 0, 0, 'MA');
+        InsConcept('TU', 'TU-P1', 3, 'Customer duplicated field restore (master fields only)', 60126, 0, 0, 'MASTER');
+        InsConcept('TU', 'TU-P1', 6, 'Cust. Ledger Entry duplicated field restore (accounting fields only)', 60126, 0, 0, 'ACCOUNTING');
         // Resolved 2026-08-24 (Task A.4): confirmed the non-"Old2" originals (57300/57301) are
         // NOT Access = Internal (unlike 57304/57305) and ARE already read directly by 60126's own
         // MigrateLegacyTables() - typed Record "Transunion Setup"/"Transunion Header", zero
@@ -797,6 +796,17 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P2', 154, 'Tableextension field-group restore: LSCTransactionHeader/TransferHeader/TransferLine (Leg-Norm pass)', 60146, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 155, 'Tableextension field-group restore: TransferReceiptHeader/TransferShipmentHeader/UserSetup (Leg-Norm pass)', 60146, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 156, 'Tableextension field-group restore: ValueEntry/Vendor/WarehouseReceiptLine (Leg-Norm pass)', 60146, 0, 0, 'MA');
+        // The legacy grouped rows above remain Accounting when they include any ledger/document
+        // table. These companion rows expose the master-only half executed by the split worker.
+        InsConcept('BELLON', 'BELLON-P2', 157, 'Master field restore: Assembly Setup (split from legacy grouped seq136)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 158, 'Master field restore: Bank Account (split from legacy grouped seq137)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 159, 'Master field restore: Currency/Exchange Rate/Customer/Customer Price Group (split from legacy grouped seq139)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 160, 'Master field restore: Item/Item Category (split from legacy grouped seq141)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 161, 'Master field restore: LSC Item Special Groups/Location (split from legacy grouped seq143)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 162, 'Master field restore: LSC Periodic Discount (split from legacy grouped seq147)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 163, 'Master field restore: LSC Retail Product Group (split from legacy grouped seq148)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 164, 'Master field restore: Ship-to Address/LSC Store (split from legacy grouped seq152)', 60146, 0, 0, 'MASTER');
+        InsConcept('BELLON', 'BELLON-P2', 165, 'Master field restore: Tariff Number/LSC Tender Type (split from legacy grouped seq153)', 60146, 0, 0, 'MASTER');
 
         // ---- BELLONPOS: Bellon Customization POS ----
         InsConcept('BELLONPOS', 'BELLONPOS-P2', 1, 'LSC Membership Card field restore', 60159, 0, 0, 'OTHER');
@@ -1003,6 +1013,7 @@ codeunit 60012 "DXR MCC Registry Loader"
     var
         Concept: Record "DXR MCC Concept";
     begin
+        CategoryCode := NormalizeLegacyCategory(ExtCode, PhaseCode, SeqNo, CategoryCode);
         DispatcherId := ResolveCategoryDispatcher(ExtCode, DispatcherId, CategoryCode);
         // Blocked/Blocked Reason are NOT set here - they are operator-controlled state (via the
         // Concept Subform) reflecting whether an extension currently compiles/publishes. Reloading
@@ -1017,6 +1028,7 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."Legacy Table ID" := LegacyId;
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
+            ApplyExecutionPolicy(Concept, ExtCode, PhaseCode, SeqNo, CategoryCode);
             Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
             Concept.Modify(true);
         end else begin
@@ -1029,14 +1041,92 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."Legacy Table ID" := LegacyId;
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
+            ApplyExecutionPolicy(Concept, ExtCode, PhaseCode, SeqNo, CategoryCode);
             Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
             Concept.Status := Concept.Status::"Not Counted";
             Concept.Insert(true);
         end;
     end;
 
-    local procedure ResolveCategoryDispatcher(ExtCode: Code[20]; DispatcherId: Integer; CategoryCode: Code[10]): Integer
+    local procedure ApplyExecutionPolicy(var Concept: Record "DXR MCC Concept"; ExtCode: Code[20]; PhaseCode: Code[20]; SeqNo: Integer; CategoryCode: Code[10])
     begin
+        Concept."Execution Band" := Concept."Execution Band"::Normal;
+        Concept."Batch Size" := 0;
+
+        // Historical data and DGII-RNC are intentionally deferred. Setup still completes as one
+        // logical phase, but all normal setup work across the portfolio runs before this bulk tail.
+        if (CategoryCode = 'HIST') or
+           ((ExtCode = 'DRLOC') and (PhaseCode = 'DRLOC-P2') and (SeqNo = 15))
+        then begin
+            Concept."Execution Band" := Concept."Execution Band"::"Deferred/Bulk";
+            Concept."Batch Size" := 500;
+        end;
+    end;
+
+    local procedure NormalizeLegacyCategory(ExtCode: Code[20]; PhaseCode: Code[20]; SeqNo: Integer; CategoryCode: Code[10]): Code[10]
+    begin
+        if (ExtCode = 'DRLOC') and (PhaseCode = 'DRLOC-P2') and (SeqNo = 15) then
+            exit('SETUP');
+        if CategoryCode <> 'MA' then
+            exit(CategoryCode);
+
+        if IsLegacyMasterConcept(ExtCode, PhaseCode, SeqNo) then
+            exit('MASTER');
+        exit('ACCOUNTING');
+    end;
+
+    local procedure IsLegacyMasterConcept(ExtCode: Code[20]; PhaseCode: Code[20]; SeqNo: Integer): Boolean
+    begin
+        case ExtCode of
+            'BC':
+                exit(SeqNo in [8, 9]);
+            'DRLOC':
+                exit(SeqNo in [10, 14, 15, 16, 17, 18, 105]);
+            'FE':
+                exit(SeqNo in [275, 307]);
+            'LSLOC':
+                exit(SeqNo = 5);
+            'DXP':
+                exit(SeqNo in [2, 5, 6, 7, 15, 18, 19, 20, 23, 26, 27, 28, 31, 34, 35, 36]);
+            'VP':
+                exit(SeqNo in [10, 12, 14, 18, 25, 32, 38, 39]);
+            'PCM':
+                exit(SeqNo in [5, 11]);
+            'TU':
+                exit(SeqNo = 3);
+            'SD':
+                exit(SeqNo = 1);
+            'DESB':
+                exit((PhaseCode = 'DESB-P1') and (SeqNo in [1, 5, 27, 29, 32, 39]));
+            'DESLS':
+                exit(SeqNo = 11);
+            'BELLON':
+                case PhaseCode of
+                    'BELLON-P2':
+                        exit(SeqNo in [23, 24, 29, 57, 74, 75, 76, 91, 102, 127, 131, 132, 133, 157, 158, 159, 160, 161, 162, 163, 164, 165]);
+                    'BELLON-P5':
+                        exit(SeqNo = 2);
+                    'BELLON-P6':
+                        exit(SeqNo in [163, 164, 169, 196, 213, 214, 215, 230, 241, 266]);
+                    'BELLON-P8':
+                        exit(SeqNo = 5);
+                    'BELLON-P13':
+                        exit(SeqNo = 273);
+                    'BELLON-P14':
+                        exit(SeqNo = 274);
+                end;
+        end;
+        exit(false);
+    end;
+
+    local procedure ResolveCategoryDispatcher(ExtCode: Code[20]; DispatcherId: Integer; CategoryCode: Code[10]): Integer
+    var
+        SeparatedDispatcherId: Integer;
+    begin
+        SeparatedDispatcherId := ResolveSeparatedDispatcher(ExtCode, DispatcherId, CategoryCode);
+        if SeparatedDispatcherId <> 0 then
+            exit(SeparatedDispatcherId);
+
         case ExtCode of
             'DXP':
                 case DispatcherId of
@@ -1092,7 +1182,7 @@ codeunit 60012 "DXR MCC Registry Loader"
                 if DispatcherId = 60127 then
                     case CategoryCode of
                         'SETUP': exit(60250);
-                        'MA': exit(60251);
+                        'MASTER': exit(60251);
                         'HIST': exit(60252);
                         'OTHER': exit(60253);
                     end;
@@ -1100,7 +1190,7 @@ codeunit 60012 "DXR MCC Registry Loader"
                 if DispatcherId in [60129, 60130] then
                     case CategoryCode of
                         'SETUP': exit(60254);
-                        'MA': exit(60255);
+                        'MASTER': exit(60255);
                         'HIST': exit(60256);
                         'OTHER': exit(60257);
                     end;
@@ -1115,18 +1205,115 @@ codeunit 60012 "DXR MCC Registry Loader"
         exit(DispatcherId);
     end;
 
+    local procedure ResolveSeparatedDispatcher(ExtCode: Code[20]; DispatcherId: Integer; CategoryCode: Code[10]): Integer
+    begin
+        if CategoryCode = 'MASTER' then
+            case ExtCode of
+                'SD':
+                    if DispatcherId = 60070 then
+                        exit(60437);
+                'BELLON':
+                    if DispatcherId = 60158 then
+                        exit(60387);
+            end;
+
+        if CategoryCode <> 'ACCOUNTING' then
+            exit(0);
+
+        case ExtCode of
+            'DXP':
+                case DispatcherId of
+                    60080: exit(60420);
+                    60081: exit(60421);
+                    60082: exit(60422);
+                    60083: exit(60423);
+                    60084: exit(60424);
+                    60085: exit(60425);
+                end;
+            'VP':
+                case DispatcherId of
+                    60116: exit(60426);
+                    60121: exit(60427);
+                end;
+            'PCM':
+                case DispatcherId of
+                    60124: exit(60428);
+                    60125: exit(60429);
+                end;
+            'TU':
+                if DispatcherId = 60126 then exit(60430);
+            'RBPD':
+                case DispatcherId of
+                    60105: exit(60431);
+                    60106: exit(60432);
+                    60109: exit(60433);
+                    60110: exit(60434);
+                    60111: exit(60435);
+                    60112: exit(60436);
+                end;
+            'SD':
+                case DispatcherId of
+                    60072: exit(60438);
+                    60075: exit(60439);
+                    60076: exit(60440);
+                end;
+            'FE':
+                case DispatcherId of
+                    60138: exit(60354);
+                    60139: exit(60355);
+                    60140: exit(60356);
+                end;
+            'DRLOC':
+                case DispatcherId of
+                    60165: exit(60350);
+                    60167: exit(60351);
+                    60168: exit(60352);
+                    60169: exit(60353);
+                end;
+            'LSLOC':
+                case DispatcherId of
+                    60174: exit(60357);
+                    60178: exit(60358);
+                end;
+            'DESB':
+                case DispatcherId of
+                    60127: exit(60380);
+                    60128: exit(60128);
+                end;
+            'DESLS':
+                if DispatcherId = 60130 then exit(60381);
+            'RC':
+                if DispatcherId = 60132 then exit(60382);
+            'BELLON':
+                case DispatcherId of
+                    60146: exit(60383);
+                    60147: exit(60147);
+                    60150: exit(60384);
+                    60153: exit(60153);
+                    60154: exit(60154);
+                    60155: exit(60385);
+                    60156: exit(60156);
+                    60157: exit(60386);
+                    60158: exit(60388);
+                    60166: exit(60166);
+                end;
+        end;
+        exit(0);
+    end;
+
     local procedure CategoryDispatcher(CategoryCode: Code[10]; SetupId: Integer; MasterId: Integer; HistoricId: Integer; OtherId: Integer): Integer
     begin
         case CategoryCode of
             'SETUP': if SetupId <> 0 then exit(SetupId);
             'MA': if MasterId <> 0 then exit(MasterId);
+            'MASTER': if MasterId <> 0 then exit(MasterId);
             'HIST': if HistoricId <> 0 then exit(HistoricId);
             'OTHER': if OtherId <> 0 then exit(OtherId);
         end;
         Error('No category dispatcher is registered for category %1.', CategoryCode);
     end;
 
-    local procedure CategoryOption(CategoryCode: Code[10]): Option Setup,"Master/Accounting",Historic,Other
+    local procedure CategoryOption(CategoryCode: Code[10]): Option Setup,"Master/Accounting",Historic,Other,Master,Accounting
     var
         Concept: Record "DXR MCC Concept";
     begin
@@ -1135,6 +1322,10 @@ codeunit 60012 "DXR MCC Registry Loader"
                 exit(Concept.Category::Setup);
             'MA':
                 exit(Concept.Category::"Master/Accounting");
+            'MASTER':
+                exit(Concept.Category::Master);
+            'ACCOUNTING':
+                exit(Concept.Category::Accounting);
             'HIST':
                 exit(Concept.Category::Historic);
             else

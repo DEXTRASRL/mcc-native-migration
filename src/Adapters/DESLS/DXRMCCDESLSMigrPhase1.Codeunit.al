@@ -37,6 +37,7 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
         RunOther();
     end;
@@ -51,8 +52,12 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
 
     procedure RunMaster()
     begin
-        MigrateTable_DispatchLine();
         MigrateTable_RetailProductGroup();
+    end;
+
+    procedure RunAccounting()
+    begin
+        MigrateTable_DispatchLine();
         MigrateTable_TransportHeader();
         MigrateTable_ShipmentHeader();
         MigrateTable_TransportLine();

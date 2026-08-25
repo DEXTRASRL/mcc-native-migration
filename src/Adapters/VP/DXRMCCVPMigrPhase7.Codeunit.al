@@ -64,6 +64,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
         RunOther();
     end;
@@ -86,12 +87,6 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     var
         ErrorText: Text;
     begin
-        if not MergeTableStep(Database::"DXR_VP Payload Header_Old", Database::"DXR_VP Payload Header", 'TBL-PAYLOAD-HEADER', ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Payload Journal Lin_Old", Database::"DXR_VP Payload Journal Lines", 'TBL-PAYLOAD-JOURNAL-LINES', ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Jounal Bank Account_Old", Database::"DXR_VP Jounal Bank Account", 'TBL-JOURNAL-BANK-ACCOUNT', ErrorText) then
-            Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Order Item Status_Old", Database::"DXR_VP Order Item Status", 'TBL-ORDER-ITEM-STATUS', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Bank_Old", Database::"DXR_VP Bank", 'TBL-BANK', ErrorText) then
@@ -99,6 +94,18 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         if not MergeTableStep(Database::"DXR_VPCargaMasBeneficiario_Old", Database::DXR_VPCargaMasBeneficiariosBPD, 'TBL-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VPLineasCargaMasivaBen_Old", Database::"DXR_VPLineasCargaMasivaBen.BPD", 'TBL-LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunAccounting()
+    var
+        ErrorText: Text;
+    begin
+        if not MergeTableStep(Database::"DXR_VP Payload Header_Old", Database::"DXR_VP Payload Header", 'TBL-PAYLOAD-HEADER', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VP Payload Journal Lin_Old", Database::"DXR_VP Payload Journal Lines", 'TBL-PAYLOAD-JOURNAL-LINES', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VP Jounal Bank Account_Old", Database::"DXR_VP Jounal Bank Account", 'TBL-JOURNAL-BANK-ACCOUNT', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VPOrderNoRelPayment_Old", Database::DXR_VPOrderNoRelPayment, 'TBL-ORDER-NO-REL-PAYMENT', ErrorText) then
             Error(ErrorText);
@@ -178,17 +185,18 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         DestRecRef: RecordRef;
         SourceFieldRef: FieldRef;
         DestFieldRef: FieldRef;
+        BatchCount: Integer;
     begin
         SourceField.SetRange(TableNo, SourceTableNo);
         SourceField.SetRange(Class, SourceField.Class::Normal);
         SourceField.SetFilter("No.", '<%1', 2000000000);
-        if SourceField.FindSet() then
+        if SourceField.FindSet(false) then
             repeat
                 FieldNos.Add(SourceField."No.");
             until SourceField.Next() = 0;
 
         SourceRecRef.Open(SourceTableNo);
-        if SourceRecRef.FindSet() then
+        if SourceRecRef.FindSet(false) then
             repeat
                 DestRecRef.Open(DestTableNo);
                 DestRecRef.Init();
@@ -204,8 +212,18 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 TryInsertRow(DestRecRef);
                 DestRecRef.Close();
+                CommitBatch(BatchCount);
             until SourceRecRef.Next() = 0;
         SourceRecRef.Close();
+    end;
+
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < 500 then
+            exit;
+        Commit();
+        BatchCount := 0;
     end;
 
     [TryFunction]

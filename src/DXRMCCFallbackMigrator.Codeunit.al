@@ -1,5 +1,8 @@
 codeunit 60015 "DXR MCC Fallback Migrator"
 {
+    Permissions =
+        tabledata "DXR MCC Bulk Checkpoint" = RIMD,
+        tabledata "DXR MCC Run Request" = RM;
     // Answers "if the extension's own dispatcher errors, can MCC do the migration itself without
     // recompiling that extension?" - yes, but only for the one shape of migration that's generic
     // enough to run without knowing anything about the target extension's specific business logic:
@@ -25,7 +28,7 @@ codeunit 60015 "DXR MCC Fallback Migrator"
     // Parent-table-before-child ordering (2026-08-22, requested review): this fallback only ever
     // restores ONE table per call, so it never partially overwrites a row a TableRelation-
     // referencing concept depends on. Cross-table ordering is handled one layer up, by DXR MCC
-    // Executor/Registry: Category (Setup always runs before Master/Accounting or Historic) plus
+    // Executor/Registry: Category (Setup runs before Master, Accounting, or Historic) plus
     // each extension's "Order No." dependency tier (e.g. Retail Controls depends on Base Controls,
     // Order No. 10 vs 0) already sequences "referenced setup table" before "table whose field points
     // at it" at the granularity MCC tracks. None of these copy loops call Validate() - they assign
@@ -55,12 +58,39 @@ codeunit 60015 "DXR MCC Fallback Migrator"
             exit(false);
         end;
 
-        if not CopyMissingRows(LegacyTableId, NewTableId, RowsCopied) then begin
+        if not CopyMissingRows(LegacyTableId, NewTableId, 0, 0, 500, RowsCopied) then begin
             ResultText := 'Fallback: nothing copied (source table is empty, or every source row already exists in the target by primary key).';
             exit(false);
         end;
 
         ResultText := StrSubstNo('Fallback reconciliation via MCC generic table-pair copy: %1 row(s) restored.', RowsCopied);
+        exit(true);
+    end;
+
+    procedure TryRestoreConcept(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer; var RowsCopied: Integer; var ResultText: Text): Boolean
+    var
+        AllObjWithCaption: Record AllObjWithCaption;
+        EffectiveBatchSize: Integer;
+    begin
+        RowsCopied := 0;
+        if not AllObjWithCaption.Get(AllObjWithCaption."Object Type"::Table, Concept."Legacy Table ID") then begin
+            ResultText := StrSubstNo('Fallback not possible: legacy table %1 does not exist.', Concept."Legacy Table ID");
+            exit(false);
+        end;
+        if not AllObjWithCaption.Get(AllObjWithCaption."Object Type"::Table, Concept."New Table ID") then begin
+            ResultText := StrSubstNo('Fallback not possible: new table %1 does not exist.', Concept."New Table ID");
+            exit(false);
+        end;
+
+        EffectiveBatchSize := Concept."Batch Size";
+        if EffectiveBatchSize <= 0 then
+            EffectiveBatchSize := 500;
+
+        if not CopyMissingRows(Concept."Legacy Table ID", Concept."New Table ID", Concept."Entry No.", RunRequestEntryNo, EffectiveBatchSize, RowsCopied) then begin
+            ResultText := 'Bulk reconciliation completed: no missing source rows were inserted.';
+            exit(false);
+        end;
+        ResultText := StrSubstNo('Bulk reconciliation by field name/type: %1 missing row(s) restored in batches of %2.', RowsCopied, EffectiveBatchSize);
         exit(true);
     end;
 
@@ -74,16 +104,54 @@ codeunit 60015 "DXR MCC Fallback Migrator"
     /// already skips (never overwrites) any source row whose primary key collides with an existing
     /// target row - the gate was redundant defense against a case the per-row skip already handles.
     /// </summary>
-    local procedure CopyMissingRows(OldTableId: Integer; NewTableId: Integer; var RowsCopied: Integer): Boolean
+    local procedure CopyMissingRows(OldTableId: Integer; NewTableId: Integer; ConceptEntryNo: Integer; RunRequestEntryNo: Integer; BatchSize: Integer; var RowsCopied: Integer): Boolean
     var
         OldRecRef: RecordRef;
         NewRecRef: RecordRef;
+        ProbeRecRef: RecordRef;
         OldFieldRef: FieldRef;
         NewFieldRef: FieldRef;
+        BulkCheckpoint: Record "DXR MCC Bulk Checkpoint";
+        CompatibleFieldNames: List of [Text];
+        FieldName: Text;
+        TargetRecordId: RecordId;
         FieldIdx: Integer;
+        BatchProcessed: Integer;
+        BatchInserted: Integer;
+        TotalProcessed: Integer;
+        HasCurrentRecord: Boolean;
     begin
         OldRecRef.Open(OldTableId);
-        if not OldRecRef.FindSet() then begin
+        NewRecRef.Open(NewTableId);
+        ProbeRecRef.Open(NewTableId);
+
+        // Resolve compatibility once per table, not once per row. Field numbers are deliberately
+        // ignored: a name and type match is required on both schemas.
+        NewRecRef.Init();
+        for FieldIdx := 1 to OldRecRef.FieldCount() do begin
+            OldFieldRef := OldRecRef.FieldIndex(FieldIdx);
+            if (OldFieldRef.Number() < 2000000000) and
+               (OldFieldRef.Class() = FieldClass::Normal) and
+               NewRecRef.FieldExist(OldFieldRef.Name())
+            then begin
+                NewFieldRef := NewRecRef.Field(OldFieldRef.Name());
+                if (NewFieldRef.Class() = FieldClass::Normal) and (OldFieldRef.Type() = NewFieldRef.Type()) then
+                    CompatibleFieldNames.Add(OldFieldRef.Name());
+            end;
+        end;
+
+        HasCurrentRecord := false;
+        if (ConceptEntryNo <> 0) and BulkCheckpoint.Get(CopyStr(CompanyName(), 1, 30), ConceptEntryNo) and
+           (Format(BulkCheckpoint."Last Source Record ID") <> '')
+        then
+            if OldRecRef.Get(BulkCheckpoint."Last Source Record ID") then
+                HasCurrentRecord := OldRecRef.Next() <> 0;
+
+        if not HasCurrentRecord then
+            HasCurrentRecord := OldRecRef.FindSet(false);
+        if not HasCurrentRecord then begin
+            ProbeRecRef.Close();
+            NewRecRef.Close();
             OldRecRef.Close();
             exit(false);
         end;
@@ -93,21 +161,17 @@ codeunit 60015 "DXR MCC Fallback Migrator"
         // (2026-08-22, "Attempt 2 failed, retrying: The record is already open" on Run All Setup)
         // as soon as a legacy table had more than 1 row, since the 2nd iteration tried to reopen
         // the same handle the 1st iteration never closed.
-        NewRecRef.Open(NewTableId);
         repeat
             NewRecRef.Init();
-            for FieldIdx := 1 to OldRecRef.FieldCount() do begin
-                OldFieldRef := OldRecRef.FieldIndex(FieldIdx);
+            foreach FieldName in CompatibleFieldNames do begin
+                OldFieldRef := OldRecRef.Field(FieldName);
                 // FieldClass::Normal on BOTH sides excludes FlowFields (Class = FlowField) -
                 // FlowFields are calculated, never stored, and RecordRef can't write to them; the
                 // one thing that makes a FlowField show the right value is its underlying source
                 // fields already being migrated, which this same loop does for every Normal field
                 // on the row, so no separate "migrate the FlowField's source first" step is needed.
-                if (OldFieldRef.Number() < 2000000000) and
-                   (OldFieldRef.Class() = FieldClass::Normal) and
-                   NewRecRef.FieldExist(OldFieldRef.Name())
-                then begin
-                    NewFieldRef := NewRecRef.Field(OldFieldRef.Name());
+                begin
+                    NewFieldRef := NewRecRef.Field(FieldName);
                     // Skip when the source value equals NewFieldRef's still-untouched Init()
                     // default (blank Text/Code, 0, false, 0D...) - comparing by Format() keeps
                     // this type-agnostic. Target row is always freshly Init()'d here, so this is a
@@ -129,12 +193,62 @@ codeunit 60015 "DXR MCC Fallback Migrator"
             // dedup mechanism (the old upfront "target must be completely empty" gate is gone) -
             // every row, whether the target started empty or already had some rows, goes through
             // this same insert-or-skip-on-collision path.
-            if TryInsertOrSkip(NewRecRef) then
-                RowsCopied += 1;
+            TargetRecordId := NewRecRef.RecordId();
+            if not ProbeRecRef.Get(TargetRecordId) then
+                if TryInsertOrSkip(NewRecRef) then
+                    begin
+                        RowsCopied += 1;
+                        BatchInserted += 1;
+                    end;
+
+            BatchProcessed += 1;
+            TotalProcessed += 1;
+            if BatchProcessed >= BatchSize then begin
+                SaveBulkCheckpoint(BulkCheckpoint, ConceptEntryNo, OldRecRef.RecordId(), BatchProcessed, BatchInserted, false);
+                PulseBulkProgress(RunRequestEntryNo, ConceptEntryNo, TotalProcessed, RowsCopied);
+                Commit();
+                BatchProcessed := 0;
+                BatchInserted := 0;
+            end;
         until OldRecRef.Next() = 0;
+        SaveBulkCheckpoint(BulkCheckpoint, ConceptEntryNo, OldRecRef.RecordId(), BatchProcessed, BatchInserted, true);
+        PulseBulkProgress(RunRequestEntryNo, ConceptEntryNo, TotalProcessed, RowsCopied);
+        Commit();
+        ProbeRecRef.Close();
         NewRecRef.Close();
         OldRecRef.Close();
         exit(RowsCopied > 0);
+    end;
+
+    local procedure SaveBulkCheckpoint(var BulkCheckpoint: Record "DXR MCC Bulk Checkpoint"; ConceptEntryNo: Integer; LastRecordId: RecordId; ProcessedCount: Integer; InsertedCount: Integer; IsCompleted: Boolean)
+    begin
+        if ConceptEntryNo = 0 then
+            exit;
+        if not BulkCheckpoint.Get(CopyStr(CompanyName(), 1, 30), ConceptEntryNo) then begin
+            BulkCheckpoint.Init();
+            BulkCheckpoint."Company Name" := CopyStr(CompanyName(), 1, 30);
+            BulkCheckpoint."Concept Entry No." := ConceptEntryNo;
+            BulkCheckpoint.Insert(false);
+        end;
+        BulkCheckpoint."Last Source Record ID" := LastRecordId;
+        BulkCheckpoint."Processed Count" += ProcessedCount;
+        BulkCheckpoint."Inserted Count" += InsertedCount;
+        BulkCheckpoint."Updated At" := CurrentDateTime();
+        BulkCheckpoint.Completed := IsCompleted;
+        BulkCheckpoint.Modify(false);
+    end;
+
+    local procedure PulseBulkProgress(RunRequestEntryNo: Integer; ConceptEntryNo: Integer; ProcessedCount: Integer; InsertedCount: Integer)
+    var
+        RunRequest: Record "DXR MCC Run Request";
+        LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
+    begin
+        if (RunRequestEntryNo = 0) or not RunRequest.Get(RunRequestEntryNo) then
+            exit;
+        RunRequest."Current Step" := CopyStr(StrSubstNo('Bulk concept %1: %2 processed, %3 inserted', ConceptEntryNo, ProcessedCount, InsertedCount), 1, 250);
+        RunRequest."Last Heartbeat" := CurrentDateTime();
+        RunRequest.Modify(false);
+        LockMgt.RenewLockForRunRequest(RunRequestEntryNo, 12 * 60 * 60 * 1000);
     end;
 
     [TryFunction]

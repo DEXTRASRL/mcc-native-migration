@@ -27,6 +27,7 @@ codeunit 60083 "DXR MCC DXP Migr Phase4"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
     end;
 
@@ -39,10 +40,14 @@ codeunit 60083 "DXR MCC DXP Migr Phase4"
     procedure RunMaster()
     begin
         MigratePromotionBinCard();
-        MigrateStorePayments();
         MigratePromoBinHeader();
         MigratePromotionBinItemsLines();
         MigratePromotionBinLines();
+    end;
+
+    procedure RunAccounting()
+    begin
+        MigrateStorePayments();
     end;
 
     procedure RunHistoric()
@@ -100,14 +105,16 @@ codeunit 60083 "DXR MCC DXP Migr Phase4"
     var
         Source: Record "Payment Process Logs 54214";
         Dest: Record "Payment Process Logs";
+        BatchCount: Integer;
     begin
-        if Source.FindSet() then
+        if Source.FindSet(false) then
             repeat
                 if not Dest.Get(Source."Entry No.") then begin
                     Dest.Init();
                     CopyPaymentProcessLogFields(Source, Dest, true);
                     Dest.Insert(false);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
     end;
 
@@ -176,15 +183,26 @@ codeunit 60083 "DXR MCC DXP Migr Phase4"
     var
         Source: Record "DX Error Audit Log 54219";
         Dest: Record "DX Error Audit Log";
+        BatchCount: Integer;
     begin
-        if Source.FindSet() then
+        if Source.FindSet(false) then
             repeat
                 if not Dest.Get(Source."Entry No.") then begin
                     Dest.Init();
                     CopyErrorAuditLogFields(Source, Dest, true);
                     Dest.Insert(false);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
+    end;
+
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < 500 then
+            exit;
+        Commit();
+        BatchCount := 0;
     end;
 
     local procedure CopyPaymentSetupFields(Source: Record "DX Payment Setup 54211"; var Dest: Record "DX Payment Setup"; IncludePrimaryKey: Boolean)

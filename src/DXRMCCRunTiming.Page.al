@@ -29,9 +29,25 @@ page 60024 "DXR MCC Run Timing"
                 field("Setup Completed At"; Rec."Setup Completed At") { }
                 field("Setup Duration"; Rec."Setup Duration") { }
             }
-            group(MasterAccounting)
+            group(Master)
             {
-                Caption = 'Master/Accounting';
+                Caption = 'Master';
+                field("Master Phase Status"; Rec."Master Phase Status") { }
+                field("Master Started At"; Rec."Master Started At") { }
+                field("Master Completed At"; Rec."Master Completed At") { }
+                field("Master Duration"; Rec."Master Duration") { }
+            }
+            group(Accounting)
+            {
+                Caption = 'Accounting';
+                field("Accounting Phase Status"; Rec."Accounting Phase Status") { }
+                field("Accounting Started At"; Rec."Accounting Started At") { }
+                field("Accounting Completed At"; Rec."Accounting Completed At") { }
+                field("Accounting Duration"; Rec."Accounting Duration") { }
+            }
+            group(LegacyMasterAccounting)
+            {
+                Caption = 'Master/Accounting (Legacy Runs)';
                 field("Master/Accounting Status"; Rec."Master/Accounting Status") { }
                 field("Master/Accounting Started At"; Rec."Master/Accounting Started At") { }
                 field("Master/Accounting Completed At"; Rec."Master/Accounting Completed At") { }

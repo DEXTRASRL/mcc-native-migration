@@ -20,8 +20,35 @@ codeunit 60107 "DXR MCC RBPD Migr IBSetup"
         IbankingSetup2: Record "DXR-IB IbankingSetup";
     begin
         if IbankingSetup.FindFirst() then begin
+            IbankingSetup2.Init();
             IbankingSetup2.Code := ' ';
-            IbankingSetup2.TransferFields(IbankingSetup);
+            IbankingSetup2."User Active DXR-IB" := IbankingSetup."User Active DXR-IB";
+            IbankingSetup2."User Name DXR-IB" := IbankingSetup."User Name DXR-IB";
+            IbankingSetup2."Local Currency DXR-IB" := IbankingSetup."Local Currency DXR-IB";
+            IbankingSetup2."Journal Template Name DXR-IB" := IbankingSetup."Journal Template Name DXR-IB";
+            IbankingSetup2."Journal Batch Name DXR-IB" := IbankingSetup."Journal Batch Name DXR-IB";
+            IbankingSetup2."Description DXR-IB" := IbankingSetup."Description DXR-IB";
+            IbankingSetup2."Bal. Account Type DXR-IB" := IbankingSetup."Bal. Account Type DXR-IB";
+            IbankingSetup2."Bal. Account No. DXR-IB" := IbankingSetup."Bal. Account No. DXR-IB";
+            IbankingSetup2."No. Series DXR-IB" := IbankingSetup."No. Series DXR-IB";
+            IbankingSetup2."Recibo Ingreso DXR-IB" := IbankingSetup."Recibo Ingreso DXR-IB";
+            IbankingSetup2."Starting No. DXR-IB" := IbankingSetup."Starting No. DXR-IB";
+            IbankingSetup2."Ending No. DXR-IB" := IbankingSetup."Ending No. DXR-IB";
+            IbankingSetup2."Default Nos. DXR-IB" := IbankingSetup."Default Nos. DXR-IB";
+            IbankingSetup2."Line No. DXR-IB" := IbankingSetup."Line No. DXR-IB";
+            IbankingSetup2."Template Type DXR-IB" := IbankingSetup."Template Type DXR-IB";
+            IbankingSetup2."Document Type DXR-IB" := IbankingSetup."Document Type DXR-IB";
+            IbankingSetup2."Account Type DXR-IB" := IbankingSetup."Account Type DXR-IB";
+            IbankingSetup2."User Password DXR-IB" := IbankingSetup."User Password DXR-IB";
+            IbankingSetup2."AutoPosteo DXR-IB" := IbankingSetup."AutoPosteo DXR-IB";
+            IbankingSetup2."PagoExcedente DXR-IB" := IbankingSetup."PagoExcedente DXR-IB";
+            IbankingSetup2."Posting No. Series DXR-IB" := IbankingSetup."Posting No. Series DXR-IB";
+            IbankingSetup2."JnlBatchNamePendientes DXR-IB" := IbankingSetup."JnlBatchNamePendientes DXR-IB";
+            IbankingSetup2."open DXR-IB" := IbankingSetup."open DXR-IB";
+            IbankingSetup2."Middleware URL DXR-IB" := IbankingSetup."Middleware URL DXR-IB";
+            IbankingSetup2."Middleware User DXR-IB" := IbankingSetup."Middleware User DXR-IB";
+            IbankingSetup2."Middleware Password DXR-IB" := IbankingSetup."Middleware Password DXR-IB";
+            IbankingSetup2."Auto Process Pending DXR-IB" := IbankingSetup."Auto Process Pending DXR-IB";
             IbankingSetup2.Insert();
             IbankingSetup.Delete(true);
         end;

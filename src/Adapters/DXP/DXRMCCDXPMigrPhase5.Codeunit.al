@@ -49,6 +49,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
     end;
 
@@ -61,10 +62,14 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     procedure RunMaster()
     begin
         RepairPromotionBinCard();
-        RepairStorePayments();
         RepairPromoBinHeader();
         RepairPromotionBinItemsLines();
         RepairPromotionBinLines();
+    end;
+
+    procedure RunAccounting()
+    begin
+        RepairStorePayments();
     end;
 
     procedure RunHistoric()
@@ -134,8 +139,9 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     var
         Source: Record "DXR_Payment Process Logs 54703";
         Dest: Record "DXR_Payment Process Logs";
+        BatchCount: Integer;
     begin
-        if Source.FindSet() then
+        if Source.FindSet(false) then
             repeat
                 if Dest.Get(Source."Entry No.") then begin
                     CopyPaymentProcessLogFields(Source, Dest, false);
@@ -145,6 +151,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
                     CopyPaymentProcessLogFields(Source, Dest, true);
                     Dest.Insert(false);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
     end;
 
@@ -229,8 +236,9 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     var
         Source: Record "DXR_Error Audit Log 54708";
         Dest: Record "DXR_Error Audit Log";
+        BatchCount: Integer;
     begin
-        if Source.FindSet() then
+        if Source.FindSet(false) then
             repeat
                 if Dest.Get(Source."Entry No.") then begin
                     CopyErrorAuditLogFields(Source, Dest, false);
@@ -240,7 +248,17 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
                     CopyErrorAuditLogFields(Source, Dest, true);
                     Dest.Insert(false);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
+    end;
+
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < 500 then
+            exit;
+        Commit();
+        BatchCount := 0;
     end;
 
     local procedure CopyPaymentSetupFields(Source: Record "DXR_Payment Setup 54700"; var Dest: Record "DXR_Payment Setup"; IncludePrimaryKey: Boolean)

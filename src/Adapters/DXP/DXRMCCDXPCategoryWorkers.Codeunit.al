@@ -307,3 +307,113 @@ codeunit 60215 "DXR MCC DXP P6 Master"
         exit('DXR-MCC-DXP-P6-MA-20260825.');
     end;
 }
+
+codeunit 60420 "DXR MCC DXP P1 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase1";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P1-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60421 "DXR MCC DXP P2 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase2";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P2-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60422 "DXR MCC DXP P3 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase3";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P3-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60423 "DXR MCC DXP P4 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase4";
+        FinalWorker: Codeunit "DXR MCC DXP Migr Phase1";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        FinalWorker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P4-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60424 "DXR MCC DXP P5 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase5";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P5-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60425 "DXR MCC DXP P6 Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DXP Migr Phase6";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(Tag()) then
+            exit;
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag(Tag());
+    end;
+    local procedure Tag(): Code[250]
+    begin
+        exit('DXR-MCC-DXP-P6-ACCOUNTING-20260825.');
+    end;
+}

@@ -187,12 +187,38 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     end;
 
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    var
+        CandidateField: FieldRef;
+        SourceField: FieldRef;
+        TargetField: FieldRef;
+        FieldIndex: Integer;
+        SourceFound: Boolean;
+        TargetFound: Boolean;
     begin
-        if not RecRef.FieldExist(OldFieldNo) then
+        // Resolve the published identities once through metadata, then copy by the resolved field
+        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
+        for FieldIndex := 1 to RecRef.FieldCount() do begin
+            CandidateField := RecRef.FieldIndex(FieldIndex);
+            if CandidateField.Number() = OldFieldNo then begin
+                SourceField := CandidateField;
+                SourceFound := true;
+            end;
+            if CandidateField.Number() = NewFieldNo then begin
+                TargetField := CandidateField;
+                TargetFound := true;
+            end;
+        end;
+        if not SourceFound or not TargetFound then
             exit;
-        if not RecRef.FieldExist(NewFieldNo) then
+        if (SourceField.Class() <> FieldClass::Normal) or
+           (TargetField.Class() <> FieldClass::Normal) or
+           (SourceField.Type() <> TargetField.Type())
+        then
             exit;
-        RecRef.Field(NewFieldNo).Value := RecRef.Field(OldFieldNo).Value;
+
+        SourceField := RecRef.Field(SourceField.Name());
+        TargetField := RecRef.Field(TargetField.Name());
+        TargetField.Value := SourceField.Value();
     end;
 
     local procedure MigrateAllNormalizedTables()
@@ -220,16 +246,15 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         OldFieldRef: FieldRef;
         NewFieldRef: FieldRef;
         FieldIdx: Integer;
+        BatchCount: Integer;
+        TargetWasEmpty: Boolean;
     begin
         NewRecRef.Open(NewTableId);
-        if not NewRecRef.IsEmpty() then begin
-            NewRecRef.Close();
-            exit;
-        end;
+        TargetWasEmpty := NewRecRef.IsEmpty();
         NewRecRef.Close();
 
         OldRecRef.Open(OldTableId);
-        if OldRecRef.FindSet() then
+        if OldRecRef.FindSet(false) then
             repeat
                 NewRecRef.Open(NewTableId);
                 NewRecRef.Init();
@@ -250,13 +275,30 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
                             NewFieldRef.Value := OldFieldRef.Value();
                     end;
                 end;
-                NewRecRef.Insert(false);
+                if TargetWasEmpty then begin
+                    NewRecRef.Insert(false);
+                    BatchCount += 1;
+                end else
+                    if TryInsertRecordRef(NewRecRef) then
+                        BatchCount += 1;
                 // 2026-08-25 fix: same missing-Close bug as BELLON's identical helper
                 // (DXRMCCBellonMigrPhase2/Phase6) - NewRecRef.Open() inside this loop without a
                 // per-iteration Close() threw "The record is already open." on the 2nd+ row of any
                 // multi-row table still served by this shared helper, aborting the whole OnRun().
                 NewRecRef.Close();
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    [TryFunction]
+    local procedure TryInsertRecordRef(var TargetRecRef: RecordRef)
+    begin
+        TargetRecRef.Insert(false);
     end;
 }

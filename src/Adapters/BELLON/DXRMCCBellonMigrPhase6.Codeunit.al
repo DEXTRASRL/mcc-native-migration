@@ -72,40 +72,44 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
 
     procedure RunMaster()
     begin
-        MigrateLegacyTableData(59237, 53307); // DXR_Bancos - Extracto Bancario restored at true original ID
         MigrateLegacyTableData(59238, 53308); // DXR_Bank restored at true original ID
         MigrateLegacyTableData(59239, 53309); // DXR_Bank Relation restored at true original ID
-        MigrateLegacyTableData(59242, 53312); // DXR_Carga Masiva Benef BPD restored at true original ID
         MigrateLegacyTableData(59244, 53314); // DXR_Cilindros restored at true original ID
-        MigrateLegacyTableData(59259, 53329); // DXR_Conversion Costo restored at true original ID
-        MigrateLegacyTableData(59261, 53331); // DXR_Detalle - Extr Bancario restored at true original ID
-        MigrateLegacyTableData(59264, 53334); // DXR_Entrega Fact CxC - Lines restored at true original ID
-        MigrateLegacyTableData(59265, 53335); // DXR_Envio Compras restored at true original ID
         MigrateLegacyTableData(59272, 53342); // DXR_Grupo Venta restored at true original ID
-        MigrateLegacyTableData(59285, 53355); // DXR_Int Consump Header restored at true original ID
-        MigrateLegacyTableData(59286, 53356); // DXR_Internal Consumption Line restored at true original ID
         MigrateLegacyTableData(59289, 53359); // DXR_Item HTML restored at true original ID
         MigrateLegacyTableData(59290, 53360); // DXR_Item Image View restored at true original ID
         MigrateLegacyTableData(59291, 53361); // DXR_ItemNo Desliquidacion restored at true original ID
-        MigrateLegacyTableData(59292, 53362); // DXR_Journal Promotion Tickets restored at true original ID
-        MigrateLegacyTableData(59294, 53364); // DXR_Lin Carga Masiva Ben. BPD restored at true original ID
-        MigrateLegacyTableData(59305, 53375); // DXR_Movimientos de Cilindro restored at true original ID
         MigrateLegacyTableData(59306, 53376); // DXR_Order Item Status restored at true original ID
-        MigrateLegacyTableData(59308, 53378); // DXR_Pre Req LineNoStockValid restored at true original ID
-        MigrateLegacyTableData(59309, 53379); // DXR_Pre Req no Stock Valid restored at true original ID
-        MigrateLegacyTableData(59310, 53380); // DXR_Pre-Requisicion restored at true original ID
-        MigrateLegacyTableData(59311, 53381); // DXR_Pre-Requisicion Line restored at true original ID
-        MigrateLegacyTableData(59312, 53382); // DXR_Pre-Req Line No Stock restored at true original ID
-        MigrateLegacyTableData(59313, 53383); // DXR_Pre-Requisicion no Stock restored at true original ID
         MigrateLegacyTableData(59317, 53387); // DXR_Promotion Tickets Relation restored at true original ID
-        MigrateLegacyTableData(59319, 53389); // DXR_Requisicion restored at true original ID
-        MigrateLegacyTableData(59320, 53390); // DXR_Requisicion Comment Line restored at true original ID
-        MigrateLegacyTableData(59321, 53391); // DXR_Requisicion Line restored at true original ID
-        MigrateLegacyTableData(59329, 53399); // DXR_Store Statement Posting restored at true original ID
-        MigrateLegacyTableData(59332, 53402); // DXR_Tickets By Offer restored at true original ID
-        MigrateLegacyTableData(59333, 53403); // DXR_Tickets Entry restored at true original ID
         MigrateLegacyTableData(59342, 53412); // DXR_UserPromo Apps restored at true original ID
-        MigrateLegacyTableData(59343, 53413); // DXR_Valoracion de Inventario restored at true original ID
+    end;
+
+    procedure RunAccounting()
+    begin
+        MigrateLegacyTableData(59237, 53307);
+        MigrateLegacyTableData(59242, 53312);
+        MigrateLegacyTableData(59259, 53329);
+        MigrateLegacyTableData(59261, 53331);
+        MigrateLegacyTableData(59264, 53334);
+        MigrateLegacyTableData(59265, 53335);
+        MigrateLegacyTableData(59285, 53355);
+        MigrateLegacyTableData(59286, 53356);
+        MigrateLegacyTableData(59292, 53362);
+        MigrateLegacyTableData(59294, 53364);
+        MigrateLegacyTableData(59305, 53375);
+        MigrateLegacyTableData(59308, 53378);
+        MigrateLegacyTableData(59309, 53379);
+        MigrateLegacyTableData(59310, 53380);
+        MigrateLegacyTableData(59311, 53381);
+        MigrateLegacyTableData(59312, 53382);
+        MigrateLegacyTableData(59313, 53383);
+        MigrateLegacyTableData(59319, 53389);
+        MigrateLegacyTableData(59320, 53390);
+        MigrateLegacyTableData(59321, 53391);
+        MigrateLegacyTableData(59329, 53399);
+        MigrateLegacyTableData(59332, 53402);
+        MigrateLegacyTableData(59333, 53403);
+        MigrateLegacyTableData(59343, 53413);
     end;
 
     procedure RunHistoric()
@@ -161,16 +165,15 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
         OldFieldRef: FieldRef;
         NewFieldRef: FieldRef;
         FieldIdx: Integer;
+        BatchCount: Integer;
+        TargetWasEmpty: Boolean;
     begin
         NewRecRef.Open(NewTableId);
-        if not NewRecRef.IsEmpty() then begin
-            NewRecRef.Close();
-            exit;
-        end;
+        TargetWasEmpty := NewRecRef.IsEmpty();
         NewRecRef.Close();
 
         OldRecRef.Open(OldTableId);
-        if OldRecRef.FindSet() then
+        if OldRecRef.FindSet(false) then
             repeat
                 NewRecRef.Open(NewTableId);
                 NewRecRef.Init();
@@ -187,14 +190,31 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
                             NewFieldRef.Value := OldFieldRef.Value();
                     end;
                 end;
-                NewRecRef.Insert(false);
+                if TargetWasEmpty then begin
+                    NewRecRef.Insert(false);
+                    BatchCount += 1;
+                end else
+                    if TryInsertRecordRef(NewRecRef) then
+                        BatchCount += 1;
                 // 2026-08-25 fix: same missing-Close bug as Phase2's identical helper (see its
                 // own comment) - NewRecRef.Open() inside this loop without a per-iteration Close()
                 // threw "The record is already open." on the 2nd+ row of any multi-row "Old2"
                 // table still served by this shared helper, aborting the whole OnRun().
                 NewRecRef.Close();
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    [TryFunction]
+    local procedure TryInsertRecordRef(var TargetRecRef: RecordRef)
+    begin
+        TargetRecRef.Insert(false);
     end;
 
     // ===== 16 SETUP-category "Old2" whole-table restores converted to native typed logic =====

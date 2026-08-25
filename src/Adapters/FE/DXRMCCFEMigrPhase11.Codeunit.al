@@ -121,9 +121,13 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
 
     procedure RunMaster()
     begin
+        MigrateCodigosItem();
+    end;
+
+    procedure RunAccounting()
+    begin
         CopyStandaloneTable(55532, Database::"DXR_Bulk Credit Memo Entry");
         CopyStandaloneTable(55575, Database::"DXR_Bulk NCF Import Entry");
-        MigrateCodigosItem();
         CopyStandaloneTable(55506, Database::"DXR_Descuentos O Recargos");
         CopyStandaloneTable(55507, Database::"DXR_Det. Bienes o Servicios");
         CopyStandaloneTable(55508, Database::"DXR_Encabezado");
@@ -553,13 +557,14 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
         AllKeyFieldsMapped: Boolean;
+        BatchCount: Integer;
     begin
         SourceRecordRef.Open(SourceTableId);
         TargetRecordRef.Open(TargetTableId);
 
         SourceKeyRef := SourceRecordRef.KeyIndex(1);
 
-        if SourceRecordRef.FindSet() then
+        if SourceRecordRef.FindSet(false) then
             repeat
                 TargetRecordRef.Reset();
                 AllKeyFieldsMapped := true;
@@ -623,6 +628,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
 
                     TargetRecordRef.Insert(false);
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SourceRecordRef.Next() = 0;
 
         TargetRecordRef.Close();
@@ -636,11 +647,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         DocumentNoFld, DocumentSourceTypeFld, ENCFFld, PostingDateFld, DocumentStatusFld, CodeFld : FieldRef;
         EFCTrackIDFld, EFCTypeFld, SourceCodeTypeFld, RequestTypeFld, SecurityCodeFld : FieldRef;
         StampedDateFld, SignedDateFld, XMLFileFld, ProviderFld : FieldRef;
+        BatchCount: Integer;
     begin
-        TargetArchivedSentRequest.DeleteAll(false);
-
         SourceRef.Open(55503); // EF Archived Sent Request
-        if SourceRef.FindSet() then
+        if SourceRef.FindSet(false) then
             repeat
                 DocumentNoFld := SourceRef.Field(1);
                 DocumentSourceTypeFld := SourceRef.Field(2);
@@ -652,6 +662,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     end;
                 end else
                     InsertArchivedSentRequest(SourceRef);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SourceRef.Next() = 0;
         SourceRef.Close();
     end;

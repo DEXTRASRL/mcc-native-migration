@@ -43,6 +43,21 @@ codeunit 60252 "DXR MCC DESB Historic"
     end;
 }
 
+codeunit 60380 "DXR MCC DESB Accounting"
+{
+    trigger OnRun()
+    var
+        Worker: Codeunit "DXR MCC DESB Migr Worker";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-DESB-ACCOUNTING-20260825.') then
+            exit;
+
+        Worker.RunAccounting();
+        UpgradeTag.SetUpgradeTag('DXR-MCC-DESB-ACCOUNTING-20260825.');
+    end;
+}
+
 codeunit 60253 "DXR MCC DESB Other"
 {
     trigger OnRun()

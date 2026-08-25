@@ -278,6 +278,10 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
 
     procedure RunMaster()
     begin
+    end;
+
+    procedure RunAccounting()
+    begin
         BootstrapSalesHeaderFields();
         BootstrapSalesLineFields();
         BootstrapSalesInvoiceHeaderFields();
@@ -579,11 +583,12 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     var
         OldRec: Record "DXArchived Sales 607";
         NewRec: Record "DXR_Archived Sales 607";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."Tipo Documento" := OldRec."Tipo Documento";
@@ -639,6 +644,12 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
                 NewRec."Otros Impuestos o Tasas ICY" := OldRec."Otros Impuestos o Tasas ICY";
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 

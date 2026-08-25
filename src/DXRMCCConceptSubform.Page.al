@@ -19,6 +19,12 @@ page 60022 "DXR MCC Concept Subform"
                 {
                     ToolTip = 'Refreshed from source by Reload Registry, but editable here if a concept is misclassified - Run All Setup/Master-Accounting/Historic filter strictly on this value.';
                 }
+                field("Execution Band"; Rec."Execution Band")
+                {
+                    Editable = false;
+                    ToolTip = 'Normal runs first across the complete portfolio. Deferred/Bulk runs afterward with batching and checkpoints; DGII-RNC is the final Setup workload.';
+                }
+                field("Batch Size"; Rec."Batch Size") { Editable = false; }
                 field("Old Record Count"; Rec."Old Record Count") { Editable = false; }
                 field("Migrated Record Count"; Rec."Migrated Record Count") { Editable = false; }
                 field(Gap; Rec.Gap) { Editable = false; }

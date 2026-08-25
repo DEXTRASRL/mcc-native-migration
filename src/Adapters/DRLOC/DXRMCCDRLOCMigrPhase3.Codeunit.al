@@ -220,6 +220,10 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
 
     procedure RunMaster()
     begin
+    end;
+
+    procedure RunAccounting()
+    begin
         BootstrapPurchaseHeaderFields();
         BootstrapPurchInvHeaderFields();
         BootstrapPurchCrMemoHdrFields();
@@ -709,11 +713,12 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     var
         DXArchivedPurchase606Old: Record "DXArchived Purchase - (606)";
         DXRArchivedPurchase606New: Record "DXR_Archived Purchase - (606)";
+        BatchCount: Integer;
     begin
         if DXArchivedPurchase606Old.IsEmpty() then
             exit;
 
-        if DXArchivedPurchase606Old.FindSet() then
+        if DXArchivedPurchase606Old.FindSet(false) then
             repeat
                 DXRArchivedPurchase606New.Init();
                 DXRArchivedPurchase606New."Tipo Documento" := DXArchivedPurchase606Old."Tipo Documento";
@@ -788,6 +793,12 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
                 DXRArchivedPurchase606New."ITBIS Facturado ICY" := DXArchivedPurchase606Old."ITBIS Facturado ICY";
                 if not DXRArchivedPurchase606New.Insert(false) then
                     DXRArchivedPurchase606New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until DXArchivedPurchase606Old.Next() = 0;
     end;
 

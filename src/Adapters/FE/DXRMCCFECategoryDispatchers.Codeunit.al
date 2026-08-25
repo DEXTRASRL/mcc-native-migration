@@ -96,3 +96,33 @@ codeunit 60308 "DXR MCC FE P11 Historic"
         Tag.SetUpgradeTag('DXR-MCC-FE-P11-HIST-20260825.');
     end;
 }
+
+codeunit 60354 "DXR MCC FE P9 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC FE Migr Phase9"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-FE-P9-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-FE-P9-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60355 "DXR MCC FE P10 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC FE Migr Phase10"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-FE-P10-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-FE-P10-ACCOUNTING-20260825.');
+    end;
+}
+
+codeunit 60356 "DXR MCC FE P11 Accounting"
+{
+    trigger OnRun()
+    var Worker: Codeunit "DXR MCC FE Migr Phase11"; Tag: Codeunit "Upgrade Tag";
+    begin
+        if Tag.HasUpgradeTag('DXR-MCC-FE-P11-ACCOUNTING-20260825.') then exit;
+        Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-FE-P11-ACCOUNTING-20260825.');
+    end;
+}

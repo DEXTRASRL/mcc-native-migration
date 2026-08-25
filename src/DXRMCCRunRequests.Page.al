@@ -78,7 +78,7 @@ page 60023 "DXR MCC Run Requests"
                 Caption = 'Ver Tiempos por Fase';
                 ApplicationArea = All;
                 Image = Timesheet;
-                ToolTip = 'Muestra inicio, finalización, duración y estado de Setup, Master/Accounting, Historic y Other para el Run Entire Portfolio seleccionado.';
+                ToolTip = 'Muestra inicio, finalización, duración y estado independiente de Setup, Master, Accounting, Historic y Other para el Run Entire Portfolio seleccionado.';
 
                 trigger OnAction()
                 begin

@@ -22,27 +22,70 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
         tabledata "Purchase Line" = RM;
 
     trigger OnRun()
+    begin
+        RunMaster();
+        RunAccounting();
+    end;
+
+    procedure RunMaster()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-BellonP14XCollFixCompleted') then
+        if UpgradeTag.HasUpgradeTag('DXR-BellonP14XCollFixMasterCompleted') then
             exit;
 
         MigrateContactCollisionBridge();
+
+        UpgradeTag.SetUpgradeTag('DXR-BellonP14XCollFixMasterCompleted');
+    end;
+
+    procedure RunAccounting()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-BellonP14XCollFixAccountingCompleted') then
+            exit;
+
         MigrateTransferHeaderCollisionBridge();
         MigrateSalesHeaderCollisionBridge();
         MigratePurchaseLineCollisionBridge();
 
-        UpgradeTag.SetUpgradeTag('DXR-BellonP14XCollFixCompleted');
+        UpgradeTag.SetUpgradeTag('DXR-BellonP14XCollFixAccountingCompleted');
     end;
 
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    var
+        CandidateField: FieldRef;
+        SourceField: FieldRef;
+        TargetField: FieldRef;
+        FieldIndex: Integer;
+        SourceFound: Boolean;
+        TargetFound: Boolean;
     begin
-        if not RecRef.FieldExist(OldFieldNo) then
+        // Resolve the published identities once through metadata, then copy by the resolved field
+        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
+        for FieldIndex := 1 to RecRef.FieldCount() do begin
+            CandidateField := RecRef.FieldIndex(FieldIndex);
+            if CandidateField.Number() = OldFieldNo then begin
+                SourceField := CandidateField;
+                SourceFound := true;
+            end;
+            if CandidateField.Number() = NewFieldNo then begin
+                TargetField := CandidateField;
+                TargetFound := true;
+            end;
+        end;
+        if not SourceFound or not TargetFound then
             exit;
-        if not RecRef.FieldExist(NewFieldNo) then
+        if (SourceField.Class() <> FieldClass::Normal) or
+           (TargetField.Class() <> FieldClass::Normal) or
+           (SourceField.Type() <> TargetField.Type())
+        then
             exit;
-        RecRef.Field(NewFieldNo).Value := RecRef.Field(OldFieldNo).Value;
+
+        SourceField := RecRef.Field(SourceField.Name());
+        TargetField := RecRef.Field(TargetField.Name());
+        TargetField.Value := SourceField.Value();
     end;
 
     // Bridges the 13 physical Contact fields confirmed live on deploy (50060-50078 range) to

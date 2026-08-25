@@ -29,6 +29,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
         RunOther();
     end;
@@ -43,6 +44,10 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     procedure RunMaster()
     begin
         MigrateCustomerFields();
+    end;
+
+    procedure RunAccounting()
+    begin
         MigrateSalesHeaderSnapshotFields();
         MigrateSalesLineFields();
     end;
@@ -181,7 +186,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         // copied, the new table generates its own sequence; only the descriptive fields are migrated.
         // Insert only, no Modify/upsert - Approval History is append-only audit-trail data, matching
         // the real source semantics.
-        if OldHistory.FindSet() then
+        if OldHistory.FindSet(false) then
             repeat
                 NewHistory.Init();
                 NewHistory."Document Type" := OldHistory."Document Type";

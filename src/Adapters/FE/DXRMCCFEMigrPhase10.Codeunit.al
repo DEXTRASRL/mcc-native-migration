@@ -40,6 +40,10 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
 
     procedure RunMaster()
     begin
+    end;
+
+    procedure RunAccounting()
+    begin
         CopySalesHeaderFields();
         CopySalesLineFields();
     end;

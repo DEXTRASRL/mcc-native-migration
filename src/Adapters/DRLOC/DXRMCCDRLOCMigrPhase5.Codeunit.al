@@ -297,6 +297,10 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
 
     procedure RunMaster()
     begin
+    end;
+
+    procedure RunAccounting()
+    begin
         RepairVendorWithholdingMigration();
         BootstrapDetailedCustLedgEntryFields();
         BootstrapUpdateWithholdingEntries();
@@ -1841,11 +1845,12 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     var
         OldRec: Record "DXArch Withholding Gov. Hdr";
         NewRec: Record "DXR_Arch Withholding Gov. Hdr";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."No." := OldRec."No.";
@@ -1857,6 +1862,11 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 NewRec.Procesado := OldRec.Procesado;
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 
@@ -1979,11 +1989,12 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     var
         OldRec: Record "DXArch. C. C. Charges Header";
         NewRec: Record "DXR_Arch. C. C. Charges Header";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."No." := OldRec."No.";
@@ -2017,6 +2028,11 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 NewRec."Entry No." := OldRec."Entry No.";
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 
@@ -2040,11 +2056,12 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     var
         OldRec: Record "DXArch. C. C. Charges Lines";
         NewRec: Record "DXR_Arch. C. C. Charges Lines";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."No." := OldRec."No.";
@@ -2058,6 +2075,11 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 NewRec."Amount to-Apply" := OldRec."Amount to-Apply";
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 
@@ -2082,11 +2104,12 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     var
         OldRec: Record "DXArch. Withhold. Gov. Lines";
         NewRec: Record "DXR_Arch. Withhold. Gov. Lines";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."No." := OldRec."No.";
@@ -2104,6 +2127,11 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 NewRec."Additional Currency Factor" := OldRec."Additional Currency Factor";
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 
@@ -2300,11 +2328,12 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     var
         OldRec: Record "DXMessage Log Table";
         NewRec: Record "DXR_Message Log Table";
+        BatchCount: Integer;
     begin
         if OldRec.IsEmpty() then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 NewRec.Init();
                 NewRec."Origen Doc." := OldRec."Origen Doc.";
@@ -2315,6 +2344,11 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                 NewRec."No. Linea" := OldRec."No. Linea";
                 if not NewRec.Insert(false) then
                     NewRec.Modify(false);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until OldRec.Next() = 0;
     end;
 

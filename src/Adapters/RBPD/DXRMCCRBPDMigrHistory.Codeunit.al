@@ -22,7 +22,7 @@ codeunit 60108 "DXR MCC RBPD Migr History"
         NewHeaderId: BigInteger;
     begin
         // Headers: capture old id -> new id mapping (AutoIncrement is reassigned on Insert).
-        if OldHeader.FindSet() then
+        if OldHeader.FindSet(false) then
             repeat
                 NewHeader.Init();
                 // Do not copy the AutoIncrement PK.
@@ -39,7 +39,7 @@ codeunit 60108 "DXR MCC RBPD Migr History"
             until OldHeader.Next() = 0;
 
         // Details: copy and remap "idheader DXR-IB" to the new header id.
-        if OldDetail.FindSet() then
+        if OldDetail.FindSet(false) then
             repeat
                 if OldToNewHeaderId.ContainsKey(OldDetail."idheader DXR-IB") then begin
                     NewHeaderId := OldToNewHeaderId.Get(OldDetail."idheader DXR-IB");

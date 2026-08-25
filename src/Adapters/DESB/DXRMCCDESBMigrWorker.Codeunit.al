@@ -95,6 +95,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
     begin
         RunSetup();
         RunMaster();
+        RunAccounting();
         RunHistoric();
         RunOther();
     end;
@@ -119,16 +120,20 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
     begin
         MigrateTable01();
         MigrateTable12();
-        MigrateTable13();
         MigrateTable27();
         MigrateTable29();
-        MigrateTable30();
-        MigrateTable31();
         MigrateTable33();
-        MigrateTable34();
-        MigrateTable35();
         MigrateTable38();
         MigrateTable39();
+    end;
+
+    procedure RunAccounting()
+    begin
+        MigrateTable13();
+        MigrateTable30();
+        MigrateTable31();
+        MigrateTable34();
+        MigrateTable35();
     end;
 
     procedure RunHistoric()
@@ -210,7 +215,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-01-50809-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."No.", OldRec."Transport No.", OldRec."Truck") then begin
                     NewRec.Init();
@@ -226,7 +231,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Delivered" := OldRec."Delivered";
                     NewRec."Driver" := OldRec."Driver";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -243,7 +248,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-02-50836-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Key") then begin
                     NewRec.Init();
@@ -254,7 +259,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Tipo Proceso" := OldRec."Tipo Proceso";
                     NewRec."Key" := OldRec."Key";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -271,7 +276,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-03-50820-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Id") then begin
                     NewRec.Init();
@@ -282,7 +287,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Orden" := OldRec."Orden";
                     NewRec."Obligatorio" := OldRec."Obligatorio";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -299,7 +304,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-04-50851-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Entry No.") then begin
                     NewRec.Init();
@@ -314,7 +319,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Payload" := OldRec."Payload";
                     NewRec."Emails Sent" := OldRec."Emails Sent";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -331,7 +336,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-05-50818-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No") then begin
                     NewRec.Init();
@@ -342,7 +347,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Created Date" := OldRec."Created Date";
                     NewRec."Created Time" := OldRec."Created Time";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -359,14 +364,14 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-06-50823-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Type") then begin
                     NewRec.Init();
                     NewRec."Type" := OldRec."Type";
                     NewRec."Permite Escala" := OldRec."Permite Escala";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -383,7 +388,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-07-50822-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Transport No.", OldRec."ID Criterio Encuesta") then begin
                     NewRec.Init();
@@ -403,7 +408,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Fecha" := OldRec."Fecha";
                     NewRec."Hora" := OldRec."Hora";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -420,7 +425,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-08-50821-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Transport No.", OldRec."ID Criterio Encuesta") then begin
                     NewRec.Init();
@@ -437,7 +442,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Fecha califico" := OldRec."Fecha califico";
                     NewRec."Hora califico" := OldRec."Hora califico";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -454,7 +459,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-09-50826-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -469,7 +474,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Use Message Queue" := OldRec."Use Message Queue";
                     NewRec."Fallback to Queue" := OldRec."Fallback to Queue";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -486,7 +491,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-10-50852-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Company Name", OldRec."Phase") then begin
                     NewRec.Init();
@@ -501,7 +506,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Started At" := OldRec."Started At";
                     NewRec."Finished At" := OldRec."Finished At";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -518,7 +523,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-11-50817-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No", OldRec."Line No", OldRec."Invoices No.") then begin
                     NewRec.Init();
@@ -530,7 +535,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."OriginalInvoice" := OldRec."OriginalInvoice";
                     NewRec."Location" := OldRec."Location";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -547,7 +552,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-12-50807-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."No.") then begin
                     NewRec.Init();
@@ -563,7 +568,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Picker" := OldRec."Picker";
                     NewRec."E-mail" := OldRec."E-mail";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -580,7 +585,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-13-50808-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Type", OldRec."No.", OldRec."Invoice No.") then begin
                     NewRec.Init();
@@ -618,7 +623,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Longitud" := OldRec."Longitud";
                     NewRec."DXR-DE Ruta" := OldRec."DXR-DE Ruta";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -635,7 +640,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-14-50800-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Key") then begin
                     NewRec.Init();
@@ -684,7 +689,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Skip Preparer Analyst Valid." := OldRec."Skip Preparer Analyst Valid.";
                     NewRec."Auto Dispatch on SO Release" := OldRec."Auto Dispatch on SO Release";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -701,7 +706,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-15-50837-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."No.") then begin
                     NewRec.Init();
@@ -713,7 +718,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Posting Date" := OldRec."Posting Date";
                     NewRec."Posting Time" := OldRec."Posting Time";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -730,7 +735,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-16-50838-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No.", OldRec."Invoices No.") then begin
                     NewRec.Init();
@@ -738,7 +743,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Invoices No." := OldRec."Invoices No.";
                     NewRec."Entregada Despacho" := OldRec."Entregada Despacho";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -755,7 +760,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-17-50828-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Brand", OldRec."Model") then begin
                     NewRec.Init();
@@ -767,7 +772,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."User Last Modified" := OldRec."User Last Modified";
                     NewRec."Last Date Modified" := OldRec."Last Date Modified";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -784,7 +789,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-18-50830-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Entry No.") then begin
                     NewRec.Init();
@@ -795,7 +800,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Tipo" := OldRec."Tipo";
                     NewRec."Document No." := OldRec."Document No.";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -812,14 +817,14 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-19-50814-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
                     NewRec."Code" := OldRec."Code";
                     NewRec."Description" := OldRec."Description";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -836,14 +841,14 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-20-50831-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
                     NewRec."Code" := OldRec."Code";
                     NewRec."Description" := OldRec."Description";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -868,7 +873,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-21-50832-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Entry No.") then begin
                     NewRec.Init();
@@ -881,7 +886,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."UserID" := OldRec."UserID";
                     NewRec."Qty" := OldRec."Qty";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -898,7 +903,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-22-50833-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No.") then begin
                     NewRec.Init();
@@ -911,7 +916,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Time" := OldRec."Time";
                     NewRec."Qty" := OldRec."Qty";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -928,7 +933,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-23-50834-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No.") then begin
                     NewRec.Init();
@@ -941,7 +946,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Time" := OldRec."Time";
                     NewRec."Qty" := OldRec."Qty";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -958,7 +963,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-24-50819-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Type", OldRec."No.", OldRec."Transport No.") then begin
                     NewRec.Init();
@@ -974,7 +979,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Delivered" := OldRec."Delivered";
                     NewRec."Driver" := OldRec."Driver";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -991,7 +996,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-25-50811-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -1017,7 +1022,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Comentario Costo Adicional" := OldRec."Comentario Costo Adicional";
                     NewRec."Usuario Costo Adicional" := OldRec."Usuario Costo Adicional";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1034,7 +1039,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-26-50816-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Type", OldRec."No.", OldRec."Transport No.", OldRec."Invoice No.") then begin
                     NewRec.Init();
@@ -1075,7 +1080,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Latitud" := OldRec."Latitud";
                     NewRec."Longitud" := OldRec."Longitud";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1092,7 +1097,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-27-50835-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -1104,7 +1109,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Blocked" := OldRec."Blocked";
                     NewRec."Employee No." := OldRec."Employee No.";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1121,14 +1126,14 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-28-50825-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."DXR-DE Ruta") then begin
                     NewRec.Init();
                     NewRec."DXR-DE Ruta" := OldRec."DXR-DE Ruta";
                     NewRec."DXR_Ruta Description" := OldRec."DXR-DE Ruta Description";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1145,7 +1150,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Item No.", OldRec."Sales Code", OldRec."Unit of Measure Code") then begin
                     NewRec.Init();
@@ -1158,7 +1163,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Unit Price Including VAT" := OldRec."Unit Price Including VAT";
                     NewRec."Unit Price" := OldRec."Unit Price";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1175,7 +1180,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-30-50813-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."No.") then begin
                     NewRec.Init();
@@ -1196,7 +1201,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Ship to Address 2" := OldRec."Ship to Address 2";
                     NewRec."Created Date" := OldRec."Created Date";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1213,7 +1218,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-31-50815-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Document No.", OldRec."Line No.") then begin
                     NewRec.Init();
@@ -1224,7 +1229,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Quantity" := OldRec."Quantity";
                     NewRec."Unit of Measure" := OldRec."Unit of Measure";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1241,7 +1246,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-32-50810-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Line No", OldRec."Type", OldRec."Document No.", OldRec."No.") then begin
                     NewRec.Init();
@@ -1252,7 +1257,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."No." := OldRec."No.";
                     NewRec."Date" := OldRec."Date";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1269,7 +1274,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-33-50804-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Sucursal Origen", OldRec."Ruta", OldRec."Id Transporte") then begin
                     NewRec.Init();
@@ -1280,7 +1285,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Pago Chofer" := OldRec."Pago Chofer";
                     NewRec."Pago Ayudante" := OldRec."Pago Ayudante";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1297,7 +1302,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-34-50801-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -1333,7 +1338,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Pre-Dispatch" := OldRec."Pre-Dispatch";
                     NewRec."Transport Line No." := OldRec."Transport Line No.";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1350,7 +1355,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-35-50806-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Line No.", OldRec."Transport No.", OldRec."Type") then begin
                     NewRec.Init();
@@ -1397,7 +1402,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Longitud" := OldRec."Longitud";
                     NewRec."DXR-DE Ruta" := OldRec."DXR-DE Ruta";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1414,7 +1419,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-36-50812-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Entry No.") then begin
                     NewRec.Init();
@@ -1433,7 +1438,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Location" := OldRec."Location";
                     NewRec."User Register" := OldRec."User Register";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1450,7 +1455,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-37-50805-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -1458,7 +1463,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Description" := OldRec."Description";
                     NewRec."Recogida Cliente" := OldRec."Recogida Cliente";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1475,7 +1480,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-38-50803-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."ID") then begin
                     NewRec.Init();
@@ -1487,7 +1492,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Phone No." := OldRec."Phone No.";
                     NewRec."Email Address" := OldRec."Email Address";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
@@ -1504,7 +1509,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-39-50802-28.3') then
             exit;
 
-        if OldRec.FindSet() then
+        if OldRec.FindSet(false) then
             repeat
                 if not NewRec.Get(OldRec."Code") then begin
                     NewRec.Init();
@@ -1526,10 +1531,23 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Origen" := OldRec."Origen";
                     NewRec."Estatus" := OldRec."Estatus";
                     NewRec.Insert(false);
-                    Commit();
+                    CommitBatch();
                 end;
             until OldRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-39-50802-28.3');
     end;
+
+    local procedure CommitBatch()
+    begin
+        RecordsSinceCommit += 1;
+        if RecordsSinceCommit < 500 then
+            exit;
+
+        Commit();
+        RecordsSinceCommit := 0;
+    end;
+
+    var
+        RecordsSinceCommit: Integer;
 }
