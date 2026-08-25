@@ -251,6 +251,126 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     (non-AL-temporary) persisted table - genuinely transient/scratch, not accumulated history,
     //     unlike its seq85/86 siblings - no periodic Commit() needed. Upsert-by-all-12-fields-as-key -
     //     safe to re-run.
+    //
+    // ===== Batch 4 (FINAL): last 8 of 24 generic-loop whole-table clones (seq88-95) - closes out Phase 6
+    //   and DRLOC's entire native-porting campaign =====
+    // Continuation of Batch 2/3's discipline for the same real generic MigrateTable() helper (real source
+    // lines 91-114; this batch's 8 call-sites are lines 107-114, re-verified directly against real source
+    // rather than trusted from the line-number hint alone).
+    //
+    // Registry cross-check for all 8 rows in this batch (seq88-95): independently re-verified every row's
+    // Old/New Table ID pair against real source's own MigrateTable() call arguments AND both real table
+    // object declarations - all 8 registry rows' Old/New Table IDs are CORRECT, no data error found this
+    // batch (unlike seq73 in Batch 2).
+    //   - seq91's own registry comment ("same destination as DRLOC-P2's Purchase Type Relation")
+    //     independently re-verified and found to be CORRECT this time (unlike seq73's wrong claim,
+    //     corrected in Batch 2) - real source confirms TWO separate, genuinely different legacy tables
+    //     both converge on the same real destination table 52242 "DXR_Purchase Type Relation": DRLOC-P2's
+    //     own seq55 (codeunit 60165, DXR_Migr_Phase_2_Fiscal.Codeunit.al real source) migrates legacy
+    //     table 54140 "DXPurchase Type Relation" (no space after "DX") into 52242, while THIS batch's
+    //     seq91 migrates a DIFFERENT, later-generation legacy table, 54167 "DX Purchase Type Relation"
+    //     (space after "DX" - the "space-variant" the registry description refers to) into the SAME 52242.
+    //     Confirmed via "DXPurchaseTypeRelation.Table.Obsolete.al" (54140)'s own ObsoleteReason
+    //     ('Obsolete in 25.5.0.136 replaced by Table 54167 - 36002832 "DX Purchase Type Relation"') and
+    //     "DXPurchaseTypeRelation.Table.al" (54167)'s own ObsoleteReason ('Replaced by the DXR-prefixed
+    //     table for Business Central 28') that this is a genuine two-generation chain (54140 -> 54167 ->
+    //     52242), not a registry data error - both DRLOC-P2 seq55 and this batch's seq91 are legitimate,
+    //     independent whole-table clones of two different legacy sources into the same live destination.
+    //     No registry correction needed for seq91.
+    //
+    // Two NEW cross-enum fields found this batch (same permissive-raw-copy situation as seq85/86/87's
+    // ContributorType in Batch 3 - a DIFFERENT enum object on old vs new side, but the real generic loop's
+    // GetCommonCompatibleFieldNos() still treats them as "the same Type" since both are generically enum-
+    // typed, so CopyCommonFields() raw-transfers the ordinal regardless of which specific enum each side
+    // declares) - both ported via their own guarded conversion helper below, following the same
+    // ConvertContributorType() discipline established in Batch 3:
+    //   - "Order Process Status" (field 36002821, shared by seq88 History Purchase Header AND seq89
+    //     History Purchase Line): Enum "DX PO Process Status" (54111, obsolete) on the old side vs Enum
+    //     "DXR_PO Process Status" (52203, live) on the new side - ported via ConvertPOProcessStatus()
+    //     below. Unlike ContributorType, both enums declare identical members at every ordinal in their
+    //     range (0/1/2, "Original Order"/"Received Order"/"Invoiced Order") - the guard can never actually
+    //     reject a legacy value here, but is still applied for consistency with this codeunit's own
+    //     established discipline of never calling an unguarded FromInteger() against a genuinely
+    //     different-enum-object field. Notably, on BOTH tables this field is part of the real, identically
+    //     -shaped primary key (Header Key1: "Document Type", "No.", "Order Process Status"; Line Key1:
+    //     "Document Type", "Document No.", "Line No.", "Order Process Status", both Clustered) - the
+    //     converted value must be computed BEFORE calling Target.Get(), same pattern as seq51's Source
+    //     Type conversion in this codeunit's MigrateEFSendRegistry() above.
+    //   - "Tipo Comprobante" (field 3, seq90 NCF Process Registration only, NOT part of that table's
+    //     primary key "NCF, Document No."): Enum "DX Fiscal Doc. Type" (54100, obsolete) vs Enum
+    //     "DXR_Fiscal Doc. Type" (52250, live) - ported via ConvertFiscalDocType() below. Both enums
+    //     declare identical members at ordinals 0-10 (confirmed against both enum source files) - same
+    //     "guard can never actually reject a value, kept for consistency" situation as
+    //     ConvertPOProcessStatus() above.
+    //
+    // Full field-by-field common-field derivation (independently re-read against real, current source for
+    // BOTH the legacy DX-prefixed table AND its DXR-prefixed replacement, per table - full derivation, not
+    // sampled):
+    //   - seq88 (History Purchase Header, 54163 -> 52237): "DX History Purchase Header"/"DXR_History
+    //     Purchase Header" - 150 common fields out of 152 total field declarations: field 5754 "Location
+    //     Filter" and field 5796 "Date Filter" are BOTH FieldClass = FlowFilter on both old and new sides
+    //     (Class <> Normal, excluded by the real loop's own Class = Normal filter) - all other 150 fields
+    //     match by number+type, including field 36002821 "Order Process Status" (cross-enum, see above;
+    //     part of the primary key). History-scale table (purchase-document history/archive snapshot,
+    //     registry Category HIST) - periodic Commit() every 100 rows added. Upsert-by-primary-key
+    //     ("Document Type", "No.", "Order Process Status") - safe to re-run.
+    //   - seq89 (History Purchase Line, 54164 -> 52239): "DX History Purchase Line"/"DXR_History Purchase
+    //     Line" - 204 common fields out of 206 total field declarations: field 5705 "Cross-Reference No."
+    //     carries ObsoleteState = Removed on BOTH sides under the CLEAN17 compile-time symbol (which this
+    //     campaign's BC28-targeted symbols resolve as active, confirmed by the field not existing in
+    //     either compiled table's Field metadata - referencing it in typed AL is a compile error, matching
+    //     the real generic loop's own inability to see it via GetCommonCompatibleFieldNos()), and field
+    //     5712 "Product Group Code" carries ObsoleteState = Removed unconditionally on both sides - both
+    //     excluded. All remaining 204 fields match by number+type, including field 36002821 "Order Process
+    //     Status" (cross-enum, see above; part of the primary key, same pairing table as seq88). Same
+    //     history-scale rationale as seq88 - periodic Commit() every 100 rows added. Upsert-by-primary-key
+    //     ("Document Type", "Document No.", "Line No.", "Order Process Status") - safe to re-run.
+    //   - seq90 (NCF Process Registration, 54166 -> 52241): "DX NCF Process Registration"/"DXR_NCF Process
+    //     Registration" - 6 fields total on both sides, identical numbers/types - all 6 common
+    //     (field 3 "Tipo Comprobante" is the cross-enum field discussed above, not part of the primary
+    //     key). Small fiscal-document-tracking table - no periodic Commit() needed (Registry Category HIST
+    //     notwithstanding, real row volume here is one row per still-valid NCF, not a growing ledger).
+    //     Upsert-by-primary-key (NCF, "Document No.") - safe to re-run.
+    //   - seq91 (Purchase Type Relation V27, 54167 -> 52242): "DX Purchase Type Relation"/"DXR_Purchase
+    //     Type Relation" - 2 fields total on both sides ("Grupo Contable Prod." Code[20], Tipo - a plain
+    //     Option with identical OptionMembers " ",Bienes,Servicios on both sides, not a cross-enum
+    //     situation), identical numbers/types - both common, nothing excluded. See the shared-destination
+    //     investigation note above. Tiny per-posting-group setup table - no periodic Commit() needed.
+    //     Upsert-by-primary-key ("Grupo Contable Prod.") - safe to re-run.
+    //   - seq92 (Report Logs, 54158 -> 52228): "Dx Report Logs"/"DXR_Report Logs" - 8 common fields out of
+    //     9 total field declarations: field 54106 "Modified By User." is a FlowField on both sides (Class
+    //     <> Normal, excluded). All other 8 fields (54100, 54101, 54102, 54103, 54104, 54107, 54108,
+    //     54109) match by number+type - field 54109 is named DXNCF on the old side vs NCF_DXR on the new
+    //     side (name differs, number+type identical - matching real behavior which matches on number+type
+    //     only). Real source's own OnInsert() trigger (a "Document Type." self-to-self reassignment,
+    //     effectively a no-op) is not replicated, since Target.Insert(false) below suppresses table
+    //     triggers exactly as real source's own TargetRecRef.Insert(false) does. Transaction-history-scale
+    //     table - periodic Commit() every 100 rows added. Upsert-by-primary-key ("Entry No.",
+    //     AutoIncrement) - safe to re-run (an explicitly-supplied non-zero AutoIncrement value is honored
+    //     as-is by Insert(), same precedent as seq52's NCF Fiscal Queue in this codeunit).
+    //   - seq93 (Report Sales 607 Buffer, 54151 -> 52215): "DX Report Sales 607 Buffer"/"DXR_Report Sales
+    //     607 Buffer" - 43 common fields out of 61 total field declarations: field 13 (Mensajes) and
+    //     fields 17-33 (17 fields, all FlowFields aggregating 607-report totals) are FlowFields on both
+    //     sides; field 16 "Date Filter" is FieldClass = FlowFilter on both sides - all 19 excluded (Class
+    //     <> Normal on both). All remaining 43 fields (1-12, 14, 36002752-36002768, 36002770-36002782
+    //     including the legacy-typo'd field number 3600277 "Cheque/Transf./Deposito ICY", identically
+    //     present with the same typo'd number on both old and new tables) match by number+type - all 43
+    //     common, nothing else excluded (same typo-preservation precedent as Batch 2's seq74). History-
+    //     scale table (DGII 607 sales tax reporting data, registry Category HIST) - periodic Commit()
+    //     every 100 rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento", "No. Linea") -
+    //     safe to re-run.
+    //   - seq94 (Sending Pay Services Abroad 609, 54156 -> 52222): "DXSendingPayServicesAbroad609"/
+    //     "DXR_SendPayServAbroad609" - 15 fields total on both sides, identical numbers/types - all 15
+    //     common, nothing excluded (field 2, "DXTax Identificaction Type" on the old side vs "Tax
+    //     Identificaction Type_DXR" on the new side, is a plain Option with identical OptionMembers on
+    //     both sides - name differs, not a cross-enum situation). DGII 609-report tracking table -
+    //     periodic Commit() every 100 rows added (registry Category HIST). Upsert-by-primary-key
+    //     ("Numero de Documento", "No Linea") - safe to re-run.
+    //   - seq95 (Tipo Servicio Adquirido, 54153 -> 52218): "DxTipoServicioAdquirido"/
+    //     "DXR_R_TipoServicioAdquirido" - 2 fields total on both sides (Code[10] "Code", Text[100]
+    //     Description), identical numbers/types - both common, nothing excluded. Tiny reference/lookup
+    //     table (service-type code + description) - no periodic Commit() needed. Upsert-by-primary-key
+    //     ("Code") - safe to re-run.
     Permissions =
         tabledata "DX EF Send Registry" = R,
         tabledata "DXR_EF Send Registry" = RIM,
@@ -290,7 +410,23 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         tabledata "DX DGI ApiServices FindByName" = R,
         tabledata "DXR_DGI ApiServices FindByName" = RIM,
         tabledata "DX DGII Temp Table" = R,
-        tabledata "DXR_DGII Temp Table" = RIM;
+        tabledata "DXR_DGII Temp Table" = RIM,
+        tabledata "DX History Purchase Header" = R,
+        tabledata "DXR_History Purchase Header" = RIM,
+        tabledata "DX History Purchase Line" = R,
+        tabledata "DXR_History Purchase Line" = RIM,
+        tabledata "DX NCF Process Registration" = R,
+        tabledata "DXR_NCF Process Registration" = RIM,
+        tabledata "DX Purchase Type Relation" = R,
+        tabledata "DXR_Purchase Type Relation" = RIM,
+        tabledata "Dx Report Logs" = R,
+        tabledata "DXR_Report Logs" = RIM,
+        tabledata "DX Report Sales 607 Buffer" = R,
+        tabledata "DXR_Report Sales 607 Buffer" = RIM,
+        tabledata DXSendingPayServicesAbroad609 = R,
+        tabledata DXR_SendPayServAbroad609 = RIM,
+        tabledata DxTipoServicioAdquirido = R,
+        tabledata DXR_R_TipoServicioAdquirido = RIM;
 
     trigger OnRun()
     begin
@@ -313,6 +449,14 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         MigrateDGIApiServices();
         MigrateDGIApiServicesFindByName();
         MigrateDGIITempTable();
+        MigrateHistoryPurchaseHeader();
+        MigrateHistoryPurchaseLine();
+        MigrateNCFProcessRegistration();
+        MigratePurchaseTypeRelationV27();
+        MigrateReportLogs();
+        MigrateReportSales607Buffer();
+        MigrateSendingPayServicesAbroad609();
+        MigrateTipoServicioAdquirido();
     end;
 
     // No periodic Commit() - Application Area Setup is a tiny per-company setup table; Purchase
@@ -1243,6 +1387,679 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
                 Target.Count := Source.Count;
                 Target.ContributorType := TargetContributorType;
                 Target.ReferenceNo := Source.ReferenceNo;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // PO Process Status ordinal-transfer conversion shared by MigrateHistoryPurchaseHeader/
+    // MigrateHistoryPurchaseLine below. Both the old enum ("DX PO Process Status", 54111) and the new
+    // enum ("DXR_PO Process Status", 52203) declare identical members at ordinals 0/1/2 ("Original
+    // Order"/"Received Order"/"Invoiced Order") - unlike ContributorType (Batch 3), every legacy ordinal
+    // has a mapped member on both sides, so this guard can never actually reject a value in practice; it
+    // is still applied here for consistency with this codeunit's own established discipline (see
+    // ConvertContributorType() above) of never calling an unguarded FromInteger() for a genuinely
+    // different-enum-object field.
+    local procedure ConvertPOProcessStatus(SourceOrdinal: Integer): Enum "DXR_PO Process Status"
+    begin
+        if SourceOrdinal in [0, 1, 2] then
+            exit(Enum::"DXR_PO Process Status".FromInteger(SourceOrdinal));
+        // Unrecognized ordinal (not expected given both enums cover the same 0/1/2 range) - leave at
+        // default instead of erroring, matching the real generic loop's permissive raw-value copy.
+    end;
+
+    // Fiscal Doc. Type ordinal-transfer conversion for MigrateNCFProcessRegistration below. Both the old
+    // enum ("DX Fiscal Doc. Type", 54100) and the new enum ("DXR_Fiscal Doc. Type", 52250) declare
+    // identical members at ordinals 0-10 - same "guard can never actually reject a value, kept for
+    // consistency" situation as ConvertPOProcessStatus() above.
+    local procedure ConvertFiscalDocType(SourceOrdinal: Integer): Enum "DXR_Fiscal Doc. Type"
+    begin
+        if SourceOrdinal in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] then
+            exit(Enum::"DXR_Fiscal Doc. Type".FromInteger(SourceOrdinal));
+        // Unrecognized ordinal (not expected given both enums cover the same 0-10 range) - leave at
+        // default instead of erroring, matching the real generic loop's permissive raw-value copy.
+    end;
+
+    // History Purchase Header - 150 common fields (2 FlowFilter fields excluded, "Order Process Status"
+    // cross-enum-converted and part of the primary key - see codeunit-level Batch 4 shadow-field comment).
+    // History-scale table - periodic Commit() every 100 rows added. Upsert-by-primary-key
+    // ("Document Type", "No.", "Order Process Status") - safe to re-run.
+    local procedure MigrateHistoryPurchaseHeader()
+    var
+        Source: Record "DX History Purchase Header";
+        Target: Record "DXR_History Purchase Header";
+        TargetOrderProcessStatus: Enum "DXR_PO Process Status";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetOrderProcessStatus := ConvertPOProcessStatus(Source."Order Process Status".AsInteger());
+                TargetExists := Target.Get(Source."Document Type", Source."No.", TargetOrderProcessStatus);
+                if not TargetExists then
+                    Target.Init();
+                Target."Document Type" := Source."Document Type";
+                Target."Buy-from Vendor No." := Source."Buy-from Vendor No.";
+                Target."No." := Source."No.";
+                Target."Pay-to Vendor No." := Source."Pay-to Vendor No.";
+                Target."Pay-to Name" := Source."Pay-to Name";
+                Target."Pay-to Name 2" := Source."Pay-to Name 2";
+                Target."Pay-to Address" := Source."Pay-to Address";
+                Target."Pay-to Address 2" := Source."Pay-to Address 2";
+                Target."Pay-to City" := Source."Pay-to City";
+                Target."Pay-to Contact" := Source."Pay-to Contact";
+                Target."Your Reference" := Source."Your Reference";
+                Target."Ship-to Code" := Source."Ship-to Code";
+                Target."Ship-to Name" := Source."Ship-to Name";
+                Target."Ship-to Name 2" := Source."Ship-to Name 2";
+                Target."Ship-to Address" := Source."Ship-to Address";
+                Target."Ship-to Address 2" := Source."Ship-to Address 2";
+                Target."Ship-to City" := Source."Ship-to City";
+                Target."Ship-to Contact" := Source."Ship-to Contact";
+                Target."Order Date" := Source."Order Date";
+                Target."Posting Date" := Source."Posting Date";
+                Target."Expected Receipt Date" := Source."Expected Receipt Date";
+                Target."Posting Description" := Source."Posting Description";
+                Target."Payment Terms Code" := Source."Payment Terms Code";
+                Target."Due Date" := Source."Due Date";
+                Target."Payment Discount %" := Source."Payment Discount %";
+                Target."Pmt. Discount Date" := Source."Pmt. Discount Date";
+                Target."Shipment Method Code" := Source."Shipment Method Code";
+                Target."Location Code" := Source."Location Code";
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target."Vendor Posting Group" := Source."Vendor Posting Group";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."Prices Including VAT" := Source."Prices Including VAT";
+                Target."Invoice Disc. Code" := Source."Invoice Disc. Code";
+                Target."Language Code" := Source."Language Code";
+                Target."Purchaser Code" := Source."Purchaser Code";
+                Target."Order Class" := Source."Order Class";
+                Target.Comment := Source.Comment;
+                Target."No. Printed" := Source."No. Printed";
+                Target."On Hold" := Source."On Hold";
+                Target."Applies-to Doc. Type" := Source."Applies-to Doc. Type";
+                Target."Applies-to Doc. No." := Source."Applies-to Doc. No.";
+                Target."Bal. Account No." := Source."Bal. Account No.";
+                Target."Recalculate Invoice Disc." := Source."Recalculate Invoice Disc.";
+                Target.Receive := Source.Receive;
+                Target.Invoice := Source.Invoice;
+                Target."Print Posted Documents" := Source."Print Posted Documents";
+                Target.Amount := Source.Amount;
+                Target."Amount Including VAT" := Source."Amount Including VAT";
+                Target."Receiving No." := Source."Receiving No.";
+                Target."Posting No." := Source."Posting No.";
+                Target."Last Receiving No." := Source."Last Receiving No.";
+                Target."Last Posting No." := Source."Last Posting No.";
+                Target."Vendor Order No." := Source."Vendor Order No.";
+                Target."Vendor Shipment No." := Source."Vendor Shipment No.";
+                Target."Vendor Invoice No." := Source."Vendor Invoice No.";
+                Target."Vendor Cr. Memo No." := Source."Vendor Cr. Memo No.";
+                Target."VAT Registration No." := Source."VAT Registration No.";
+                Target."Sell-to Customer No." := Source."Sell-to Customer No.";
+                Target."Reason Code" := Source."Reason Code";
+                Target."Gen. Bus. Posting Group" := Source."Gen. Bus. Posting Group";
+                Target."Transaction Type" := Source."Transaction Type";
+                Target."Transport Method" := Source."Transport Method";
+                Target."VAT Country/Region Code" := Source."VAT Country/Region Code";
+                Target."Buy-from Vendor Name" := Source."Buy-from Vendor Name";
+                Target."Buy-from Vendor Name 2" := Source."Buy-from Vendor Name 2";
+                Target."Buy-from Address" := Source."Buy-from Address";
+                Target."Buy-from Address 2" := Source."Buy-from Address 2";
+                Target."Buy-from City" := Source."Buy-from City";
+                Target."Buy-from Contact" := Source."Buy-from Contact";
+                Target."Pay-to Post Code" := Source."Pay-to Post Code";
+                Target."Pay-to County" := Source."Pay-to County";
+                Target."Pay-to Country/Region Code" := Source."Pay-to Country/Region Code";
+                Target."Buy-from Post Code" := Source."Buy-from Post Code";
+                Target."Buy-from County" := Source."Buy-from County";
+                Target."Buy-from Country/Region Code" := Source."Buy-from Country/Region Code";
+                Target."Ship-to Post Code" := Source."Ship-to Post Code";
+                Target."Ship-to County" := Source."Ship-to County";
+                Target."Ship-to Country/Region Code" := Source."Ship-to Country/Region Code";
+                Target."Bal. Account Type" := Source."Bal. Account Type";
+                Target."Order Address Code" := Source."Order Address Code";
+                Target."Entry Point" := Source."Entry Point";
+                Target.Correction := Source.Correction;
+                Target."Document Date" := Source."Document Date";
+                Target."Area" := Source."Area";
+                Target."Transaction Specification" := Source."Transaction Specification";
+                Target."Payment Method Code" := Source."Payment Method Code";
+                Target."No. Series" := Source."No. Series";
+                Target."Posting No. Series" := Source."Posting No. Series";
+                Target."Receiving No. Series" := Source."Receiving No. Series";
+                Target."Tax Area Code" := Source."Tax Area Code";
+                Target."Tax Liable" := Source."Tax Liable";
+                Target."VAT Bus. Posting Group" := Source."VAT Bus. Posting Group";
+                Target."Applies-to ID" := Source."Applies-to ID";
+                Target."VAT Base Discount %" := Source."VAT Base Discount %";
+                Target.Status := Source.Status;
+                Target."Invoice Discount Calculation" := Source."Invoice Discount Calculation";
+                Target."Invoice Discount Value" := Source."Invoice Discount Value";
+                Target."Send IC Document" := Source."Send IC Document";
+                Target."IC Status" := Source."IC Status";
+                Target."Buy-from IC Partner Code" := Source."Buy-from IC Partner Code";
+                Target."Pay-to IC Partner Code" := Source."Pay-to IC Partner Code";
+                Target."IC Direction" := Source."IC Direction";
+                Target."Prepayment No." := Source."Prepayment No.";
+                Target."Last Prepayment No." := Source."Last Prepayment No.";
+                Target."Prepmt. Cr. Memo No." := Source."Prepmt. Cr. Memo No.";
+                Target."Last Prepmt. Cr. Memo No." := Source."Last Prepmt. Cr. Memo No.";
+                Target."Prepayment %" := Source."Prepayment %";
+                Target."Prepayment No. Series" := Source."Prepayment No. Series";
+                Target."Compress Prepayment" := Source."Compress Prepayment";
+                Target."Prepayment Due Date" := Source."Prepayment Due Date";
+                Target."Prepmt. Cr. Memo No. Series" := Source."Prepmt. Cr. Memo No. Series";
+                Target."Prepmt. Posting Description" := Source."Prepmt. Posting Description";
+                Target."Prepmt. Pmt. Discount Date" := Source."Prepmt. Pmt. Discount Date";
+                Target."Prepmt. Payment Terms Code" := Source."Prepmt. Payment Terms Code";
+                Target."Prepmt. Payment Discount %" := Source."Prepmt. Payment Discount %";
+                Target."Quote No." := Source."Quote No.";
+                Target."Job Queue Status" := Source."Job Queue Status";
+                Target."Job Queue Entry ID" := Source."Job Queue Entry ID";
+                Target."Incoming Document Entry No." := Source."Incoming Document Entry No.";
+                Target."Creditor No." := Source."Creditor No.";
+                Target."Payment Reference" := Source."Payment Reference";
+                Target."A. Rcd. Not Inv. Ex. VAT (LCY)" := Source."A. Rcd. Not Inv. Ex. VAT (LCY)";
+                Target."Amt. Rcd. Not Invoiced (LCY)" := Source."Amt. Rcd. Not Invoiced (LCY)";
+                Target."Dimension Set ID" := Source."Dimension Set ID";
+                Target."Invoice Discount Amount" := Source."Invoice Discount Amount";
+                Target."No. of Archived Versions" := Source."No. of Archived Versions";
+                Target."Doc. No. Occurrence" := Source."Doc. No. Occurrence";
+                Target."Campaign No." := Source."Campaign No.";
+                Target."Buy-from Contact No." := Source."Buy-from Contact No.";
+                Target."Pay-to Contact No." := Source."Pay-to Contact No.";
+                Target."Responsibility Center" := Source."Responsibility Center";
+                Target."Partially Invoiced" := Source."Partially Invoiced";
+                Target."Completely Received" := Source."Completely Received";
+                Target."Posting from Whse. Ref." := Source."Posting from Whse. Ref.";
+                Target."Requested Receipt Date" := Source."Requested Receipt Date";
+                Target."Promised Receipt Date" := Source."Promised Receipt Date";
+                Target."Lead Time Calculation" := Source."Lead Time Calculation";
+                Target."Inbound Whse. Handling Time" := Source."Inbound Whse. Handling Time";
+                Target."Vendor Authorization No." := Source."Vendor Authorization No.";
+                Target."Return Shipment No." := Source."Return Shipment No.";
+                Target."Return Shipment No. Series" := Source."Return Shipment No. Series";
+                Target.Ship := Source.Ship;
+                Target."Last Return Shipment No." := Source."Last Return Shipment No.";
+                Target."Price Calculation Method" := Source."Price Calculation Method";
+                Target.Id := Source.Id;
+                Target."Assigned User ID" := Source."Assigned User ID";
+                Target."Pending Approvals" := Source."Pending Approvals";
+                Target."Order Process Status" := TargetOrderProcessStatus;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // History Purchase Line - 204 common fields (2 Removed fields excluded, "Order Process Status"
+    // cross-enum-converted and part of the primary key - see codeunit-level Batch 4 shadow-field comment).
+    // Same history-scale rationale as MigrateHistoryPurchaseHeader above - periodic Commit() every 100
+    // rows added. Upsert-by-primary-key ("Document Type", "Document No.", "Line No.",
+    // "Order Process Status") - safe to re-run.
+    local procedure MigrateHistoryPurchaseLine()
+    var
+        Source: Record "DX History Purchase Line";
+        Target: Record "DXR_History Purchase Line";
+        TargetOrderProcessStatus: Enum "DXR_PO Process Status";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetOrderProcessStatus := ConvertPOProcessStatus(Source."Order Process Status".AsInteger());
+                TargetExists := Target.Get(Source."Document Type", Source."Document No.", Source."Line No.", TargetOrderProcessStatus);
+                if not TargetExists then
+                    Target.Init();
+                Target."Document Type" := Source."Document Type";
+                Target."Buy-from Vendor No." := Source."Buy-from Vendor No.";
+                Target."Document No." := Source."Document No.";
+                Target."Line No." := Source."Line No.";
+                Target.Type := Source.Type;
+                Target."No." := Source."No.";
+                Target."Location Code" := Source."Location Code";
+                Target."Posting Group" := Source."Posting Group";
+                Target."Expected Receipt Date" := Source."Expected Receipt Date";
+                Target.Description := Source.Description;
+                Target."Description 2" := Source."Description 2";
+                Target."Unit of Measure" := Source."Unit of Measure";
+                Target.Quantity := Source.Quantity;
+                Target."Outstanding Quantity" := Source."Outstanding Quantity";
+                Target."Qty. to Invoice" := Source."Qty. to Invoice";
+                Target."Qty. to Receive" := Source."Qty. to Receive";
+                Target."Direct Unit Cost" := Source."Direct Unit Cost";
+                Target."Unit Cost (LCY)" := Source."Unit Cost (LCY)";
+                Target."VAT %" := Source."VAT %";
+                Target."Line Discount %" := Source."Line Discount %";
+                Target."Line Discount Amount" := Source."Line Discount Amount";
+                Target.Amount := Source.Amount;
+                Target."Amount Including VAT" := Source."Amount Including VAT";
+                Target."Unit Price (LCY)" := Source."Unit Price (LCY)";
+                Target."Allow Invoice Disc." := Source."Allow Invoice Disc.";
+                Target."Gross Weight" := Source."Gross Weight";
+                Target."Net Weight" := Source."Net Weight";
+                Target."Units per Parcel" := Source."Units per Parcel";
+                Target."Unit Volume" := Source."Unit Volume";
+                Target."Appl.-to Item Entry" := Source."Appl.-to Item Entry";
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target."Job No." := Source."Job No.";
+                Target."Indirect Cost %" := Source."Indirect Cost %";
+                Target."Recalculate Invoice Disc." := Source."Recalculate Invoice Disc.";
+                Target."Outstanding Amount" := Source."Outstanding Amount";
+                Target."Qty. Rcd. Not Invoiced" := Source."Qty. Rcd. Not Invoiced";
+                Target."Amt. Rcd. Not Invoiced" := Source."Amt. Rcd. Not Invoiced";
+                Target."Quantity Received" := Source."Quantity Received";
+                Target."Quantity Invoiced" := Source."Quantity Invoiced";
+                Target."Receipt No." := Source."Receipt No.";
+                Target."Receipt Line No." := Source."Receipt Line No.";
+                Target."Order No." := Source."Order No.";
+                Target."Order Line No." := Source."Order Line No.";
+                Target."Profit %" := Source."Profit %";
+                Target."Pay-to Vendor No." := Source."Pay-to Vendor No.";
+                Target."Inv. Discount Amount" := Source."Inv. Discount Amount";
+                Target."Vendor Item No." := Source."Vendor Item No.";
+                Target."Sales Order No." := Source."Sales Order No.";
+                Target."Sales Order Line No." := Source."Sales Order Line No.";
+                Target."Drop Shipment" := Source."Drop Shipment";
+                Target."Gen. Bus. Posting Group" := Source."Gen. Bus. Posting Group";
+                Target."Gen. Prod. Posting Group" := Source."Gen. Prod. Posting Group";
+                Target."VAT Calculation Type" := Source."VAT Calculation Type";
+                Target."Transaction Type" := Source."Transaction Type";
+                Target."Transport Method" := Source."Transport Method";
+                Target."Attached to Line No." := Source."Attached to Line No.";
+                Target."Entry Point" := Source."Entry Point";
+                Target."Area" := Source."Area";
+                Target."Transaction Specification" := Source."Transaction Specification";
+                Target."Tax Area Code" := Source."Tax Area Code";
+                Target."Tax Liable" := Source."Tax Liable";
+                Target."Tax Group Code" := Source."Tax Group Code";
+                Target."Use Tax" := Source."Use Tax";
+                Target."VAT Bus. Posting Group" := Source."VAT Bus. Posting Group";
+                Target."VAT Prod. Posting Group" := Source."VAT Prod. Posting Group";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Outstanding Amount (LCY)" := Source."Outstanding Amount (LCY)";
+                Target."Amt. Rcd. Not Invoiced (LCY)" := Source."Amt. Rcd. Not Invoiced (LCY)";
+                Target."Reserved Quantity" := Source."Reserved Quantity";
+                Target."Blanket Order No." := Source."Blanket Order No.";
+                Target."Blanket Order Line No." := Source."Blanket Order Line No.";
+                Target."VAT Base Amount" := Source."VAT Base Amount";
+                Target."Unit Cost" := Source."Unit Cost";
+                Target."System-Created Entry" := Source."System-Created Entry";
+                Target."Line Amount" := Source."Line Amount";
+                Target."VAT Difference" := Source."VAT Difference";
+                Target."Inv. Disc. Amount to Invoice" := Source."Inv. Disc. Amount to Invoice";
+                Target."VAT Identifier" := Source."VAT Identifier";
+                Target."IC Partner Ref. Type" := Source."IC Partner Ref. Type";
+                Target."IC Partner Reference" := Source."IC Partner Reference";
+                Target."Prepayment %" := Source."Prepayment %";
+                Target."Prepmt. Line Amount" := Source."Prepmt. Line Amount";
+                Target."Prepmt. Amt. Inv." := Source."Prepmt. Amt. Inv.";
+                Target."Prepmt. Amt. Incl. VAT" := Source."Prepmt. Amt. Incl. VAT";
+                Target."Prepayment Amount" := Source."Prepayment Amount";
+                Target."Prepmt. VAT Base Amt." := Source."Prepmt. VAT Base Amt.";
+                Target."Prepayment VAT %" := Source."Prepayment VAT %";
+                Target."Prepmt. VAT Calc. Type" := Source."Prepmt. VAT Calc. Type";
+                Target."Prepayment VAT Identifier" := Source."Prepayment VAT Identifier";
+                Target."Prepayment Tax Area Code" := Source."Prepayment Tax Area Code";
+                Target."Prepayment Tax Liable" := Source."Prepayment Tax Liable";
+                Target."Prepayment Tax Group Code" := Source."Prepayment Tax Group Code";
+                Target."Prepmt Amt to Deduct" := Source."Prepmt Amt to Deduct";
+                Target."Prepmt Amt Deducted" := Source."Prepmt Amt Deducted";
+                Target."Prepayment Line" := Source."Prepayment Line";
+                Target."Prepmt. Amount Inv. Incl. VAT" := Source."Prepmt. Amount Inv. Incl. VAT";
+                Target."Prepmt. Amount Inv. (LCY)" := Source."Prepmt. Amount Inv. (LCY)";
+                Target."IC Partner Code" := Source."IC Partner Code";
+                Target."Prepmt. VAT Amount Inv. (LCY)" := Source."Prepmt. VAT Amount Inv. (LCY)";
+                Target."Prepayment VAT Difference" := Source."Prepayment VAT Difference";
+                Target."Prepmt VAT Diff. to Deduct" := Source."Prepmt VAT Diff. to Deduct";
+                Target."Prepmt VAT Diff. Deducted" := Source."Prepmt VAT Diff. Deducted";
+                Target."IC Item Reference No." := Source."IC Item Reference No.";
+                Target."Outstanding Amt. Ex. VAT (LCY)" := Source."Outstanding Amt. Ex. VAT (LCY)";
+                Target."A. Rcd. Not Inv. Ex. VAT (LCY)" := Source."A. Rcd. Not Inv. Ex. VAT (LCY)";
+                Target."Pmt. Discount Amount" := Source."Pmt. Discount Amount";
+                Target."Dimension Set ID" := Source."Dimension Set ID";
+                Target."Job Task No." := Source."Job Task No.";
+                Target."Job Line Type" := Source."Job Line Type";
+                Target."Job Unit Price" := Source."Job Unit Price";
+                Target."Job Total Price" := Source."Job Total Price";
+                Target."Job Line Amount" := Source."Job Line Amount";
+                Target."Job Line Discount Amount" := Source."Job Line Discount Amount";
+                Target."Job Line Discount %" := Source."Job Line Discount %";
+                Target."Job Unit Price (LCY)" := Source."Job Unit Price (LCY)";
+                Target."Job Total Price (LCY)" := Source."Job Total Price (LCY)";
+                Target."Job Line Amount (LCY)" := Source."Job Line Amount (LCY)";
+                Target."Job Line Disc. Amount (LCY)" := Source."Job Line Disc. Amount (LCY)";
+                Target."Job Currency Factor" := Source."Job Currency Factor";
+                Target."Job Currency Code" := Source."Job Currency Code";
+                Target."Job Planning Line No." := Source."Job Planning Line No.";
+                Target."Job Remaining Qty." := Source."Job Remaining Qty.";
+                Target."Job Remaining Qty. (Base)" := Source."Job Remaining Qty. (Base)";
+                Target."Deferral Code" := Source."Deferral Code";
+                Target."Returns Deferral Start Date" := Source."Returns Deferral Start Date";
+                Target."Prod. Order No." := Source."Prod. Order No.";
+                Target."Variant Code" := Source."Variant Code";
+                Target."Bin Code" := Source."Bin Code";
+                Target."Qty. per Unit of Measure" := Source."Qty. per Unit of Measure";
+                Target."Unit of Measure Code" := Source."Unit of Measure Code";
+                Target."Quantity (Base)" := Source."Quantity (Base)";
+                Target."Outstanding Qty. (Base)" := Source."Outstanding Qty. (Base)";
+                Target."Qty. to Invoice (Base)" := Source."Qty. to Invoice (Base)";
+                Target."Qty. to Receive (Base)" := Source."Qty. to Receive (Base)";
+                Target."Qty. Rcd. Not Invoiced (Base)" := Source."Qty. Rcd. Not Invoiced (Base)";
+                Target."Qty. Received (Base)" := Source."Qty. Received (Base)";
+                Target."Qty. Invoiced (Base)" := Source."Qty. Invoiced (Base)";
+                Target."Reserved Qty. (Base)" := Source."Reserved Qty. (Base)";
+                Target."FA Posting Date" := Source."FA Posting Date";
+                Target."FA Posting Type" := Source."FA Posting Type";
+                Target."Depreciation Book Code" := Source."Depreciation Book Code";
+                Target."Salvage Value" := Source."Salvage Value";
+                Target."Depr. until FA Posting Date" := Source."Depr. until FA Posting Date";
+                Target."Depr. Acquisition Cost" := Source."Depr. Acquisition Cost";
+                Target."Maintenance Code" := Source."Maintenance Code";
+                Target."Insurance No." := Source."Insurance No.";
+                Target."Budgeted FA No." := Source."Budgeted FA No.";
+                Target."Duplicate in Depreciation Book" := Source."Duplicate in Depreciation Book";
+                Target."Use Duplication List" := Source."Use Duplication List";
+                Target."Responsibility Center" := Source."Responsibility Center";
+                Target."Unit of Measure (Cross Ref.)" := Source."Unit of Measure (Cross Ref.)";
+                Target."Cross-Reference Type" := Source."Cross-Reference Type";
+                Target."Cross-Reference Type No." := Source."Cross-Reference Type No.";
+                Target."Item Category Code" := Source."Item Category Code";
+                Target.Nonstock := Source.Nonstock;
+                Target."Purchasing Code" := Source."Purchasing Code";
+                Target."Special Order" := Source."Special Order";
+                Target."Special Order Sales No." := Source."Special Order Sales No.";
+                Target."Special Order Sales Line No." := Source."Special Order Sales Line No.";
+                Target."Item Reference No." := Source."Item Reference No.";
+                Target."Item Reference Unit of Measure" := Source."Item Reference Unit of Measure";
+                Target."Item Reference Type" := Source."Item Reference Type";
+                Target."Item Reference Type No." := Source."Item Reference Type No.";
+                Target."Whse. Outstanding Qty. (Base)" := Source."Whse. Outstanding Qty. (Base)";
+                Target."Completely Received" := Source."Completely Received";
+                Target."Requested Receipt Date" := Source."Requested Receipt Date";
+                Target."Promised Receipt Date" := Source."Promised Receipt Date";
+                Target."Lead Time Calculation" := Source."Lead Time Calculation";
+                Target."Inbound Whse. Handling Time" := Source."Inbound Whse. Handling Time";
+                Target."Planned Receipt Date" := Source."Planned Receipt Date";
+                Target."Order Date" := Source."Order Date";
+                Target."Allow Item Charge Assignment" := Source."Allow Item Charge Assignment";
+                Target."Qty. to Assign" := Source."Qty. to Assign";
+                Target."Qty. Assigned" := Source."Qty. Assigned";
+                Target."Return Qty. to Ship" := Source."Return Qty. to Ship";
+                Target."Return Qty. to Ship (Base)" := Source."Return Qty. to Ship (Base)";
+                Target."Return Qty. Shipped Not Invd." := Source."Return Qty. Shipped Not Invd.";
+                Target."Ret. Qty. Shpd Not Invd.(Base)" := Source."Ret. Qty. Shpd Not Invd.(Base)";
+                Target."Return Shpd. Not Invd." := Source."Return Shpd. Not Invd.";
+                Target."Return Shpd. Not Invd. (LCY)" := Source."Return Shpd. Not Invd. (LCY)";
+                Target."Return Qty. Shipped" := Source."Return Qty. Shipped";
+                Target."Return Qty. Shipped (Base)" := Source."Return Qty. Shipped (Base)";
+                Target."Return Shipment No." := Source."Return Shipment No.";
+                Target."Return Shipment Line No." := Source."Return Shipment Line No.";
+                Target."Return Reason Code" := Source."Return Reason Code";
+                Target.Subtype := Source.Subtype;
+                Target."Copied From Posted Doc." := Source."Copied From Posted Doc.";
+                Target."Price Calculation Method" := Source."Price Calculation Method";
+                Target."Attached Doc Count" := Source."Attached Doc Count";
+                Target."Over-Receipt Quantity" := Source."Over-Receipt Quantity";
+                Target."Over-Receipt Code" := Source."Over-Receipt Code";
+                Target."Over-Receipt Approval Status" := Source."Over-Receipt Approval Status";
+                Target."Routing No." := Source."Routing No.";
+                Target."Operation No." := Source."Operation No.";
+                Target."Work Center No." := Source."Work Center No.";
+                Target.Finished := Source.Finished;
+                Target."Prod. Order Line No." := Source."Prod. Order Line No.";
+                Target."Overhead Rate" := Source."Overhead Rate";
+                Target."MPS Order" := Source."MPS Order";
+                Target."Planning Flexibility" := Source."Planning Flexibility";
+                Target."Safety Lead Time" := Source."Safety Lead Time";
+                Target."Routing Reference No." := Source."Routing Reference No.";
+                Target."Order Process Status" := TargetOrderProcessStatus;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // NCF Process Registration - all 6 fields common (field 3 "Tipo Comprobante" is the cross-enum field,
+    // NOT part of the primary key - see codeunit-level Batch 4 shadow-field comment). Small fiscal-
+    // document-tracking table - no periodic Commit() needed. Upsert-by-primary-key (NCF, "Document No.")
+    // - safe to re-run.
+    local procedure MigrateNCFProcessRegistration()
+    var
+        Source: Record "DX NCF Process Registration";
+        Target: Record "DXR_NCF Process Registration";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source.NCF, Source."Document No.");
+                if not TargetExists then
+                    Target.Init();
+                Target.NCF := Source.NCF;
+                Target."Fecha Comprobante" := Source."Fecha Comprobante";
+                Target."Tipo Comprobante" := ConvertFiscalDocType(Source."Tipo Comprobante".AsInteger());
+                Target."Document No." := Source."Document No.";
+                Target."Expiration Date" := Source."Expiration Date";
+                Target."No. Series" := Source."No. Series";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Purchase Type Relation V27 - both fields common, no cross-enum (Tipo is a plain Option with
+    // identical OptionMembers on both sides). See codeunit-level Batch 4 comment for the independently
+    // re-verified shared-destination-with-DRLOC-P2 investigation (confirmed correct, not a data error).
+    // Tiny per-posting-group setup table - no periodic Commit() needed. Upsert-by-primary-key
+    // ("Grupo Contable Prod.") - safe to re-run.
+    local procedure MigratePurchaseTypeRelationV27()
+    var
+        Source: Record "DX Purchase Type Relation";
+        Target: Record "DXR_Purchase Type Relation";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Grupo Contable Prod.");
+                if not TargetExists then
+                    Target.Init();
+                Target."Grupo Contable Prod." := Source."Grupo Contable Prod.";
+                Target.Tipo := Source.Tipo;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Report Logs - 8 common fields (field 54106 "Modified By User." is a FlowField on both sides,
+    // excluded - see codeunit-level Batch 4 shadow-field comment). Transaction-history-scale table -
+    // periodic Commit() every 100 rows added. Upsert-by-primary-key ("Entry No.", AutoIncrement) - safe
+    // to re-run.
+    local procedure MigrateReportLogs()
+    var
+        Source: Record "Dx Report Logs";
+        Target: Record "DXR_Report Logs";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Entry No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."Document No." := Source."Document No.";
+                Target."Document Type." := Source."Document Type.";
+                Target."NCF." := Source."NCF.";
+                Target."Doc Posting Date." := Source."Doc Posting Date.";
+                Target."Description." := Source."Description.";
+                Target."Modified Date." := Source."Modified Date.";
+                Target."Entry No." := Source."Entry No.";
+                Target.NCF_DXR := Source.DXNCF;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Report Sales 607 Buffer - 43 common fields (field 13 Mensajes and fields 17-33 are FlowFields on
+    // both sides, field 16 "Date Filter" is FlowFilter on both sides - all excluded, see codeunit-level
+    // Batch 4 shadow-field comment). History-scale table (DGII 607 sales tax reporting data) - periodic
+    // Commit() every 100 rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento",
+    // "No. Linea") - safe to re-run.
+    local procedure MigrateReportSales607Buffer()
+    var
+        Source: Record "DX Report Sales 607 Buffer";
+        Target: Record "DXR_Report Sales 607 Buffer";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea");
+                if not TargetExists then
+                    Target.Init();
+                Target."Tipo Documento" := Source."Tipo Documento";
+                Target."No. Documento" := Source."No. Documento";
+                Target."Tipo Identificacion" := Source."Tipo Identificacion";
+                Target."Cod. Identificacion" := Source."Cod. Identificacion";
+                Target."Cod. Cliente" := Source."Cod. Cliente";
+                Target."Nombre Cliente" := Source."Nombre Cliente";
+                Target.NCF := Source.NCF;
+                Target."NCF Modificado" := Source."NCF Modificado";
+                Target."Fecha Comprobante" := Source."Fecha Comprobante";
+                Target."ITBIS Facturado" := Source."ITBIS Facturado";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."No. Linea" := Source."No. Linea";
+                Target."Estado Reg." := Source."Estado Reg.";
+                Target."Type of Income" := Source."Type of Income";
+                Target."Fecha Retencion" := Source."Fecha Retencion";
+                Target."ITBIS Retenido por Terceros" := Source."ITBIS Retenido por Terceros";
+                Target."ITBIS Percibido" := Source."ITBIS Percibido";
+                Target."Retencion Renta por Terceros" := Source."Retencion Renta por Terceros";
+                Target."ISR Percibido" := Source."ISR Percibido";
+                Target."Imp. Selectivo al Consumo" := Source."Imp. Selectivo al Consumo";
+                Target."Otros Impuestos o Tasas" := Source."Otros Impuestos o Tasas";
+                Target."Monto Propina Legal" := Source."Monto Propina Legal";
+                Target.Efectivo := Source.Efectivo;
+                Target."Cheque/Transferencia/Deposito" := Source."Cheque/Transferencia/Deposito";
+                Target."Tarjeta Debito/Credito" := Source."Tarjeta Debito/Credito";
+                Target."Venta a Credito" := Source."Venta a Credito";
+                Target."Bonos o Certificados de Regalo" := Source."Bonos o Certificados de Regalo";
+                Target.Permuta := Source.Permuta;
+                Target."Otras Formas de Ventas" := Source."Otras Formas de Ventas";
+                Target."Fuente Datos" := Source."Fuente Datos";
+                Target."Additional Currency Factor" := Source."Additional Currency Factor";
+                Target."Additional Currency Code" := Source."Additional Currency Code";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."DX Original Amount" := Source."DX Original Amount";
+                Target."DX Original ITBIS Amount" := Source."DX Original ITBIS Amount";
+                Target."Efectivo ICY" := Source."Efectivo ICY";
+                Target."Cheque/Transf./Deposito ICY" := Source."Cheque/Transf./Deposito ICY";
+                Target."Tarjeta Debito/Credito ICY" := Source."Tarjeta Debito/Credito ICY";
+                Target."Venta a Credito ICY" := Source."Venta a Credito ICY";
+                Target."Bonos o Certif. de Regalo ICY" := Source."Bonos o Certif. de Regalo ICY";
+                Target."Permuta ICY" := Source."Permuta ICY";
+                Target."Otras Formas de Ventas ICY" := Source."Otras Formas de Ventas ICY";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Sending Pay Services Abroad 609 - all 15 fields common, no cross-enum (field 2 is a plain Option
+    // with identical OptionMembers on both sides). DGII 609-report tracking table - periodic Commit()
+    // every 100 rows added. Upsert-by-primary-key ("Numero de Documento", "No Linea") - safe to re-run.
+    local procedure MigrateSendingPayServicesAbroad609()
+    var
+        Source: Record DXSendingPayServicesAbroad609;
+        Target: Record DXR_SendPayServAbroad609;
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Numero de Documento", Source."No Linea");
+                if not TargetExists then
+                    Target.Init();
+                Target."Nombre / Razón Social" := Source."Nombre / Razón Social";
+                Target."Tax Identificaction Type_DXR" := Source."DXTax Identificaction Type";
+                Target."ID Tributaria" := Source."ID Tributaria";
+                Target."Pais de Destino" := Source."Pais de Destino";
+                Target."Tipo de Servicio Adquirido" := Source."Tipo de Servicio Adquirido";
+                Target."Detalle del Servicio Adquirido" := Source."Detalle del Servicio Adquirido";
+                Target."Parte Relacionada" := Source."Parte Relacionada";
+                Target."Numero de Documento" := Source."Numero de Documento";
+                Target."Fecha de Documento" := Source."Fecha de Documento";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."Fecha de Retención ISR" := Source."Fecha de Retención ISR";
+                Target."Renta Presunta" := Source."Renta Presunta";
+                Target."ISR Retenido" := Source."ISR Retenido";
+                Target."No Linea" := Source."No Linea";
+                Target.NCF := Source.NCF;
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Tipo Servicio Adquirido - both fields common. Tiny reference/lookup table - no periodic Commit()
+    // needed. Upsert-by-primary-key ("Code") - safe to re-run.
+    local procedure MigrateTipoServicioAdquirido()
+    var
+        Source: Record DxTipoServicioAdquirido;
+        Target: Record DXR_R_TipoServicioAdquirido;
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Code");
+                if not TargetExists then
+                    Target.Init();
+                Target."Code" := Source."Code";
+                Target.Description := Source.Description;
                 if TargetExists then
                     Target.Modify(false)
                 else

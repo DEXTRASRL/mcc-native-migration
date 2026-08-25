@@ -216,14 +216,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P6', 85, 'DGI API Services legacy table restore (54160 -> 52233)', 60170, 54160, 52233, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 86, 'DGI API Services FindByName legacy table restore (54161 -> 52234)', 60170, 54161, 52234, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 87, 'DGII Temp Table legacy table restore (54162 -> 52235)', 60170, 54162, 52235, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 88, 'History Purchase Header legacy table restore (54163 -> 52237)', 60069, 54163, 52237, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 89, 'History Purchase Line legacy table restore (54164 -> 52239)', 60069, 54164, 52239, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 90, 'NCF Process Registration legacy table restore (54166 -> 52241)', 60069, 54166, 52241, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 91, 'Purchase Type Relation V27 legacy table restore (54167 "DX Purchase Type Relation" space-variant -> 52242, same destination as DRLOC-P2''s Purchase Type Relation)', 60069, 54167, 52242, 'SETUP');
-        InsConcept('DRLOC', 'DRLOC-P6', 92, 'Report Logs legacy table restore (54158 -> 52228)', 60069, 54158, 52228, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 93, 'Report Sales 607 Buffer legacy table restore (54151 -> 52215)', 60069, 54151, 52215, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 94, 'Sending Pay Services Abroad 609 legacy table restore (54156 -> 52222)', 60069, 54156, 52222, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 95, 'Tipo Servicio Adquirido legacy table restore (54153 -> 52218)', 60069, 54153, 52218, 'SETUP');
+        InsConcept('DRLOC', 'DRLOC-P6', 88, 'History Purchase Header legacy table restore (54163 -> 52237)', 60170, 54163, 52237, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 89, 'History Purchase Line legacy table restore (54164 -> 52239)', 60170, 54164, 52239, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 90, 'NCF Process Registration legacy table restore (54166 -> 52241)', 60170, 54166, 52241, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 91, 'Purchase Type Relation V27 legacy table restore (54167 "DX Purchase Type Relation" space-variant -> 52242, same destination as DRLOC-P2''s Purchase Type Relation)', 60170, 54167, 52242, 'SETUP');
+        InsConcept('DRLOC', 'DRLOC-P6', 92, 'Report Logs legacy table restore (54158 -> 52228)', 60170, 54158, 52228, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 93, 'Report Sales 607 Buffer legacy table restore (54151 -> 52215)', 60170, 54151, 52215, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 94, 'Sending Pay Services Abroad 609 legacy table restore (54156 -> 52222)', 60170, 54156, 52222, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 95, 'Tipo Servicio Adquirido legacy table restore (54153 -> 52218)', 60170, 54153, 52218, 'SETUP');
         // 9 legacy tables found 2026-08-22 with ZERO migration concept anywhere in the prior
         // registry (no dispatcher ever moved their data, no Counter ever checked their row count)
         // - discovered via a full Tables.old/ sweep against every existing InsConcept row.
