@@ -124,10 +124,10 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BC', 'BC-PERM', 19, 'Permission set assignment repair (all users, DXR_BaseControls)', 60104, 0, 0, 'OTHER');
 
         // ---- DRLOC: Base App DR Localization ----
-        InsConcept('DRLOC', 'DRLOC-P2', 1, 'Fiscal migration phase', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P3', 2, 'Purchase migration phase', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 3, 'Sales migration phase', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 4, 'Ledger migration phase', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 1, 'RETIRED 2026-08-24: this coarse row bridged to DR-Localization''s own dispatcher (52208) via Codeunit 60069 - superseded now that Phase 2''s entire real scope (48 actions, seq9-18/93-106/etc.) is natively ported into MCC codeunit 60165. Keeping this row pointed at 60069 would still invoke DRLOC''s own dispatcher (and its EnsurePhase1Completed hard-block) every run, exactly the cross-repo bridge dependency this whole campaign exists to eliminate. Retired in place rather than deleted, matching the DPP-P5/DPP-P6 precedent above.', 0, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-P3', 2, 'RETIRED 2026-08-24: superseded now that Phase 3''s entire real scope (12 actions, seq19-30) is natively ported into MCC codeunit 60167. Same bridge-elimination reasoning as DRLOC-P2 seq1 above.', 0, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-P4', 3, 'RETIRED 2026-08-24: superseded now that Phase 4''s entire real scope (9 actions, seq31-39) is natively ported into MCC codeunit 60168. Same bridge-elimination reasoning as DRLOC-P2 seq1 above.', 0, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-P5', 4, 'Ledger migration phase - coarse bridge row to DR-Localization''s own dispatcher (60069), kept ACTIVE (not yet retired) because Phase 5''s granular native port (14 of 19 real actions) is still in progress in this same campaign as of 2026-08-24. Retire this row the same way as DRLOC-P2/P3/P4 above once Phase 5''s full granular breakdown lands.', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P6', 5, 'History migration phase', 60069, 0, 0, 'HIST');
         InsConcept('DRLOC', 'DRLOC-NCF', 6, 'Sales family NCF field cross-table ID collision fix (20 fields, live crash root cause)', 0, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-NCF', 7, 'Purchase family NCF field cross-table ID collision fix (98 fields, latent same bug)', 0, 0, 0, 'MA');
