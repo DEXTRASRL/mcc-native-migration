@@ -77,8 +77,19 @@ codeunit 60013 "DXR MCC Background Runner"
         // anything that already set its tag before this attempt died. For Category/Portfolio/
         // RecountAll scopes, "Checkpoint Key" (saved by Executor as each extension/concept
         // finishes) resumes past whatever already finished too, so a retry doesn't restart the
-        // whole scope from its first extension. Same exponential-backoff shape as Bellon Migr.
-        // Failure Handler's own retry (2/4/8/16/30 min), capped at 5 attempts before giving up.
+        // whole scope from its first extension.
+        //
+        // 2026-08-25 fix (reported: "no quiero intervalos de tiempo... quiero que todo sea
+        // inmediato y a la velocidad del sistema"): RetryDelay used to mirror Bellon Migr. Failure
+        // Handler's own exponential backoff (1/2/4/8/16/30 min between attempts) - real, deliberate
+        // minutes-long pauses that made a run retrying after a transient failure look exactly like
+        // it was "stuck with intervals," same visible symptom as the earlier Company Information/
+        // NCF Sales freeze even though the underlying cause here is different (a legitimate retry
+        // wait, not a missing completion gate). Reduced to a flat, minimal delay - still capped at
+        // 5 attempts before giving up for good (MaxAttempts), so a genuinely persistent/non-
+        // transient failure still stops retrying rather than spinning forever, but a resolved
+        // transient issue now resumes at the next TaskScheduler slot almost immediately instead of
+        // making the operator wait minutes between attempts.
         // Lock is deliberately NOT released here - this is a continuation of the same logical run,
         // not a new one, so it must keep holding the lock across the retry.
         if (Rec."Attempt No." < MaxAttempts()) and TaskScheduler.CanCreateTask() then begin
@@ -107,18 +118,16 @@ codeunit 60013 "DXR MCC Background Runner"
         exit(5);
     end;
 
+    // 2026-08-25: flat 5-second delay for every retry attempt, replacing the previous 1/2/4/8/16/
+    // 30-minute exponential backoff - see the call site's own comment for why. Not literally zero:
+    // TaskScheduler.CreateTask still needs a real future DateTime, and a genuine zero-delay retry
+    // risks a tight loop against a hard (non-transient) failure between now and MaxAttempts being
+    // reached; 5 seconds is effectively immediate from the operator's perspective while still
+    // giving the platform/database a moment to clear whatever transient condition caused the
+    // failure in the first place.
     local procedure RetryDelay(AttemptNo: Integer): Duration
-    var
-        DelayMinutes: Integer;
     begin
-        DelayMinutes := 1;
-        while (DelayMinutes < 30) and (AttemptNo > 1) do begin
-            DelayMinutes *= 2;
-            AttemptNo -= 1;
-        end;
-        if DelayMinutes > 30 then
-            DelayMinutes := 30;
-        exit(DelayMinutes * 60 * 1000);
+        exit(5 * 1000);
     end;
 
     [TryFunction]

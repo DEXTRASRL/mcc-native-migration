@@ -469,7 +469,7 @@
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Control Last Heartbeat - Property ToolTip</note>
         </trans-unit>
         <trans-unit id="Page 1107228204 - Action 788258546 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
-          <source>Requests cancellation of this run. Takes effect at the next safe boundary (between extensions/concepts, not mid-dispatcher-call - a dispatcher already running can't be interrupted), same granularity as its own checkpointing. A Scheduled row not yet started is cancelled immediately.</source>
+          <source>Requests cancellation of this run. Takes effect at the next safe boundary (between extensions/concepts, not mid-dispatcher-call - a dispatcher already running can't be interrupted), same granularity as its own checkpointing. A Scheduled row not yet started is cancelled immediately (removed from the platform's own task queue via TaskScheduler.CancelTask, not just a cooperative flag).</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action Cancel - Property ToolTip</note>
         </trans-unit>
@@ -477,6 +477,16 @@
           <source>Cancel</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action Cancel - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1107228204 - Action 1942795240 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Uso de emergencia: para una fila que queda "enganchada" en Running/Scheduled sin avanzar y que "Cancel" no logra destrabar (la sesión en background está genuinamente colgada, no solo lenta). Cancela la tarea en la cola de TaskScheduler si todavía existe, libera el lock de migración de inmediato (sin esperar su expiración ni el auto-heal de 4 horas) y ELIMINA esta fila por completo - no queda en Cancelled, desaparece de la lista - para poder iniciar una ejecución nueva sin obstáculos. No puede detener una sesión en background que ya esté genuinamente en ejecución (AL no ofrece esa capacidad - ver el comentario de la acción "Cancel"); si la tarea vieja de verdad sigue viva, podría seguir corriendo en paralelo con la nueva hasta que la plataforma la termine por su cuenta.</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action ForceDelete - Property ToolTip</note>
+        </trans-unit>
+        <trans-unit id="Page 1107228204 - Action 1942795240 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Forzar Cancelación y Eliminar</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action ForceDelete - Property Caption</note>
         </trans-unit>
         <trans-unit id="Page 1107228204 - Action 2026913255 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Refresh</source>

@@ -81,8 +81,6 @@ page 60023 "DXR MCC Run Requests"
                 ToolTip = 'Requests cancellation of this run. Takes effect at the next safe boundary (between extensions/concepts, not mid-dispatcher-call - a dispatcher already running can''t be interrupted), same granularity as its own checkpointing. A Scheduled row not yet started is cancelled immediately (removed from the platform''s own task queue via TaskScheduler.CancelTask, not just a cooperative flag).';
                 Enabled = IsCancellableStatus;
                 trigger OnAction()
-                var
-                  
                 begin
                     if IsCancellableStatus then begin
                         // 2026-08-25: for a Status = Scheduled row (CreateTask already called, task
@@ -110,6 +108,33 @@ page 60023 "DXR MCC Run Requests"
                         Message('Cancelación solicitada. El estado cambiará a Cancelled en el próximo punto seguro (no instantáneo si hay un dispatcher en ejecución).');
                         CurrPage.Update(false);
                     end;
+                end;
+            }
+            action(ForceDelete)
+            {
+                Caption = 'Forzar Cancelación y Eliminar';
+                ApplicationArea = All;
+                Image = Delete;
+                ToolTip = 'Uso de emergencia: para una fila que queda "enganchada" en Running/Scheduled sin avanzar y que "Cancel" no logra destrabar (la sesión en background está genuinamente colgada, no solo lenta). Cancela la tarea en la cola de TaskScheduler si todavía existe, libera el lock de migración de inmediato (sin esperar su expiración ni el auto-heal de 4 horas) y ELIMINA esta fila por completo - no queda en Cancelled, desaparece de la lista - para poder iniciar una ejecución nueva sin obstáculos. No puede detener una sesión en background que ya esté genuinamente en ejecución (AL no ofrece esa capacidad - ver el comentario de la acción "Cancel"); si la tarea vieja de verdad sigue viva, podría seguir corriendo en paralelo con la nueva hasta que la plataforma la termine por su cuenta.';
+                trigger OnAction()
+                var
+                    LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
+                    EntryNo: Integer;
+                begin
+                    if not Confirm('¿Forzar cancelación y ELIMINAR por completo la fila %1 (Estado: %2)? Esta acción no se puede deshacer.', false, Rec."Entry No.", Format(Rec.Status)) then
+                        exit;
+
+                    EntryNo := Rec."Entry No.";
+
+                    if not IsNullGuid(Rec."Task Id") then
+                        if TaskScheduler.TaskExists(Rec."Task Id") then
+                            TaskScheduler.CancelTask(Rec."Task Id");
+
+                    LockMgt.ForceReleaseLockForRunRequest(EntryNo);
+                    Rec.Delete(false);
+
+                    Message('Fila %1 eliminada y lock liberado. Ya puede iniciar una nueva ejecución.', EntryNo);
+                    CurrPage.Update(false);
                 end;
             }
         }

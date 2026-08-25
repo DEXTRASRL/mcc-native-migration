@@ -107,6 +107,7 @@ codeunit 60011 "DXR MCC Executor"
                 end else begin
                     DispatcherShareCount.Get(Concept."Dispatcher Codeunit ID", ShareCount);
                     UpdateProgressStarting(Concept."Extension Code", Concept.Description, ShareCount);
+                    LogConceptsStarting(Concept."Dispatcher Codeunit ID", RunRequestEntryNo);
                     RunDispatcher(Concept."Dispatcher Codeunit ID", ErrorText, DurationMs);
                     DispatcherErrors.Add(Concept."Dispatcher Codeunit ID", ErrorText);
                     DispatcherDurations.Add(Concept."Dispatcher Codeunit ID", DurationMs);
@@ -148,6 +149,7 @@ codeunit 60011 "DXR MCC Executor"
             exit;
         OpenProgress('Concepto individual', 1);
         UpdateProgressStarting(Concept."Extension Code", Concept.Description, 1);
+        LogConceptsStarting(Concept."Dispatcher Codeunit ID", RunRequestEntryNo);
         RunDispatcher(Concept."Dispatcher Codeunit ID", ErrorText, DurationMs);
         LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo);
         UpdateProgressVerified(Concept."Extension Code", Concept.Description, Concept.Status, Concept."Old Record Count", Concept."Migrated Record Count", Concept.Gap);
@@ -330,6 +332,7 @@ codeunit 60011 "DXR MCC Executor"
                     DispatcherDurations.Add(Concept."Dispatcher Codeunit ID", 0);
                 end else begin
                     CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: migrando %2', ExtensionCode, ResolveConceptTableName(Concept)));
+                    LogConceptsStarting(Concept."Dispatcher Codeunit ID", RunRequestEntryNo);
                     RunDispatcher(Concept."Dispatcher Codeunit ID", ErrorText, DurationMs);
                     DispatcherErrors.Add(Concept."Dispatcher Codeunit ID", ErrorText);
                     DispatcherDurations.Add(Concept."Dispatcher Codeunit ID", DurationMs);
@@ -845,6 +848,51 @@ codeunit 60011 "DXR MCC Executor"
         Concept."Last Run DateTime" := CurrentDateTime();
         Concept.Modify(true);
         RunLog.Insert(true);
+    end;
+
+    /// <summary>
+    /// 2026-08-25 (reported: "veo como la localización pasa de tablas y no logea... tampoco logea
+    /// cuando debe de logear todo" - a dispatcher covering many concepts in one Codeunit.Run() call
+    /// produced ZERO Run Log rows until the WHOLE call returned, so a long-running or hung
+    /// dispatcher left every table/bootstrap step it covers completely invisible in the log while
+    /// it was actually in progress - LogAndCount only ever wrote the terminal outcome, after the
+    /// fact). Writes one "Running" Run Log row per concept sharing this dispatcher BEFORE
+    /// Codeunit.Run() is called, so every table/bootstrap this dispatcher is about to touch shows up
+    /// in the log immediately, in real time, not just once (or never, if it hangs) at the end.
+    /// LogAndCount still writes its own separate terminal row afterward (Completed/Error/etc.) -
+    /// this is deliberately a SEPARATE row, not an update-in-place, so the log preserves the real
+    /// timeline (started at X, finished/failed at Y) as an audit trail, consistent with every other
+    /// Run Log row being an immutable historical entry rather than a mutable "current status" cell.
+    /// </summary>
+    local procedure LogConceptsStarting(DispatcherCodeunitId: Integer; RunRequestEntryNo: Integer)
+    var
+        Concept: Record "DXR MCC Concept";
+        RunLog: Record "DXR MCC Run Log";
+    begin
+        if DispatcherCodeunitId = 0 then
+            exit;
+
+        Concept.SetRange("Dispatcher Codeunit ID", DispatcherCodeunitId);
+        Concept.SetRange(Blocked, false);
+        if not Concept.FindSet() then
+            exit;
+
+        repeat
+            RunLog.Init();
+            RunLog."Concept Entry No." := Concept."Entry No.";
+            RunLog."Run Request Entry No." := RunRequestEntryNo;
+            RunLog."Extension Code" := Concept."Extension Code";
+            RunLog."Phase Code" := Concept."Phase Code";
+            RunLog."Table Name" := CopyStr(ResolveConceptTableName(Concept), 1, 250);
+            RunLog."Legacy Table Name" := ResolveTableNameById(Concept."Legacy Table ID");
+            RunLog."New Table Name" := ResolveTableNameById(Concept."New Table ID");
+            RunLog."Company Name" := CopyStr(CompanyName(), 1, 30);
+            RunLog."Run DateTime" := CurrentDateTime();
+            RunLog.Status := RunLog.Status::Running;
+            RunLog."User ID" := CopyStr(UserId(), 1, 50);
+            RunLog.Insert(true);
+        until Concept.Next() = 0;
+        Commit();
     end;
 
     /// <summary>
