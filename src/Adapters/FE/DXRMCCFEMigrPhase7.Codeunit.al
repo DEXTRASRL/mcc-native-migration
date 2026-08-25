@@ -4,9 +4,8 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     // "DXR_Migr. Phase 7 Bootstrap".OnRun(), which delegates entirely to "DXR_Upgrade".
     // ExecutePhase1DependencyMigration() (codeunit "DXR_Upgrade", Subtype = Upgrade,
     // Access = Internal). Copies 4 pairs of NCF/Payment setup fields (registry rows FE-P7 seq1/
-    // 304/305/306, all SETUP, in scope) plus a later-added "Applies Withholding_DXR" fill on 5
-    // line tables (untracked repair step, no registry row, out of scope - left exactly as
-    // before, matching the LSLOC precedent of leaving out-of-scope in-file code untouched).
+    // 304/305/306, all SETUP) plus a later-added "Applies Withholding_DXR" fill on 5 line tables
+    // (untracked repair step, no registry row - see MigrateLegacyDependencyTableFields comment).
     //
     // The 4 in-scope target tables (DXR_NCF Purchase Setup 52177, DXR_NCF Sales Setup 52178,
     // DXR_NCF Setup 52179, DXR_Payment Method Relation 52180) are owned by DR-Localization and
@@ -19,9 +18,10 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     // (DXNCF Purchase Setup 54130, DXNCF Sales Setup 54131, DXNCF Setup 54132, DXPayment Method
     // Relation 54133) are also owned by DR-Localization but have no Access modifier (default
     // Public), so they were always directly declarable. Zero RecordRef/FieldRef/TransferFields:
-    // each of the 4 procedures below is a direct typed field copy, replicated verbatim from FE's
-    // now-retired "DXR_EF MCC Migr Bridge" (52544, left in place in FE's own repo, unused) - the
-    // cross-repo bridge this codeunit used to call into is no longer needed.
+    // each procedure below (the 4 NCF/Payment ones and the 5 "Applies Withholding_DXR" ones) is
+    // a direct typed field copy, replicated verbatim from FE's now-retired "DXR_EF MCC Migr
+    // Bridge" (52544, left in place in FE's own repo, unused) - the cross-repo bridge this
+    // codeunit used to call into is no longer needed.
     Permissions =
         tabledata "Purch. Cr. Memo Line" = RM,
         tabledata "Purch. Inv. Line" = RM,
@@ -72,15 +72,18 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         MigratePaymentMethodRelationDependencyFields();
 
         // "Applies Withholding_DXR" (52335) fill on the 5 line tables - same table on both sides
-        // (field 55504 -> 52335), added 2026-08-22 after Phase 9/10's FieldMap was found missing
-        // it (their completion tags short-circuit true on the legacy umbrella tag for any tenant
-        // that already ran, so relying on Phase 9/10 alone would not reach an already-migrated
-        // company).
-        CopyLegacyDependencyTableFieldsSameTable(Database::"Purch. Cr. Memo Line", 55504, 52335);
-        CopyLegacyDependencyTableFieldsSameTable(Database::"Purch. Inv. Line", 55504, 52335);
-        CopyLegacyDependencyTableFieldsSameTable(Database::"Sales Line", 55504, 52335);
-        CopyLegacyDependencyTableFieldsSameTable(Database::"Sales Invoice Line", 55504, 52335);
-        CopyLegacyDependencyTableFieldsSameTable(Database::"Sales Cr.Memo Line", 55504, 52335);
+        // (field 55504 "EF Applies for Withholding" -> 52335 "Applies Withholding_DXR", both
+        // Boolean), added 2026-08-22 after Phase 9/10's FieldMap was found missing it (their
+        // completion tags short-circuit true on the legacy umbrella tag for any tenant that
+        // already ran, so relying on Phase 9/10 alone would not reach an already-migrated
+        // company). Phase 9/10's own FieldMaps have since been confirmed to already carry this
+        // pair (see those codeunits), so this repair step is now redundant/idempotent but kept
+        // for tenants whose upgrade tag ordering already passed this point.
+        CopyPurchCrMemoLineAppliesWithholding();
+        CopyPurchInvLineAppliesWithholding();
+        CopySalesLineAppliesWithholding();
+        CopySalesInvoiceLineAppliesWithholding();
+        CopySalesCrMemoLineAppliesWithholding();
     end;
 
     /// <summary>
@@ -164,40 +167,100 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
             until LegacyRelation.Next() = 0;
     end;
 
-    // CopyLegacyDependencyTableFieldsSameTable/CopyFieldValueIfExists below remain RecordRef-based
-    // by design: they serve only the out-of-scope "Applies Withholding_DXR" same-table fill (no
-    // MCC registry row - see the class header comment), left untouched per this task's scope
-    // rules. The generic cross-table RecordRef helper that used to serve the 4 in-scope NCF/
-    // Payment concepts (CopyLegacyDependencyTableFields) has been removed - replaced by the 4
-    // typed Direct procedures above.
-    local procedure CopyLegacyDependencyTableFieldsSameTable(TableId: Integer; SourceFieldNo: Integer; TargetFieldNo: Integer)
+    // The 5 procedures below replace the former generic RecordRef/FieldRef same-table helper
+    // (CopyLegacyDependencyTableFieldsSameTable/CopyFieldValueIfExists) that served only the
+    // "Applies Withholding_DXR" same-table fill (field 55504 "EF Applies for Withholding" ->
+    // 52335 "Applies Withholding_DXR", both Boolean, confirmed against EFPurchCrMemoLine/
+    // EFPurchInvLine/EFSalesLine/EFSalesInvoiceLine/EFSalesCrMemoLine.TableExt.al in FE's own
+    // repo) - batched in Commit-groups of 100 to match this campaign's precedent for posted/
+    // unposted document line tables of unbounded row volume.
+    local procedure CopyPurchCrMemoLineAppliesWithholding()
     var
-        RecRef: RecordRef;
+        PurchCrMemoLine: Record "Purch. Cr. Memo Line";
+        BatchCount: Integer;
     begin
-        RecRef.Open(TableId);
-        if RecRef.FindSet(true) then
+        if PurchCrMemoLine.FindSet(true) then
             repeat
-                CopyFieldValueIfExists(RecRef, RecRef, SourceFieldNo, TargetFieldNo);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                PurchCrMemoLine."Applies Withholding_DXR" := PurchCrMemoLine."EF Applies for Withholding";
+                PurchCrMemoLine.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until PurchCrMemoLine.Next() = 0;
     end;
 
-    local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldNo: Integer; TargetFieldNo: Integer)
+    local procedure CopyPurchInvLineAppliesWithholding()
     var
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
+        PurchInvLine: Record "Purch. Inv. Line";
+        BatchCount: Integer;
     begin
-        if not SourceRef.FieldExist(SourceFieldNo) then
-            exit;
+        if PurchInvLine.FindSet(true) then
+            repeat
+                PurchInvLine."Applies Withholding_DXR" := PurchInvLine."EF Applies for Withholding";
+                PurchInvLine.Modify(false);
 
-        if not TargetRef.FieldExist(TargetFieldNo) then
-            exit;
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until PurchInvLine.Next() = 0;
+    end;
 
-        SourceFieldRef := SourceRef.Field(SourceFieldNo);
-        TargetFieldRef := TargetRef.Field(TargetFieldNo);
+    local procedure CopySalesLineAppliesWithholding()
+    var
+        SalesLine: Record "Sales Line";
+        BatchCount: Integer;
+    begin
+        if SalesLine.FindSet(true) then
+            repeat
+                SalesLine."Applies Withholding_DXR" := SalesLine."EF Applies for Withholding";
+                SalesLine.Modify(false);
 
-        if TargetFieldRef.Class = FieldClass::Normal then
-            TargetFieldRef.Value := SourceFieldRef.Value;
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until SalesLine.Next() = 0;
+    end;
+
+    local procedure CopySalesInvoiceLineAppliesWithholding()
+    var
+        SalesInvoiceLine: Record "Sales Invoice Line";
+        BatchCount: Integer;
+    begin
+        if SalesInvoiceLine.FindSet(true) then
+            repeat
+                SalesInvoiceLine."Applies Withholding_DXR" := SalesInvoiceLine."EF Applies for Withholding";
+                SalesInvoiceLine.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until SalesInvoiceLine.Next() = 0;
+    end;
+
+    local procedure CopySalesCrMemoLineAppliesWithholding()
+    var
+        SalesCrMemoLine: Record "Sales Cr.Memo Line";
+        BatchCount: Integer;
+    begin
+        if SalesCrMemoLine.FindSet(true) then
+            repeat
+                SalesCrMemoLine."Applies Withholding_DXR" := SalesCrMemoLine."EF Applies for Withholding";
+                SalesCrMemoLine.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until SalesCrMemoLine.Next() = 0;
     end;
 }
