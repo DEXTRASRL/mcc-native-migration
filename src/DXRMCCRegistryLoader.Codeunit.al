@@ -174,9 +174,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         // Bulk+FlowFields field restore is covered by this row/codeunit.
         InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields) + withholding migration repair', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 45, 'Detailed Cust. Ledg. Entry field restore', 60169, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60069, 54108, 52120, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60069, 54102, 52107, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60069, 54147, 52207, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60169, 54108, 52120, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60169, 54102, 52107, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60169, 54147, 52207, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 49, 'V27 data: recent fiscal corrections', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P6', 50, 'API Dgi Setup legacy table restore (54159 -> 52231, via generic MigrateTable(caption,sourceId,destId) loop)', 60069, 54159, 52231, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P6', 51, 'EF Send Registry restore', 60069, 0, 0, 'HIST');
@@ -193,14 +193,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P2', 62, 'Proporcionality 606 legacy table restore (54137 -> 52188)', 60165, 54137, 52188, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 63, 'Proporcionality Group 606 legacy table restore (54138 -> 52191)', 60165, 54138, 52191, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 64, 'POS-Nav Setup legacy table restore (54136 -> 52185)', 60165, 54136, 52185, 'SETUP');
-        InsConcept('DRLOC', 'DRLOC-P5', 65, 'Arch. C.C. Charges Header legacy table restore (54100 -> 52259)', 60069, 54100, 52259, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P5', 66, 'Arch. C.C. Charges Lines legacy table restore (54101 -> 52260)', 60069, 54101, 52260, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P5', 67, 'Arch. Withhold. Gov. Lines legacy table restore (54107 -> 52117)', 60069, 54107, 52117, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P5', 68, 'Bank Charges Header legacy table restore (54109 -> 52124)', 60069, 54109, 52124, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 69, 'Cred. Card Charges Header legacy table restore (54113 -> 52140)', 60069, 54113, 52140, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 70, 'Cred. Card Charges Lines legacy table restore (54114 -> 52142)', 60069, 54114, 52142, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 71, 'Message Log Table legacy table restore (54127 -> 52173)', 60069, 54127, 52173, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P5', 72, 'Withholding Govern. Lines legacy table restore (54148 -> 52209)', 60069, 54148, 52209, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 65, 'Arch. C.C. Charges Header legacy table restore (54100 -> 52259)', 60169, 54100, 52259, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 66, 'Arch. C.C. Charges Lines legacy table restore (54101 -> 52260)', 60169, 54101, 52260, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 67, 'Arch. Withhold. Gov. Lines legacy table restore (54107 -> 52117)', 60169, 54107, 52117, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 68, 'Bank Charges Header legacy table restore (54109 -> 52124)', 60169, 54109, 52124, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 69, 'Cred. Card Charges Header legacy table restore (54113 -> 52140)', 60169, 54113, 52140, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 70, 'Cred. Card Charges Lines legacy table restore (54114 -> 52142)', 60169, 54114, 52142, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 71, 'Message Log Table legacy table restore (54127 -> 52173)', 60169, 54127, 52173, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 72, 'Withholding Govern. Lines legacy table restore (54148 -> 52209)', 60169, 54148, 52209, 'MA');
         InsConcept('DRLOC', 'DRLOC-P6', 73, 'Archived Bank Charges Lines legacy table restore (54103 -> 52128, shares destination with Bank Charges Lines below - confirmed from the loop''s own literals, not a duplication error)', 60069, 54103, 52128, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 74, 'Archived Consumer Sales 607 legacy table restore (54104 -> 52111)', 60069, 54104, 52111, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 75, 'Archived Purchase 606 Buffer legacy table restore (54152 -> 52217)', 60069, 54152, 52217, 'HIST');

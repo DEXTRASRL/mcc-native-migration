@@ -37,7 +37,74 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     //         this, registry seq49's Dispatcher Codeunit ID stays at 60069 for now, NOT repointed to this
     //         codeunit (60169) yet - repointing (and porting the 2 remaining procedures, pending a
     //         separate decision on Register606HistoryTable()) is left for a future, dedicated batch.
-    //   - Batch 3 (later, registry seq46/47/48/65-72): the remaining 11 whole-table-clone steps.
+    //   - Batch 3 (THIS batch, registry seq46/47/48/65-72, LAST normal batch for this codeunit): the
+    //     remaining 11 whole-table-clone steps - MigrateTable_ArchWithholdingGovHdr() (54108->52120,
+    //     seq46), MigrateTable_ArchivedBankChargesHdr() (54102->52107, seq47),
+    //     MigrateTable_WithholdingGovernHeader() (54147->52207, seq48),
+    //     MigrateTable_ArchCCChargesHeader() (54100->52259, seq65),
+    //     MigrateTable_ArchCCChargesLines() (54101->52260, seq66),
+    //     MigrateTable_ArchWithholdGovLines() (54107->52117, seq67),
+    //     MigrateTable_BankChargesHeader() (54109->52124, seq68),
+    //     MigrateTable_CredCardChargesHeader() (54113->52140, seq69),
+    //     MigrateTable_CredCardChargesLines() (54114->52142, seq70),
+    //     MigrateTable_MessageLogTable() (54127->52173, seq71),
+    //     MigrateTable_WithholdingGovernLines() (54148->52209, seq72) - each already a typed Record
+    //     TransferFields(..., true) whole-table clone in real source (same shape as Phase 2 Batch 3/
+    //     Phase 3 Batch 2/Phase 4 Batch 2's own precedent), expanded below to explicit per-field typed
+    //     assignment. Upgrade Tags reused verbatim from DXR_UpgradeTagMgt.Codeunit.al's own
+    //     UpgradeTagInternalClosureTable<Concept>() literals (the same tags that gate the sibling
+    //     "DXR_Internal Closure Migration" codeunit's own RunMigrateTable_<Concept>() wrapper for each
+    //     exact concept) - same reuse-the-granular-tag rationale already established by every prior
+    //     whole-table-clone batch in this campaign. Registry seq49 (V27 data corrections) is
+    //     deliberately NOT touched by this batch - see sub-batch 2c's own note above; it stays at
+    //     Dispatcher Codeunit ID 60069 pending a separate, already-flagged decision.
+    //
+    // ===== Batch 3 shadow-field findings (independently re-derived against real, current source for
+    // all 11 old/new table pairs - full coverage, not sampled) =====
+    //   - seq46 (ArchWithholdingGovHdr): all 7 fields identical name/ID/type EXCEPT "No. Series" -
+    //     Code[20] on the old table (DXArch Withholding Gov. Hdr) narrows to Code[10] on the new table
+    //     (DXR_Arch Withholding Gov. Hdr) - a narrowing assignment (AL permits Code-to-Code assignment
+    //     across different lengths; only a practical truncation risk if a legacy value happens to
+    //     exceed 10 characters, same as real source's own TransferFields(..., true) would silently do).
+    //   - seq47 (ArchivedBankChargesHdr): all fields identical name/ID/type; field 12 "Total Documento"
+    //     is a FlowField on both sides (excluded, TransferFields never copies FlowFields either); field
+    //     14 does not exist on either table (gap, not a rename).
+    //   - seq48 (WithholdingGovernHeader): all 7 fields identical name/ID/type, no differences.
+    //   - seq65 (ArchCCChargesHeader): all fields identical name/ID/type; field 33 "Prepayment" is
+    //     ObsoleteState = Removed on BOTH tables (not merely Pending) - genuinely inaccessible in AL on
+    //     either side, correctly excluded (not a rename, not a copyable field).
+    //   - seq66 (ArchCCChargesLines): all fields identical name/ID/type, no differences.
+    //   - seq67 (ArchWithholdGovLines): all fields identical name/ID/type, no differences - including
+    //     the 2 high-numbered extension fields 36002769/36002770 (Additional Currency Code/Factor),
+    //     present identically on both sides.
+    //   - seq68 (BankChargesHeader): all fields identical name/ID/type; field 12 "Total Documento" is a
+    //     FlowField on both sides (excluded); field 17 does not exist on either table (gap).
+    //   - seq69 (CredCardChargesHeader): all fields identical name/ID/type; fields 20/21 do not exist on
+    //     either table (gap); field 33 "Prepayment" is ObsoleteState = Removed on BOTH tables (same
+    //     pattern as seq65, correctly excluded).
+    //   - seq70 (CredCardChargesLines): all fields identical name/ID/type, including the "DX"-prefixed
+    //     field names themselves ("DXDate Entry", "DXLote No.", "DXDaily NCF", "DXApply to Invoice No.",
+    //     "DXAmount to-Apply", "DXApply to-Id") - preserved verbatim as a same-ID, same-name pair on
+    //     both old and new tables (NOT a rename, the "DX" prefix is simply part of the field's real
+    //     caption/name on both sides); fields 5/6 do not exist on either table (gap).
+    //   - seq71 (MessageLogTable): all 6 fields identical name/ID/type, no differences.
+    //   - seq72 (WithholdingGovernLines): all 12 fields identical name/ID/type, no differences.
+    // Net finding for this batch: unlike several earlier whole-table-clone batches in this campaign
+    // (ITBIS Purchase 606, ITBIS/Consumer02 Sales 607), NONE of these 11 tables carry a same-ID field
+    // rename between old and new - the only non-trivial case is seq46's Code[20]->Code[10] "No. Series"
+    // narrowing, flagged above for reviewer awareness.
+    //
+    // ===== Batch 3 Commit() placement reasoning =====
+    // All 11 real MigrateTable_*() procedures have NO Commit() at all in real source. Every one of
+    // these 11 old tables is a frozen, ObsoleteState = Pending legacy snapshot table being decommissioned
+    // (not a live/growing transaction table) - matching this campaign's own established Phase 4 Batch 2
+    // precedent for frozen legacy source tables (e.g. MigrateArchivedSales607Table() above) - NO periodic
+    // Commit() added to any of the 11 procedures below. None of these 11 source tables is
+    // transaction-volume-scale or unbounded the way Vendor Ledger Entry / Detailed Cust. Ledg. Entry /
+    // DXR_Archived Purchase - (606) are elsewhere in this codeunit - they are one-time archived-document
+    // history snapshots (bank/card charge headers+lines, government withholding headers+lines, a message
+    // log), each bounded by how many documents were ever archived under the legacy module before it was
+    // decommissioned.
     // OnRun() replicates Phase 5's real OnRun SHAPE (same pattern as 60165/60167/60168's own header
     // comments describe): every ported procedure is called unconditionally, each individually gated
     // by its own real UpgradeTag check inside. Batch 1's 2 procedures + sub-batch 2a's 4 procedures are
@@ -160,12 +227,32 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         tabledata "Purch. Cr. Memo Hdr." = R,
         tabledata NCFCategories_DXR = R,
         tabledata "DXR_Vendor Withholding Setup" = R,
-        tabledata "DXR_Archived Bank Charges Hdr" = R,
+        tabledata "DXR_Archived Bank Charges Hdr" = RIM,
         tabledata "DXR_Arch Bank Charges Lines" = R,
-        tabledata "DXR_Arch. C. C. Charges Header" = R,
-        tabledata "DXR_Arch. C. C. Charges Lines" = R,
+        tabledata "DXR_Arch. C. C. Charges Header" = RIM,
+        tabledata "DXR_Arch. C. C. Charges Lines" = RIM,
         tabledata "DXR_NCF Setup" = R,
-        tabledata "G/L Account" = R;
+        tabledata "G/L Account" = R,
+        // Batch 3 (whole-table clones) - old (legacy, frozen) tables read-only, new tables Insert+Modify.
+        tabledata "DXArch Withholding Gov. Hdr" = R,
+        tabledata "DXR_Arch Withholding Gov. Hdr" = RIM,
+        tabledata "DXArchived Bank Charges Hdr" = R,
+        tabledata "DXWithholding Govern. Header" = R,
+        tabledata "DXR_Withholding Govern. Header" = RIM,
+        tabledata "DXArch. C. C. Charges Header" = R,
+        tabledata "DXArch. C. C. Charges Lines" = R,
+        tabledata "DXArch. Withhold. Gov. Lines" = R,
+        tabledata "DXR_Arch. Withhold. Gov. Lines" = RIM,
+        tabledata "DXBank Charges Header" = R,
+        tabledata "DXR_Bank Charges Header" = RIM,
+        tabledata "DXCred. Card Charges Header" = R,
+        tabledata "DXR_Cred. Card Charges Header" = RIM,
+        tabledata "DXCred. Card Charges Lines" = R,
+        tabledata "DXR_Cred. Card Charges Lines" = RIM,
+        tabledata "DXMessage Log Table" = R,
+        tabledata "DXR_Message Log Table" = RIM,
+        tabledata "DXWithholding Govern. Lines" = R,
+        tabledata "DXR_Withholding Govern. Lines" = RIM;
 
     trigger OnRun()
     begin
@@ -180,6 +267,17 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         BootstrapFix606WithholdingByVendorV2();
         BootstrapFix606WithholdingByVendorV3();
         BootstrapSync606ChargeHistoryNCF();
+        BootstrapArchWithholdingGovHdrTable();
+        BootstrapArchivedBankChargesHdrTable();
+        BootstrapWithholdingGovernHeaderTable();
+        BootstrapArchCCChargesHeaderTable();
+        BootstrapArchCCChargesLinesTable();
+        BootstrapArchWithholdGovLinesTable();
+        BootstrapBankChargesHeaderTable();
+        BootstrapCredCardChargesHeaderTable();
+        BootstrapCredCardChargesLinesTable();
+        BootstrapMessageLogTable();
+        BootstrapWithholdingGovernLinesTable();
     end;
 
     // ===== RepairVendorWithholdingMigration (unconditional, no registry row - see header note) =====
@@ -1675,5 +1773,547 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
             exit(CopyStr(GLAccount."NCFCategories_DXR", 1, 20));
 
         exit('');
+    end;
+
+    // ===== Batch 3, 1/11: seq46 - Arch. Withholding Gov. Hdr whole-table clone (54108 -> 52120) =====
+    // Ported from real source's own MigrateTable_ArchWithholdingGovHdr(). All 7 fields identical
+    // name/ID/type EXCEPT "No. Series" (Code[20] on the old table narrows to Code[10] on the new table)
+    // - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableArchWithholdingGovHdr().
+    local procedure BootstrapArchWithholdingGovHdrTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHWITHHOLDINGGOVHDR-20260522') then begin
+            MigrateArchWithholdingGovHdrTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHWITHHOLDINGGOVHDR-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateArchWithholdingGovHdrTable()
+    var
+        OldRec: Record "DXArch Withholding Gov. Hdr";
+        NewRec: Record "DXR_Arch Withholding Gov. Hdr";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Cod. Cliente" := OldRec."Cod. Cliente";
+                NewRec."Nombre Cliente" := OldRec."Nombre Cliente";
+                NewRec.RNC := OldRec.RNC;
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Fecha := OldRec.Fecha;
+                NewRec.Procesado := OldRec.Procesado;
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 2/11: seq47 - Archived Bank Charges Hdr whole-table clone (54102 -> 52107) =====
+    // Ported from real source's own MigrateTable_ArchivedBankChargesHdr(). All fields identical
+    // name/ID/type; field 12 "Total Documento" is a FlowField on both sides (excluded); field 14 does
+    // not exist on either table (gap) - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag
+    // reused verbatim from UpgradeTagInternalClosureTableArchivedBankChargesHdr().
+    local procedure BootstrapArchivedBankChargesHdrTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHIVEDBANKCHARGESHDR-20260522') then begin
+            MigrateArchivedBankChargesHdrTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHIVEDBANKCHARGESHDR-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateArchivedBankChargesHdrTable()
+    var
+        OldRec: Record "DXArchived Bank Charges Hdr";
+        NewRec: Record "DXR_Archived Bank Charges Hdr";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Document Date" := OldRec."Document Date";
+                NewRec."Tamplate Name" := OldRec."Tamplate Name";
+                NewRec."Batch Name" := OldRec."Batch Name";
+                NewRec."Document No." := OldRec."Document No.";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Vendor Name" := OldRec."Vendor Name";
+                NewRec."Bank Acc. No." := OldRec."Bank Acc. No.";
+                NewRec."Bank Name" := OldRec."Bank Name";
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Procesado := OldRec.Procesado;
+                NewRec."No. Orig. Cargo Banc." := OldRec."No. Orig. Cargo Banc.";
+                NewRec."Currency Code" := OldRec."Currency Code";
+                NewRec."Currency Factor" := OldRec."Currency Factor";
+                NewRec.Anulado := OldRec.Anulado;
+                NewRec."Cuenta Gasto" := OldRec."Cuenta Gasto";
+                NewRec."Document Type" := OldRec."Document Type";
+                NewRec."Dimension Global 1" := OldRec."Dimension Global 1";
+                NewRec."Dimension Global 2" := OldRec."Dimension Global 2";
+                NewRec."Dimension Set ID" := OldRec."Dimension Set ID";
+                NewRec.NCF := OldRec.NCF;
+                NewRec.Amount := OldRec.Amount;
+                NewRec."Line No." := OldRec."Line No.";
+                NewRec."Apply Trans." := OldRec."Apply Trans.";
+                NewRec.Description := OldRec.Description;
+                NewRec."NCF Afectado" := OldRec."NCF Afectado";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 3/11: seq48 - Withholding Govern. Header whole-table clone (54147 -> 52207) =====
+    // Ported from real source's own MigrateTable_WithholdingGovernHeader(). All 7 fields identical
+    // name/ID/type, no differences - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused
+    // verbatim from UpgradeTagInternalClosureTableWithholdingGovernHeader().
+    local procedure BootstrapWithholdingGovernHeaderTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-WITHHOLDINGGOVERNHEADER-20260522') then begin
+            MigrateWithholdingGovernHeaderTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-WITHHOLDINGGOVERNHEADER-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateWithholdingGovernHeaderTable()
+    var
+        OldRec: Record "DXWithholding Govern. Header";
+        NewRec: Record "DXR_Withholding Govern. Header";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Cod. Cliente" := OldRec."Cod. Cliente";
+                NewRec."Nombre Cliente" := OldRec."Nombre Cliente";
+                NewRec.RNC := OldRec.RNC;
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Fecha := OldRec.Fecha;
+                NewRec.Procesado := OldRec.Procesado;
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 4/11: seq65 - Arch. C.C. Charges Header whole-table clone (54100 -> 52259) =====
+    // Ported from real source's own MigrateTable_ArchCCChargesHeader(). All fields identical
+    // name/ID/type; field 33 "Prepayment" is ObsoleteState = Removed on BOTH tables (correctly excluded,
+    // not a rename) - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableArchCCChargesHeader().
+    local procedure BootstrapArchCCChargesHeaderTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHCCCHARGESHEADER-20260522') then begin
+            MigrateArchCCChargesHeaderTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHCCCHARGESHEADER-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateArchCCChargesHeaderTable()
+    var
+        OldRec: Record "DXArch. C. C. Charges Header";
+        NewRec: Record "DXR_Arch. C. C. Charges Header";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Document Date" := OldRec."Document Date";
+                NewRec."Customer No." := OldRec."Customer No.";
+                NewRec."Customer Name" := OldRec."Customer Name";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Vendor Name" := OldRec."Vendor Name";
+                NewRec."NCF Mensual" := OldRec."NCF Mensual";
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Procesado := OldRec.Procesado;
+                NewRec."No. Serie Registro" := OldRec."No. Serie Registro";
+                NewRec."Banco No." := OldRec."Banco No.";
+                NewRec."Nombre Banco" := OldRec."Nombre Banco";
+                NewRec."Utilizar NCF Mensual" := OldRec."Utilizar NCF Mensual";
+                NewRec."Commission Discount" := OldRec."Commission Discount";
+                NewRec."ITBIS Retention (2%)" := OldRec."ITBIS Retention (2%)";
+                NewRec."Deposito Bruto" := OldRec."Deposito Bruto";
+                NewRec."Deposito Neto" := OldRec."Deposito Neto";
+                NewRec."No. Preasignado" := OldRec."No. Preasignado";
+                NewRec."Shortcut Dimension 1 Code" := OldRec."Shortcut Dimension 1 Code";
+                NewRec."Shortcut Dimension 2 Code" := OldRec."Shortcut Dimension 2 Code";
+                NewRec.Anulado := OldRec.Anulado;
+                NewRec."Document Type" := OldRec."Document Type";
+                NewRec."NCF Afectado" := OldRec."NCF Afectado";
+                NewRec."Currency Code" := OldRec."Currency Code";
+                NewRec."Currency Factor" := OldRec."Currency Factor";
+                NewRec.Loan := OldRec.Loan;
+                NewRec."Has Charged Commission" := OldRec."Has Charged Commission";
+                NewRec."Additional Charges" := OldRec."Additional Charges";
+                NewRec."Entry No." := OldRec."Entry No.";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 5/11: seq66 - Arch. C.C. Charges Lines whole-table clone (54101 -> 52260) =====
+    // Ported from real source's own MigrateTable_ArchCCChargesLines(). All fields identical name/ID/type,
+    // no differences - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableArchCCChargesLines().
+    local procedure BootstrapArchCCChargesLinesTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHCCCHARGESLINES-20260522') then begin
+            MigrateArchCCChargesLinesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHCCCHARGESLINES-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateArchCCChargesLinesTable()
+    var
+        OldRec: Record "DXArch. C. C. Charges Lines";
+        NewRec: Record "DXR_Arch. C. C. Charges Lines";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Date Entry" := OldRec."Date Entry";
+                NewRec."Lote No." := OldRec."Lote No.";
+                NewRec."Daily NCF" := OldRec."Daily NCF";
+                NewRec."Line No." := OldRec."Line No.";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Apply Trans." := OldRec."Apply Trans.";
+                NewRec."Apply to Invoice No." := OldRec."Apply to Invoice No.";
+                NewRec."Amount to-Apply" := OldRec."Amount to-Apply";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 6/11: seq67 - Arch. Withhold. Gov. Lines whole-table clone (54107 -> 52117) =====
+    // Ported from real source's own MigrateTable_ArchWithholdGovLines(). All fields identical
+    // name/ID/type, including the 2 high-numbered extension fields 36002769/36002770 (Additional
+    // Currency Code/Factor) - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused
+    // verbatim from UpgradeTagInternalClosureTableArchWithholdGovLines().
+    local procedure BootstrapArchWithholdGovLinesTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHWITHHOLDGOVLINES-20260522') then begin
+            MigrateArchWithholdGovLinesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHWITHHOLDGOVLINES-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateArchWithholdGovLinesTable()
+    var
+        OldRec: Record "DXArch. Withhold. Gov. Lines";
+        NewRec: Record "DXR_Arch. Withhold. Gov. Lines";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Fecha Retencion" := OldRec."Fecha Retencion";
+                NewRec."No. Referencia" := OldRec."No. Referencia";
+                NewRec."Tipo Referencia" := OldRec."Tipo Referencia";
+                NewRec."Valor Retencion" := OldRec."Valor Retencion";
+                NewRec.Banco := OldRec.Banco;
+                NewRec."Nombre Banco" := OldRec."Nombre Banco";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                NewRec.Registrar := OldRec.Registrar;
+                NewRec."Liq. No. Factura" := OldRec."Liq. No. Factura";
+                NewRec.Periodo := OldRec.Periodo;
+                NewRec."Additional Currency Code" := OldRec."Additional Currency Code";
+                NewRec."Additional Currency Factor" := OldRec."Additional Currency Factor";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 7/11: seq68 - Bank Charges Header whole-table clone (54109 -> 52124) =====
+    // Ported from real source's own MigrateTable_BankChargesHeader(). All fields identical name/ID/type;
+    // field 12 "Total Documento" is a FlowField on both sides (excluded); field 17 does not exist on
+    // either table (gap) - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim
+    // from UpgradeTagInternalClosureTableBankChargesHeader().
+    local procedure BootstrapBankChargesHeaderTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-BANKCHARGESHEADER-20260522') then begin
+            MigrateBankChargesHeaderTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-BANKCHARGESHEADER-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateBankChargesHeaderTable()
+    var
+        OldRec: Record "DXBank Charges Header";
+        NewRec: Record "DXR_Bank Charges Header";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Document Date" := OldRec."Document Date";
+                NewRec."Tamplate Name" := OldRec."Tamplate Name";
+                NewRec."Batch Name" := OldRec."Batch Name";
+                NewRec."Document No." := OldRec."Document No.";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Vendor Name" := OldRec."Vendor Name";
+                NewRec."Bank Acc. No." := OldRec."Bank Acc. No.";
+                NewRec."Bank Name" := OldRec."Bank Name";
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Procesado := OldRec.Procesado;
+                NewRec."No. Serie Registro" := OldRec."No. Serie Registro";
+                NewRec."No. Orig. Cargo Banc." := OldRec."No. Orig. Cargo Banc.";
+                NewRec."Currency Code" := OldRec."Currency Code";
+                NewRec."Currency Factor" := OldRec."Currency Factor";
+                NewRec."Cuenta Gasto" := OldRec."Cuenta Gasto";
+                NewRec."Document Type" := OldRec."Document Type";
+                NewRec."Dimension Global 1" := OldRec."Dimension Global 1";
+                NewRec."Dimension Global 2" := OldRec."Dimension Global 2";
+                NewRec."Dimension Set ID" := OldRec."Dimension Set ID";
+                NewRec.NCF := OldRec.NCF;
+                NewRec.Amount := OldRec.Amount;
+                NewRec."Line No." := OldRec."Line No.";
+                NewRec."Apply Trans." := OldRec."Apply Trans.";
+                NewRec.Description := OldRec.Description;
+                NewRec."NCF Afectado" := OldRec."NCF Afectado";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 8/11: seq69 - Cred. Card Charges Header whole-table clone (54113 -> 52140) =====
+    // Ported from real source's own MigrateTable_CredCardChargesHeader(). All fields identical
+    // name/ID/type; fields 20/21 do not exist on either table (gap); field 33 "Prepayment" is
+    // ObsoleteState = Removed on BOTH tables (correctly excluded, not a rename) - see codeunit-level
+    // Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableCredCardChargesHeader().
+    local procedure BootstrapCredCardChargesHeaderTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CREDCARDCHARGESHEADER-20260522') then begin
+            MigrateCredCardChargesHeaderTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CREDCARDCHARGESHEADER-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateCredCardChargesHeaderTable()
+    var
+        OldRec: Record "DXCred. Card Charges Header";
+        NewRec: Record "DXR_Cred. Card Charges Header";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Document Date" := OldRec."Document Date";
+                NewRec."Customer No." := OldRec."Customer No.";
+                NewRec."Customer Name" := OldRec."Customer Name";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Vendor Name" := OldRec."Vendor Name";
+                NewRec."NCF Mensual" := OldRec."NCF Mensual";
+                NewRec."No. Series" := OldRec."No. Series";
+                NewRec.Procesado := OldRec.Procesado;
+                NewRec."No. Serie Registro" := OldRec."No. Serie Registro";
+                NewRec."Banco No." := OldRec."Banco No.";
+                NewRec."Nombre Banco" := OldRec."Nombre Banco";
+                NewRec."Utilizar NCF Mensual" := OldRec."Utilizar NCF Mensual";
+                NewRec."Commission Discount" := OldRec."Commission Discount";
+                NewRec."ITBIS Retention (2%)" := OldRec."ITBIS Retention (2%)";
+                NewRec."Deposito Bruto" := OldRec."Deposito Bruto";
+                NewRec."Deposito Neto" := OldRec."Deposito Neto";
+                NewRec."Shortcut Dimension 1 Code" := OldRec."Shortcut Dimension 1 Code";
+                NewRec."Shortcut Dimension 2 Code" := OldRec."Shortcut Dimension 2 Code";
+                NewRec."Document Type" := OldRec."Document Type";
+                NewRec."NCF Afectado" := OldRec."NCF Afectado";
+                NewRec."Lote No." := OldRec."Lote No.";
+                NewRec."Daily NCF" := OldRec."Daily NCF";
+                NewRec."Line No." := OldRec."Line No.";
+                NewRec."Apply Trans." := OldRec."Apply Trans.";
+                NewRec."Apply to Invoice No." := OldRec."Apply to Invoice No.";
+                NewRec."Amount to-Apply" := OldRec."Amount to-Apply";
+                NewRec."Apply to-Id" := OldRec."Apply to-Id";
+                NewRec."Currency Code" := OldRec."Currency Code";
+                NewRec."Currency Factor" := OldRec."Currency Factor";
+                NewRec.Loan := OldRec.Loan;
+                NewRec."Has Charged Commission" := OldRec."Has Charged Commission";
+                NewRec."Additional Charges" := OldRec."Additional Charges";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 9/11: seq70 - Cred. Card Charges Lines whole-table clone (54114 -> 52142) =====
+    // Ported from real source's own MigrateTable_CredCardChargesLines(). All fields identical
+    // name/ID/type, including the "DX"-prefixed field names themselves ("DXDate Entry", "DXLote No.",
+    // "DXDaily NCF", "DXApply to Invoice No.", "DXAmount to-Apply", "DXApply to-Id") - preserved verbatim
+    // as a same-ID, same-name pair on both old and new tables (NOT a rename, the "DX" prefix is simply
+    // part of the field's real caption/name on both sides); fields 5/6 do not exist on either table
+    // (gap) - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableCredCardChargesLines().
+    local procedure BootstrapCredCardChargesLinesTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CREDCARDCHARGESLINES-20260522') then begin
+            MigrateCredCardChargesLinesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CREDCARDCHARGESLINES-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateCredCardChargesLinesTable()
+    var
+        OldRec: Record "DXCred. Card Charges Lines";
+        NewRec: Record "DXR_Cred. Card Charges Lines";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."DXDate Entry" := OldRec."DXDate Entry";
+                NewRec."DXLote No." := OldRec."DXLote No.";
+                NewRec."DXDaily NCF" := OldRec."DXDaily NCF";
+                NewRec."Line No." := OldRec."Line No.";
+                NewRec."Vendor No." := OldRec."Vendor No.";
+                NewRec."Apply Trans." := OldRec."Apply Trans.";
+                NewRec."DXApply to Invoice No." := OldRec."DXApply to Invoice No.";
+                NewRec."DXAmount to-Apply" := OldRec."DXAmount to-Apply";
+                NewRec."DXApply to-Id" := OldRec."DXApply to-Id";
+                NewRec.Prepayment := OldRec.Prepayment;
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 10/11: seq71 - Message Log Table whole-table clone (54127 -> 52173) =====
+    // Ported from real source's own MigrateTable_MessageLogTable(). All 6 fields identical name/ID/type,
+    // no differences - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableMessageLogTable().
+    local procedure BootstrapMessageLogTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-MESSAGELOGTABLE-20260522') then begin
+            MigrateMessageLogTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-MESSAGELOGTABLE-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateMessageLogTable()
+    var
+        OldRec: Record "DXMessage Log Table";
+        NewRec: Record "DXR_Message Log Table";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."Origen Doc." := OldRec."Origen Doc.";
+                NewRec."No. Linea Origen" := OldRec."No. Linea Origen";
+                NewRec."Tipo Documento" := OldRec."Tipo Documento";
+                NewRec."No. Documento" := OldRec."No. Documento";
+                NewRec.Descripcion := OldRec.Descripcion;
+                NewRec."No. Linea" := OldRec."No. Linea";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== Batch 3, 11/11: seq72 - Withholding Govern. Lines whole-table clone (54148 -> 52209) =====
+    // Ported from real source's own MigrateTable_WithholdingGovernLines(). All 12 fields identical
+    // name/ID/type, no differences - see codeunit-level Batch 3 shadow-field comment. Upgrade Tag reused
+    // verbatim from UpgradeTagInternalClosureTableWithholdingGovernLines().
+    local procedure BootstrapWithholdingGovernLinesTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-WITHHOLDINGGOVERNLINES-20260522') then begin
+            MigrateWithholdingGovernLinesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-WITHHOLDINGGOVERNLINES-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, see codeunit-level Batch 3 Commit() placement note).
+    local procedure MigrateWithholdingGovernLinesTable()
+    var
+        OldRec: Record "DXWithholding Govern. Lines";
+        NewRec: Record "DXR_Withholding Govern. Lines";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Fecha Retencion" := OldRec."Fecha Retencion";
+                NewRec."No. Referencia" := OldRec."No. Referencia";
+                NewRec."Tipo Referencia" := OldRec."Tipo Referencia";
+                NewRec."Valor Retencion" := OldRec."Valor Retencion";
+                NewRec.Banco := OldRec.Banco;
+                NewRec."Nombre Banco" := OldRec."Nombre Banco";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                NewRec.Registrar := OldRec.Registrar;
+                NewRec."Liq. No. Factura" := OldRec."Liq. No. Factura";
+                NewRec.Periodo := OldRec.Periodo;
+                NewRec."Liq. por Id" := OldRec."Liq. por Id";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
     end;
 }
