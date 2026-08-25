@@ -166,12 +166,89 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     // Invoice Line and Sales Cr.Memo Header are permanent, ever-growing posted-document history
     // tables (transaction-volume-scale, unbounded) - periodic Commit() every 100 rows, matching
     // their Purch. Inv. Header/Purch. Inv. Line/Purch. Cr. Memo Hdr. Batch 1-2 precedent.
+    // ===== Batch 2 (FINAL for Phase 4) - registry seq35-39, 5 whole-table clones (2026-08-24) =====
+    // Ported from DXR_Migr_Phase_4_Sales.Codeunit.al's own real MigrateTable_ArchivedSales607() /
+    // MigrateTable_ITBISSales607() / MigrateTable_Consumer02sales607() /
+    // MigrateTable_CustomerWithholdingLines() / MigrateTable_CashJournalReceiptList(), each already a
+    // typed Record TransferFields(..., true) whole-table clone in real source (no RecordRef/FieldRef
+    // in the real procedures either - the raw-numeric #if __SAAS__ blocks that complicated Batch 1's
+    // document tables do NOT exist for these 5 concepts). TransferFields(..., true) expanded below
+    // into explicit per-field typed assignment, one pair per live field on each old/new table,
+    // independently re-derived against the CURRENT real .Table.al sources (not trusted from
+    // TransferFields' field-ID-based matching semantics at face value) - this is the same Phase 4
+    // (Sales) file family with the confirmed live-crash history from Batch 1, so the same no-trust
+    // discipline applies even though these are simpler whole-table clones, not raw-numeric-ID blocks.
+    // FlowFields are excluded from every field list (TransferFields never copies FlowFields either -
+    // they are calculated, not stored): "Mensajes" (seq35/36/37, each table's own message-log
+    // FlowField) and "Customer Name" (seq39, a lookup into Customer.Name).
+    //
+    // Shadow-field findings - 2 confirmed field renames (same-ID, different-name; TransferFields
+    // matches by field ID, so functionally harmless for the whole-table clone, but the explicit typed
+    // expansion below correctly pairs by ID, not by name, per field):
+    //   - seq36 ITBIS Sales (607): field 54120 old "DXITBIS Withholding Amount" -> new "ITBIS
+    //     Withholding Amount_DXR"; field 54121 old "DXISR Withholding Amount" -> new "ISR Withholding
+    //     Amount_DXR". This confirms the general rename-risk this table's Purchase-side sibling (Phase
+    //     3's ITBIS Purchase (606)) had already flagged, but NOT the exact field the brief predicted:
+    //     field 54100 "Type of Income" is NOT renamed on THIS table (stays plain "Type of Income" on
+    //     both old and new) - the compiler rejected an initial draft that assumed the same
+    //     54100 rename seq37 (below) genuinely has, confirming per-field verification was necessary
+    //     rather than pattern-matching from a sibling table. All other fields on this table pair
+    //     identically by name and ID with no rename.
+    //   - seq37 Consumer (02) Sales (607): field 54100 old "DXType of Income" -> new "Type of
+    //     Income_DXR". All other fields on this table pair identically by name and ID with no rename.
+    // All other field pairs across all 5 tables (seq35, seq38, seq39 entirely; the remaining fields of
+    // seq36/seq37) are plain identical-name/identical-ID/identical-type pairs, confirmed field-by-field
+    // against the current .Table.al sources.
+    //
+    // seq39 (Cash Journal Receipt List) mapping-correction re-verification: the registry row's own
+    // comment documents a real prior correction (briefly logged as 54111 -> 54184, fixed to
+    // 54111 -> 52132). Independently re-confirmed fresh against the CURRENT real
+    // DXR_CashJournalReceiptList.Table.al: the live "DXR_Cash Journal Receipt List" table is object ID
+    // 52132 (SaaS) / 36002847 (on-prem), field-for-field identical (by name, ID and type, no rename)
+    // to "DXCash Journal Receipt List" (54111 SaaS / 36002773 on-prem, ObsoleteState = Pending). ID
+    // 54184 belongs to two entirely unrelated real objects found during this search (NCFSetup's "Bank
+    // Commission Account" field and a Gen. Journal Template tableextension's "Cash Recpt. Report ID"
+    // field) - confirming the briefly-logged 54184 pairing was a genuine documentation-only mistake
+    // in one of DR-Localization's own ID-mapping markdown docs (MAPEO_IDS_OLD_VS_NEW.md /
+    // MAPEO_MAESTRO_IDS_LEGACY_VS_DX28.md still carry the stale 54184 entry), never a real code defect
+    // - the registry's already-corrected 54111 -> 52132 pairing is confirmed still current and correct.
+    //
+    // Notable non-blocking finding: the NEW target table for seq38 ("DXR_Customer Withholding Lines")
+    // is itself ObsoleteState = Pending / ObsoleteReason = 'The customer withholding module is
+    // deprecated.' in real source - the entire customer-withholding module (both old and new sides) is
+    // being phased out. Still ported here because DR-Localization's own real orchestrator
+    // (DXR_Migr_Phase_4_Sales.Codeunit.al) still calls MigrateTable_CustomerWithholdingLines()
+    // unconditionally, and the registry row (seq38, Category 'MA') calls for this exact restore -
+    // scope/deprecation-timeline decisions for the module itself are for the controller/user, not this
+    // port.
+    //
+    // Commit() placement: all 5 old source tables are independently confirmed ObsoleteState = Pending
+    // in real source (being decommissioned in favor of the DXR-prefixed tables) - matching the "one-
+    // time backfill of a frozen legacy snapshot" reasoning already established for Phase 3 Batch 2's 6
+    // whole-table clones (which withheld periodic Commit() from all 6 on that same basis). No new rows
+    // can land in any of these 5 old tables going forward (current DR-Localization code writes only to
+    // the new DXR_-prefixed tables), so every one of these 5 backfills is bounded by however much
+    // historical data already exists - no periodic Commit() for any of the 5, same precedent, verified
+    // per-table via each old table's own ObsoleteState property rather than assumed from table "shape"
+    // alone (Cash Journal Receipt List is a per-transaction receipt log and was considered as a
+    // possible transaction-volume-scale exception, but the same frozen-snapshot reasoning applies
+    // identically - its row count is likewise now fixed).
     Permissions =
         tabledata "Sales Header" = RM,
         tabledata "Sales Line" = RM,
         tabledata "Sales Invoice Header" = RM,
         tabledata "Sales Invoice Line" = RM,
-        tabledata "Sales Cr.Memo Header" = RM;
+        tabledata "Sales Cr.Memo Header" = RM,
+        tabledata "DXArchived Sales 607" = R,
+        tabledata "DXR_Archived Sales 607" = RIM,
+        tabledata "DXITBIS Sales (607)" = R,
+        tabledata "DXR_ITBIS Sales (607)" = RIM,
+        tabledata "DXConsumer(02) sales(607)" = R,
+        tabledata "DXR_Consumer(02) sales(607)" = RIM,
+        tabledata "DXCustomer Withholding Lines" = R,
+        tabledata "DXR_Customer Withholding Lines" = RIM,
+        tabledata "DXCash Journal Receipt List" = R,
+        tabledata "DXR_Cash Journal Receipt List" = RIM;
 
     trigger OnRun()
     begin
@@ -180,6 +257,11 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
         BootstrapSalesInvoiceHeaderFields();
         BootstrapSalesInvoiceLineFields();
         BootstrapSalesCrMemoHeaderFields();
+        BootstrapArchivedSales607Table();
+        BootstrapITBISSales607Table();
+        BootstrapConsumer02Sales607Table();
+        BootstrapCustomerWithholdingLinesTable();
+        BootstrapCashJournalReceiptListTable();
     end;
 
     // ===== seq31: Sales Header field restore =====
@@ -444,5 +526,313 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
                     BatchCount := 0;
                 end;
             until SalesCrMemoHeader.Next() = 0;
+    end;
+
+    // ===== seq35: Archived Sales 607 whole-table clone =====
+    // Ported from MigrateTable_ArchivedSales607(). Upgrade Tag reused verbatim from
+    // DXR_UpgradeTagMgt.Codeunit.al's UpgradeTagInternalClosureTableArchivedSales607(), the tag that
+    // gates the sibling "always-clean" codeunit's own RunMigrateTable_ArchivedSales607() wrapper for
+    // this exact concept.
+    local procedure BootstrapArchivedSales607Table()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHIVEDSALES607-20260522') then begin
+            MigrateArchivedSales607Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ARCHIVEDSALES607-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (old table is
+    // ObsoleteState = Pending, being decommissioned - see codeunit-level Commit() placement comment).
+    local procedure MigrateArchivedSales607Table()
+    var
+        OldRec: Record "DXArchived Sales 607";
+        NewRec: Record "DXR_Archived Sales 607";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."Tipo Documento" := OldRec."Tipo Documento";
+                NewRec."No. Documento" := OldRec."No. Documento";
+                NewRec."Tipo Identificacion" := OldRec."Tipo Identificacion";
+                NewRec."Cod. Identificacion" := OldRec."Cod. Identificacion";
+                NewRec."Cod. Cliente" := OldRec."Cod. Cliente";
+                NewRec."Nombre Cliente" := OldRec."Nombre Cliente";
+                NewRec.NCF := OldRec.NCF;
+                NewRec."NCF Modificado" := OldRec."NCF Modificado";
+                NewRec."Fecha Comprobante" := OldRec."Fecha Comprobante";
+                NewRec."ITBIS Facturado" := OldRec."ITBIS Facturado";
+                NewRec."Monto Facturado" := OldRec."Monto Facturado";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                NewRec."Estado Reg." := OldRec."Estado Reg.";
+                NewRec."Report 607" := OldRec."Report 607";
+                NewRec."Type of Income" := OldRec."Type of Income";
+                NewRec."Fecha Retencion" := OldRec."Fecha Retencion";
+                NewRec."ITBIS Retenido por Terceros" := OldRec."ITBIS Retenido por Terceros";
+                NewRec."ITBIS Percibido" := OldRec."ITBIS Percibido";
+                NewRec."Retencion Renta por Terceros" := OldRec."Retencion Renta por Terceros";
+                NewRec."ISR Percibido" := OldRec."ISR Percibido";
+                NewRec."Imp. Selectivo al Consumo" := OldRec."Imp. Selectivo al Consumo";
+                NewRec."Otros Impuestos o Tasas" := OldRec."Otros Impuestos o Tasas";
+                NewRec."Monto Propina Legal" := OldRec."Monto Propina Legal";
+                NewRec.Efectivo := OldRec.Efectivo;
+                NewRec."Cheque/Transferencia/Deposito" := OldRec."Cheque/Transferencia/Deposito";
+                NewRec."Tarjeta Debito/Credito" := OldRec."Tarjeta Debito/Credito";
+                NewRec."Venta a Credito" := OldRec."Venta a Credito";
+                NewRec."Bonos o Certificados de Regalo" := OldRec."Bonos o Certificados de Regalo";
+                NewRec.Permuta := OldRec.Permuta;
+                NewRec."Otras Formas de Ventas" := OldRec."Otras Formas de Ventas";
+                NewRec."Fuente Datos" := OldRec."Fuente Datos";
+                NewRec."Additional Currency Factor" := OldRec."Additional Currency Factor";
+                NewRec."Additional Currency Code" := OldRec."Additional Currency Code";
+                NewRec."Currency Code" := OldRec."Currency Code";
+                NewRec."Currency Factor" := OldRec."Currency Factor";
+                NewRec."DX Original Amount" := OldRec."DX Original Amount";
+                NewRec."DX Original ITBIS Amount" := OldRec."DX Original ITBIS Amount";
+                NewRec."Efectivo ICY" := OldRec."Efectivo ICY";
+                NewRec."Cheque/Transf./Deposito ICY" := OldRec."Cheque/Transf./Deposito ICY";
+                NewRec."Tarjeta Debito/Credito ICY" := OldRec."Tarjeta Debito/Credito ICY";
+                NewRec."Venta a Credito ICY" := OldRec."Venta a Credito ICY";
+                NewRec."Bonos o Certif. de Regalo ICY" := OldRec."Bonos o Certif. de Regalo ICY";
+                NewRec."Permuta ICY" := OldRec."Permuta ICY";
+                NewRec."Otras Formas de Ventas ICY" := OldRec."Otras Formas de Ventas ICY";
+                NewRec."Imp. Selectivo al Consumo ICY" := OldRec."Imp. Selectivo al Consumo ICY";
+                NewRec."ITBIS Ret. por Terceros ICY" := OldRec."ITBIS Ret. por Terceros ICY";
+                NewRec."ITBIS Percibido ICY" := OldRec."ITBIS Percibido ICY";
+                NewRec."Ret. Renta por Terceros ICY'" := OldRec."Ret. Renta por Terceros ICY'";
+                NewRec."ISR Percibido ICY" := OldRec."ISR Percibido ICY";
+                NewRec."Monto Propina Legal ICY" := OldRec."Monto Propina Legal ICY";
+                NewRec."Otros Impuestos o Tasas ICY" := OldRec."Otros Impuestos o Tasas ICY";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== seq36: ITBIS Sales (607) whole-table clone =====
+    // Ported from MigrateTable_ITBISSales607(). 2 confirmed same-ID renamed-field pairs (54120,
+    // 54121) - see codeunit-level shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableITBISSales607().
+    local procedure BootstrapITBISSales607Table()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ITBISSALES607-20260522') then begin
+            MigrateITBISSales607Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-ITBISSALES607-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (see codeunit-level
+    // Commit() placement comment).
+    local procedure MigrateITBISSales607Table()
+    var
+        OldRec: Record "DXITBIS Sales (607)";
+        NewRec: Record "DXR_ITBIS Sales (607)";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."Tipo Documento" := OldRec."Tipo Documento";
+                NewRec."No. Documento" := OldRec."No. Documento";
+                NewRec."Tipo Identificacion" := OldRec."Tipo Identificacion";
+                NewRec."Cod. Identificacion" := OldRec."Cod. Identificacion";
+                NewRec."Cod. Cliente" := OldRec."Cod. Cliente";
+                NewRec."Nombre Cliente" := OldRec."Nombre Cliente";
+                NewRec.NCF := OldRec.NCF;
+                NewRec."NCF Modificado" := OldRec."NCF Modificado";
+                NewRec."Fecha Comprobante" := OldRec."Fecha Comprobante";
+                NewRec."ITBIS Facturado" := OldRec."ITBIS Facturado";
+                NewRec."Monto Facturado" := OldRec."Monto Facturado";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                NewRec."Estado Reg." := OldRec."Estado Reg.";
+                NewRec."Report 607" := OldRec."Report 607";
+                NewRec."Type of Income" := OldRec."Type of Income";
+                NewRec."Fecha Retencion" := OldRec."Fecha Retencion";
+                NewRec."ITBIS Retenido por Terceros" := OldRec."ITBIS Retenido por Terceros";
+                NewRec."ITBIS Percibido" := OldRec."ITBIS Percibido";
+                NewRec."Retencion Renta por Terceros" := OldRec."Retencion Renta por Terceros";
+                NewRec."ISR Percibido" := OldRec."ISR Percibido";
+                NewRec."Imp. Selectivo al Consumo" := OldRec."Imp. Selectivo al Consumo";
+                NewRec."Otros Impuestos o Tasas" := OldRec."Otros Impuestos o Tasas";
+                NewRec."Monto Propina Legal" := OldRec."Monto Propina Legal";
+                NewRec.Efectivo := OldRec.Efectivo;
+                NewRec."Cheque/Transferencia/Deposito" := OldRec."Cheque/Transferencia/Deposito";
+                NewRec."Tarjeta Debito/Credito" := OldRec."Tarjeta Debito/Credito";
+                NewRec."Venta a Credito" := OldRec."Venta a Credito";
+                NewRec."Bonos o Certificados de Regalo" := OldRec."Bonos o Certificados de Regalo";
+                NewRec.Permuta := OldRec.Permuta;
+                NewRec."Otras Formas de Ventas" := OldRec."Otras Formas de Ventas";
+                NewRec."Fuente Datos" := OldRec."Fuente Datos";
+                NewRec."ITBIS Withholding Amount_DXR" := OldRec."DXITBIS Withholding Amount";
+                NewRec."ISR Withholding Amount_DXR" := OldRec."DXISR Withholding Amount";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== seq37: Consumer (02) Sales (607) whole-table clone =====
+    // Ported from MigrateTable_Consumer02sales607(). 1 confirmed same-ID renamed-field pair (54100) -
+    // see codeunit-level shadow-field comment. Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableConsumer02sales607().
+    local procedure BootstrapConsumer02Sales607Table()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CONSUMER02SALES607-20260522') then begin
+            MigrateConsumer02Sales607Table();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CONSUMER02SALES607-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (see codeunit-level
+    // Commit() placement comment).
+    local procedure MigrateConsumer02Sales607Table()
+    var
+        OldRec: Record "DXConsumer(02) sales(607)";
+        NewRec: Record "DXR_Consumer(02) sales(607)";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."Tipo Documento" := OldRec."Tipo Documento";
+                NewRec."No. Documento" := OldRec."No. Documento";
+                NewRec."Tipo Identificacion" := OldRec."Tipo Identificacion";
+                NewRec."Cod. Identificacion" := OldRec."Cod. Identificacion";
+                NewRec."Cod. Cliente" := OldRec."Cod. Cliente";
+                NewRec."Nombre Cliente" := OldRec."Nombre Cliente";
+                NewRec.NCF := OldRec.NCF;
+                NewRec."NCF Modificado" := OldRec."NCF Modificado";
+                NewRec."Fecha Comprobante" := OldRec."Fecha Comprobante";
+                NewRec."ITBIS Facturado" := OldRec."ITBIS Facturado";
+                NewRec."Monto Facturado" := OldRec."Monto Facturado";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                NewRec."Estado Reg." := OldRec."Estado Reg.";
+                NewRec."Report 607" := OldRec."Report 607";
+                NewRec."Type of Income_DXR" := OldRec."DXType of Income";
+                NewRec."Fecha Retencion" := OldRec."Fecha Retencion";
+                NewRec."ITBIS Retenido por Terceros" := OldRec."ITBIS Retenido por Terceros";
+                NewRec."ITBIS Percibido" := OldRec."ITBIS Percibido";
+                NewRec."Retencion Renta por Terceros" := OldRec."Retencion Renta por Terceros";
+                NewRec."ISR Percibido" := OldRec."ISR Percibido";
+                NewRec."Imp. Selectivo al Consumo" := OldRec."Imp. Selectivo al Consumo";
+                NewRec."Otros Impuestos o Tasas" := OldRec."Otros Impuestos o Tasas";
+                NewRec."Monto Propina Legal" := OldRec."Monto Propina Legal";
+                NewRec.Efectivo := OldRec.Efectivo;
+                NewRec."Cheque/Transferencia/Deposito" := OldRec."Cheque/Transferencia/Deposito";
+                NewRec."Tarjeta Debito/Credito" := OldRec."Tarjeta Debito/Credito";
+                NewRec."Venta a Credito" := OldRec."Venta a Credito";
+                NewRec."Bonos o Certificados de Regalo" := OldRec."Bonos o Certificados de Regalo";
+                NewRec.Permuta := OldRec.Permuta;
+                NewRec."Otras Formas de Ventas" := OldRec."Otras Formas de Ventas";
+                NewRec."Fuente Datos" := OldRec."Fuente Datos";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== seq38: Customer Withholding Lines whole-table clone =====
+    // Ported from MigrateTable_CustomerWithholdingLines() - all 4 fields identical name/ID/type on
+    // both sides, no rename. Note: the NEW target table itself is ObsoleteState = Pending in real
+    // source (the whole customer-withholding module is deprecated) - see codeunit-level comment.
+    // Upgrade Tag reused verbatim from UpgradeTagInternalClosureTableCustomerWithholdingLines().
+    local procedure BootstrapCustomerWithholdingLinesTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CUSTOMERWITHHOLDINGLINES-20260522') then begin
+            MigrateCustomerWithholdingLinesTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CUSTOMERWITHHOLDINGLINES-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (see codeunit-level
+    // Commit() placement comment).
+    local procedure MigrateCustomerWithholdingLinesTable()
+    var
+        OldRec: Record "DXCustomer Withholding Lines";
+        NewRec: Record "DXR_Customer Withholding Lines";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."No." := OldRec."No.";
+                NewRec."Cod. Retencion" := OldRec."Cod. Retencion";
+                NewRec."Monto a Retener" := OldRec."Monto a Retener";
+                NewRec."No. Linea" := OldRec."No. Linea";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
+    end;
+
+    // ===== seq39: Cash Journal Receipt List whole-table clone =====
+    // Ported from MigrateTable_CashJournalReceiptList(). All fields identical name/ID/type on both
+    // sides, no rename - independently re-confirmed fresh against the CURRENT
+    // DXR_CashJournalReceiptList.Table.al (see codeunit-level comment for the seq39
+    // mapping-correction re-verification, given this table's own history of a briefly-wrong target ID
+    // in the registry row's own comment). "Customer Name" (24) is a FlowField, excluded (not copied by
+    // TransferFields either). Upgrade Tag reused verbatim from
+    // UpgradeTagInternalClosureTableCashJournalReceiptList().
+    local procedure BootstrapCashJournalReceiptListTable()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CASHJOURNALRECEIPTLIST-20260522') then begin
+            MigrateCashJournalReceiptListTable();
+            UpgradeTag.SetUpgradeTag('DX-INTERNAL-CLOSURE-TABLE-CASHJOURNALRECEIPTLIST-20260522');
+        end;
+    end;
+
+    // No periodic Commit() - one-time backfill of a frozen legacy snapshot (see codeunit-level
+    // Commit() placement comment - old table is ObsoleteState = Pending, so its row count is now
+    // fixed regardless of this concept's per-transaction-log shape).
+    local procedure MigrateCashJournalReceiptListTable()
+    var
+        OldRec: Record "DXCash Journal Receipt List";
+        NewRec: Record "DXR_Cash Journal Receipt List";
+    begin
+        if OldRec.IsEmpty() then
+            exit;
+
+        if OldRec.FindSet() then
+            repeat
+                NewRec.Init();
+                NewRec."Posting Date" := OldRec."Posting Date";
+                NewRec."Document type" := OldRec."Document type";
+                NewRec."Document No." := OldRec."Document No.";
+                NewRec."External Document No." := OldRec."External Document No.";
+                NewRec."Account Type" := OldRec."Account Type";
+                NewRec."Account No." := OldRec."Account No.";
+                NewRec.Description := OldRec.Description;
+                NewRec."Currency code" := OldRec."Currency code";
+                NewRec."Exchange Rate" := OldRec."Exchange Rate";
+                NewRec."Cash Amount" := OldRec."Cash Amount";
+                NewRec."Card Amount" := OldRec."Card Amount";
+                NewRec."Check Amount" := OldRec."Check Amount";
+                NewRec."Transf. Amount" := OldRec."Transf. Amount";
+                NewRec.Amount := OldRec.Amount;
+                NewRec."Bal. Account Type" := OldRec."Bal. Account Type";
+                NewRec."Cta. Contrapartida" := OldRec."Cta. Contrapartida";
+                NewRec."Shortcut Dimension 1 Code" := OldRec."Shortcut Dimension 1 Code";
+                NewRec."Shortcut Dimension 2 Code" := OldRec."Shortcut Dimension 2 Code";
+                NewRec."User Id" := OldRec."User Id";
+                NewRec.Impreso := OldRec.Impreso;
+                NewRec.Reversada := OldRec.Reversada;
+                NewRec."Additional Currency Amount" := OldRec."Additional Currency Amount";
+                if not NewRec.Insert(false) then
+                    NewRec.Modify(false);
+            until OldRec.Next() = 0;
     end;
 }

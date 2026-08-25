@@ -158,11 +158,11 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P4', 32, 'Sales Invoice Header/Line field restore', 60168, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 33, 'Sales Cr. Memo Header field restore', 60168, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P4', 34, 'Cust. Ledger Entry field restore (bulk + FlowFields)', 60165, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 35, 'Archived Sales 607 legacy table restore (54106 -> 52115)', 60069, 54106, 52115, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P4', 36, 'ITBIS Sales (607) legacy table restore (54126 -> 52171)', 60069, 54126, 52171, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 37, 'Consumer (02) Sales (607) legacy table restore (54112 -> 52136)', 60069, 54112, 52136, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 38, 'Customer Withholding Lines legacy table restore (54117 -> 52147)', 60069, 54117, 52147, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P4', 39, 'Cash Journal Receipt List legacy table restore ("DXCash Journal Receipt List" 54111 Pending -> active "DXR_Cash Journal Receipt List" 52132 - CORRECTED 2026-08-22, was briefly logged here as ->54184, that was wrong, see DRLOC''s Extension Notes)', 60069, 54111, 52132, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 35, 'Archived Sales 607 legacy table restore (54106 -> 52115)', 60168, 54106, 52115, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P4', 36, 'ITBIS Sales (607) legacy table restore (54126 -> 52171)', 60168, 54126, 52171, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 37, 'Consumer (02) Sales (607) legacy table restore (54112 -> 52136)', 60168, 54112, 52136, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 38, 'Customer Withholding Lines legacy table restore (54117 -> 52147)', 60168, 54117, 52147, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P4', 39, 'Cash Journal Receipt List legacy table restore ("DXCash Journal Receipt List" 54111 Pending -> active "DXR_Cash Journal Receipt List" 52132 - CORRECTED 2026-08-22, was briefly logged here as ->54184, that was wrong, see DRLOC''s Extension Notes)', 60168, 54111, 52132, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 40, 'Bank Account/Check Ledger Entry field restore', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 41, 'G/L Entry/G/L Register field restore', 60165, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 42, 'Gen. Journal Line/Item Ledger Entry field restore', 60165, 0, 0, 'MA');
