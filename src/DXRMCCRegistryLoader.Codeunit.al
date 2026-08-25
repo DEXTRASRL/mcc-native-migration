@@ -179,9 +179,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60169, 54147, 52207, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 49, 'V27 data: recent fiscal corrections', 60069, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P6', 50, 'API Dgi Setup legacy table restore (54159 -> 52231, via generic MigrateTable(caption,sourceId,destId) loop)', 60069, 54159, 52231, 'SETUP');
-        InsConcept('DRLOC', 'DRLOC-P6', 51, 'EF Send Registry restore', 60069, 0, 0, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 52, 'NCF Fiscal Queue restore', 60069, 0, 0, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-P6', 53, 'Omitted standard table fields restore', 60069, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-P6', 51, 'EF Send Registry restore', 60170, 0, 0, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 52, 'NCF Fiscal Queue restore', 60170, 0, 0, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 53, 'Omitted standard table fields restore', 60170, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P2', 54, 'Payment Methods 606-607 legacy table restore (54134 -> 52181)', 60165, 54134, 52181, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 55, 'Purchase Type Relation legacy table restore (54140 -> 52242)', 60165, 54140, 52242, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 56, 'Tender Types Relation legacy table restore (54142 -> 52198)', 60165, 54142, 52198, 'SETUP');
