@@ -178,8 +178,11 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     // side declares, so CopyCommonFields() (lines 282-293) still copies them as a raw FieldRef.Value
     // ordinal transfer - this is why seq85/86/87 below (ContributorType, a DIFFERENT Enum object on old
     // vs new side but with identical member values 1/2/3) are still real-loop-copyable, ported here via
-    // FromInteger()/AsInteger() to replicate that exact ordinal-transfer semantic (same discipline as
-    // seq51/52's Batch 1 enum conversions).
+    // the shared ConvertContributorType() helper (FromInteger()/AsInteger(), guarded against the
+    // unmapped ordinal 0 that a never-explicitly-set legacy field defaults to - CopyCommonFields()'s raw
+    // FieldRef transfer tolerates that unmapped value silently, but Enum.FromInteger() does not, so an
+    // unguarded direct port would throw at runtime for such rows; same discipline as seq51/52's Batch 1
+    // enum conversions, plus this additional guard).
     //
     // Registry cross-check for all 8 rows in this batch (seq80-87): independently re-verified every
     // row's Old/New Table ID pair against real source's own MigrateTable() call arguments (lines 99-106)
@@ -223,11 +226,16 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     Type" (54110, obsolete) vs Enum "DXR_ApiDGIServices Contr. Type" (52197, live) - a DIFFERENT
     //     enum object on each side but with identical member values 1=" ", 2=Customer, 3=Vendor
     //     (confirmed against both enum source files) - still real-loop-copyable per this batch's own
-    //     header note above, ported via FromInteger()/AsInteger(). All 12 fields common, nothing
-    //     excluded. Confirmed via DXR_DgiApiServices.Codeunit.al that current live code only ever
-    //     returns "Record ... temporary" instances shaped by this table (never inserts into the real,
-    //     persisted table) - its real row content is frozen legacy data from before that refactor,
-    //     history-scale - periodic Commit() every 100 rows added. Upsert-by-primary-key ("RNC") - safe
+    //     header note above, ported via the guarded ConvertContributorType() helper (see that
+    //     procedure's own comment - neither enum declares a member at ordinal 0, so a legacy row whose
+    //     ContributorType was never set is left at the target field's default instead of erroring, unlike
+    //     an unguarded FromInteger() call). All 12 fields common, nothing excluded. Confirmed via
+    //     DXR_DgiApiServices.Codeunit.al that current live code never calls
+    //     Insert()/Modify()/Get() against the real, persisted table itself (only fills this table's
+    //     shape in-memory, via "... temporary" return vars or a plain buffer var that's never persisted,
+    //     before forwarding into the separate "DXR_DGII Temp Table") - its real row content is frozen
+    //     legacy data from before that refactor, history-scale - periodic Commit() every 100 rows added.
+    //     Upsert-by-primary-key ("RNC") - safe
     //     to re-run.
     //   - seq86 (DGI API Services FindByName, 54161 -> 52234): "DX DGI ApiServices FindByName"/"DXR_DGI
     //     ApiServices FindByName" - same 12-field shape/same field-11 enum-object difference as seq85
@@ -1084,12 +1092,35 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
             until Source.Next() = 0;
     end;
 
+    // ContributorType ordinal-transfer conversion shared by MigrateDGIApiServices/
+    // MigrateDGIApiServicesFindByName/MigrateDGIITempTable below. Both the old enum ("DX ApiDGIServices
+    // Contr. Type", 54110) and the new enum ("DXR_ApiDGIServices Contr. Type", 52197) only declare
+    // members at ordinals 1/2/3 - a legacy row whose ContributorType was never explicitly set defaults
+    // to raw storage value 0, which has no enum member on either side. The real generic MigrateTable()
+    // loop never hits this because CopyCommonFields() does a raw FieldRef.Value := FieldRef.Value
+    // transfer that bypasses enum-membership validation entirely (silently writing an orphaned 0 into
+    // storage); Enum.FromInteger() has no such bypass and errors for unmapped ordinals. This guard
+    // matches the real loop's permissive behavior: recognized ordinals (1/2/3) convert normally,
+    // anything else (e.g. 0 on frozen legacy rows predating this field being populated) is left at the
+    // target field's own default/unset value instead of throwing.
+    local procedure ConvertContributorType(SourceOrdinal: Integer): Enum "DXR_ApiDGIServices Contr. Type"
+    begin
+        if SourceOrdinal in [1, 2, 3] then
+            exit(Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(SourceOrdinal));
+        // Unrecognized/legacy-unset ordinal (e.g. 0) - leave at default, matching the real generic
+        // loop's permissive raw-value copy instead of erroring.
+    end;
+
     // DGI API Services - all 12 fields common, including ContributorType (Enum "DX ApiDGIServices
     // Contr. Type" vs Enum "DXR_ApiDGIServices Contr. Type" - different enum objects, identical member
-    // values 1/2/3, ported via FromInteger()/AsInteger(), see codeunit-level Batch 3 shadow-field
-    // comment). Frozen legacy history-scale table (current live code only ever returns temporary
-    // records shaped by this table) - periodic Commit() every 100 rows added. Upsert-by-primary-key
-    // ("RNC") - safe to re-run.
+    // values 1/2/3, ported via ConvertContributorType() above, see codeunit-level Batch 3 shadow-field
+    // comment). Frozen legacy history-scale table: current live code (DXR_DgiApiServices.Codeunit.al)
+    // only ever fills this table's shape in-memory (via "... temporary" return vars in FillRec()/
+    // FillFirstRecArray(), and via a plain non-temporary-but-never-Get/Insert/Modify'd buffer var in
+    // FillRecArray()) and forwards the data into the separate "DXR_DGII Temp Table" - it never calls
+    // Insert()/Modify()/Get() against the real, persisted "DXR_DGI ApiServices" table itself - so this
+    // table's real row content is frozen legacy data from before that refactor. Periodic Commit() every
+    // 100 rows added. Upsert-by-primary-key ("RNC") - safe to re-run.
     local procedure MigrateDGIApiServices()
     var
         Source: Record "DX DGI ApiServices";
@@ -1100,7 +1131,7 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     begin
         if Source.FindSet(false) then
             repeat
-                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetContributorType := ConvertContributorType(Source.ContributorType.AsInteger());
                 TargetExists := Target.Get(Source.RNC);
                 if not TargetExists then
                     Target.Init();
@@ -1133,8 +1164,9 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     // MigrateDGIApiServices above (see codeunit-level Batch 3 shadow-field comment). Neither side
     // declares a keys block in real source - the implicit primary key is ALL 12 fields, in field-
     // declaration order (AL's own default-key rule for tables with no keys property) - Get() below
-    // supplies all 12 source-derived values (ContributorType converted first). Same frozen-legacy-cache
-    // rationale as MigrateDGIApiServices - periodic Commit() every 100 rows added.
+    // supplies all 12 source-derived values (ContributorType converted first via ConvertContributorType()
+    // above, guarded against unmapped legacy-unset ordinals). Same frozen-legacy-cache rationale as
+    // MigrateDGIApiServices - periodic Commit() every 100 rows added.
     local procedure MigrateDGIApiServicesFindByName()
     var
         Source: Record "DX DGI ApiServices FindByName";
@@ -1145,7 +1177,7 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     begin
         if Source.FindSet(false) then
             repeat
-                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetContributorType := ConvertContributorType(Source.ContributorType.AsInteger());
                 TargetExists := Target.Get(
                     Source."Code", Source.RNC, Source."Name", Source.ComercialName, Source.Category,
                     Source.PaymentScheme, Source.Status, Source.Valid, Source.Date, Source.Count,
@@ -1192,7 +1224,7 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     begin
         if Source.FindSet(false) then
             repeat
-                TargetContributorType := Enum::"DXR_ApiDGIServices Contr. Type".FromInteger(Source.ContributorType.AsInteger());
+                TargetContributorType := ConvertContributorType(Source.ContributorType.AsInteger());
                 TargetExists := Target.Get(
                     Source."Code", Source.RNC, Source."Name", Source.ComercialName, Source.Category,
                     Source.PaymentScheme, Source.Status, Source.Valid, Source.Date, Source.Count,
