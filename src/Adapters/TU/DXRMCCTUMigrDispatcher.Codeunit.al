@@ -9,6 +9,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     Permissions =
         tabledata "Transunion Setup" = R,
         tabledata "Transunion Header" = R,
+        tabledata "DXR_Transunion Header Old2" = R,
         tabledata "DXR_Transunion Setup" = RIM,
         tabledata "DXR_Transunion Header" = RIM,
         tabledata Customer = RM,
@@ -52,6 +53,11 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         end;
     end;
 
+    // Direct typed field assignment, no TransferFields - "Transunion Setup" (57300) ->
+    // "DXR_Transunion Setup" (53601) and "Transunion Header" (57301) -> "DXR_Transunion Header"
+    // (53602) are field-for-field identical (same IDs/names/types on both sides, confirmed against
+    // TU's own real table sources). "Mensajes" (field 13 on the Header pair) is a FlowField and is
+    // excluded, matching TransferFields' own behavior.
     local procedure MigrateLegacyTables()
     var
         OldSetup: Record "Transunion Setup";
@@ -63,7 +69,10 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
             repeat
                 if not NewSetup.Get(OldSetup.Code) then begin
                     NewSetup.Init();
-                    NewSetup.TransferFields(OldSetup);
+                    NewSetup."Code" := OldSetup."Code";
+                    NewSetup.Active := OldSetup.Active;
+                    NewSetup."Directorio Archivo Transunion" := OldSetup."Directorio Archivo Transunion";
+                    NewSetup."Limite Credito %" := OldSetup."Limite Credito %";
                     NewSetup.Insert(false);
                 end;
             until OldSetup.Next() = 0;
@@ -71,7 +80,39 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         if OldHeader.FindSet() then
             repeat
                 NewHeader.Init();
-                NewHeader.TransferFields(OldHeader);
+                NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
+                NewHeader."No. Documento" := OldHeader."No. Documento";
+                NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
+                NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
+                NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
+                NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
+                NewHeader.NCF := OldHeader.NCF;
+                NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
+                NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
+                NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
+                NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
+                NewHeader."No. Linea" := OldHeader."No. Linea";
+                NewHeader."Estado Reg." := OldHeader."Estado Reg.";
+                NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
+                NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
+                NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
+                NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
+                NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
+                NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
+                NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
+                NewHeader."Vencido 181" := OldHeader."Vencido 181";
+                NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
+                NewHeader."Entry No." := OldHeader."Entry No.";
+                NewHeader.DayLeft := OldHeader.DayLeft;
+                NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
+                NewHeader.Store := OldHeader.Store;
+                NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
+                NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
+                NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
+                NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
+                NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
+                NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
+                NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
                 NewHeader.Insert(false);
             until OldHeader.Next() = 0;
     end;
@@ -102,64 +143,66 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
             until CustLedgerEntry.Next() = 0;
     end;
 
-    // Table 57305 "DXR_Transunion Header Old2" is Access = Internal on TU's side - accessed here
-    // purely via RecordRef by numeric table ID (shares identical field IDs/types with its
-    // renumbered replacement 53602). Category = MA (TU-P1 seq2), out of scope for Task A.4's
-    // Setup-phase sweep - left exactly as-is pending its own task.
+    // Table 57305 "DXR_Transunion Header Old2" is Access = Internal on TU's side, and TU's own
+    // app.json grants "internalsVisibleTo" to MCC's app ID (a5b9bf50-7945-4455-8df4-3be9c7431a7b) -
+    // so it is accessed here as a typed Record, no RecordRef/FieldRef. It shares an identical field
+    // list (IDs/names/types) with its renumbered replacement 53602, confirmed against TU's own real
+    // table source. "Mensajes" (field 13) is a FlowField and is excluded, matching TransferFields'
+    // own behavior. Category = MA (TU-P1 seq2) - this was left as RecordRef pending its own task
+    // during Task A.4's narrower Setup-phase sweep; this task closes that out.
     //
     // Setup (57304 "DXR_Transunion Setup Old2" -> 53601, Category = SETUP, TU-P1 seq1) migrates
     // via a typed call into TU's own new public codeunit "DXR_TU Setup Gen2 Migration" (53607,
-    // added 2026-08-24 to TU's repository specifically for this) instead - zero RecordRef/
-    // FieldRef. TU's own migration-namespace codeunits (DXR_TU Migr Dispatcher 53605, etc.) stay
-    // Access = Internal as-is; only a brand-new, narrowly-scoped codeunit was added on TU's side
-    // to give MCC a typed entry point, per Task A.4's controller ruling (do not widen Access on
-    // any EXISTING TU object).
+    // added 2026-08-24 to TU's repository specifically for this) - zero RecordRef/FieldRef. TU's
+    // own migration-namespace codeunits (DXR_TU Migr Dispatcher 53605, etc.) stay Access = Internal
+    // as-is; only a brand-new, narrowly-scoped codeunit was added on TU's side to give MCC a typed
+    // entry point, per Task A.4's controller ruling (do not widen Access on any EXISTING TU object).
     local procedure MigrateGen2LegacyTables()
     var
         TUSetupGen2Migration: Codeunit "DXR_TU Setup Gen2 Migration";
-        OldHeaderRef: RecordRef;
-        NewHeaderRef: RecordRef;
-        FieldIds: List of [Integer];
+        OldHeader: Record "DXR_Transunion Header Old2";
+        NewHeader: Record "DXR_Transunion Header";
     begin
         TUSetupGen2Migration.MigrateGen2Setup();
 
-        BuildNormalFieldIdList(57305, FieldIds);
-        OldHeaderRef.Open(57305);
-        if OldHeaderRef.FindSet() then
+        if OldHeader.FindSet() then
             repeat
-                NewHeaderRef.Open(53602);
-                NewHeaderRef.Init();
-                CopyFieldsByRecordRef(OldHeaderRef, NewHeaderRef, FieldIds);
-                NewHeaderRef.Insert(false);
-                NewHeaderRef.Close();
-            until OldHeaderRef.Next() = 0;
-        OldHeaderRef.Close();
-    end;
-
-    local procedure BuildNormalFieldIdList(TableNo: Integer; var FieldIds: List of [Integer])
-    var
-        FieldRec: Record Field;
-    begin
-        FieldRec.SetRange(TableNo, TableNo);
-        FieldRec.SetRange(Class, FieldRec.Class::Normal);
-        FieldRec.SetFilter("No.", '<%1', 2000000000);
-        if FieldRec.FindSet() then
-            repeat
-                FieldIds.Add(FieldRec."No.");
-            until FieldRec.Next() = 0;
-    end;
-
-    local procedure CopyFieldsByRecordRef(var OldRef: RecordRef; var NewRef: RecordRef; var FieldIds: List of [Integer])
-    var
-        FieldId: Integer;
-        OldFld, NewFld : FieldRef;
-    begin
-        foreach FieldId in FieldIds do
-            if NewRef.FieldExist(FieldId) then begin
-                OldFld := OldRef.Field(FieldId);
-                NewFld := NewRef.Field(FieldId);
-                NewFld.Value := OldFld.Value;
-            end;
+                NewHeader.Init();
+                NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
+                NewHeader."No. Documento" := OldHeader."No. Documento";
+                NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
+                NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
+                NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
+                NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
+                NewHeader.NCF := OldHeader.NCF;
+                NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
+                NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
+                NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
+                NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
+                NewHeader."No. Linea" := OldHeader."No. Linea";
+                NewHeader."Estado Reg." := OldHeader."Estado Reg.";
+                NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
+                NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
+                NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
+                NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
+                NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
+                NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
+                NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
+                NewHeader."Vencido 181" := OldHeader."Vencido 181";
+                NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
+                NewHeader."Entry No." := OldHeader."Entry No.";
+                NewHeader.DayLeft := OldHeader.DayLeft;
+                NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
+                NewHeader.Store := OldHeader.Store;
+                NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
+                NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
+                NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
+                NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
+                NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
+                NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
+                NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
+                NewHeader.Insert(false);
+            until OldHeader.Next() = 0;
     end;
 
     local procedure MigrateGen2LegacyCustomerFields()
