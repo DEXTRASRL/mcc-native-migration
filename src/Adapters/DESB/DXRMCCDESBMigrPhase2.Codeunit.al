@@ -84,6 +84,38 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
 
     // ===== Phase 2: TransferFields ID collision fix =====
 
+    // Sales Header's 6 collision-source fields ("...DXR" suffix, 53664-53669) carry no
+    // ObsoleteState - confirmed against DESB's current SalesHeaderExt.TableExt.al - so this
+    // procedure converts cleanly to typed Record access.
+    local procedure MigrateSalesHeaderCollision()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        SalesHeaderRec: Record "Sales Header";
+        BatchCount: Integer;
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822') then
+            exit;
+
+        if SalesHeaderRec.FindSet(true) then
+            repeat
+                SalesHeaderRec."DXR_DiscountAppliedLS_Old2" := SalesHeaderRec."DiscountAppliedLS_DXR";
+                SalesHeaderRec."DXR_DiscountByLS_Old2" := SalesHeaderRec."DiscountByLS_DXR";
+                SalesHeaderRec."DXR_Ruta_Old2" := SalesHeaderRec."Ruta_DXR";
+                SalesHeaderRec."DXR_Sent Pickup_Old2" := SalesHeaderRec."Sent Pickup_DXR";
+                SalesHeaderRec."DXR_Shipment_Old2" := SalesHeaderRec."Shipment_DXR";
+                SalesHeaderRec."DXR_Tipo_Old2" := SalesHeaderRec."Tipo_DXR";
+                SalesHeaderRec.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until SalesHeaderRec.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822');
+    end;
+
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
     begin
         if not RecRef.FieldExist(OldFieldNo) then
@@ -93,34 +125,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         RecRef.Field(NewFieldNo).Value := RecRef.Field(OldFieldNo).Value;
     end;
 
-    local procedure MigrateSalesHeaderCollision()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
-        RecRef: RecordRef;
-    begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822') then
-            exit;
-
-        RecRef.Open(Database::"Sales Header");
-        if RecRef.FindSet(true) then
-            repeat
-                CopyFieldIfExists(RecRef, 53664, 53879); // DiscountAppliedLS_DXR -> _Old2
-                CopyFieldIfExists(RecRef, 53665, 53880); // DiscountByLS_DXR -> _Old2
-                CopyFieldIfExists(RecRef, 53666, 53881); // Ruta_DXR -> _Old2
-                CopyFieldIfExists(RecRef, 53667, 53882); // Sent Pickup_DXR -> _Old2
-                CopyFieldIfExists(RecRef, 53668, 53883); // Shipment_DXR -> _Old2
-                CopyFieldIfExists(RecRef, 53669, 53884); // Tipo_DXR -> _Old2
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
-
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822');
-    end;
-
+    // Cannot be converted to typed Record access: independently verified against DESB's current
+    // TransferHeaderExt.TableExt.al that ALL 14 collision-source fields on "Transfer Header"
+    // (both the "DXR-DE ..." generation, now renumbered to 50800-50806, and the "..._DXR"-suffix
+    // generation at 53659/53666-53671) carry ObsoleteState = Removed - AL blocks any typed field
+    // reference to a Removed field at compile time (only RecordRef/FieldRef dynamic access can
+    // still reach the physical column), so RecordRef is retained here out of necessity, not
+    // preference. See desb-recordref-cleanup-report.md for the full field-ID audit.
+    //
+    // Also fixes a real data-loss bug found during that audit: 7 of these 14 OldFieldNo values
+    // (the "DXR-DE ..." generation) were still hardcoded to their PRE-renumbering IDs
+    // (53658/53660-53665), none of which exist on the table anymore - CopyFieldIfExists's own
+    // FieldExist() guard silently no-op'd every one of those 7 copies, every run, so their live
+    // data was never actually relocated to its "_Reloc" target despite TransferHeaderExt.TableExt.al's
+    // own ObsoleteReason text asserting this codeunit already does so. Corrected to the fields'
+    // real, current IDs (50800-50806) below.
     local procedure MigrateTransferHeaderCollision()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         RecRef: RecordRef;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3') then
             exit;
@@ -128,14 +152,14 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         RecRef.Open(Database::"Transfer Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 53658, 53885); // DXR_Codigo Auditoria -> _Reloc
+                CopyFieldIfExists(RecRef, 50801, 53885); // DXR-DE Codigo Auditoria -> DXR_Codigo Auditoria_Reloc
                 CopyFieldIfExists(RecRef, 53659, 53886); // Despachador Original_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53660, 53887); // DXR_No. Despachador -> _Reloc
-                CopyFieldIfExists(RecRef, 53661, 53888); // DXR_Order Date Created -> _Reloc
-                CopyFieldIfExists(RecRef, 53662, 53889); // DXR_Order User Id -> _Reloc
-                CopyFieldIfExists(RecRef, 53663, 53890); // DXR_Original Trans. Date -> _Reloc
-                CopyFieldIfExists(RecRef, 53664, 53891); // DXR_Original Transfer No. -> _Reloc
-                CopyFieldIfExists(RecRef, 53665, 53892); // DXR_Despachador Original -> _Reloc
+                CopyFieldIfExists(RecRef, 50800, 53887); // DXR-DE No. Despachador -> DXR_No. Despachador_Reloc
+                CopyFieldIfExists(RecRef, 50803, 53888); // DXR-DE Order Date Created -> DXR_Order Date Created_Reloc
+                CopyFieldIfExists(RecRef, 50802, 53889); // DXR-DE Order User Id -> DXR_Order User Id_Reloc
+                CopyFieldIfExists(RecRef, 50806, 53890); // DXR-DE Original Trans. Date -> DXR_Original Trans. Date_Reloc
+                CopyFieldIfExists(RecRef, 50805, 53891); // DXR-DE Original Transfer No. -> DXR_Orig Transfer No._Reloc
+                CopyFieldIfExists(RecRef, 50804, 53892); // DXR-DE Despachador Original -> DXR_Despachador Original_Reloc
                 CopyFieldIfExists(RecRef, 53666, 53893); // Codigo Auditoria_DXR -> _Reloc
                 CopyFieldIfExists(RecRef, 53667, 53894); // No. Despachador_DXR -> _Reloc
                 CopyFieldIfExists(RecRef, 53668, 53895); // Order Date Created_DXR -> _Reloc
@@ -143,12 +167,24 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                 CopyFieldIfExists(RecRef, 53670, 53897); // Original Trans. Date_DXR -> _Reloc
                 CopyFieldIfExists(RecRef, 53671, 53898); // Original Transfer No._DXR -> _Reloc
                 RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3');
     end;
 
+    // Cannot be converted to typed Record access: the only collision-source field, "DXR-DE
+    // DiscountByLS", carries ObsoleteState = Removed on DESB's current SalesLineExt.TableExt.al
+    // (at field 50802). Also corrects the same class of stale-ID bug as MigrateTransferHeaderCollision
+    // above - OldFieldNo was hardcoded to 53658 (a field that doesn't exist on "Sales Line" at all;
+    // SalesLineExt.TableExt.al's own comment confirms 53658 has never meant "DiscountByLS" outside a
+    // reverted WIP branch), so this copy was a permanent no-op. Corrected to field 50802.
     local procedure MigrateSalesLineCollision()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -160,7 +196,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         RecRef.Open(Database::"Sales Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 53658, 53899); // DXR_DiscountByLS_Old -> _Old2
+                CopyFieldIfExists(RecRef, 50802, 53899); // DXR-DE DiscountByLS -> DXR_DiscountByLS_Old2
                 RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
@@ -168,6 +204,12 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-28.3');
     end;
 
+    // Cannot be converted to typed Record access: the only collision-source field, "DXR Package
+    // Quantity", carries ObsoleteState = Removed on DESB's current DXRDESalesInvLineExt.TableExt.al
+    // (at field 50800). Same stale-ID bug as above - OldFieldNo was hardcoded to 53658 (doesn't
+    // exist on "Sales Invoice Line"; DXRDESalesInvLineExt.TableExt.al's own comment confirms this
+    // field has never lived at 53658 outside a reverted WIP branch), so this copy was a permanent
+    // no-op. Corrected to field 50800.
     local procedure MigrateSalesInvoiceLineCollision()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -179,7 +221,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         RecRef.Open(Database::"Sales Invoice Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 53658, 53900); // DXR Package Quantity -> _Old2
+                CopyFieldIfExists(RecRef, 50800, 53900); // DXR Package Quantity -> _Old2
                 RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
