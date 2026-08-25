@@ -418,11 +418,16 @@ codeunit 60011 "DXR MCC Executor"
     procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ResumeAfterExtCode: Code[20])
     var
         Extension: Record "DXR MCC Extension";
+        PortfolioPermissionMgt: Codeunit "DXR MCC Portfolio Perm. Mgt.";
         ExtensionCodes: List of [Code[20]];
         ExtensionCode: Code[20];
         PastCheckpoint: Boolean;
         ProcessedNo: Integer;
         BandOrdinal: Integer;
+        AssignedPermissionCount: Integer;
+        ExistingPermissionCount: Integer;
+        PermissionSetCount: Integer;
+        PermissionUserCount: Integer;
     begin
         // Safety: if the checkpointed extension no longer exists (registry changed between
         // attempts), don't silently skip the entire category by never finding it to resume past -
@@ -463,6 +468,28 @@ codeunit 60011 "DXR MCC Executor"
                 end;
             end;
         end;
+
+        if Category = ConceptCategorySetup() then begin
+            if not CheckCancelAndUpdateStep(RunRequestEntryNo, 'Setup: asignando permission sets del portafolio a todos los usuarios.') then begin
+                MarkRunRequestCancelled(RunRequestEntryNo);
+                exit;
+            end;
+            PortfolioPermissionMgt.AssignAllPortfolioPermissionSets(
+                RunRequestEntryNo, AssignedPermissionCount, ExistingPermissionCount,
+                PermissionSetCount, PermissionUserCount);
+            CheckCancelAndUpdateStep(
+                RunRequestEntryNo,
+                StrSubstNo(
+                    'Setup: permisos completados (%1 nuevos, %2 existentes, %3 permission sets, %4 usuarios).',
+                    AssignedPermissionCount, ExistingPermissionCount, PermissionSetCount, PermissionUserCount));
+        end;
+    end;
+
+    local procedure ConceptCategorySetup(): Integer
+    var
+        Concept: Record "DXR MCC Concept";
+    begin
+        exit(Concept.Category::Setup);
     end;
 
     local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; BandOrdinal: Integer; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer): Boolean
