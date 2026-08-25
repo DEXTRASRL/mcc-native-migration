@@ -78,6 +78,97 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     //     posted) documents - working/staging tables, not ever-growing history tables - same precedent
     //     already established for these exact 2 tables in Phase 4 own codeunit (60168) - no periodic
     //     Commit() added to any of this procedure 3 loops.
+    //
+    // ===== Batch 2: first 8 of 24 generic-loop whole-table clones (seq50, seq73-79) =====
+    // Real source's generic MigrateTable(TableCaption, SourceTableId, DestinationTableId) helper
+    // (lines 239-264 of real source) is RecordRef/FieldRef-based: it discovers, per table pair, the
+    // set of fields that exist on BOTH tables with the SAME field number AND the SAME type
+    // (GetCommonCompatibleFieldNos(), lines 266-280, Class = Normal only - this naturally excludes
+    // FlowFields and fields removed via ObsoleteState = Removed on either side, since those never
+    // appear as Class = Normal Field records for that TableNo), then upserts by primary key: tries
+    // RecordRef.Insert(false) first (TryInsertRecRef), and on failure re-finds the target row via the
+    // SOURCE record's own primary key VALUES applied by field position onto the target's primary key
+    // (TryFindTargetByKeyOfSource, lines 301-314) and Modify(false)s it instead. This is NOT ported as
+    // a generic helper (zero RecordRef/FieldRef/TransferFields is a hard constraint) - each of the 24
+    // real call-sites is expanded into its own explicit typed-Record procedure. For all 8 tables in
+    // this batch, the old and new tables' primary keys are identically named/shaped (same field names,
+    // same order), so the typed port replicates the upsert-by-key semantic as a direct Target.Get()
+    // using the source row's own key field values (equivalent outcome to TryFindTargetByKeyOfSource for
+    // these particular pairs).
+    //
+    // Full field-by-field common-field derivation (independently re-read against real, current source
+    // for BOTH the legacy DX-prefixed table AND its DXR-prefixed replacement, per table):
+    //   - seq50 (API Dgi Setup, 54159 -> 52231): "DX API Dgi Setup"/"DXR_API Dgi Setup" - 4 fields
+    //     total on both sides (Code[1] "Code", Text[250] "URL Endpoint", Boolean Active, Text[250]
+    //     "Test URL"), identical numbers/types - all 4 common, nothing excluded. Tiny per-company setup
+    //     table (single row keyed by "Code") - no periodic Commit() needed.
+    //   - seq73 (Archived Bank Charges Lines, 54103 -> real 52109 "DXR_Arch Bank Charges Lines", NOT
+    //     52128): registry row's own comment claims this shares destination table ID 52128 with
+    //     seq76's "Bank Charges Lines" below. Re-verified directly against real source and both real
+    //     table object declarations (DXR_ArchivedBankChargesLines.Table.al declares
+    //     "table 52109 DXR_Arch Bank Charges Lines" under __SAAS__, confirmed again via
+    //     TableIdMapping.csv row "54103","36002839","DXR_Arch Bank Charges Lines" - 36002839 being the
+    //     on-prem ID whose __SAAS__ sibling is 52109, NOT 52128) - the registry's own New Table ID for
+    //     seq73 (52128) is WRONG: 52128 is "DXR_Bank Charges Lines" (seq76's real, correct destination,
+    //     confirmed via TableIdMapping.csv row "54110","36002846","DXR_Bank Charges Lines"), not
+    //     "DXR_Arch Bank Charges Lines". Real source line 92 (Database::"DXR_Arch Bank Charges Lines")
+    //     and line 95 (Database::"DXR_Bank Charges Lines") target two DIFFERENT real table IDs (52109
+    //     vs 52128) - they do NOT share a destination; the registry seq73 metadata field is a
+    //     pre-existing data error, not real, current DR-Localization behavior. Per this campaign's own
+    //     discipline of porting real source behavior (not registry metadata that conflicts with it),
+    //     MigrateArchivedBankChargesLines() below targets the CORRECT real destination, Record
+    //     "DXR_Arch Bank Charges Lines" (52109) - see codeunit-level report for this batch on the
+    //     registry metadata left as-is per this batch's own explicit instruction to not touch New Table
+    //     ID. "DXArchived Bank Charges Lines"/"DXR_Arch Bank Charges Lines" - 10 fields on both sides
+    //     (1 "No." Code[20], 2 "DX Transaction Date" Date, 23 NCF Code[19], 24 Amount Decimal, 25
+    //     "Line No." Integer, 26 "Apply Trans." Boolean, 27 Description Text[30], 6 "Vendor No."
+    //     Code[20], 28 "NCF Afectado" Code[19], 29 "Total Documento" Decimal), identical numbers/types -
+    //     all 10 common, nothing excluded. Archive/history table (years of posted bank-charge lines) -
+    //     periodic Commit() every 100 rows added.
+    //   - seq74 (Archived Consumer Sales 607, 54104 -> 52111): "DXArchived Consumer Sales 607"/
+    //     "DXR_Arch Consumer Sales 607" - 46 fields total on both sides; field 13 (Mensajes) is a
+    //     FlowField on both (Class <> Normal, excluded by the real loop's own Class = Normal filter -
+    //     never copied by real source either) and field 36002769 ("Additional Currency Code") carries
+    //     ObsoleteState = Removed on BOTH sides (no longer a live field to reference/copy) - both
+    //     excluded here too, matching real behavior exactly. All remaining 44 fields (1-12, 14-15,
+    //     36002752-36002768, 36002770-36002782 including the legacy-typo'd field number 3600277
+    //     "Cheque/Transf./Deposito ICY", which is identically present with the SAME typo'd number on
+    //     both old and new tables) match by number+type - all 44 common. Archive/history table -
+    //     periodic Commit() every 100 rows added.
+    //   - seq75 (Archived Purchase 606 Buffer, 54152 -> 52217): "DXArchived Purchase 606 Buffer"/
+    //     "DXR_Arch Purchase 606 Buffer" - both sides identical field-for-field except field 13
+    //     (Mensajes), a FlowField on both, excluded (Class <> Normal). All other 70 fields (1-12, 14-47,
+    //     36002769-36002792) match by number+type - all 70 common, nothing else excluded. Archive/
+    //     history table - periodic Commit() every 100 rows added.
+    //   - seq76 (Bank Charges Lines, 54110 -> 52128): "DX Bank Charges Lines"/"DXR_Bank Charges Lines" -
+    //     9 fields total on both sides (1 "No." Code[20], 2 "DXTransaction Date" Date, 3 NCF Code[19],
+    //     4 Amount Decimal, 5 "Line No." Integer, 6 "Apply Trans." Boolean, 7 Description Text[30], 8
+    //     "Vendor No." Code[20], 9 "NCF Afectado" Code[19]), identical numbers/types - all 9 common,
+    //     nothing excluded. This table holds only currently-unarchived (not-yet-posted) bank-charge
+    //     document lines - a working/staging table, not an ever-growing history table (rows migrate out
+    //     to the seq73 archive table above once posted) - same working-table precedent already
+    //     established for Purchase Header/Sales Header in Phase 4 own codeunit (60168) - no periodic
+    //     Commit() added.
+    //   - seq77 (Bank Commission Setup, 54172 -> 52245): "DX Bank Commission Setup"/
+    //     "DXR_Bank Commission Setup" - 4 fields total on both sides (1 "Bank Account No." Code[20], 2
+    //     "Bank Account Name" Text[100], 3 "GL Account No." Code[20], 4 "GL Account Name" Text[100]),
+    //     identical numbers/types - all 4 common, nothing excluded. Tiny per-bank-account setup table
+    //     (one row per Bank Account) - no periodic Commit() needed.
+    //   - seq78 (Cash Receipt Header, 54170 -> 52243): "DX Cash Receipt Header"/"DXR_Cash Receipt
+    //     Header" - 40 fields total on both sides (1-26, 30-32, 40-47, 50-51, 480), identical
+    //     numbers/types - all 40 common, nothing excluded (fields 40-47, the ITBIS/ISR withholding
+    //     fields, carry ObsoleteState = Pending on the NEW/destination table only - still Class = Normal
+    //     though, so still real-loop-copyable; this port does not add #pragma warning disable/restore
+    //     AL0432 around the writes to those 8 fields, matching this codeunit's own already-established
+    //     convention of omitting that pragma wrapping, see the UpgradeTag-gating header comment above).
+    //     Unlike Purchase/Sales Header (Phase 4), this table's own Status field carries BOTH Open and
+    //     Posted rows (no separate archive table for posted Cash Receipts) - genuinely ever-growing
+    //     history-scale table - periodic Commit() every 100 rows added.
+    //   - seq79 (Cash Receipt Line, 54171 -> 52244): "DX Cash Receipt Line"/"DXR_Cash Receipt Line" -
+    //     40 fields total on both sides (1-17, 20-26, 30-32, 40-47, 50-51, 60-61, 480), identical
+    //     numbers/types - all 40 common, nothing excluded (same ObsoleteState = Pending-on-destination-
+    //     only note as seq78 applies to fields 40-47 here too). Same ever-growing rationale as seq78 -
+    //     periodic Commit() every 100 rows added.
     Permissions =
         tabledata "DX EF Send Registry" = R,
         tabledata "DXR_EF Send Registry" = RIM,
@@ -85,13 +176,37 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         tabledata "DXR_NCF Fiscal Queue" = RIM,
         tabledata "Application Area Setup" = RM,
         tabledata "Purchase Header" = RM,
-        tabledata "Sales Header" = RM;
+        tabledata "Sales Header" = RM,
+        tabledata "DX API Dgi Setup" = R,
+        tabledata "DXR_API Dgi Setup" = RIM,
+        tabledata "DXArchived Bank Charges Lines" = R,
+        tabledata "DXR_Arch Bank Charges Lines" = RIM,
+        tabledata "DXArchived Consumer Sales 607" = R,
+        tabledata "DXR_Arch Consumer Sales 607" = RIM,
+        tabledata "DXArchived Purchase 606 Buffer" = R,
+        tabledata "DXR_Arch Purchase 606 Buffer" = RIM,
+        tabledata "DX Bank Charges Lines" = R,
+        tabledata "DXR_Bank Charges Lines" = RIM,
+        tabledata "DX Bank Commission Setup" = R,
+        tabledata "DXR_Bank Commission Setup" = RIM,
+        tabledata "DX Cash Receipt Header" = R,
+        tabledata "DXR_Cash Receipt Header" = RIM,
+        tabledata "DX Cash Receipt Line" = R,
+        tabledata "DXR_Cash Receipt Line" = RIM;
 
     trigger OnRun()
     begin
         MigrateOmittedStandardTableFields();
         MigrateEFSendRegistry();
         MigrateNCFFiscalQueue();
+        MigrateAPIDgiSetup();
+        MigrateArchivedBankChargesLines();
+        MigrateArchivedConsumerSales607();
+        MigrateArchivedPurchase606Buffer();
+        MigrateBankChargesLines();
+        MigrateBankCommissionSetup();
+        MigrateCashReceiptHeader();
+        MigrateCashReceiptLine();
     end;
 
     // No periodic Commit() - Application Area Setup is a tiny per-company setup table; Purchase
@@ -203,6 +318,439 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
                 Target."Vendor/Customer No." := Source."Vendor/Customer No.";
                 Target."VAT Registration No." := Source."VAT Registration No.";
                 Target."Posting Date" := Source."Posting Date";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // API Dgi Setup - tiny per-company setup table (all 4 fields common, see codeunit-level Batch 2
+    // shadow-field comment) - no periodic Commit() needed. Upsert-by-primary-key ("Code") - safe to
+    // re-run.
+    local procedure MigrateAPIDgiSetup()
+    var
+        Source: Record "DX API Dgi Setup";
+        Target: Record "DXR_API Dgi Setup";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Code");
+                if not TargetExists then
+                    Target.Init();
+                Target."Code" := Source."Code";
+                Target."URL Endpoint" := Source."URL Endpoint";
+                Target.Active := Source.Active;
+                Target."Test URL" := Source."Test URL";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Archived Bank Charges Lines - real destination is Record "DXR_Arch Bank Charges Lines" (real
+    // table 52109), NOT table 52128 as the registry seq73 row's own New Table ID field claims - see
+    // codeunit-level Batch 2 shadow-field comment for the full re-verification against real source. All
+    // 10 fields common (see same comment) - archive/history table, periodic Commit() every 100 rows
+    // added. Upsert-by-primary-key ("No.") - safe to re-run.
+    local procedure MigrateArchivedBankChargesLines()
+    var
+        Source: Record "DXArchived Bank Charges Lines";
+        Target: Record "DXR_Arch Bank Charges Lines";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."No." := Source."No.";
+                Target."DX Transaction Date" := Source."DX Transaction Date";
+                Target.NCF := Source.NCF;
+                Target.Amount := Source.Amount;
+                Target."Line No." := Source."Line No.";
+                Target."Apply Trans." := Source."Apply Trans.";
+                Target.Description := Source.Description;
+                Target."Vendor No." := Source."Vendor No.";
+                Target."NCF Afectado" := Source."NCF Afectado";
+                Target."Total Documento" := Source."Total Documento";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Archived Consumer Sales 607 - 44 common fields (field 13 Mensajes is a FlowField on both, field
+    // 36002769 "Additional Currency Code" carries ObsoleteState = Removed on both - both excluded, see
+    // codeunit-level Batch 2 shadow-field comment). Archive/history table, periodic Commit() every 100
+    // rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento", "No. Linea", NCF) - safe to
+    // re-run.
+    local procedure MigrateArchivedConsumerSales607()
+    var
+        Source: Record "DXArchived Consumer Sales 607";
+        Target: Record "DXR_Arch Consumer Sales 607";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea", Source.NCF);
+                if not TargetExists then
+                    Target.Init();
+                Target."Tipo Documento" := Source."Tipo Documento";
+                Target."No. Documento" := Source."No. Documento";
+                Target."Tipo Identificacion" := Source."Tipo Identificacion";
+                Target."Cod. Identificacion" := Source."Cod. Identificacion";
+                Target."Cod. Cliente" := Source."Cod. Cliente";
+                Target."Nombre Cliente" := Source."Nombre Cliente";
+                Target.NCF := Source.NCF;
+                Target."NCF Modificado" := Source."NCF Modificado";
+                Target."Fecha Comprobante" := Source."Fecha Comprobante";
+                Target."ITBIS Facturado" := Source."ITBIS Facturado";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."No. Linea" := Source."No. Linea";
+                Target."Estado Reg." := Source."Estado Reg.";
+                Target."Report 607" := Source."Report 607";
+                Target."Type of Income" := Source."Type of Income";
+                Target."Fecha Retencion" := Source."Fecha Retencion";
+                Target."ITBIS Retenido por Terceros" := Source."ITBIS Retenido por Terceros";
+                Target."ITBIS Percibido" := Source."ITBIS Percibido";
+                Target."Retencion Renta por Terceros" := Source."Retencion Renta por Terceros";
+                Target."ISR Percibido" := Source."ISR Percibido";
+                Target."Imp. Selectivo al Consumo" := Source."Imp. Selectivo al Consumo";
+                Target."Otros Impuestos o Tasas" := Source."Otros Impuestos o Tasas";
+                Target."Monto Propina Legal" := Source."Monto Propina Legal";
+                Target.Efectivo := Source.Efectivo;
+                Target."Cheque/Transferencia/Deposito" := Source."Cheque/Transferencia/Deposito";
+                Target."Tarjeta Debito/Credito" := Source."Tarjeta Debito/Credito";
+                Target."Venta a Credito" := Source."Venta a Credito";
+                Target."Bonos o Certificados de Regalo" := Source."Bonos o Certificados de Regalo";
+                Target.Permuta := Source.Permuta;
+                Target."Otras Formas de Ventas" := Source."Otras Formas de Ventas";
+                Target."Fuente Datos" := Source."Fuente Datos";
+                Target."Additional Currency Factor" := Source."Additional Currency Factor";
+                Target."Addit. Currency Code" := Source."Addit. Currency Code";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."DX Original Amount" := Source."DX Original Amount";
+                Target."DX Original ITBIS Amount" := Source."DX Original ITBIS Amount";
+                Target."Efectivo ICY" := Source."Efectivo ICY";
+                Target."Cheque/Transf./Deposito ICY" := Source."Cheque/Transf./Deposito ICY";
+                Target."Tarjeta Debito/Credito ICY" := Source."Tarjeta Debito/Credito ICY";
+                Target."Venta a Credito ICY" := Source."Venta a Credito ICY";
+                Target."Bonos o Certif. de Regalo ICY" := Source."Bonos o Certif. de Regalo ICY";
+                Target."Permuta ICY" := Source."Permuta ICY";
+                Target."Otras Formas de Ventas ICY" := Source."Otras Formas de Ventas ICY";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Archived Purchase 606 Buffer - 70 common fields (field 13 Mensajes is a FlowField on both -
+    // excluded, see codeunit-level Batch 2 shadow-field comment). Archive/history table, periodic
+    // Commit() every 100 rows added. Upsert-by-primary-key ("Tipo Documento", "No. Documento",
+    // "No. Linea") - safe to re-run.
+    local procedure MigrateArchivedPurchase606Buffer()
+    var
+        Source: Record "DXArchived Purchase 606 Buffer";
+        Target: Record "DXR_Arch Purchase 606 Buffer";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea");
+                if not TargetExists then
+                    Target.Init();
+                Target."Tipo Documento" := Source."Tipo Documento";
+                Target."No. Documento" := Source."No. Documento";
+                Target."Tipo Identificacion" := Source."Tipo Identificacion";
+                Target."Cod. Identificacion" := Source."Cod. Identificacion";
+                Target."Cod. Proveedor" := Source."Cod. Proveedor";
+                Target."Nombre Proveedor" := Source."Nombre Proveedor";
+                Target.NCF := Source.NCF;
+                Target."NCF Modificado" := Source."NCF Modificado";
+                Target."Fecha Comprobante" := Source."Fecha Comprobante";
+                Target."ITBIS Facturado" := Source."ITBIS Facturado";
+                Target."Monto Facturado" := Source."Monto Facturado";
+                Target."No. Linea" := Source."No. Linea";
+                Target."Estado Reg." := Source."Estado Reg.";
+                Target."Categoria NCF" := Source."Categoria NCF";
+                Target."Fecha Pago" := Source."Fecha Pago";
+                Target."ITBIS Retenido" := Source."ITBIS Retenido";
+                Target."Estatus Proveedor" := Source."Estatus Proveedor";
+                Target."Importe Ret. Renta" := Source."Importe Ret. Renta";
+                Target."No. Doc. Externo" := Source."No. Doc. Externo";
+                Target."Desc. Categoria NCF" := Source."Desc. Categoria NCF";
+                Target."Razon Social" := Source."Razon Social";
+                Target.AnoMes_Fcomprobante := Source.AnoMes_Fcomprobante;
+                Target.Dia_Fcomprobante := Source.Dia_Fcomprobante;
+                Target.AnoMes_FPago := Source.AnoMes_FPago;
+                Target.Dia_FPago := Source.Dia_FPago;
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target."Monto Facturado Servicios" := Source."Monto Facturado Servicios";
+                Target."Monto Facturado Bienes" := Source."Monto Facturado Bienes";
+                Target."ITBIS Proporcionalidad" := Source."ITBIS Proporcionalidad";
+                Target."ITBIS llevado al costo" := Source."ITBIS llevado al costo";
+                Target."ITBIS por adelantar" := Source."ITBIS por adelantar";
+                Target."ITBIS Percibido" := Source."ITBIS Percibido";
+                Target."ISR withholding Type" := Source."ISR withholding Type";
+                Target."ISR Percibido" := Source."ISR Percibido";
+                Target."Imp. Selectivo al Consumo" := Source."Imp. Selectivo al Consumo";
+                Target."Otros Impuestos/Tasas" := Source."Otros Impuestos/Tasas";
+                Target."Monto Propina Legal" := Source."Monto Propina Legal";
+                Target."Payment Methods 606-607" := Source."Payment Methods 606-607";
+                Target."Reporta 606" := Source."Reporta 606";
+                Target."Monto USD" := Source."Monto USD";
+                Target."Exchange Rate Factor" := Source."Exchange Rate Factor";
+                Target."NCF Year/Month" := Source."NCF Year/Month";
+                Target."NCF Day" := Source."NCF Day";
+                Target."Posting Year/Month" := Source."Posting Year/Month";
+                Target."Posting Day" := Source."Posting Day";
+                Target."Additional Currency Code" := Source."Additional Currency Code";
+                Target."Additional Currency Factor" := Source."Additional Currency Factor";
+                Target."Document Date" := Source."Document Date";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."DX Original Amount" := Source."DX Original Amount";
+                Target."DX Original ITBIS Amount" := Source."DX Original ITBIS Amount";
+                Target."Withholding Date" := Source."Withholding Date";
+                Target."Vendor Ledger Entry No." := Source."Vendor Ledger Entry No.";
+                Target."Importe Ret. Renta ICY" := Source."Importe Ret. Renta ICY";
+                Target."Monto Facturado Servicios ICY" := Source."Monto Facturado Servicios ICY";
+                Target."Monto Facturado Bienes ICY" := Source."Monto Facturado Bienes ICY";
+                Target."ITBIS Proporcionalidad ICY" := Source."ITBIS Proporcionalidad ICY";
+                Target."ITBIS llevado al costo ICY" := Source."ITBIS llevado al costo ICY";
+                Target."ITBIS por adelantar ICY" := Source."ITBIS por adelantar ICY";
+                Target."ITBIS Percibido ICY" := Source."ITBIS Percibido ICY";
+                Target."ISR Percibido ICY" := Source."ISR Percibido ICY";
+                Target."Imp. Selectivo al Consumo ICY" := Source."Imp. Selectivo al Consumo ICY";
+                Target."Otros Impuestos/Tasas ICY" := Source."Otros Impuestos/Tasas ICY";
+                Target."Monto Propina Legal ICY" := Source."Monto Propina Legal ICY";
+                Target."ITBIS Retenido ICY" := Source."ITBIS Retenido ICY";
+                Target."Posting Description" := Source."Posting Description";
+                Target."VAT Bus. Posting Group" := Source."VAT Bus. Posting Group";
+                Target."ITBIS Facturado ICY" := Source."ITBIS Facturado ICY";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Bank Charges Lines - all 9 fields common (see codeunit-level Batch 2 shadow-field comment).
+    // Working/staging table holding only currently-unarchived (not-yet-posted) document lines - no
+    // periodic Commit() needed (same precedent as Purchase Header/Sales Header in Phase 4). Upsert-by-
+    // primary-key ("No.", "Line No.") - safe to re-run.
+    local procedure MigrateBankChargesLines()
+    var
+        Source: Record "DX Bank Charges Lines";
+        Target: Record "DXR_Bank Charges Lines";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."No.", Source."Line No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."No." := Source."No.";
+                Target."DXTransaction Date" := Source."DXTransaction Date";
+                Target.NCF := Source.NCF;
+                Target.Amount := Source.Amount;
+                Target."Line No." := Source."Line No.";
+                Target."Apply Trans." := Source."Apply Trans.";
+                Target.Description := Source.Description;
+                Target."Vendor No." := Source."Vendor No.";
+                Target."NCF Afectado" := Source."NCF Afectado";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Bank Commission Setup - all 4 fields common (see codeunit-level Batch 2 shadow-field comment).
+    // Tiny per-bank-account setup table - no periodic Commit() needed. Upsert-by-primary-key
+    // ("Bank Account No.") - safe to re-run.
+    local procedure MigrateBankCommissionSetup()
+    var
+        Source: Record "DX Bank Commission Setup";
+        Target: Record "DXR_Bank Commission Setup";
+        TargetExists: Boolean;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Bank Account No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."Bank Account No." := Source."Bank Account No.";
+                Target."Bank Account Name" := Source."Bank Account Name";
+                Target."GL Account No." := Source."GL Account No.";
+                Target."GL Account Name" := Source."GL Account Name";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+            until Source.Next() = 0;
+    end;
+
+    // Cash Receipt Header - all 40 fields common (see codeunit-level Batch 2 shadow-field comment;
+    // fields 40-47 carry ObsoleteState = Pending on the destination table only, still Class = Normal
+    // and still copied). Status field holds both Open and Posted rows on this same table (no separate
+    // archive) - genuinely ever-growing history-scale table - periodic Commit() every 100 rows added.
+    // Upsert-by-primary-key ("No.") - safe to re-run.
+    local procedure MigrateCashReceiptHeader()
+    var
+        Source: Record "DX Cash Receipt Header";
+        Target: Record "DXR_Cash Receipt Header";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."No." := Source."No.";
+                Target.Fecha := Source.Fecha;
+                Target."Cod. Customer" := Source."Cod. Customer";
+                Target.Nombre := Source.Nombre;
+                Target."Cod. Divisa" := Source."Cod. Divisa";
+                Target."Factor Divisa" := Source."Factor Divisa";
+                Target."No. Serie" := Source."No. Serie";
+                Target."Document Type" := Source."Document Type";
+                Target."Bal. Account Type" := Source."Bal. Account Type";
+                Target."Bal. Account No." := Source."Bal. Account No.";
+                Target."Applies-to Doc. Type" := Source."Applies-to Doc. Type";
+                Target."Applies-to Doc. No." := Source."Applies-to Doc. No.";
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target.Description := Source.Description;
+                Target."External Document No." := Source."External Document No.";
+                Target.NCF := Source.NCF;
+                Target.Beneficiario := Source.Beneficiario;
+                Target.Status := Source.Status;
+                Target."Importe Efectivo" := Source."Importe Efectivo";
+                Target."Importe Tcr." := Source."Importe Tcr.";
+                Target."Importe Cheque" := Source."Importe Cheque";
+                Target."Importe Transf." := Source."Importe Transf.";
+                Target."Tot. Monto Recibido" := Source."Tot. Monto Recibido";
+                Target.Amount := Source.Amount;
+                Target."Amount (LCY)" := Source."Amount (LCY)";
+                Target."Imp. Fact. Sin ITBIS" := Source."Imp. Fact. Sin ITBIS";
+                Target."Imp. ITBIS Facturado" := Source."Imp. ITBIS Facturado";
+                Target."Total Fact. Incl. ITBIS" := Source."Total Fact. Incl. ITBIS";
+                Target."ITBIS Withholding Code" := Source."ITBIS Withholding Code";
+                Target."ITBIS Withholding %" := Source."ITBIS Withholding %";
+                Target."ITBIS Withholding Base" := Source."ITBIS Withholding Base";
+                Target."ITBIS Withholding Amount" := Source."ITBIS Withholding Amount";
+                Target."ISR Withholding Code" := Source."ISR Withholding Code";
+                Target."ISR Withholding %" := Source."ISR Withholding %";
+                Target."ISR Withholding Base" := Source."ISR Withholding Base";
+                Target."ISR Withholding Amount" := Source."ISR Withholding Amount";
+                Target."Bank Commission Amount" := Source."Bank Commission Amount";
+                Target."Bank Commission Account" := Source."Bank Commission Account";
+                Target."Dimension Set ID" := Source."Dimension Set ID";
+                if TargetExists then
+                    Target.Modify(false)
+                else
+                    Target.Insert(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
+    end;
+
+    // Cash Receipt Line - all 40 fields common (see codeunit-level Batch 2 shadow-field comment; same
+    // ObsoleteState = Pending-on-destination-only note on fields 40-47 as Cash Receipt Header). Same
+    // ever-growing rationale as Cash Receipt Header - periodic Commit() every 100 rows added. Upsert-
+    // by-primary-key ("Document No.", "Line No.") - safe to re-run.
+    local procedure MigrateCashReceiptLine()
+    var
+        Source: Record "DX Cash Receipt Line";
+        Target: Record "DXR_Cash Receipt Line";
+        TargetExists: Boolean;
+        BatchCount: Integer;
+    begin
+        if Source.FindSet(false) then
+            repeat
+                TargetExists := Target.Get(Source."Document No.", Source."Line No.");
+                if not TargetExists then
+                    Target.Init();
+                Target."Document No." := Source."Document No.";
+                Target."Line No." := Source."Line No.";
+                Target."Posting Date" := Source."Posting Date";
+                Target."Account No." := Source."Account No.";
+                Target."Customer Name" := Source."Customer Name";
+                Target.NCF := Source.NCF;
+                Target.Beneficiario := Source.Beneficiario;
+                Target."Document Type" := Source."Document Type";
+                Target."External Document No." := Source."External Document No.";
+                Target.Description := Source.Description;
+                Target."Bal. Account Type" := Source."Bal. Account Type";
+                Target."Bal. Account No." := Source."Bal. Account No.";
+                Target."Currency Code" := Source."Currency Code";
+                Target."Currency Factor" := Source."Currency Factor";
+                Target."Applies-to Doc. Type" := Source."Applies-to Doc. Type";
+                Target."Applies-to Doc. No." := Source."Applies-to Doc. No.";
+                Target."Applies-to ID" := Source."Applies-to ID";
+                Target."Importe Efectivo" := Source."Importe Efectivo";
+                Target."Importe Tcr." := Source."Importe Tcr.";
+                Target."Importe Cheque" := Source."Importe Cheque";
+                Target."Importe Transf." := Source."Importe Transf.";
+                Target."Tot. Monto Recibido" := Source."Tot. Monto Recibido";
+                Target.Amount := Source.Amount;
+                Target."Amount (LCY)" := Source."Amount (LCY)";
+                Target."Imp. Fact. Sin ITBIS" := Source."Imp. Fact. Sin ITBIS";
+                Target."Imp. ITBIS Facturado" := Source."Imp. ITBIS Facturado";
+                Target."Total Fact. Incl. ITBIS" := Source."Total Fact. Incl. ITBIS";
+                Target."ITBIS Withholding Code" := Source."ITBIS Withholding Code";
+                Target."ITBIS Withholding %" := Source."ITBIS Withholding %";
+                Target."ITBIS Withholding Base" := Source."ITBIS Withholding Base";
+                Target."ITBIS Withholding Amount" := Source."ITBIS Withholding Amount";
+                Target."ISR Withholding Code" := Source."ISR Withholding Code";
+                Target."ISR Withholding %" := Source."ISR Withholding %";
+                Target."ISR Withholding Base" := Source."ISR Withholding Base";
+                Target."ISR Withholding Amount" := Source."ISR Withholding Amount";
+                Target."Bank Commission Amount" := Source."Bank Commission Amount";
+                Target."Bank Commission Account" := Source."Bank Commission Account";
+                Target."Shortcut Dimension 1 Code" := Source."Shortcut Dimension 1 Code";
+                Target."Shortcut Dimension 2 Code" := Source."Shortcut Dimension 2 Code";
+                Target."Dimension Set ID" := Source."Dimension Set ID";
                 if TargetExists then
                     Target.Modify(false)
                 else
