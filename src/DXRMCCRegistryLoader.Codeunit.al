@@ -201,7 +201,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P5', 70, 'Cred. Card Charges Lines legacy table restore (54114 -> 52142)', 60169, 54114, 52142, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 71, 'Message Log Table legacy table restore (54127 -> 52173)', 60169, 54127, 52173, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P5', 72, 'Withholding Govern. Lines legacy table restore (54148 -> 52209)', 60169, 54148, 52209, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P6', 73, 'Archived Bank Charges Lines legacy table restore (54103 -> 52128, shares destination with Bank Charges Lines below - confirmed from the loop''s own literals, not a duplication error)', 60170, 54103, 52128, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P6', 73, 'Archived Bank Charges Lines legacy table restore (54103 -> 52109 - CORRECTED 2026-08-24: an earlier session wrongly logged this as ->52128 ("shares destination with Bank Charges Lines" - that claim was false, disproven during Phase 6 Batch 2 implementation/review). Real source targets "DXR_Arch Bank Charges Lines" (52109), a DIFFERENT table than seq76''s "DXR_Bank Charges Lines" (52128) - confirmed via direct table-ID declarations in both real .Table.al files.)', 60170, 54103, 52109, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 74, 'Archived Consumer Sales 607 legacy table restore (54104 -> 52111)', 60170, 54104, 52111, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 75, 'Archived Purchase 606 Buffer legacy table restore (54152 -> 52217)', 60170, 54152, 52217, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 76, 'Bank Charges Lines legacy table restore (54110 -> 52128)', 60170, 54110, 52128, 'HIST');
