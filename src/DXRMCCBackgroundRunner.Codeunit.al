@@ -31,6 +31,7 @@ codeunit 60013 "DXR MCC Background Runner"
         LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
         ResultSummary: Text[250];
         FailureText: Text;
+        ExecutionHadErrors: Boolean;
     begin
         // Cooperative cancel: if "Cancel" was pressed while this request was still Scheduled
         // (waiting for its TaskScheduler slot), honor it here instead of starting the work at all.
@@ -48,7 +49,7 @@ codeunit 60013 "DXR MCC Background Runner"
         Rec.Modify(true);
         Commit();
 
-        if TryRunScope(Rec, ResultSummary) then begin
+        if TryRunScope(Rec, ResultSummary, ExecutionHadErrors) then begin
             // RunCategory/RunPortfolio/RecountAllConcepts write Status = Cancelled directly onto
             // this same row (MarkRunRequestCancelled) if Cancel Requested was set mid-run - never
             // overwrite that back to Completed just because TryRunScope itself didn't error.
@@ -58,7 +59,10 @@ codeunit 60013 "DXR MCC Background Runner"
                 exit;
             end;
 
-            Rec.Status := Rec.Status::Completed;
+            if ExecutionHadErrors then
+                Rec.Status := Rec.Status::Failed
+            else
+                Rec.Status := Rec.Status::Completed;
             Rec."Result Summary" := ResultSummary;
             Rec."Completed At" := CurrentDateTime();
             Rec."Current Step" := '';
@@ -99,11 +103,11 @@ codeunit 60013 "DXR MCC Background Runner"
                 StrSubstNo('Attempt %1 failed, retrying: %2', Rec."Attempt No." - 1, FailureText),
                 1, MaxStrLen(Rec."Result Summary"));
             Rec.Modify(true);
-            Rec."Task Id" := TaskScheduler.CreateTask(
-                Codeunit::"DXR MCC Background Runner", 0, true, CompanyName(),
-                CurrentDateTime() + RetryDelay(Rec."Attempt No."), Rec.RecordId());
-            Rec.Modify(true);
-            exit;
+            ClearLastError();
+            if TryScheduleRetry(Rec) then
+                exit;
+
+            FailureText := StrSubstNo('%1 Retry scheduling also failed: %2', FailureText, GetLastErrorText());
         end;
 
         Rec.Status := Rec.Status::Failed;
@@ -131,7 +135,16 @@ codeunit 60013 "DXR MCC Background Runner"
     end;
 
     [TryFunction]
-    local procedure TryRunScope(var Rec: Record "DXR MCC Run Request"; var ResultSummary: Text[250])
+    local procedure TryScheduleRetry(var RunRequest: Record "DXR MCC Run Request")
+    begin
+        RunRequest."Task Id" := TaskScheduler.CreateTask(
+            Codeunit::"DXR MCC Background Runner", 0, true, CompanyName(),
+            CurrentDateTime() + RetryDelay(RunRequest."Attempt No."), RunRequest.RecordId());
+        RunRequest.Modify(true);
+    end;
+
+    [TryFunction]
+    local procedure TryRunScope(var Rec: Record "DXR MCC Run Request"; var ResultSummary: Text[250]; var ExecutionHadErrors: Boolean)
     var
         Concept: Record "DXR MCC Concept";
         Executor: Codeunit "DXR MCC Executor";
@@ -147,8 +160,12 @@ codeunit 60013 "DXR MCC Background Runner"
                     if Concept.Get(Rec."Concept Entry No.") then begin
                         Executor.RunConcept(Concept, Rec."Entry No.");
                         ResultSummary := CopyStr(StrSubstNo('Concept "%1": %2.', Concept.Description, Format(Concept.Status)), 1, MaxStrLen(ResultSummary));
+                        ExecutionHadErrors := Concept.Status = Concept.Status::Error;
                     end else
-                        ResultSummary := 'Concept no longer exists.';
+                        begin
+                            ResultSummary := 'Concept no longer exists.';
+                            ExecutionHadErrors := true;
+                        end;
                 end;
             Rec.Scope::Extension:
                 begin
@@ -156,6 +173,7 @@ codeunit 60013 "DXR MCC Background Runner"
                     ResultSummary := CopyStr(StrSubstNo(
                         'Extension %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped (blocked).',
                         Rec."Extension Code", Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                    ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::Portfolio:
                 begin
@@ -163,6 +181,7 @@ codeunit 60013 "DXR MCC Background Runner"
                     ResultSummary := CopyStr(StrSubstNo(
                         'Portfolio: %1 completed, %2 completed with gaps, %3 failed, %4 skipped (blocked).',
                         Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                    ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::Category:
                 begin
@@ -170,6 +189,7 @@ codeunit 60013 "DXR MCC Background Runner"
                     ResultSummary := CopyStr(StrSubstNo(
                         'Category %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped (blocked).',
                         Format(Rec.Category), Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                    ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::RecountAll:
                 begin

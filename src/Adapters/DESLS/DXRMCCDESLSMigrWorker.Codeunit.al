@@ -15,9 +15,24 @@ codeunit 60129 "DXR MCC DESLS Migr Worker"
 
     trigger OnRun()
     begin
+        RunSetup();
+        RunHistoric();
+        RunOther();
+    end;
+
+    procedure RunSetup()
+    begin
         AssignPermissionSetsToAllUsers();
-        MigrateTable01();
+    end;
+
+    procedure RunHistoric()
+    begin
         MigrateTable02();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateTable01();
     end;
 
     local procedure AssignPermissionSetsToAllUsers()

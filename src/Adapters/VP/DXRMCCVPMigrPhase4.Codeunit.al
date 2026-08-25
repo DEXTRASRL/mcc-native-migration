@@ -17,6 +17,12 @@ codeunit 60118 "DXR MCC VP Migr Phase4"
         tabledata Field = R;
 
     trigger OnRun()
+    begin
+        RunMaster();
+        RunHistoric();
+    end;
+
+    procedure RunMaster()
     var
         ErrorText: Text;
     begin
@@ -24,6 +30,12 @@ codeunit 60118 "DXR MCC VP Migr Phase4"
             Error(ErrorText);
         if not MigrateTableStep(Database::"VPLineasCargaMasivaBen.BPD", Database::"DXR_VPLineasCargaMasivaBen.BPD", 'LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
+    end;
+
+    procedure RunHistoric()
+    var
+        ErrorText: Text;
+    begin
         if not MigrateTableStep(Database::VPHisCargaMasBeneficiariosBPD, Database::DXR_VPHisCargaMasBenefBPD, 'HIS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
         if not MigrateTableStep(Database::VPHisLineasCargaMasBenefBPD, Database::DXR_VPHisLineaCargaMasBenefBPD, 'HIS-LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then

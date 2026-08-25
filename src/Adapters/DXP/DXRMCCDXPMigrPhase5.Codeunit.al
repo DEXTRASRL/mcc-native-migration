@@ -47,14 +47,29 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     trigger OnRun()
     begin
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+    end;
+
+    procedure RunSetup()
+    begin
         RepairPaymentSetup();
+        RepairPromotionBinSetup();
+    end;
+
+    procedure RunMaster()
+    begin
         RepairPromotionBinCard();
         RepairStorePayments();
-        RepairPaymentProcessLogs();
         RepairPromoBinHeader();
         RepairPromotionBinItemsLines();
         RepairPromotionBinLines();
-        RepairPromotionBinSetup();
+    end;
+
+    procedure RunHistoric()
+    begin
+        RepairPaymentProcessLogs();
         RepairErrorAuditLog();
     end;
 

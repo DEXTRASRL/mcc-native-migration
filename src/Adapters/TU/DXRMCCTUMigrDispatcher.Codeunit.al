@@ -18,12 +18,38 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         tabledata "Access Control" = RIM;
 
     trigger OnRun()
+    begin
+        RunSetup();
+        RunMaster();
+    end;
+
+    procedure RunSetup()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if not UpgradeTag.HasUpgradeTag(TableMigrationTag()) then begin
-            MigrateLegacyTables();
-            UpgradeTag.SetUpgradeTag(TableMigrationTag());
+        if not UpgradeTag.HasUpgradeTag(SetupTableMigrationTag()) then begin
+            MigrateLegacySetup();
+            UpgradeTag.SetUpgradeTag(SetupTableMigrationTag());
+        end;
+
+        if not UpgradeTag.HasUpgradeTag(Gen2SetupMigrationTag()) then begin
+            MigrateGen2LegacySetup();
+            UpgradeTag.SetUpgradeTag(Gen2SetupMigrationTag());
+        end;
+
+        if not UpgradeTag.HasUpgradeTag(UserPermissionSetsAssignedTag()) then begin
+            AssignPermissionSetsToAllUsers();
+            UpgradeTag.SetUpgradeTag(UserPermissionSetsAssignedTag());
+        end;
+    end;
+
+    procedure RunMaster()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if not UpgradeTag.HasUpgradeTag(HeaderTableMigrationTag()) then begin
+            MigrateLegacyHeaders();
+            UpgradeTag.SetUpgradeTag(HeaderTableMigrationTag());
         end;
 
         if not UpgradeTag.HasUpgradeTag(FieldMigrationTag()) then begin
@@ -31,20 +57,9 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
             UpgradeTag.SetUpgradeTag(FieldMigrationTag());
         end;
 
-        if not UpgradeTag.HasUpgradeTag(UserPermissionSetsAssignedTag()) then begin
-            AssignPermissionSetsToAllUsers();
-            UpgradeTag.SetUpgradeTag(UserPermissionSetsAssignedTag());
-        end;
-
-        // Gen2 remediation: TransUnion's own "Renumerar objetos y campos DXR_ a rango global
-        // 51801-54999" commit renumbered "DXR_Transunion Setup"/"DXR_Transunion Header" (57304/
-        // 57305 -> 53601/53602) and the Customer/Cust. Ledger Entry "..._DXR" fields (50205-50209
-        // -> 53586-53590) directly on the live SaaS table/fields, instead of the safe
-        // preserve-old/add-new pattern. The 570xx/"..._Old" shells were restored (ObsoleteState =
-        // Pending) purely so publish does not attempt to remove them.
-        if not UpgradeTag.HasUpgradeTag(Gen2TableMigrationTag()) then begin
-            MigrateGen2LegacyTables();
-            UpgradeTag.SetUpgradeTag(Gen2TableMigrationTag());
+        if not UpgradeTag.HasUpgradeTag(Gen2HeaderMigrationTag()) then begin
+            MigrateGen2LegacyHeaders();
+            UpgradeTag.SetUpgradeTag(Gen2HeaderMigrationTag());
         end;
 
         if not UpgradeTag.HasUpgradeTag(Gen2FieldMigrationTag()) then begin
@@ -58,12 +73,10 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     // (53602) are field-for-field identical (same IDs/names/types on both sides, confirmed against
     // TU's own real table sources). "Mensajes" (field 13 on the Header pair) is a FlowField and is
     // excluded, matching TransferFields' own behavior.
-    local procedure MigrateLegacyTables()
+    local procedure MigrateLegacySetup()
     var
         OldSetup: Record "Transunion Setup";
         NewSetup: Record "DXR_Transunion Setup";
-        OldHeader: Record "Transunion Header";
-        NewHeader: Record "DXR_Transunion Header";
     begin
         if OldSetup.FindSet() then
             repeat
@@ -76,12 +89,19 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                     NewSetup.Insert(false);
                 end;
             until OldSetup.Next() = 0;
+    end;
 
+    local procedure MigrateLegacyHeaders()
+    var
+        OldHeader: Record "Transunion Header";
+        NewHeader: Record "DXR_Transunion Header";
+    begin
         if OldHeader.FindSet() then
             repeat
-                NewHeader.Init();
-                NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
-                NewHeader."No. Documento" := OldHeader."No. Documento";
+                if not NewHeader.Get(OldHeader."Tipo Documento", OldHeader."No. Documento", OldHeader."No. Linea") then begin
+                    NewHeader.Init();
+                    NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
+                    NewHeader."No. Documento" := OldHeader."No. Documento";
                 NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
                 NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
                 NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
@@ -112,8 +132,9 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                 NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
                 NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
                 NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
-                NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
-                NewHeader.Insert(false);
+                    NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
+                    NewHeader.Insert(false);
+                end;
             until OldHeader.Next() = 0;
     end;
 
@@ -157,19 +178,24 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     // own migration-namespace codeunits (DXR_TU Migr Dispatcher 53605, etc.) stay Access = Internal
     // as-is; only a brand-new, narrowly-scoped codeunit was added on TU's side to give MCC a typed
     // entry point, per Task A.4's controller ruling (do not widen Access on any EXISTING TU object).
-    local procedure MigrateGen2LegacyTables()
+    local procedure MigrateGen2LegacySetup()
     var
         TUSetupGen2Migration: Codeunit "DXR_TU Setup Gen2 Migration";
+    begin
+        TUSetupGen2Migration.MigrateGen2Setup();
+    end;
+
+    local procedure MigrateGen2LegacyHeaders()
+    var
         OldHeader: Record "DXR_Transunion Header Old2";
         NewHeader: Record "DXR_Transunion Header";
     begin
-        TUSetupGen2Migration.MigrateGen2Setup();
-
         if OldHeader.FindSet() then
             repeat
-                NewHeader.Init();
-                NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
-                NewHeader."No. Documento" := OldHeader."No. Documento";
+                if not NewHeader.Get(OldHeader."Tipo Documento", OldHeader."No. Documento", OldHeader."No. Linea") then begin
+                    NewHeader.Init();
+                    NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
+                    NewHeader."No. Documento" := OldHeader."No. Documento";
                 NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
                 NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
                 NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
@@ -200,8 +226,9 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                 NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
                 NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
                 NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
-                NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
-                NewHeader.Insert(false);
+                    NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
+                    NewHeader.Insert(false);
+                end;
             until OldHeader.Next() = 0;
     end;
 
@@ -277,6 +304,16 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         exit('DXR-TU-01-TableMigration28.3-20260731');
     end;
 
+    local procedure SetupTableMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-SETUP-GEN0-20260825.');
+    end;
+
+    local procedure HeaderTableMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-MA-HEADER-GEN0-20260825.');
+    end;
+
     local procedure FieldMigrationTag(): Code[250]
     begin
         exit('DXR-TU-02-FieldMigration28.3-20260731');
@@ -290,6 +327,16 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure Gen2TableMigrationTag(): Code[250]
     begin
         exit('DXR-TU-04-Gen2TableMigration28.3-20260820');
+    end;
+
+    local procedure Gen2SetupMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-SETUP-GEN2-20260825.');
+    end;
+
+    local procedure Gen2HeaderMigrationTag(): Code[250]
+    begin
+        exit('DXR-MCC-TU-MA-HEADER-GEN2-20260825.');
     end;
 
     local procedure Gen2FieldMigrationTag(): Code[250]

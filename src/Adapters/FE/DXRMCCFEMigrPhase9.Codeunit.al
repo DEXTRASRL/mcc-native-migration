@@ -37,6 +37,19 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V5-PHASE3-PURCHASE-FIELDS-20260625');
     end;
 
+    procedure RunMaster()
+    begin
+        CopyPurchaseHeaderFields();
+    end;
+
+    procedure RunHistoric()
+    begin
+        CopyPurchCrMemoHdrFields();
+        CopyPurchCrMemoLineFields();
+        CopyPurchInvHeaderFields();
+        CopyPurchInvLineFields();
+    end;
+
     local procedure MigratePurchaseTableExtensionFields()
     begin
         CopyPurchCrMemoHdrFields();

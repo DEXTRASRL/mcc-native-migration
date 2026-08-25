@@ -53,6 +53,19 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V5-PHASE2-MASTER-FIELDS-20260625');
     end;
 
+    procedure RunSetup()
+    begin
+        CopyCurrencyFields();
+        CopyPostCodeFields();
+        CopyUnitOfMeasureFields();
+        CopyVATPostingSetupFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        CopyItemFieldsInBatches();
+    end;
+
     local procedure MigrateMasterTableExtensionFields()
     begin
         CopyCurrencyFields();

@@ -34,11 +34,11 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         tabledata "DX Report Sales 607 Buffer" = R,
         tabledata "DXArchived Sales 607" = RMD,
         tabledata "DXGaps Setup" = R,
-        tabledata "DXR_Gaps Setup" = RM,
+        tabledata "DXR_Gaps Setup" = RIM,
         tabledata "DXNCF Setup" = R,
-        tabledata "DXR_NCF Setup" = RM,
+        tabledata "DXR_NCF Setup" = RIM,
         tabledata "DXNCF Sales Setup" = R,
-        tabledata "DXR_NCF Sales Setup" = RM;
+        tabledata "DXR_NCF Sales Setup" = RIM;
 
     trigger OnRun()
     var
@@ -50,6 +50,25 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         Execute();
 
         UpgradeTag.SetUpgradeTag('DXR-LS-LEGACY-DEPS-20260623');
+    end;
+
+    procedure RunSetupDependencies()
+    begin
+        MigrateGapsSetup();
+        MigrateNCFSetup();
+        MigrateNCFSalesSetup();
+    end;
+
+    procedure RunMasterDependencies()
+    begin
+        MigrateArchivedConsumerSales607();
+        MigrateConsumerSales607Buffer();
+    end;
+
+    procedure RunHistoricDependencies()
+    begin
+        CopyDependencyFieldRange(Database::"DX Report Sales 607 Buffer", 52215, 54300, 54500, 4);
+        CopyDependencyFieldRange(Database::"DXArchived Sales 607", 52115, 54300, 54500, 4);
     end;
 
     local procedure Execute()
@@ -104,20 +123,23 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     begin
         if Source.FindSet() then
             repeat
-                if Target.Get(Source."Key") then begin
-                    Target."Print NCF_DXR" := Source."Print NCF";
-                    Target."Print Company Name_DXR" := Source."Print Company Name";
-                    Target."Print Employee and Trans_DXR" := Source."Print Employee and Trans";
-                    Target."Print Cashier_DXR" := Source."Print Cashier";
-                    Target."Print Site Name_DXR" := Source."Print Site Name";
-                    Target."LineBreakInRNC_DXR" := Source."LineBreakInRNC";
-                    Target."Print Transaction Time_DXR" := Source."Print Transaction Time";
-                    Target."LineBreakCustomerName_DXR" := Source."LineBreakCustomerName";
-                    Target."Print Qty Footer_DXR" := Source."Print Qty Footer";
-                    Target."Print Staff Sales Person_DXR" := Source."Print Staff Sales Person";
-                    Target."Staff Sales Person Label_DXR" := Source."Staff Sales Person Label";
-                    Target.Modify(false);
+                if not Target.Get(Source."Key") then begin
+                    Target.Init();
+                    Target."Key" := Source."Key";
+                    Target.Insert(false);
                 end;
+                Target."Print NCF_DXR" := Source."Print NCF";
+                Target."Print Company Name_DXR" := Source."Print Company Name";
+                Target."Print Employee and Trans_DXR" := Source."Print Employee and Trans";
+                Target."Print Cashier_DXR" := Source."Print Cashier";
+                Target."Print Site Name_DXR" := Source."Print Site Name";
+                Target."LineBreakInRNC_DXR" := Source."LineBreakInRNC";
+                Target."Print Transaction Time_DXR" := Source."Print Transaction Time";
+                Target."LineBreakCustomerName_DXR" := Source."LineBreakCustomerName";
+                Target."Print Qty Footer_DXR" := Source."Print Qty Footer";
+                Target."Print Staff Sales Person_DXR" := Source."Print Staff Sales Person";
+                Target."Staff Sales Person Label_DXR" := Source."Staff Sales Person Label";
+                Target.Modify(false);
             until Source.Next() = 0;
     end;
 
@@ -128,10 +150,13 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     begin
         if Source.FindSet() then
             repeat
-                if Target.Get(Source."Primary Key") then begin
-                    Target."Enable RNC Update Excel_DXR" := Source."LSDX Enable RNC Update Excel";
-                    Target.Modify(false);
+                if not Target.Get(Source."Primary Key") then begin
+                    Target.Init();
+                    Target."Primary Key" := Source."Primary Key";
+                    Target.Insert(false);
                 end;
+                Target."Enable RNC Update Excel_DXR" := Source."LSDX Enable RNC Update Excel";
+                Target.Modify(false);
             until Source.Next() = 0;
     end;
 
@@ -142,10 +167,13 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     begin
         if Source.FindSet() then
             repeat
-                if Target.Get(Source."Codigo") then begin
-                    Target."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(Source."LSDX Tipo Doc. Fiscal".AsInteger());
-                    Target.Modify(false);
+                if not Target.Get(Source."Codigo") then begin
+                    Target.Init();
+                    Target."Codigo" := Source."Codigo";
+                    Target.Insert(false);
                 end;
+                Target."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(Source."LSDX Tipo Doc. Fiscal".AsInteger());
+                Target.Modify(false);
             until Source.Next() = 0;
     end;
 

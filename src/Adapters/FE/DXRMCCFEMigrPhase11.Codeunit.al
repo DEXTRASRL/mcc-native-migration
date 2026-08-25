@@ -103,6 +103,52 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V5-PHASE5-STANDALONE-TABLES-20260625');
     end;
 
+    procedure RunSetup()
+    begin
+        CopyAdministrationSetupFields();
+        CopyCurrencyTypeFields();
+        CopyFormasDePagoFields();
+        CopyFormTypeFields();
+        CopyIncomeValidationTypeFields();
+        CopyModificationCodeTypeFields();
+        CopyPaginacionFields();
+        CopyPaymentTypeFormFields();
+        CopyTaxCodingTypeFields();
+        CopyTelefonoEmisorFields();
+        CopyTownshipFields();
+        CopyUnitOfMeasureTypeFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        CopyStandaloneTable(55532, Database::"DXR_Bulk Credit Memo Entry");
+        CopyStandaloneTable(55575, Database::"DXR_Bulk NCF Import Entry");
+        MigrateCodigosItem();
+        CopyStandaloneTable(55506, Database::"DXR_Descuentos O Recargos");
+        CopyStandaloneTable(55507, Database::"DXR_Det. Bienes o Servicios");
+        CopyStandaloneTable(55508, Database::"DXR_Encabezado");
+        CopyStandaloneTable(55510, Database::"DXR_Imp. Adicionales Encab.");
+        CopyStandaloneTable(55511, Database::"DXR_Imp. Adicionales - DBS");
+        CopyStandaloneTable(55513, Database::"DXR_Informacion Referencia");
+        CopyStandaloneTable(55518, Database::"DXR_Process Request");
+        CopyStandaloneTable(55531, Database::"DXR_Resend Document Queue");
+        CopyStandaloneTable(55520, Database::"DXR_Response Documents");
+        CopyStandaloneTable(55521, Database::"DXR_Subcantidad");
+        CopyStandaloneTable(55522, Database::"DXR_SubDescuento");
+        CopyStandaloneTable(55523, Database::"DXR_SubRecargo");
+        CopyStandaloneTable(55524, Database::"DXR_SubTotales Informativos");
+    end;
+
+    procedure RunHistoric()
+    begin
+        CopyStandaloneTable(55502, Database::"DXR_Archived E Documents");
+        MigrateArchivedSentRequest();
+        CopyStandaloneTable(55533, Database::"DXR_Bulk Credit Memo Log");
+        CopyStandaloneTable(55514, Database::"DXR_Log Message");
+        CopyStandaloneTable(55519, Database::"DXR_Receipt Acknowledgement");
+        CopyStandaloneTable(55530, Database::"DXR_Resend Job Log");
+    end;
+
     local procedure MigrateStandaloneTables()
     begin
         CopyAdministrationSetupFields(); // seq5: EF Administration Setup (55501) -> DXR_Administration Setup (52468)

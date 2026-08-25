@@ -22,13 +22,23 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-RC-PHASE1-SETUP-RETROACTIVE-20260817') then
             exit;
 
+        RunSetup();
+        RunOther();
+
+        UpgradeTag.SetUpgradeTag('DXR-RC-PHASE1-SETUP-RETROACTIVE-20260817');
+    end;
+
+    procedure RunSetup()
+    begin
         CopyLYTControlsSetup();
         CopyPosControlsSetup();
         CopyPurchaseControlsSetupFields();
         CopySalesControlsSetupFields();
-        CopyLSCPOSFuncProfileFields();
+    end;
 
-        UpgradeTag.SetUpgradeTag('DXR-RC-PHASE1-SETUP-RETROACTIVE-20260817');
+    procedure RunOther()
+    begin
+        CopyLSCPOSFuncProfileFields();
     end;
 
     local procedure CopyLYTControlsSetup()

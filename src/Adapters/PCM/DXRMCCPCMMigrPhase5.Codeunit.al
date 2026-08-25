@@ -27,14 +27,34 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 #pragma warning disable AL0432
     trigger OnRun()
     begin
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+        RunOther();
+    end;
+
+    procedure RunSetup()
+    begin
         MigratePricesCtrlSetup();
-        MigrateApprovalHistory();
-        MigrateApprovalEntryFields();
-        MigrateCustomerFields();
         MigrateStorePriceGroupFields();
         MigrateWorkflowFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateCustomerFields();
         MigrateSalesHeaderSnapshotFields();
         MigrateSalesLineFields();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateApprovalHistory();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateApprovalEntryFields();
     end;
 
     local procedure MigratePricesCtrlSetup()

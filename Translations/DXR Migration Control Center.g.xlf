@@ -94,7 +94,7 @@
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Concept - Field Status - Property Caption</note>
         </trans-unit>
         <trans-unit id="Table 2176097165 - Field 513339096 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
-          <source>Not Counted,Pending,Running,Completed,Completed With Gaps,Error,Not Row-Based,Completed (Fallback)</source>
+          <source>Not Counted,Pending,Running,Completed,Completed With Gaps,Error,Not Row-Based,Completed (Fallback),Skipped</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Concept - Field Status - Property OptionCaption</note>
         </trans-unit>
@@ -269,7 +269,7 @@
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Status - Property Caption</note>
         </trans-unit>
         <trans-unit id="Table 3855977450 - Field 513339096 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
-          <source>Pending,Running,Completed,Completed With Gaps,Error</source>
+          <source>Pending,Running,Completed,Completed With Gaps,Error,Skipped</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Status - Property OptionCaption</note>
         </trans-unit>
@@ -639,7 +639,7 @@
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR Migration Control Center - Action RunAllSetup - Property Caption</note>
         </trans-unit>
         <trans-unit id="Page 1192521330 - Action 817754780 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
-          <source>Runs every non-blocked phase for this extension immediately, in this session (2026-08-22: changed from background scheduling to instant execution on request - a large extension's full chain can take a while to return). Result also logged to DXR MCC Run Requests/Run Log.</source>
+          <source>Schedules every non-blocked phase for this extension as an immediate background task. The page never executes a dispatcher synchronously; monitor status, heartbeat and outcome in DXR MCC Run Requests/Run Log.</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR Migration Control Center - Action RunExtension - Property ToolTip</note>
         </trans-unit>

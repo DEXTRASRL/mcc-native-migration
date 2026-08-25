@@ -34,7 +34,7 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         tabledata SalesHeaderOrderListFromBo = RM,
         tabledata "DXCash Journal Receipt List" = R,
         tabledata "DXNCF Setup" = R,
-        tabledata "DXR_NCF Setup" = RM;
+        tabledata "DXR_NCF Setup" = RIM;
 
     trigger OnRun()
     var
@@ -49,6 +49,18 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         MigrateListadoRecibodeIngresoOldCrossTable();
 
         UpgradeTag.SetUpgradeTag('DXR-NcfRenameRestore283');
+    end;
+
+    procedure RunSetup()
+    begin
+        MigrateConfigNCFComprasFieldRename();
+        MigrateNCFSetupOldCrossTable();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateSalesHeaderOrderListFromBoFieldRename();
+        MigrateListadoRecibodeIngresoOldCrossTable();
     end;
 
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
@@ -99,8 +111,11 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         // once per tenant). Zero RecordRef/FieldRef/TransferFields.
         if not OldSetup.Get() then
             exit;
-        if not NewSetup.Get() then
-            exit;
+        if not NewSetup.Get() then begin
+            NewSetup.Init();
+            NewSetup."Primary Key" := OldSetup."Primary Key";
+            NewSetup.Insert(false);
+        end;
         NewSetup."Grupo Contable BS_DXR" := OldSetup."Grupo Contable BS";
         NewSetup."Legal Tip %_DXR" := OldSetup."Legal Tip %";
         NewSetup.Modify(false);

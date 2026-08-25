@@ -276,6 +276,24 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
         UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase4CompletedTag());
     end;
 
+    procedure RunMaster()
+    begin
+        BootstrapSalesHeaderFields();
+        BootstrapSalesLineFields();
+        BootstrapSalesInvoiceHeaderFields();
+        BootstrapSalesInvoiceLineFields();
+        BootstrapSalesCrMemoHeaderFields();
+        BootstrapITBISSales607Table();
+        BootstrapConsumer02Sales607Table();
+        BootstrapCustomerWithholdingLinesTable();
+        BootstrapCashJournalReceiptListTable();
+    end;
+
+    procedure RunHistoric()
+    begin
+        BootstrapArchivedSales607Table();
+    end;
+
     // ===== seq31: Sales Header field restore =====
     // Ported from MigrateFields_SalesHeader() (named-field block only - the raw-numeric block is
     // dead, see codeunit-level shadow-field comment item 4).

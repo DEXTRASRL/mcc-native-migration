@@ -6,8 +6,11 @@ codeunit 60012 "DXR MCC Registry Loader"
     // Concepts whose Legacy/New Table ID are both 0 are field-level migrations within a single
     // table (not a table-pair swap) - row counts aren't a meaningful gap signal for those, so the
     // Counter codeunit marks them "Not Row-Based" and they're tracked as run/not-run only.
-    // Order No. mirrors this session's actual recompile dependency tiers: 0 = no internal Dextra
-    // dependency, 10 = depends on an Order-0 extension, 20 = depends on an Order-10 extension.
+    // Order No. is the operator-approved portfolio migration sequence. Values 10..190 preserve
+    // the exact dependency order (Localization Base through Bellon Customization POS); 170 is
+    // deliberately reserved for Mail Connector, which has no authoritative registry code,
+    // App ID, concepts, or local adapter in this repository yet. Additional registered modules
+    // not present in that approved sequence use 900+ so they never interleave with it.
     //
     // Category (added 2026-08-22, alongside Run All Setup/Master-Accounting/Historic on page
     // 60020): classifies each concept by the KIND of table(s) it moves data for, so those three
@@ -52,47 +55,47 @@ codeunit 60012 "DXR MCC Registry Loader"
 
     local procedure LoadExtensions()
     begin
-        InsExt('BC', 'Base Controls', 'e8b1de99-1c7d-454d-b0bc-7cc1dc7b86ae', 0, '');
-        InsExt('DRLOC', 'Base App DR Localization', 'b269ef93-1340-452e-bc44-732c5dacd1c8', 0,
+        InsExt('BC', 'Base Controls', 'e8b1de99-1c7d-454d-b0bc-7cc1dc7b86ae', 90, '');
+        InsExt('DRLOC', 'Base App DR Localization', 'b269ef93-1340-452e-bc44-732c5dacd1c8', 10,
             'FOUNDATION extension. 28.3.5.3: fixed 118 NCF/fiscal field cross-table ID collisions (Sales+Purchase families) causing live TransferFields crash. All 7 dependents recompiled clean against it: Bellon Customization, Despacho Base, Despacho LS, Facturacion Electronica, LS Facturacion Electronica, LS Central DR Localization, TransUnion. CORRECTION (2026-08-22): earlier same-day work briefly changed DXR_Cash Journal Receipt List/DXR_Gaps Setup table IDs from 52132/52165 to 54184/54195, reasoning from git history alone that the renumber had drifted off true production - the user confirmed 52132/52165 IS what''s actually deployed (changing them broke publish with a metadata error) and explicitly asked for the IDs to stay untouched; reverted, DO NOT change these two IDs again without new evidence from an actual deployment error, not git archaeology. The real DescuentoProntoPago problem (see DPP''s note) was a stale local .alpackages cache, unrelated to these IDs.');
-        InsExt('LSLOC', 'LS Central DR Localization', 'b18ab944-2133-4326-bcd7-a235e0a8bdef', 10,
+        InsExt('LSLOC', 'LS Central DR Localization', 'b18ab944-2133-4326-bcd7-a235e0a8bdef', 20,
             'Depends on Base App DR Localization, LS Central. 28.3.3.5: recompiled clean against DRLOC 28.3.5.3 (no live NCF call-site fixes needed here). CORRECTION: earlier note claiming zero migration infrastructure was wrong (bad grep path). Full dispatcher/lock/status-page system already exists (DXR_LS Migr. Dispatcher, gated by DX28PREFIX, which is enabled), covering all ~20 Base\old\ legacy objects across 3 phases. requerimiento-normalizacion-al-controlada.md explicitly excludes Tables.old/TableExts.old/Enums.old from naming normalization, but that never blocked this data migration. 2026-08-22: fixed 2 on-prem-only pageextension defects (LSDXConsumer607Ext/LSDXSales607Ext extending a nonexistent object name, latent - app targets Cloud only).');
-        InsExt('VP', 'Vendor Payloads', 'f64305eb-aae2-4479-8726-e604fe48c051', 0, '');
-        InsExt('DPP', 'DescuentoProntoPago', 'ce7641c4-fd8b-4c0c-960b-32b3eaf255c7', 0,
+        InsExt('VP', 'Vendor Payloads', 'f64305eb-aae2-4479-8726-e604fe48c051', 110, '');
+        InsExt('DPP', 'DescuentoProntoPago', 'ce7641c4-fd8b-4c0c-960b-32b3eaf255c7', 900,
             '2026-08-22: TableExtensions 54285/54286 (Cash Journal Receipt List/Gaps Setup) were failing to deploy with "field removal not allowed" on every field - 2 fix attempts needed. 1st attempt (wrong): assumed a stale local .alpackages cache, refreshed it, compiled clean locally - but a SECOND live deployment (job 150ad38e-3ca5-45a9-9480-be9519b87411) failed the exact same way on 28.5.5.3, proving local compile success against symbols does not validate a live tenant''s actual deployed schema. TRUE ROOT CAUSE (confirmed via that 2nd error, not git archaeology): these DPP fields are deployed against the LEGACY tables "DXCash Journal Receipt List"/"DXGaps Setup" (Tables.old in DR-Localization, ObsoleteState=Pending), not the active "DXR_Cash Journal Receipt List"/"DXR_Gaps Setup" - proven by "DPP Gaps Setup"''s own TableExt object NAME already exactly matching the tenant''s reported name yet still failing, isolating the cause to extends-target, not naming. Fix (28.5.5.4): retargeted both TableExtensions to the legacy tables; moved the 3+7 fields'' display off the active-table pages (DXR_Journal Receipt List/DXR_Gaps Setup) onto 2 new standalone legacy pages; retyped the 4 codeunit/report files that read/write these fields to the legacy Record types (2 of those are DR-Localization event-subscriber signatures that must stay typed on the active table by contract - those use a separate legacy-table Record matched by "Document No.", the shared sole primary key, with a RecordRef-based get-or-insert that copies every matching standard field by number so downstream Document No./Posting Date/Account No. lookups still find the row). DR-Localization''s own table IDs were NOT touched, per explicit instruction - see DRLOC''s note. Registry correction: this extension''s previously-registered DPP-P5/DPP-P6 concepts (dispatcher IDs 53650/53652) do not exist anywhere in this repo''s source - retired in place, replaced by DPP-UPG which reflects the one real migration action that does exist.');
-        InsExt('RBPD', 'RecaudoBPD', '', 0, '');
-        InsExt('SD', 'Special Dispatch', '18373840-6093-4765-8799-491f61accb2b', 0,
+        InsExt('RBPD', 'RecaudoBPD', '', 910, '');
+        InsExt('SD', 'Special Dispatch', '18373840-6093-4765-8799-491f61accb2b', 160,
             '28.3.3.7: fixed the same class of bug as DESB/PCM - the 2026-08-18 global ID renumber had changed both the true production field IDs AND their names (BC schema sync requires both to stay identical to what''s deployed, confirmed via AppSourceCop AS0005 "Fields must not change name" - not ID-only as first assumed) across all 8 tableextensions, and had also renumbered the tableextension object IDs themselves off their true originals. Both layers reverted to true production values (traced via git history back to the pre-renumber commit); recompiled clean. 2026-08-22: found Phase 3 (permission set assignment, inline in dispatcher 54779) entirely unregistered, and Phase 1''s single row was collapsing 8 distinct table field-restores into one description - both fixed below.');
-        InsExt('DXP', 'DXPAYMENT-BC', '36b9c68f-cc27-46b1-bf63-4400a31c5f61', 0,
+        InsExt('DXP', 'DXPAYMENT-BC', '36b9c68f-cc27-46b1-bf63-4400a31c5f61', 130,
             '2026-08-22: found Phases 1-4 (52310/52311/52312/52321) entirely unregistered - only Phase 5/6 were tracked. Phase1/3/4 all restore the same 9 payment/promotion tables across 3 different legacy generations (pre-DXR, exhausted-SaaS-range DXR_, and a 3rd renumber). RESOLVED 2026-08-23: confirmed Phase 5 (the most recent generation) is the business-confirmed source of truth on any key shared with Phase 1/3 - fixed at the source (this extension''s own repo): Runner reordered to run Phase 5 first, plus a retroactive-repair pass (own Upgrade Tag) for companies that already ran the old order. All 46 concepts now dispatch through "DXR MCC Adapt DXP Dispatcher" (60020), a typed reference to this extension''s Runner (52313).');
-        InsExt('PCM', 'Price Controls Mgt.', '0ef94c34-cbc6-41d8-ab1a-258e9085707d', 0,
+        InsExt('PCM', 'Price Controls Mgt.', '0ef94c34-cbc6-41d8-ab1a-258e9085707d', 150,
             '28.3.4.7: same class of bug as SD/DESB (field name+ID both drifted from true production by the 2026-08-18 renumber). Fixed via the "restore legacy shell as a separate parallel tableextension at the true original id+name" pattern (Phase 5 codeunit "DXR_Migr. Phase 5 Id Renum", 54620) for Workflow (the one table whose true field was genuinely lost) - but discovered the OTHER 6 restored shells (ApprovalEntry/Customer/SalesHeaderSnapshot/SalesLine/SalesLineSnapshot/StorePrcGrp) were redundant duplicates: their true fields were already correctly preserved at true id+name inside the active tableextension all along, and the separate shell just caused an AL0155 "already defined" collision once its field names were corrected to match. Removed those 6 redundant shells; kept only Workflow''s. Recompiled clean. 2026-08-22: found 3 entire sibling phases (Phase 2/3/4, dispatchers 54612/54613/54614) unregistered - the dispatcher "DXR_Migr. Phase Dispatcher" (54615) runs all 4 phases in sequence, only Phase 5 was tracked.');
-        InsExt('TU', 'TransUnion', '7c42bd17-42ea-4c0a-b6db-e7034ad57faf', 10,
+        InsExt('TU', 'TransUnion', '7c42bd17-42ea-4c0a-b6db-e7034ad57faf', 140,
             'Depends on Base App DR Localization. 28.3.2.5: recompiled clean against DRLOC 28.3.5.3, no live call-site fixes needed. Closes out this session''s dependent-recompile sweep. 2026-08-22: audited for phase completeness - already complete, its single dispatcher (53605) and 3 registered concepts match its actual 3-loop source exactly.');
-        InsExt('DESB', 'Despacho Base', 'c7a48d32-662c-4e8a-a315-494b174556cf', 10,
+        InsExt('DESB', 'Despacho Base', 'c7a48d32-662c-4e8a-a315-494b174556cf', 50,
             '28.3.4.17: same class of bug as SD/PCM, but on a much larger surface (28 table extensions, 29 fields, plus 4 more table extensions - SalesHeaderExt/SalesLineExt/TransferHeaderExt/DXRDESalesInvLineExt - carrying the separate TransferFields collision fix, which needed the same id+name true-original treatment on top of its own existing _Old2/_Reloc relocation logic). Also found and fixed 2 rounds of collateral damage from the bulk field-name revert: (1) the ACTIVE "Despachador" table (53868) got its own object name wrongly reverted to the LEGACY table''s name ("DXR-DE Despachador", table 50807), causing an AL0197 duplicate-object-name collision, requiring ~30 file scoped re-fixes across Pages/Reports/PermissionSet/other Tables to restore correct old-vs-new references; (2) two Codigo Auditoria fields (TransferHeaderExt/TransferReceiptHdr/DXRDETransferShptHdrExt) turned out to actually be Code[20] in the real deployed tenant, not Code[10] as this repo''s earliest committed history showed - BC''s own "reduced length" deployment error was the ground truth there, not git archaeology; widened accordingly (never reduce - only widen when the two disagree). Recompiled clean. 28.3.4.19 (2026-08-22): fixed a real write-transaction crash in "DXR_Despacho Migr Dispatcher".RunPendingPhasesWithStatusTracking - StartPhase()''s own Modify(true) was left open when Codeunit.Run()''s return value was used right after it, with no Commit() between; this is the SAME codeunit MCC calls for every DESB-P1 concept (dispatcher 53681 -> Worker -> this procedure), so it was very likely the real cause behind "Run All Setup moves nothing for Despacho Base." Also found the permission-set-assignment step (in Worker 53681) entirely unregistered.');
-        InsExt('BELLON', 'Bellon Customization', 'a9734a52-02bb-4e3d-8150-2f9ee4b50530', 10,
+        InsExt('BELLON', 'Bellon Customization', 'a9734a52-02bb-4e3d-8150-2f9ee4b50530', 180,
             'Depends on Base App DR Localization. 2026-08-22: found 4 entire phases unregistered (Phase 2/4/11/12, dispatchers 56119/56121/56128/56129) out of an 11-phase chain (Phase 2 through Phase 12, no standalone Phase 1 - it''s just a completion-tag gate). Phase 2 alone covers 174 individual table/field-group restores (103+4 table pairs, 67 tableextension field groups), added below in full. Phase 6 (111 tables, same set as Phase 2''s 103-table batch but from a second renumbering incident, IDs 59231-59345->53301-53415 sequential) and Phase 7 (its real table count doesn''t reconcile against the registry''s "87" - audited at 55) and Phase 10 (188 fields/14 tables, not independently confirmed as the same 14 tables as Phase 3''s dedup list) are flagged with their existing summary row corrected to note the caveat rather than expanded to guessed per-table rows - see each row''s own text for what still needs a follow-up read before it can be split safely.');
-        InsExt('BELLONPOS', 'Bellon Customization POS', '6b2c910b-6607-4ffa-859e-1ba16790e4d8', 20,
+        InsExt('BELLONPOS', 'Bellon Customization POS', '6b2c910b-6607-4ffa-859e-1ba16790e4d8', 190,
             'Depends on Bellon Customization, LS Central, Retail Controls, Facturacion Electronica, LS Facturacion Electronica, DX-Payments, Base Controls. Standalone migration dispatcher/lock/status infra ("Bellon POS Phase Dispatcher", cod. 56205), same architecture as BELLON but far smaller scope: Phase 1 (base, pre-existing) + Phase 2 only (Legacy Norm, cod. 56212). 2026-08-22: Phase 2 was under-described - it also restores 3 legacy tables (50300/50301/50302->53563/53564/53565) not mentioned in the old registry text at all; added below (table names not yet resolved from source, IDs are confirmed).');
-        InsExt('DESLS', 'Despacho LS', 'adb067e6-0e65-4ab0-8d61-160e7df7763f', 20,
+        InsExt('DESLS', 'Despacho LS', 'adb067e6-0e65-4ab0-8d61-160e7df7763f', 60,
             'COMPILES CLEAN as of 28.3.2.10. 2026-08-22, two real bugs found here (not just a stale symbol cache like most of this session''s other repos): (1) this repo''s OWN "Normalizacion despacho LS" commit had retargeted 10 of its 11 tableextensions from extending Despacho Base''s legacy tables to the active ones while correctly duplicating fields, then a later renumber commit moved the object IDs too - both drifts fixed by splitting each into a legacy-extending (true id, old field, Pending) + active-extending (new field) pair, mirroring the DESB/SD/PCM fix pattern. (2) "DXR_Desp LS Migr Phase 1" (53924) was rewritten to read each old field from its true legacy table via RecordRef (was previously reading a single, now cross-table-broken, typed record) - this needs Read permission on those 10 legacy tables, which "DXR_Desp LS Migr Worker" (53963, the actual TaskScheduler/page entry point - Permissions propagate down its call stack to Phase 1) did not have; added. GENERAL LESSON for the whole portfolio: any extension depending on Despacho Base/Special Dispatch/Price Controls Mgt. needs its own local .alpackages copy refreshed after ANY change to that dependency, not just after a naming/object rename - a stale symbol cache reproduces the dependency''s old (already-fixed) schema errors even though the dependency itself is fine. 2026-08-22: found Phase 1 (53924, 14 field-restore tables) entirely unregistered - the 2 existing rows are a DIFFERENT phase (the renumbered-table restore inline in Worker 53963), both correct, kept as-is.');
-        InsExt('RC', 'Retail Controls', '', 10,
+        InsExt('RC', 'Retail Controls', '', 100,
             'Depends on Base Controls. 2026-08-22: found Phases 1-4 (54734/54744/56502/56504) entirely unregistered - only Phase 5 was tracked. Phase 3 is a real retroactive fix (field-ID collision across 6 tableextensions), same class of bug as DESB/SD/PCM elsewhere in this portfolio.');
-        InsExt('FE', 'Facturacion Electronica', '4ccf94f0-8e86-437f-99fc-a4eeda4a5122', 10,
+        InsExt('FE', 'Facturacion Electronica', '4ccf94f0-8e86-437f-99fc-a4eeda4a5122', 30,
             'Depends on Base App DR Localization. 28.3.5.1: fixed 4 dangling NCF field refs (Sales Invoice/Cr.Memo Header _DXR->_DXR_V2) after DRLOC 28.3.5.3. 7-phase dispatcher (Phase 7 Bootstrap - Phase 13 NCF Cleanup), own DXR_Migration Status page already implements the Run Migration Now pattern. 2026-08-22 follow-up completed: P7''s earlier "may be a no-op" suspicion was confirmed real - DXR_Upgrade_Clean.Codeunit.al''s MigrateLegacyDependencyTableFields had wrong target field numbers (55501-55504 instead of the real 52333/52334) for all 4 of its table pairs (NCF Purchase/Sales/general Setup, Payment Method Relation), so it ran "successfully" (tag set) while copying zero data - confirmed by the user hitting exactly this on DXR_Payment Method Relation. Fixed in EF 28.3.6.1 (corrected field numbers + tag bumped to DXR-EF-LEGACY-DEPS-20260822 to force re-run) and split into 4 individually-tracked rows here (FE-P7 seq1/304-306) instead of one opaque "Phase 7 Bootstrap" bucket. P8/P9/P10 also expanded to one row per table (seq2-4, 307-319), read directly from each phase''s own CopySameTableFields FieldMap.Add() calls - none of those had the wrong-field-number bug (only the Phase 7 dependency-migration procedure did).');
-        InsExt('LSFE', 'LS Facturacion Electronica', '4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2', 20,
+        InsExt('LSFE', 'LS Facturacion Electronica', '4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2', 40,
             'Depends on Facturacion Electronica, LS Central DR Localization, Base App DR Localization. 28.5.0.3: fixed same NCF dangling refs after dependency chain refresh. Own DXR_LSFE Migration Status page already implements the Run Migration Now pattern (2 background repairs: PermSet assignment, POS contingency + legacy field migration). 2026-08-22: audited - LSFE-P2''s description bundles 2 things but its source is one inline OnRun trigger with no separable sub-steps found; left as one row rather than splitting blind.');
         // 2026-08-24 (Task 0.1, Phase 0 registry-completeness audit): 4 extensions confirmed to have
         // real DXR_ migration surface (ObsoleteReason.*DXR_/_DXR" hits in their source) but were
         // entirely missing from this registry until now. Only seeded here - no concepts yet, that's
         // a later task. VendorPay_TXT (sibling of VendorPay_API under vendorpayload\DxPayloads-BC\)
         // is explicitly excluded per direct user ruling, not evaluated.
-        InsExt('ES', 'Base Email Sender', '40bf4f60-a31e-4104-a36c-bc3b36f8c9ed', 0, '');
-        InsExt('RES', 'Retail Email Sender', '85fc1f3a-6b23-4f45-8465-c5067449b097', 10,
+        InsExt('ES', 'Base Email Sender', '40bf4f60-a31e-4104-a36c-bc3b36f8c9ed', 70, '');
+        InsExt('RES', 'Retail Email Sender', '85fc1f3a-6b23-4f45-8465-c5067449b097', 80,
             'Depends on Base Email Sender, LS Central, LS Central System App.');
-        InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 0, '');
-        InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 10,
+        InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
+        InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
     end;
 
@@ -127,8 +130,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P2', 1, 'RETIRED 2026-08-24: this coarse row bridged to DR-Localization''s own dispatcher (52208) via Codeunit 60069 - superseded now that Phase 2''s entire real scope (48 actions, seq9-18/93-106/etc.) is natively ported into MCC codeunit 60165. Keeping this row pointed at 60069 would still invoke DRLOC''s own dispatcher (and its EnsurePhase1Completed hard-block) every run, exactly the cross-repo bridge dependency this whole campaign exists to eliminate. Retired in place rather than deleted, matching the DPP-P5/DPP-P6 precedent above.', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P3', 2, 'RETIRED 2026-08-24: superseded now that Phase 3''s entire real scope (12 actions, seq19-30) is natively ported into MCC codeunit 60167. Same bridge-elimination reasoning as DRLOC-P2 seq1 above.', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P4', 3, 'RETIRED 2026-08-24: superseded now that Phase 4''s entire real scope (9 actions, seq31-39) is natively ported into MCC codeunit 60168. Same bridge-elimination reasoning as DRLOC-P2 seq1 above.', 0, 0, 0, 'OTHER');
-        InsConcept('DRLOC', 'DRLOC-P5', 4, 'Ledger migration phase - coarse bridge row to DR-Localization''s own dispatcher (60069), kept ACTIVE (not yet retired) because Phase 5''s granular native port (12 of 24 real OnRun steps done as of 2026-08-24: seq40-44''s 10 field-restore steps + seq45''s Detailed Cust. Ledg. Entry restore + the unregistered Vendor Withholding Migration Repair riding along under seq45''s dispatcher 60169; remaining: seq46/47/48/65-72''s 11 whole-table clones + seq49''s V27 data corrections) is still in progress in this same campaign. Retire this row the same way as DRLOC-P2/P3/P4 above once Phase 5''s full granular breakdown lands - and keep this count accurate on every future batch that touches it, do not let it drift stale.', 60069, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P6', 5, 'History migration phase', 60069, 0, 0, 'HIST');
+        InsConcept('DRLOC', 'DRLOC-P5', 4, 'RETIRED 2026-08-25: coarse bridge superseded by the native, category-specific Phase 5 concepts.', 0, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-P6', 5, 'RETIRED 2026-08-25: coarse bridge superseded by the native, category-specific Phase 6 concepts.', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-NCF', 6, 'Sales family NCF field cross-table ID collision fix (20 fields, live crash root cause)', 0, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-NCF', 7, 'Purchase family NCF field cross-table ID collision fix (98 fields, latent same bug)', 0, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P1', 8, 'Internal Closure Migration (Subtype=Upgrade, hard blocking prerequisite that Phase 2-6''s dispatcher checks via EnsurePhase1Completed - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs on its own publish/upgrade cycle only)', 0, 0, 0, 'OTHER');
@@ -138,7 +141,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P2', 12, 'Bootstrap: NCF Setup tables', 60165, 0, 0, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 13, 'Payment Method Relation legacy table restore (54133 -> 52180)', 60164, 54133, 52180, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 14, 'Item NCF Category backfill (V27 data)', 60165, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P2', 15, 'DGII-RNC Database legacy table restore (54119 -> 52156)', 60069, 54119, 52156, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 15, 'DGII-RNC Database legacy table restore (54119 -> 52156)', 0, 54119, 52156, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 16, 'NAV POS Customer legacy table restore (54128 -> 52175)', 60165, 54128, 52175, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 17, 'Extract Cards legacy table restore (54120 -> 52160)', 60165, 54120, 52160, 'MA');
         InsConcept('DRLOC', 'DRLOC-P2', 18, 'Gubernamentales(623) legacy table restore (54155 -> 52220)', 60165, 54155, 52220, 'MA');
@@ -177,7 +180,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60169, 54108, 52120, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60169, 54102, 52107, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60169, 54147, 52207, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 49, 'V27 data: recent fiscal corrections', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 49, 'V27 data: recent fiscal corrections', 60169, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P6', 50, 'API Dgi Setup legacy table restore (54159 -> 52231, via generic MigrateTable(caption,sourceId,destId) loop)', 60170, 54159, 52231, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P6', 51, 'EF Send Registry restore', 60170, 54174, 52247, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P6', 52, 'NCF Fiscal Queue restore', 60170, 54173, 52246, 'HIST');
@@ -249,7 +252,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         // Confirmed covered functionally (DRLOC-P2's dispatcher 52210 already has G/L Account +
         // both fields in its own Permissions block), but had no own Concept row - added for
         // visibility/audit, same category as the sibling Item NCF Category backfill (seq14).
-        InsConcept('DRLOC', 'DRLOC-P2', 105, 'G/L Account: NCF Category field restore (DXNCF Categories -> NCFCategories_DXR, same row)', 60069, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P2', 105, 'G/L Account: NCF Category field restore (DXNCF Categories -> NCFCategories_DXR, same row)', 60165, 0, 0, 'MA');
         // Found 2026-08-24 (Batch 4 task): DR-Localization's own RunOrphanedFieldMigrationsRetroactive()
         // calls MigrateFields_ApplicationAreaSetup() unconditionally, alongside the other 12 field
         // restores this batch ports, but this table had ZERO registry row anywhere in MCC before now
@@ -926,35 +929,35 @@ codeunit 60012 "DXR MCC Registry Loader"
 
         // ---- LSLOC: LS Central DR Localization (dispatcher 54506 sequences all phases internally, tag-gated - same ID on every row is correct, matches BC-P2/BC-P3 convention) ----
         InsConcept('LSLOC', 'LSLOC-OPOS', 1, 'OPOS Setup: DXR_Gaps Setup -> DXR_LS OPOS Print Setup field copy (fixes the documented SOLUCION_NCF_UPGRADE.md silent-migration-failure incident)', 60161, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 60162, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 3, 'Archived Consumer Sales 607 dependency-field sync (54104 field range -> 52111, target rows must pre-exist, via "DXR_LS Dependency Fields Upgr." 54512)', 60163, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 4, 'LSDX POS Setup legacy table restore (54300 -> 54492, via "DXR_LS Legacy Tables Upgrade" 54511)', 60162, 54300, 54492, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 60174, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 3, 'Archived Consumer Sales 607 dependency-field sync (54104 field range -> 52111, target rows must pre-exist, via "DXR_LS Dependency Fields Upgr." 54512)', 60178, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 4, 'LSDX POS Setup legacy table restore (54300 -> 54492, via "DXR_LS Legacy Tables Upgrade" 54511)', 60171, 54300, 54492, 'SETUP');
         // Expanded 2026-08-22 from 3 collapsed rows into individual ones - full breakdown read
         // directly from "DXR_LS TableExt Fields Upgrade" (54510), "DXR_LS Dependency Fields Upgr."
         // (54512), and "DXR_LS Legacy Tables Upgrade" (54511) - all 3 kept on dispatcher 54506
         // (the already-established, working entry point that sequences them internally) rather
         // than switching to the sub-codeunit IDs directly, since that invocation path was never
         // independently confirmed safe to call in isolation.
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60162, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60162, 0, 0, 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60162, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60162, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60162, 0, 0, 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60163, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60163, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60163, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 18, 'Report Sales 607 Buffer dependency-field sync (54151 -> 52215, target rows must pre-exist)', 60163, 0, 0, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 19, 'Archived Sales 607 dependency-field sync (54106 -> 52115, target rows must pre-exist)', 60163, 0, 0, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-DEPFLD', 20, 'NCF Sales Setup dependency-field sync (54131 -> 52178, target rows must pre-exist)', 60163, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 21, 'LSDXTender Types Relation legacy table restore (54301 -> 54493)', 60162, 54301, 54493, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 60162, 54302, 54494, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60162, 54324, 54495, 'HIST');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60162, 54328, 54496, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60174, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, 0, 0, 'OTHER');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60172, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, 0, 0, 'OTHER');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60178, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60177, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60177, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 18, 'Report Sales 607 Buffer dependency-field sync (54151 -> 52215, target rows must pre-exist)', 60179, 0, 0, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 19, 'Archived Sales 607 dependency-field sync (54106 -> 52115, target rows must pre-exist)', 60179, 0, 0, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-DEPFLD', 20, 'NCF Sales Setup dependency-field sync (54131 -> 52178, target rows must pre-exist)', 60177, 0, 0, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 21, 'LSDXTender Types Relation legacy table restore (54301 -> 54493)', 60173, 54301, 54493, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 60173, 54302, 54494, 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60176, 54324, 54495, 'HIST');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60176, 54328, 54496, 'HIST');
     end;
 
     local procedure InsExt(Code2: Code[20]; Name2: Text[100]; AppIdText: Text; OrderNo: Integer; Notes2: Text)
@@ -992,6 +995,7 @@ codeunit 60012 "DXR MCC Registry Loader"
     var
         Concept: Record "DXR MCC Concept";
     begin
+        DispatcherId := ResolveCategoryDispatcher(ExtCode, DispatcherId, CategoryCode);
         // Blocked/Blocked Reason are NOT set here - they are operator-controlled state (via the
         // Concept Subform) reflecting whether an extension currently compiles/publishes. Reloading
         // the registry must never silently re-block or re-unblock a concept the operator already
@@ -1019,6 +1023,97 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept.Status := Concept.Status::"Not Counted";
             Concept.Insert(true);
         end;
+    end;
+
+    local procedure ResolveCategoryDispatcher(ExtCode: Code[20]; DispatcherId: Integer; CategoryCode: Code[10]): Integer
+    begin
+        case ExtCode of
+            'DXP':
+                case DispatcherId of
+                    60080: exit(CategoryDispatcher(CategoryCode, 60200, 60201, 60202, 0));
+                    60081: exit(CategoryDispatcher(CategoryCode, 60203, 60204, 0, 0));
+                    60082: exit(CategoryDispatcher(CategoryCode, 60205, 60206, 60207, 0));
+                    60083: exit(CategoryDispatcher(CategoryCode, 60208, 60209, 60210, 0));
+                    60084: exit(CategoryDispatcher(CategoryCode, 60211, 60212, 60213, 0));
+                    60085: exit(CategoryDispatcher(CategoryCode, 60214, 60215, 0, 0));
+                end;
+            'VP':
+                case DispatcherId of
+                    60115: exit(CategoryDispatcher(CategoryCode, 60216, 60217, 0, 0));
+                    60116: exit(CategoryDispatcher(CategoryCode, 0, 60218, 60219, 0));
+                    60118: exit(CategoryDispatcher(CategoryCode, 0, 60220, 60221, 0));
+                    60121: exit(CategoryDispatcher(CategoryCode, 60222, 60223, 60224, 60225));
+                end;
+            'PCM':
+                case DispatcherId of
+                    60122: exit(CategoryDispatcher(CategoryCode, 60226, 60227, 0, 0));
+                    60123: exit(CategoryDispatcher(CategoryCode, 60228, 0, 0, 60229));
+                    60125: exit(CategoryDispatcher(CategoryCode, 60230, 60231, 60232, 60233));
+                end;
+            'TU':
+                if DispatcherId = 60126 then
+                    exit(CategoryDispatcher(CategoryCode, 60234, 60235, 0, 0));
+            'FE':
+                case DispatcherId of
+                    60137: exit(CategoryDispatcher(CategoryCode, 60300, 60301, 0, 0));
+                    60138: exit(CategoryDispatcher(CategoryCode, 0, 60302, 60303, 0));
+                    60139: exit(CategoryDispatcher(CategoryCode, 0, 60304, 60305, 0));
+                    60140: exit(CategoryDispatcher(CategoryCode, 60306, 60307, 60308, 0));
+                end;
+            'BELLON':
+                case DispatcherId of
+                    60146: exit(CategoryDispatcher(CategoryCode, 60309, 60310, 60311, 60312));
+                    60150: exit(CategoryDispatcher(CategoryCode, 60313, 60314, 60315, 60316));
+                    60155: exit(CategoryDispatcher(CategoryCode, 60317, 60318, 0, 0));
+                    60157: exit(CategoryDispatcher(CategoryCode, 60319, 60320, 0, 0));
+                end;
+            'BELLONPOS':
+                if DispatcherId = 60159 then
+                    exit(CategoryDispatcher(CategoryCode, 60321, 0, 60322, 60323));
+            'DRLOC':
+                case DispatcherId of
+                    60165: exit(CategoryDispatcher(CategoryCode, 60324, 60325, 0, 0));
+                    60167: exit(CategoryDispatcher(CategoryCode, 0, 60326, 60327, 0));
+                    60168: exit(CategoryDispatcher(CategoryCode, 0, 60328, 60329, 0));
+                    60169: exit(CategoryDispatcher(CategoryCode, 0, 60330, 60331, 0));
+                    60170: exit(CategoryDispatcher(CategoryCode, 60332, 0, 60333, 60334));
+                end;
+            'DESB':
+                if DispatcherId = 60127 then
+                    case CategoryCode of
+                        'SETUP': exit(60250);
+                        'MA': exit(60251);
+                        'HIST': exit(60252);
+                        'OTHER': exit(60253);
+                    end;
+            'DESLS':
+                if DispatcherId in [60129, 60130] then
+                    case CategoryCode of
+                        'SETUP': exit(60254);
+                        'MA': exit(60255);
+                        'HIST': exit(60256);
+                        'OTHER': exit(60257);
+                    end;
+            'RC':
+                if DispatcherId in [60131, 60135] then
+                    case CategoryCode of
+                        'SETUP': exit(60258);
+                        'HIST': exit(60259);
+                        'OTHER': exit(60260);
+                    end;
+        end;
+        exit(DispatcherId);
+    end;
+
+    local procedure CategoryDispatcher(CategoryCode: Code[10]; SetupId: Integer; MasterId: Integer; HistoricId: Integer; OtherId: Integer): Integer
+    begin
+        case CategoryCode of
+            'SETUP': if SetupId <> 0 then exit(SetupId);
+            'MA': if MasterId <> 0 then exit(MasterId);
+            'HIST': if HistoricId <> 0 then exit(HistoricId);
+            'OTHER': if OtherId <> 0 then exit(OtherId);
+        end;
+        Error('No category dispatcher is registered for category %1.', CategoryCode);
     end;
 
     local procedure CategoryOption(CategoryCode: Code[10]): Option Setup,"Master/Accounting",Historic,Other

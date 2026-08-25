@@ -484,6 +484,45 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
         UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase6CompletedTag());
     end;
 
+    procedure RunSetup()
+    begin
+        MigrateAPIDgiSetup();
+        MigrateBankCommissionSetup();
+        MigrateDependenciesMetadata();
+        MigratePurchaseTypeRelationV27();
+        MigrateTipoServicioAdquirido();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateEFSendRegistry();
+        MigrateNCFFiscalQueue();
+        MigrateArchivedBankChargesLines();
+        MigrateArchivedConsumerSales607();
+        MigrateArchivedPurchase606Buffer();
+        MigrateBankChargesLines();
+        MigrateCashReceiptHeader();
+        MigrateCashReceiptLine();
+        MigrateConsumerSales607Buffer();
+        MigrateCustomerWithholdingEntries();
+        MigrateCustomerWithholdingHeader();
+        MigrateDetalleServicioAdquirido();
+        MigrateDGIApiServices();
+        MigrateDGIApiServicesFindByName();
+        MigrateDGIITempTable();
+        MigrateHistoryPurchaseHeader();
+        MigrateHistoryPurchaseLine();
+        MigrateNCFProcessRegistration();
+        MigrateReportLogs();
+        MigrateReportSales607Buffer();
+        MigrateSendingPayServicesAbroad609();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateOmittedStandardTableFields();
+    end;
+
     // No periodic Commit() - Application Area Setup is a tiny per-company setup table; Purchase
     // Header/Sales Header hold only currently-open (not-yet-posted) documents, not ever-growing
     // history tables (see codeunit-level Commit() placement comment).

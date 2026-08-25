@@ -61,17 +61,53 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         tabledata Field = R;
 
     trigger OnRun()
+    begin
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+        RunOther();
+    end;
+
+    procedure RunSetup()
     var
         ErrorText: Text;
     begin
         if not MergeVPSetupTable(ErrorText) then
             Error(ErrorText);
+        if not MergeVPVendorPayGroupTable(ErrorText) then
+            Error(ErrorText);
+        if not MergeVPCurrencyRelationTable(ErrorText) then
+            Error(ErrorText);
+        if not MergeVPProvinciaTable(ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunMaster()
+    var
+        ErrorText: Text;
+    begin
         if not MergeTableStep(Database::"DXR_VP Payload Header_Old", Database::"DXR_VP Payload Header", 'TBL-PAYLOAD-HEADER', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Payload Journal Lin_Old", Database::"DXR_VP Payload Journal Lines", 'TBL-PAYLOAD-JOURNAL-LINES', ErrorText) then
             Error(ErrorText);
-        if not MergeVPVendorPayGroupTable(ErrorText) then
+        if not MergeTableStep(Database::"DXR_VP Jounal Bank Account_Old", Database::"DXR_VP Jounal Bank Account", 'TBL-JOURNAL-BANK-ACCOUNT', ErrorText) then
             Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VP Order Item Status_Old", Database::"DXR_VP Order Item Status", 'TBL-ORDER-ITEM-STATUS', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VP Bank_Old", Database::"DXR_VP Bank", 'TBL-BANK', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VPCargaMasBeneficiario_Old", Database::DXR_VPCargaMasBeneficiariosBPD, 'TBL-CARGA-MASIVA-BENEF-BPD', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VPLineasCargaMasivaBen_Old", Database::"DXR_VPLineasCargaMasivaBen.BPD", 'TBL-LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
+            Error(ErrorText);
+        if not MergeTableStep(Database::"DXR_VPOrderNoRelPayment_Old", Database::DXR_VPOrderNoRelPayment, 'TBL-ORDER-NO-REL-PAYMENT', ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunHistoric()
+    var
+        ErrorText: Text;
+    begin
         if not MergeTableStep(Database::"DXR_VP Historic Payload He_Old", Database::"DXR_VP Historic Payload Header", 'TBL-HISTORIC-PAYLOAD-HEADER', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Historic Payload Li_Old", Database::"DXR_VP Historic Payload Lines", 'TBL-HISTORIC-PAYLOAD-LINES', ErrorText) then
@@ -80,17 +116,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Logs_Old", Database::"DXR_VP Logs", 'TBL-LOGS', ErrorText) then
             Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Jounal Bank Account_Old", Database::"DXR_VP Jounal Bank Account", 'TBL-JOURNAL-BANK-ACCOUNT', ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Order Item Status_Old", Database::"DXR_VP Order Item Status", 'TBL-ORDER-ITEM-STATUS', ErrorText) then
-            Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Order Status Log_Old", Database::"DXR_VP Order Status Log", 'TBL-ORDER-STATUS-LOG', ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VP Bank_Old", Database::"DXR_VP Bank", 'TBL-BANK', ErrorText) then
-            Error(ErrorText);
-        if not MergeVPCurrencyRelationTable(ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VPCargaMasBeneficiario_Old", Database::DXR_VPCargaMasBeneficiariosBPD, 'TBL-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VPHisCargaMasBenefBPD_Old", Database::DXR_VPHisCargaMasBenefBPD, 'TBL-HIS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
             Error(ErrorText);
@@ -98,17 +124,14 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Hist. Beneficiarios_Old", Database::"DXR_VP Hist. Beneficiarios BPD", 'TBL-HIST-BENEFICIARIOS-BPD', ErrorText) then
             Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VPLineasCargaMasivaBen_Old", Database::"DXR_VPLineasCargaMasivaBen.BPD", 'TBL-LINEAS-CARGA-MASIVA-BENEF-BPD', ErrorText) then
-            Error(ErrorText);
-        if not MergeVPProvinciaTable(ErrorText) then
-            Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP API Log Entry_Old", Database::"DXR_VP API Log Entry", 'TBL-API-LOG-ENTRY', ErrorText) then
-            Error(ErrorText);
-        if not MergeTableStep(Database::"DXR_VPOrderNoRelPayment_Old", Database::DXR_VPOrderNoRelPayment, 'TBL-ORDER-NO-REL-PAYMENT', ErrorText) then
             Error(ErrorText);
         if not MergeTableStep(Database::"DXR_VP Response Log_Old", Database::"DXR_VP Response Log", 'TBL-RESPONSE-LOG', ErrorText) then
             Error(ErrorText);
+    end;
 
+    procedure RunOther()
+    begin
         MergeBankAccountFields();
         MergeGenJournalLineFields();
         MergePostCodeFields();

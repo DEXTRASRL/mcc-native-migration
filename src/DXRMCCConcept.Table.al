@@ -68,8 +68,8 @@ table 60001 "DXR MCC Concept"
         field(12; "Status"; Option)
         {
             Caption = 'Status';
-            OptionMembers = "Not Counted",Pending,Running,Completed,"Completed With Gaps",Error,"Not Row-Based","Completed (Fallback)";
-            OptionCaption = 'Not Counted,Pending,Running,Completed,Completed With Gaps,Error,Not Row-Based,Completed (Fallback)';
+            OptionMembers = "Not Counted",Pending,Running,Completed,"Completed With Gaps",Error,"Not Row-Based","Completed (Fallback)",Skipped;
+            OptionCaption = 'Not Counted,Pending,Running,Completed,Completed With Gaps,Error,Not Row-Based,Completed (Fallback),Skipped';
             // "Completed (Fallback)" appended at the end deliberately - new OptionMembers must go
             // last so already-stored numeric Status values on existing rows don't shift meaning.
             DataClassification = SystemMetadata;

@@ -22,7 +22,8 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
     // (54513) Execute() - no logic duplicated, no new codeunit created in LSLOC.
     Permissions =
         tabledata User = R,
-        tabledata "Access Control" = RIM;
+        tabledata "Access Control" = RIM,
+        tabledata "DXR_Gaps Setup" = RI;
 
     trigger OnRun()
     begin
@@ -95,8 +96,19 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
 
     local procedure Execute()
     var
+        GapsSetup: Record "DXR_Gaps Setup";
         LSLOCDispatcher: Codeunit "DXR_LS Migr. Dispatcher";
     begin
+        // The LSLOC worker reads the DRLOC singleton with an unconditional Get(). A newly-created
+        // company can legitimately have no row yet, so establish the empty-key singleton before
+        // crossing the public wrapper boundary instead of allowing a normal missing setup row to
+        // abort the complete Setup run.
+        if not GapsSetup.Get('') then begin
+            GapsSetup.Init();
+            GapsSetup."Key" := '';
+            GapsSetup.Insert(false);
+        end;
+
         LSLOCDispatcher.RunOPOSSetupFromGapsSetup();
     end;
 }

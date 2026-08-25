@@ -11,10 +11,20 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
 
     trigger OnRun()
     begin
+        RunSetup();
+        RunMaster();
+    end;
+
+    procedure RunSetup()
+    begin
         CopyInfocodeFields();
         CopyPOSTerminalFields();
-        CopyPOSTransLineFields();
         CopyTenderTypeFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        CopyPOSTransLineFields();
         CopyTransPaymentEntryFields();
     end;
 

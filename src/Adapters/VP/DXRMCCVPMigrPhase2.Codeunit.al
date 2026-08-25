@@ -21,6 +21,12 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
         tabledata Field = R;
 
     trigger OnRun()
+    begin
+        RunMaster();
+        RunHistoric();
+    end;
+
+    procedure RunMaster()
     var
         ErrorText: Text;
     begin
@@ -35,9 +41,15 @@ codeunit 60116 "DXR MCC VP Migr Phase2"
             Error(ErrorText);
         if not MigrateTableStep(Database::"VP Order Item Status", Database::"DXR_VP Order Item Status", 'ORDER-ITEM-STATUS', ErrorText) then
             Error(ErrorText);
-        if not MigrateTableStep(Database::"VP Order Status Log", Database::"DXR_VP Order Status Log", 'ORDER-STATUS-LOG', ErrorText) then
-            Error(ErrorText);
         if not MigrateTableStep(Database::VPOrderNoRelPayment, Database::DXR_VPOrderNoRelPayment, 'ORDER-NO-REL-PAYMENT', ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunHistoric()
+    var
+        ErrorText: Text;
+    begin
+        if not MigrateTableStep(Database::"VP Order Status Log", Database::"DXR_VP Order Status Log", 'ORDER-STATUS-LOG', ErrorText) then
             Error(ErrorText);
     end;
 

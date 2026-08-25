@@ -22,11 +22,21 @@ codeunit 60135 "DXR MCC RC Migr Phase5"
         if UpgradeTag.HasUpgradeTag('DXR-RC-PHASE5-TABLEIDCOLLISION-RETROACTIVE-20260820') then
             exit;
 
-        CopyLYTControlsSetup();
-        CopyPosControlsSetup();
-        CopyInternalMigrStatus();
+        RunSetup();
+        RunHistoric();
 
         UpgradeTag.SetUpgradeTag('DXR-RC-PHASE5-TABLEIDCOLLISION-RETROACTIVE-20260820');
+    end;
+
+    procedure RunSetup()
+    begin
+        CopyLYTControlsSetup();
+        CopyPosControlsSetup();
+    end;
+
+    procedure RunHistoric()
+    begin
+        CopyInternalMigrStatus();
     end;
 
     local procedure CopyLYTControlsSetup()

@@ -93,46 +93,66 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
 
     trigger OnRun()
     begin
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+        RunOther();
+    end;
+
+    procedure RunSetup()
+    begin
         AssignPermissionSetsToAllUsers();
-        MigrateTable01();
         MigrateTable02();
         MigrateTable03();
-        MigrateTable04();
-        MigrateTable05();
         MigrateTable06();
-        MigrateTable07();
         MigrateTable08();
         MigrateTable09();
-        MigrateTable10();
-        MigrateTable11();
-        MigrateTable12();
-        MigrateTable13();
         MigrateTable14();
-        MigrateTable15();
-        MigrateTable16();
         MigrateTable17();
-        MigrateTable18();
         MigrateTable19();
         MigrateTable20();
-        MigrateTable21();
-        MigrateTable22();
-        MigrateTable23();
-        MigrateTable24();
-        MigrateTable25();
-        MigrateTable26();
-        MigrateTable27();
         MigrateTable28();
+        MigrateTable37();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateTable01();
+        MigrateTable12();
+        MigrateTable13();
+        MigrateTable27();
         MigrateTable29();
         MigrateTable30();
         MigrateTable31();
-        MigrateTable32();
         MigrateTable33();
         MigrateTable34();
         MigrateTable35();
-        MigrateTable36();
-        MigrateTable37();
         MigrateTable38();
         MigrateTable39();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateTable05();
+        MigrateTable07();
+        MigrateTable10();
+        MigrateTable11();
+        MigrateTable15();
+        MigrateTable16();
+        MigrateTable18();
+        MigrateTable21();
+        MigrateTable22();
+        MigrateTable24();
+        MigrateTable25();
+        MigrateTable26();
+        MigrateTable36();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateTable04();
+        MigrateTable23();
+        MigrateTable32();
     end;
 
     local procedure AssignPermissionSetsToAllUsers()

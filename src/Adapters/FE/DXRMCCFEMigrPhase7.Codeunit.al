@@ -98,11 +98,14 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     begin
         if LegacySetup.FindSet() then
             repeat
-                if NewSetup.Get(LegacySetup.DXCodigo) then begin
-                    NewSetup."Alternal No. Series_DXR" := LegacySetup."EF Alternal No. Series";
-                    NewSetup."Alt No. Series NC_DXR" := LegacySetup."EF Alternal No. Series NC";
-                    NewSetup.Modify(false);
+                if not NewSetup.Get(LegacySetup.DXCodigo) then begin
+                    NewSetup.Init();
+                    NewSetup."DXCodigo" := LegacySetup.DXCodigo;
+                    NewSetup.Insert(false);
                 end;
+                NewSetup."Alternal No. Series_DXR" := LegacySetup."EF Alternal No. Series";
+                NewSetup."Alt No. Series NC_DXR" := LegacySetup."EF Alternal No. Series NC";
+                NewSetup.Modify(false);
             until LegacySetup.Next() = 0;
     end;
 
@@ -118,11 +121,14 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     begin
         if LegacySetup.FindSet() then
             repeat
-                if NewSetup.Get(LegacySetup.Codigo) then begin
-                    NewSetup."Alternal No. Series_DXR" := LegacySetup."EF Alternal No. Series";
-                    NewSetup."Alt No. Series NC_DXR" := LegacySetup."EF Alternal No. Series NC";
-                    NewSetup.Modify(false);
+                if not NewSetup.Get(LegacySetup.Codigo) then begin
+                    NewSetup.Init();
+                    NewSetup.Codigo := LegacySetup.Codigo;
+                    NewSetup.Insert(false);
                 end;
+                NewSetup."Alternal No. Series_DXR" := LegacySetup."EF Alternal No. Series";
+                NewSetup."Alt No. Series NC_DXR" := LegacySetup."EF Alternal No. Series NC";
+                NewSetup.Modify(false);
             until LegacySetup.Next() = 0;
     end;
 
@@ -137,10 +143,13 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     begin
         if LegacySetup.FindSet() then
             repeat
-                if NewSetup.Get(LegacySetup."Primary Key") then begin
-                    NewSetup."Base URL_DXR" := LegacySetup."EF Base URL";
-                    NewSetup.Modify(false);
+                if not NewSetup.Get(LegacySetup."Primary Key") then begin
+                    NewSetup.Init();
+                    NewSetup."Primary Key" := LegacySetup."Primary Key";
+                    NewSetup.Insert(false);
                 end;
+                NewSetup."Base URL_DXR" := LegacySetup."EF Base URL";
+                NewSetup.Modify(false);
             until LegacySetup.Next() = 0;
     end;
 
@@ -159,11 +168,15 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
     begin
         if LegacyRelation.FindSet() then
             repeat
-                if NewRelation.Get(LegacyRelation.Code, LegacyRelation."Payment Method Code") then begin
-                    NewRelation."Payment Type_DXR" := Enum::"DXR_Payment Type".FromInteger(LegacyRelation."EF Payment Type".AsInteger());
-                    NewRelation."Payment Type Form_DXR" := LegacyRelation."EF Payment Type Form";
-                    NewRelation.Modify(false);
+                if not NewRelation.Get(LegacyRelation.Code, LegacyRelation."Payment Method Code") then begin
+                    NewRelation.Init();
+                    NewRelation.Code := LegacyRelation.Code;
+                    NewRelation."Payment Method Code" := LegacyRelation."Payment Method Code";
+                    NewRelation.Insert(false);
                 end;
+                NewRelation."Payment Type_DXR" := Enum::"DXR_Payment Type".FromInteger(LegacyRelation."EF Payment Type".AsInteger());
+                NewRelation."Payment Type Form_DXR" := LegacyRelation."EF Payment Type Form";
+                NewRelation.Modify(false);
             until LegacyRelation.Next() = 0;
     end;
 

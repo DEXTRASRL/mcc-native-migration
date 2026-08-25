@@ -295,6 +295,36 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
         UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase5CompletedTag());
     end;
 
+    procedure RunMaster()
+    begin
+        RepairVendorWithholdingMigration();
+        BootstrapDetailedCustLedgEntryFields();
+        BootstrapUpdateWithholdingEntries();
+        BootstrapFix606CategoriaNCFAndITBISAdelantar();
+        BootstrapFix606ISRWithholdingTypeBlank();
+        BootstrapFixVLEWithholdingApplyType();
+        BootstrapBackfillWithholdingPaymentAndCodes();
+        BootstrapFix606WithholdingByVendor();
+        BootstrapFix606WithholdingByVendorV2();
+        BootstrapFix606WithholdingByVendorV3();
+        BootstrapSync606ChargeHistoryNCF();
+        BootstrapArchivedBankChargesHdrTable();
+        BootstrapWithholdingGovernHeaderTable();
+        BootstrapBankChargesHeaderTable();
+        BootstrapCredCardChargesHeaderTable();
+        BootstrapCredCardChargesLinesTable();
+        BootstrapWithholdingGovernLinesTable();
+    end;
+
+    procedure RunHistoric()
+    begin
+        BootstrapArchWithholdingGovHdrTable();
+        BootstrapArchCCChargesHeaderTable();
+        BootstrapArchCCChargesLinesTable();
+        BootstrapArchWithholdGovLinesTable();
+        BootstrapMessageLogTable();
+    end;
+
     // ===== RepairVendorWithholdingMigration (unconditional, no registry row - see header note) =====
     local procedure RepairVendorWithholdingMigration()
     var

@@ -165,7 +165,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         tabledata "DXR_Gubernamentales(623)" = RIM,
         tabledata Item = RM,
         tabledata "General Posting Setup" = R,
-        tabledata "G/L Account" = R,
+        tabledata "G/L Account" = RM,
         tabledata "DXPayment Methods 606-607" = R,
         tabledata "DXR_Payment Methods 606-607" = RIM,
         tabledata "DXPurchase Type Relation" = R,
@@ -251,12 +251,64 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         // from "DXR_Migr. Phase 2 Fiscal"'s OnRun(), before that codeunit's own Phase2CompletedTag()
         // gate check - deliberately left OUTSIDE the gate above, matching that same real structure.
         BootstrapApplicationAreaSetupFields();
+        BootstrapGLAccountNCFCategory();
         BootstrapCustLedgerEntryFields();
         BootstrapBankAccountCheckLedgerEntryFields();
         BootstrapGLEntryGLRegisterFields();
         BootstrapGenJournalLineItemLedgerEntryFields();
         BootstrapPriceListLineReversalEntryFields();
         BootstrapVendorLedgerEntryFields();
+    end;
+
+    procedure RunSetup()
+    begin
+        BootstrapCompanyInformationFields();
+        BootstrapNCFSetupTables();
+        BootstrapWithholdingPaymentOtherSetupTables();
+        BootstrapApplicationAreaSetupFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        BootstrapBankAccountCustomerVendorFields();
+        BootstrapGLUserSetupJournalFields();
+        BootstrapItemNCFCategoryBackfill();
+        BootstrapNAVPOSCustomerTable();
+        BootstrapExtractCardsTable();
+        BootstrapGubernamentales623Table();
+        BootstrapGLAccountNCFCategory();
+        BootstrapCustLedgerEntryFields();
+        BootstrapBankAccountCheckLedgerEntryFields();
+        BootstrapGLEntryGLRegisterFields();
+        BootstrapGenJournalLineItemLedgerEntryFields();
+        BootstrapPriceListLineReversalEntryFields();
+        BootstrapVendorLedgerEntryFields();
+    end;
+
+    local procedure BootstrapGLAccountNCFCategory()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+        GLAccount: Record "G/L Account";
+        BatchCount: Integer;
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-DRLOC-GLACCOUNT-NCFCATEGORY-20260825.') then
+            exit;
+
+        if GLAccount.FindSet(true) then
+            repeat
+                if GLAccount."NCFCategories_DXR" <> GLAccount."DXNCF Categories" then begin
+                    GLAccount."NCFCategories_DXR" := GLAccount."DXNCF Categories";
+                    GLAccount.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until GLAccount.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag('DXR-MCC-DRLOC-GLACCOUNT-NCFCATEGORY-20260825.');
     end;
 
     // ===== seq9: Bootstrap: CompanyInformation fields =====

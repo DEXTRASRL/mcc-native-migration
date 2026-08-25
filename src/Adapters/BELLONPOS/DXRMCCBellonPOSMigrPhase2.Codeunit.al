@@ -23,6 +23,30 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         MigrateAllNormalizedTables();
     end;
 
+    procedure RunSetup()
+    begin
+        MigrateTableExt_BEDXSetupFields();
+        MigrateTableExt_LSCPOSTerminalFields();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateTableExt_LSCTransServerTableLogFields();
+        MigrateLegacyTableData(50300, 53563);
+        MigrateLegacyTableData(50301, 53564);
+        MigrateLegacyTableData(50302, 53565);
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateTableExt_LSCMembershipCardFields();
+        MigrateTableExt_LSCCouponHeaderFields();
+        MigrateTableExt_LSCPOSTransLineFields();
+        MigrateTableExt_LSCPOSCommandFields();
+        MigrateTableExt_LSCPOSTransactionFields();
+        MigrateTableExt_LSCTransSalesEntryFields();
+    end;
+
     local procedure MigrateAllTableExtensionFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -221,6 +245,11 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
                     end;
                 end;
                 NewRecRef.Insert(false);
+                // 2026-08-25 fix: same missing-Close bug as BELLON's identical helper
+                // (DXRMCCBellonMigrPhase2/Phase6) - NewRecRef.Open() inside this loop without a
+                // per-iteration Close() threw "The record is already open." on the 2nd+ row of any
+                // multi-row table still served by this shared helper, aborting the whole OnRun().
+                NewRecRef.Close();
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
     end;

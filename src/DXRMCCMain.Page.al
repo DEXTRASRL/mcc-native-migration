@@ -57,7 +57,7 @@ page 60020 "DXR Migration Control Center"
                 Caption = 'Run All Phases For This Extension';
                 ApplicationArea = All;
                 Image = Start;
-                ToolTip = 'Runs every non-blocked phase for this extension immediately, in this session (2026-08-22: changed from background scheduling to instant execution on request - a large extension''s full chain can take a while to return). Result also logged to DXR MCC Run Requests/Run Log.';
+                ToolTip = 'Schedules every non-blocked phase for this extension as an immediate background task. The page never executes a dispatcher synchronously; monitor status, heartbeat and outcome in DXR MCC Run Requests/Run Log.';
                 trigger OnAction()
                 var
                     Executor: Codeunit "DXR MCC Executor";
@@ -65,7 +65,7 @@ page 60020 "DXR Migration Control Center"
                     Executor.ScheduleExtension(Rec.Code);
                     CurrPage.Update(false);
                     CurrPage.Concepts.Page.Update(false);
-                    Message('Done. See "DXR MCC Run Requests" (or Run Log) for the result summary for %1.', Rec.Code);
+                    Message('Scheduled. Open "DXR MCC Run Requests" to monitor %1, or Run Log for dispatcher details.', Rec.Code);
                 end;
             }
             action(RunPortfolio)

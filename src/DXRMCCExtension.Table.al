@@ -58,6 +58,6 @@ table 60000 "DXR MCC Extension"
         {
             Clustered = true;
         }
-        key(Order; "Order No.") { }
+        key(Order; "Order No.", Code) { }
     }
 }

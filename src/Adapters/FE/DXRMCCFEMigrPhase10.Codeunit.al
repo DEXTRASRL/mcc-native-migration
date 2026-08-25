@@ -38,6 +38,20 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V5-PHASE4-SALES-FIELDS-20260625');
     end;
 
+    procedure RunMaster()
+    begin
+        CopySalesHeaderFields();
+        CopySalesLineFields();
+    end;
+
+    procedure RunHistoric()
+    begin
+        CopySalesCrMemoHeaderFields();
+        CopySalesCrMemoLineFields();
+        CopySalesInvoiceHeaderFields();
+        CopySalesInvoiceLineFields();
+    end;
+
     local procedure MigrateSalesTableExtensionFields()
     begin
         CopySalesCrMemoHeaderFields();

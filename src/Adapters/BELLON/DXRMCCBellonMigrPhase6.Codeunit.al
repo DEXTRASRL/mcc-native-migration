@@ -20,6 +20,136 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
         UpgradeTag.SetUpgradeTag('DXR-TableIdRenumberRestore283');
     end;
 
+    procedure RunSetup()
+    begin
+        MigrateAGRSetupOld2Table(); // DXR_AGR Setup Old2 (59233) -> DXR_AGR Setup (53303) - native
+        MigrateAjusteInventarioConfigOld2Table(); // DXR_Ajuste Inventario Con Old2 (59234) -> DXR_Ajuste Inventario Config (53304) - native
+        MigrateAreaDeTrabajoOld2Table(); // DXR_Area de Trabajo Old2 (59236) -> DXR_Area de Trabajo (53306) - native
+        MigrateCategoriaServiciosOld2Table(); // DXR_Categoria Servicios Old2 (59243) -> DXR_Categoria Servicios (53313) - native
+        MigrateCilindrosSetupOld2Table(); // DXR_Cilindros - Setup Old2 (59245) -> DXR_Cilindros - Setup (53315) - native
+        MigrateConfExtractoBancarioOld2Table(); // DXR_Conf. Extracto Bancar Old2 (59248) -> DXR_Conf. Extracto Bancario (53318) - native
+        MigrateConfigNCFVentasOld2Table(); // DXR_Config. NCF Ventas Old2 (59249) -> DXR_Config. NCF Ventas (53319) - native
+        MigrateConfigNCFVentasSTDOld2Table(); // DXR_Config. NCF Ventas ST Old2 (59250) -> DXR_Config. NCF Ventas STD (53320) - native
+        MigrateConfigPolizasOld2Table(); // DXR_Config. Polizas Old2 (59251) -> DXR_Config. Polizas (53321) - native
+        MigrateConfiguracionCBOld2Table(); // DXR_Configuracion CB Old2 (59252) -> DXR_Configuracion CB (53322) - native
+        MigrateConfiguracionDiscrepanciasOld2Table(); // DXR_Config - Discr Old2 (59253) -> DXR_Config - Discr (53323) - native
+        MigrateConfiguracionEncuestasPOSOld2Table(); // DXR_Config Encuestas - PO Old2 (59254) -> DXR_Config Encuestas - POS (53324) - native
+        MigrateConfiguracionesRequisicionOld2Table(); // DXR_Config Req Old2 (59255) -> DXR_Config Req (53325) - native
+        MigrateConfiguracionMedalliaOld2Table(); // DXR_Configuracion - MEDAL Old2 (59256) -> DXR_Configuracion - MEDALLIA (53326) - native
+        MigrateConfPagosEcommerceAzulOld2Table(); // DXR_Conf. Pagos Ecommerce Old2 (59257) -> DXR_Conf. Pagos Ecommerce Azul (53327) - native
+        MigrateControlProcesosPorAlmacenOld2Table(); // DXR_Control Proc por Alma Old2 (59258) -> DXR_Control Proc por Almacen (53328) - native
+        MigrateDrawSetupOld2Table(); // DXR_Draw Setup Old2 (59262) -> DXR_Draw Setup (53332) - native
+        MigrateEmailSourceTemplateRelationOld2Table(); // DXR_Email Source Tmpl Rel Old2 (59263) -> DXR_Email Source Tmpl Rel (53333) - native
+        MigrateEPagosSetupOld2Table(); // DXR_EPagos Setup Old2 (59266) -> DXR_EPagos Setup (53336) - native
+        MigrateExcludeFilterJournalOld2Table(); // DXR_Exclude Filter Journal Old2 (59267) -> DXR_Exclude Filter Journal (53337) - native
+        MigrateExcluirTerminosItemSearchOld2Table(); // DXR_Excluir Term - ItemSearch Old2 (59268) -> DXR_Excluir Term - ItemSearch (53338) - native
+        MigrateFileStructureOld2Table(); // DXR_File Structure Old2 (59269) -> DXR_File Structure (53339) - native
+        MigrateFormaDePagoOld2Table(); // DXR_Forma de Pago Old2 (59270) -> DXR_Forma de Pago (53340) - native
+        MigrateInventoryMasksOld2Table(); // DXR_Inventory Masks Old2 (59288) -> DXR_Inventory Masks (53358) - native
+        MigrateMarcasOld2Table(); // DXR_Marcas Old2 (59301) -> DXR_Marcas (53371) - native
+        MigrateMemberManagementSetupOld2Table(); // DXR_Member Management Setup Old2 (59302) -> DXR_Member Management Setup (53372) - native
+        MigrateMotivoCierreDiscrepanciasOld2Table(); // DXR_Motivo Cierre - Discr Old2 (59303) -> DXR_Motivo Cierre - Discr (53373) - native
+        MigrateMotivoDiscrepanciaOld2Table(); // DXR_Motivo Discrepancia Old2 (59304) -> DXR_Motivo Discrepancia (53374) - native
+        MigrateProfesionOld2Table(); // DXR_Profesion Old2 (59315) -> DXR_Profesion (53385) - native
+        MigratePromotionSetupOld2Table(); // DXR_Promotion Setup Old2 (59316) -> DXR_Promotion Setup (53386) - native
+        MigrateProvinciaOld2Table(); // DXR_Provincia Old2 (59318) -> DXR_Provincia (53388) - native
+        MigrateSalesDeptOld2Table(); // DXR_Sales Dept Old2 (59322) -> DXR_Sales Dept (53392) - native
+        MigrateSalesGroupsOld2Table(); // DXR_Sales Groups Old2 (59323) -> DXR_Sales Groups (53393) - native
+        MigrateSalesSubGroupsOld2Table(); // DXR_Sales SubGroups Old2 (59324) -> DXR_Sales SubGroups (53394) - native
+        MigrateStdPOSDASCOMPaymtEqvOld2Table(); // DXR_Std POS DASCOM Paymt Old2 (59326) -> DXR_Std POS DASCOM Paymt Eqv (53396) - native
+        MigrateStandardPOSGenCommentsOld2Table(); // DXR_Standard POS Gen. Com Old2 (59327) -> DXR_Standard POS Gen. Comments (53397) - native
+        MigrateStandardPOSUsersOld2Table(); // DXR_Standard POS Users Old2 (59328) -> DXR_Standard POS Users (53398) - native
+        MigrateSummaryReconSetupOld2Table(); // DXR_Summary Recon Setup Old2 (59330) -> DXR_Summary Recon Setup (53400) - native
+        MigrateTasasBCOld2Table(); // DXR_Tasas BC Old2 (59331) -> DXR_Tasas BC (53401) - native
+        MigrateTipoDeContenedorOld2Table(); // DXR_Tipo de Contenedor Old2 (59334) -> DXR_Tipo de Contenedor (53404) - native
+        MigrateTipoGasOld2Table(); // DXR_Tipo Gas Old2 (59335) -> DXR_Tipo Gas (53405) - native
+        MigrateTiposOAgentesOld2Table(); // DXR_Tipos o Agentes Old2 (59336) -> DXR_Tipos o Agentes (53406) - native
+        MigrateTratadosArancelariosOld2Table(); // DXR_Tratados Arancelarios Old2 (59338) -> DXR_Tratados Arancelarios (53408) - native
+        MigrateUserApproverByBuyerGroupOld2Table(); // DXR_UserApproverByBuyerGr Old2 (59339) -> DXR_UserApproverByBuyerGroup (53409) - native
+        MigrateUserByBuyerGroupOld2Table(); // DXR_UserByBuyerGroup Old2 (59340) -> DXR_UserByBuyerGroup (53410) - native
+        MigrateVATBusSettingsOld2Table(); // DXR_VAT Bus. Settings Old2 (59344) -> DXR_VAT Bus. Settings (53414) - native
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateLegacyTableData(59237, 53307); // DXR_Bancos - Extracto Bancario restored at true original ID
+        MigrateLegacyTableData(59238, 53308); // DXR_Bank restored at true original ID
+        MigrateLegacyTableData(59239, 53309); // DXR_Bank Relation restored at true original ID
+        MigrateLegacyTableData(59242, 53312); // DXR_Carga Masiva Benef BPD restored at true original ID
+        MigrateLegacyTableData(59244, 53314); // DXR_Cilindros restored at true original ID
+        MigrateLegacyTableData(59259, 53329); // DXR_Conversion Costo restored at true original ID
+        MigrateLegacyTableData(59261, 53331); // DXR_Detalle - Extr Bancario restored at true original ID
+        MigrateLegacyTableData(59264, 53334); // DXR_Entrega Fact CxC - Lines restored at true original ID
+        MigrateLegacyTableData(59265, 53335); // DXR_Envio Compras restored at true original ID
+        MigrateLegacyTableData(59272, 53342); // DXR_Grupo Venta restored at true original ID
+        MigrateLegacyTableData(59285, 53355); // DXR_Int Consump Header restored at true original ID
+        MigrateLegacyTableData(59286, 53356); // DXR_Internal Consumption Line restored at true original ID
+        MigrateLegacyTableData(59289, 53359); // DXR_Item HTML restored at true original ID
+        MigrateLegacyTableData(59290, 53360); // DXR_Item Image View restored at true original ID
+        MigrateLegacyTableData(59291, 53361); // DXR_ItemNo Desliquidacion restored at true original ID
+        MigrateLegacyTableData(59292, 53362); // DXR_Journal Promotion Tickets restored at true original ID
+        MigrateLegacyTableData(59294, 53364); // DXR_Lin Carga Masiva Ben. BPD restored at true original ID
+        MigrateLegacyTableData(59305, 53375); // DXR_Movimientos de Cilindro restored at true original ID
+        MigrateLegacyTableData(59306, 53376); // DXR_Order Item Status restored at true original ID
+        MigrateLegacyTableData(59308, 53378); // DXR_Pre Req LineNoStockValid restored at true original ID
+        MigrateLegacyTableData(59309, 53379); // DXR_Pre Req no Stock Valid restored at true original ID
+        MigrateLegacyTableData(59310, 53380); // DXR_Pre-Requisicion restored at true original ID
+        MigrateLegacyTableData(59311, 53381); // DXR_Pre-Requisicion Line restored at true original ID
+        MigrateLegacyTableData(59312, 53382); // DXR_Pre-Req Line No Stock restored at true original ID
+        MigrateLegacyTableData(59313, 53383); // DXR_Pre-Requisicion no Stock restored at true original ID
+        MigrateLegacyTableData(59317, 53387); // DXR_Promotion Tickets Relation restored at true original ID
+        MigrateLegacyTableData(59319, 53389); // DXR_Requisicion restored at true original ID
+        MigrateLegacyTableData(59320, 53390); // DXR_Requisicion Comment Line restored at true original ID
+        MigrateLegacyTableData(59321, 53391); // DXR_Requisicion Line restored at true original ID
+        MigrateLegacyTableData(59329, 53399); // DXR_Store Statement Posting restored at true original ID
+        MigrateLegacyTableData(59332, 53402); // DXR_Tickets By Offer restored at true original ID
+        MigrateLegacyTableData(59333, 53403); // DXR_Tickets Entry restored at true original ID
+        MigrateLegacyTableData(59342, 53412); // DXR_UserPromo Apps restored at true original ID
+        MigrateLegacyTableData(59343, 53413); // DXR_Valoracion de Inventario restored at true original ID
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateLegacyTableData(59232, 53302); // DXR_AGR Log restored at true original ID
+        MigrateLegacyTableData(59271, 53341); // DXR_HisCargaMasivaBenefBPD restored at true original ID
+        MigrateLegacyTableData(59273, 53343); // DXR_HisLinCargaMasivaBenefBPD restored at true original ID
+        MigrateLegacyTableData(59274, 53344); // DXR_Hist. Beneficiarios BPD restored at true original ID
+        MigrateLegacyTableData(59275, 53345); // DXR_Hist. Cabecera Discr restored at true original ID
+        MigrateLegacyTableData(59276, 53346); // DXR_Hist. de Ganadores restored at true original ID
+        MigrateLegacyTableData(59277, 53347); // DXR_Hist. Int Consump. Header restored at true original ID
+        MigrateLegacyTableData(59278, 53348); // DXR_Hist. Int Consump. Line restored at true original ID
+        MigrateLegacyTableData(59279, 53349); // DXR_Hist. Linea Discrepancia restored at true original ID
+        MigrateLegacyTableData(59280, 53350); // DXR_Historico Enc Requisicion restored at true original ID
+        MigrateLegacyTableData(59281, 53351); // DXR_Historico - Extr Bancario restored at true original ID
+        MigrateLegacyTableData(59282, 53352); // DXR_Historico Requisicion Line restored at true original ID
+        MigrateLegacyTableData(59283, 53353); // DXR_Hist Pre-Requisicion restored at true original ID
+        MigrateLegacyTableData(59284, 53354); // DXR_Hist Pre-Requisicion Line restored at true original ID
+        MigrateLegacyTableData(59287, 53357); // DXR_Internal Consumption Log restored at true original ID
+        MigrateLegacyTableData(59296, 53366); // DXR_Log - Bank Statement restored at true original ID
+        MigrateLegacyTableData(59297, 53367); // DXR_Log Email restored at true original ID
+        MigrateLegacyTableData(59298, 53368); // DXR_Log Transaccion Azul restored at true original ID
+        MigrateLegacyTableData(59299, 53369); // DXR_Log Transaccion Medallia restored at true original ID
+        MigrateLegacyTableData(59300, 53370); // DXR_Log Transfer error restored at true original ID
+        MigrateLegacyTableData(59307, 53377); // DXR_Posted Jnl Promo Tickets restored at true original ID
+        MigrateLegacyTableData(59314, 53384); // DXR_Printing Invoice Log restored at true original ID
+        MigrateLegacyTableData(59325, 53395); // DXR_Send Email Log restored at true original ID
+        MigrateLegacyTableData(59337, 53407); // DXR_Trans. Archive Line restored at true original ID
+        MigrateLegacyTableData(59341, 53411); // DXR_UserLogs restored at true original ID
+        MigrateLegacyTableData(59345, 53415); // DXR_Printing Invoice Log BO restored at true original ID
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateLegacyTableData(59231, 53301); // DXR_Agente restored at true original ID
+        MigrateLegacyTableData(59235, 53305); // DXR_Archivo - Discrepancias restored at true original ID
+        MigrateLegacyTableData(59240, 53310); // DXR_Black List Promotion restored at true original ID
+        MigrateLegacyTableData(59241, 53311); // DXR_Cabecera Discrepancia restored at true original ID
+        MigrateLegacyTableData(59247, 53317); // DXR_Comentario - Discrepancias restored at true original ID (59246/Codigos de Auditoria has no Old2 counterpart - confirmed skip)
+        MigrateLegacyTableData(59260, 53330); // DXR_Departamento - Discr restored at true original ID
+        MigrateLegacyTableData(59293, 53363); // DXR_Linea Discrepancia restored at true original ID
+        MigrateLegacyTableData(59295, 53365); // DXR_LineRQBuffer restored at true original ID
+    end;
+
     // Copies every row of a legacy table (OldTableId) to its DXR_ clone (NewTableId) by field
     // NUMBER (both tables share identical field IDs/types - the restored Old2 clone preserves the
     // full schema unmodified), Class=Normal only on both sides. Idempotent per table: if the
@@ -53,6 +183,11 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
                     end;
                 end;
                 NewRecRef.Insert(false);
+                // 2026-08-25 fix: same missing-Close bug as Phase2's identical helper (see its
+                // own comment) - NewRecRef.Open() inside this loop without a per-iteration Close()
+                // threw "The record is already open." on the 2nd+ row of any multi-row "Old2"
+                // table still served by this shared helper, aborting the whole OnRun().
+                NewRecRef.Close();
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
     end;
@@ -299,7 +434,7 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
     // seq177: DXR_Config - Discr Old2 (59253) -> DXR_Config - Discr (53323). PK = "key".
     local procedure MigrateConfiguracionDiscrepanciasOld2Table()
     var
-        Legacy: Record "DXR_Config - Discr Old2";
+        Legacy: Record "DXR_Config - Discr";
         New: Record "DXR_Config - Discr";
     begin
         if Legacy.FindSet() then

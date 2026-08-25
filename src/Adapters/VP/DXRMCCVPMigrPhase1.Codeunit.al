@@ -20,18 +20,28 @@ codeunit 60115 "DXR MCC VP Migr Phase1"
         tabledata Field = R;
 
     trigger OnRun()
+    begin
+        RunSetup();
+        RunMaster();
+    end;
+
+    procedure RunSetup()
     var
         ErrorText: Text;
-        ProgressCount: Integer;
-        TotalCount: Integer;
     begin
         if not MigrateVPSetupTable(ErrorText) then
-            Error(ErrorText);
-        if not MigrateTableStep(Database::"VP Bank", Database::"DXR_VP Bank", 'BANK', ErrorText) then
             Error(ErrorText);
         if not MigrateVPCurrencyRelationTable(ErrorText) then
             Error(ErrorText);
         if not MigrateVPProvinciaTable(ErrorText) then
+            Error(ErrorText);
+    end;
+
+    procedure RunMaster()
+    var
+        ErrorText: Text;
+    begin
+        if not MigrateTableStep(Database::"VP Bank", Database::"DXR_VP Bank", 'BANK', ErrorText) then
             Error(ErrorText);
     end;
 

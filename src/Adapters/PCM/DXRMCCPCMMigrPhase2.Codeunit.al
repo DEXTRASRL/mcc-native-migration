@@ -14,8 +14,18 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
 
     trigger OnRun()
     begin
-        MigrateCustomerFields();
+        RunSetup();
+        RunMaster();
+    end;
+
+    procedure RunSetup()
+    begin
         MigrateStorePriceGroupFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateCustomerFields();
     end;
 
     local procedure MigrateCustomerFields()

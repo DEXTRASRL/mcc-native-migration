@@ -99,7 +99,7 @@ codeunit 60016 "DXR MCC Migration Lock Mgt."
 
     local procedure GetGlobalMigrationLockCode(): Code[50]
     begin
-        exit('DXR-MCC-MIGRATION-GLOBAL');
+        exit('DXR-MCC-MIGRATION-GLOBAL.');
     end;
 
     local procedure GetCoordinatorCompany(): Text

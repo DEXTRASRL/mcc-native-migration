@@ -1,8 +1,8 @@
 table 60003 "DXR MCC Run Request"
 {
-    // Backs the async "patrón de localización" execution model: every "Run" action on the MCC
-    // page now schedules one of these via TaskScheduler instead of calling Executor.RunConcept/
-    // RunExtension/RunPortfolio synchronously from the page action. A page action running a full
+    // Backs the unified asynchronous execution model: every "Run" action on the MCC pages
+    // schedules one of these via TaskScheduler instead of calling Executor.RunConcept/
+    // RunExtension/RunPortfolio synchronously from a page action. A page action running a full
     // dispatcher chain (BELLON alone chains 7 phase codeunits, each a full-table RecordRef scan)
     // in the same interactive transaction is exactly the freeze/timeout the underlying extensions'
     // own dispatchers were built to avoid by running via TaskScheduler in the first place — MCC

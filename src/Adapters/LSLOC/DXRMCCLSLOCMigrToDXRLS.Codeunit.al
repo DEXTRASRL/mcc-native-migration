@@ -42,6 +42,50 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         UpgradeTag.SetUpgradeTag('DXR-LS-MIGRATION-20260623');
     end;
 
+    procedure RunPOSSetup()
+    begin
+        CopyLSDXPOSSetupToDXR();
+    end;
+
+    procedure RunSetupFields()
+    begin
+        CopyLSCHospitalityTypeFields();
+        CopyLSCLabelFunctionsFields();
+        CopyLSCPOSPrintSetupHeaderFields();
+        CopyLSCPOSTerminalFields();
+        CopyLSCSalesTypeFields();
+        CopyLSCStoreFields();
+        MigrateSameTableEnumFields();
+    end;
+
+    procedure RunSetupRelations()
+    begin
+        CopyLSDXTenderTypesRelationToDXR();
+        CopyLSDXOPOSPrintSetupToDXR();
+    end;
+
+    procedure RunMasterFields()
+    begin
+        CopyGenJournalLineFields();
+        CopyItemFields();
+        CopyLSCStoreInventoryLineFields();
+    end;
+
+    procedure RunOtherFields()
+    begin
+        CopySameTableFieldRange(Database::"LSC POS Transaction", 54300, 54500, 1);
+        CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4);
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8);
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5);
+        CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2);
+    end;
+
+    procedure RunHistoricTables()
+    begin
+        CopyStandaloneTable(Database::"LSDX POS 607 Diagnostic", Database::"DXR_LS POS 607 Diagnostic");
+        CopyStandaloneTable(Database::"LSDX LS NCF Process Reg.", Database::"DXR_LS NCF Process Reg.");
+    end;
+
     // ===== "DXR_LS TableExt Fields Upgrade" (54510) =====
 
     local procedure TableExtFieldsExecute()

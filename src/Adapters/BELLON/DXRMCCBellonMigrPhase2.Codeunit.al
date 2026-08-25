@@ -198,6 +198,214 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         end;
     end;
 
+    procedure RunSetup()
+    begin
+        MigrateAGRSetupTable(); // AGR Setup -> DXR_AGR Setup (native - fixes NewRecRef.Open-inside-loop leak, see MigrateLegacyTableData)
+        MigrateAjusteInventarioConfigTable(); // Ajuste Inventario Config -> DXR_Ajuste Inventario Config (native)
+        MigrateAreaDeTrabajoTable(); // Area de Trabajo -> DXR_Area de Trabajo (native)
+        MigrateCategoriaServiciosTable(); // Categoria Servicios -> DXR_Categoria Servicios (native)
+        MigrateCilindrosSetupTable(); // Cilindros - Setup -> DXR_Cilindros - Setup (native)
+        MigrateCodigosDeAuditoriaTable(); // Codigos de Auditoria -> DXR_Codigos de Auditoria. (native)
+        MigrateConfExtractoBancarioTable(); // Conf. Extracto Bancario -> DXR_Conf. Extracto Bancario (native)
+        MigrateConfigNCFVentasTable(); // Config. NCF Ventas -> DXR_Config. NCF Ventas (native)
+        MigrateConfigNCFVentasSTDTable(); // Config. NCF Ventas STD -> DXR_Config. NCF Ventas STD (native)
+        MigrateConfigPolizasTable(); // Config. Polizas -> DXR_Config. Polizas (native)
+        MigrateConfiguracionCBTable(); // Configuracion CB -> DXR_Configuracion CB (native)
+        MigrateConfiguracionDiscrepanciasTable(); // Configuracion - Discrepancias -> DXR_Config - Discr (native)
+        MigrateConfiguracionEncuestasPOSTable(); // Configuracion Encuestas - POS -> DXR_Config Encuestas - POS (native)
+        MigrateConfiguracionesRequisicionTable(); // Configuraciones Requisicion -> DXR_Config Req (native)
+        MigrateConfiguracionMedalliaTable(); // Configuracion - MEDALLIA -> DXR_Configuracion - MEDALLIA (native)
+        MigrateConfPagosEcommerceAzulTable(); // Conf. Pagos Ecommerce Azul -> DXR_Conf. Pagos Ecommerce Azul (native)
+        MigrateControlProcesosPorAlmacenTable(); // Control Procesos por Almacen -> DXR_Control Proc por Almacen (native)
+        MigrateDrawSetupTable(); // Draw Setup -> DXR_Draw Setup (native)
+        MigrateEmailSourceTemplateRelationTable(); // Email Source Template Relation -> DXR_Email Source Tmpl Rel (native)
+        MigrateEPagosSetupTable(); // EPagos Setup -> DXR_EPagos Setup (native)
+        MigrateExcludeFilterJournalTable(); // Exclude Filter Journal -> DXR_Exclude Filter Journal (native)
+        MigrateExcluirTerminosItemSearchTable(); // Excluir Terminos  - ItemSearch -> DXR_Excluir Term - ItemSearch (native)
+        MigrateFileStructureTable(); // File Structure -> DXR_File Structure (native)
+        MigrateFormaDePagoTable(); // Forma de Pago -> DXR_Forma de Pago (native)
+        MigrateBEInventoryMasksTable(); // BE Inventory Masks -> DXR_Inventory Masks (native)
+        MigrateMarcasTable(); // Marcas -> DXR_Marcas (native)
+        MigrateMemberManagementSetupTable(); // Member Management Setup -> DXR_Member Management Setup (native)
+        MigrateMotivoCierreDiscrepanciasTable(); // Motivo Cierre - Discrepancias -> DXR_Motivo Cierre - Discr (native)
+        MigrateMotivoDiscrepanciaTable(); // Motivo Discrepancia -> DXR_Motivo Discrepancia (native)
+        MigrateProfesionTable(); // Profesion -> DXR_Profesion (native)
+        MigratePromotionSetupTable(); // Promotion Setup -> DXR_Promotion Setup (native)
+        MigrateProvinciaTable(); // Provincia -> DXR_Provincia (native)
+        MigrateSalesDeptTable(); // Sales Dept -> DXR_Sales Dept (native)
+        MigrateSalesGroupsTable(); // Sales Groups -> DXR_Sales Groups (native)
+        MigrateSalesSubGroupsTable(); // Sales SubGroups -> DXR_Sales SubGroups (native)
+        MigrateStandardPOSDASCOMPaymtEqvTable(); // Standard POS DASCOM Paymt Eqv -> DXR_Std POS DASCOM Paymt Eqv (native)
+        MigrateStandardPOSGenCommentsTable(); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments (native)
+        MigrateStandardPOSUsersTable(); // Standard POS Users -> DXR_Standard POS Users (native)
+        MigrateSummaryReconciliationSetupTable(); // Summary Reconciliation Setup -> DXR_Summary Recon Setup (native)
+        MigrateTasasBCTable(); // Tasas BC -> DXR_Tasas BC (native)
+        MigrateTipoDeContenedorTable(); // Tipo de Contenedor -> DXR_Tipo de Contenedor (native)
+        MigrateTipoGasTable(); // Tipo Gas -> DXR_Tipo Gas (native)
+        MigrateTiposOAgentesTable(); // Tipos o Agentes -> DXR_Tipos o Agentes (native)
+        MigrateTratadosArancelariosTable(); // Tratados Arancelarios -> DXR_Tratados Arancelarios (native)
+        MigrateUserApproverByBuyerGroupTable(); // UserApproverByBuyerGroup -> DXR_UserApproverByBuyerGroup (native)
+        MigrateUserByBuyerGroupTable(); // UserByBuyerGroup -> DXR_UserByBuyerGroup (native)
+        MigrateVATBusSettingsTable(); // VAT Bus. Settings -> DXR_VAT Bus. Settings (native)
+        MigrateOperacionesTipoComprobante2Table(); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2 (native)
+        MigrateTableExt_LSCBarcodesFields();
+        MigrateTableExt_CheckLedgerEntryFields();
+        MigrateTableExt_CompanyInformationFields();
+        MigrateTableExt_CountryRegionFields();
+        MigrateTableExt_GenJournalBatchFields();
+        MigrateTableExt_GenJournalLineFields();
+        MigrateTableExt_GenProductPostingGroupFields();
+        MigrateTableExt_GeneralLedgerSetupFields();
+        MigrateTableExt_DXVendorWithholdingLedgerEntryFields();
+        MigrateTableExt_DXNCFSetupFields();
+        MigrateTableExt_ReasonCodeFields();
+        MigrateTableExt_LSCReplenJournalLinesFields();
+        MigrateTableExt_LSCReplenTemplateFields();
+        MigrateTableExt_LSCRetailSetupFields();
+        MigrateTableExt_LSCRetailUserFields();
+        MigrateTableExt_SalesPriceFields();
+        MigrateTableExt_SalesPriceWorksheetFields();
+        MigrateTableExt_SalesReceivablesSetupFields();
+        MigrateTableExt_LSCSalesTypeFields();
+        MigrateTableExt_SalespersonPurchaserFields();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateBancosExtractoBancarioTable(); // Bancos - Extracto Bancario -> DXR_Bancos - Extracto Bancario (native)
+        MigrateBankTable(); // Bank -> DXR_Bank (native)
+        MigrateBankRelationTable(); // Bank Relation -> DXR_Bank Relation (native)
+        MigrateCargaMasivaBeneficiariosBPDTable(); // Carga Masiva Beneficiarios BPD -> DXR_Carga Masiva Benef BPD (native)
+        MigrateCilindrosTable(); // Cilindros -> DXR_Cilindros (native)
+        MigrateConversionCostoTable(); // Conversion Costo -> DXR_Conversion Costo (native)
+        MigrateDetalleExtractoBancarioTable(); // Detalle - Extracto Bancario -> DXR_Detalle - Extr Bancario (native)
+        MigrateEntregaFacturasCxCLinesTable(); // Entrega Facturas CxC - Lines -> DXR_Entrega Fact CxC - Lines (native)
+        MigrateEnvioComprasTable(); // Envio Compras -> DXR_Envio Compras (native)
+        MigrateGrupoVentaTable(); // Grupo Venta -> DXR_Grupo Venta (native)
+        MigrateInternalConsumptionHeaderTable(); // Internal Consumption Header -> DXR_Int Consump Header (native)
+        MigrateInternalConsumptionLineTable(); // Internal Consumption Line -> DXR_Internal Consumption Line (native)
+        MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
+        MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
+        MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
+        MigrateJournalPromotionTicketsTable(); // Journal Promotion Tickets -> DXR_Journal Promotion Tickets (native)
+        MigrateLineasCargaMasivaBenBPDTable(); // Lineas Carga Masiva Ben. BPD -> DXR_Lin Carga Masiva Ben. BPD (native)
+        MigrateMovimientosDeCilindroTable(); // Movimientos de Cilindro -> DXR_Movimientos de Cilindro (native)
+        MigrateOrderItemStatusTable(); // Order Item Status -> DXR_Order Item Status (native)
+        MigratePreReqLineNoStockValidTable(); // Pre Req LineNoStockValid -> DXR_Pre Req LineNoStockValid (native)
+        MigratePreReqNoStockValidTable(); // Pre Req no Stock Valid -> DXR_Pre Req no Stock Valid (native)
+        MigratePreRequisicionTable(); // Pre-Requisicion -> DXR_Pre-Requisicion (native)
+        MigratePreRequisicionLineTable(); // Pre-Requisicion Line -> DXR_Pre-Requisicion Line (native)
+        MigratePreRequisicionLineNoStockTable(); // Pre-Requisicion Line No Stock -> DXR_Pre-Req Line No Stock (native)
+        MigratePreRequisicionNoStockTable(); // Pre-Requisicion no Stock -> DXR_Pre-Requisicion no Stock (native)
+        MigratePromotionTicketsRelationTable(); // Promotion Tickets Relation -> DXR_Promotion Tickets Relation (native)
+        MigrateRequisicionTable(); // Requisicion -> DXR_Requisicion (native)
+        MigrateRequisicionCommentLineTable(); // Requisicion Comment Line -> DXR_Requisicion Comment Line (native)
+        MigrateRequisicionLineTable(); // Requisicion Line -> DXR_Requisicion Line (native)
+        MigrateStoreStatementPostingTable(); // Store Statement Posting -> DXR_Store Statement Posting (native)
+        MigrateTicketsByOfferTable(); // Tickets By Offer -> DXR_Tickets By Offer (native)
+        MigrateTicketsEntryTable(); // Tickets Entry -> DXR_Tickets Entry (native)
+        MigrateUserPromoAppsTable(); // UserPromo Apps -> DXR_UserPromo Apps (native)
+        MigrateValoracionDeInventarioTable(); // Valoracion de Inventario -> DXR_Valoracion de Inventario (native)
+        MigrateAGRExtendedItemTable(); // AGR Extended Item -> DXR_AGR Extended Item (native)
+        MigrateComisionGrupoVendedorTable(); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor (native)
+        MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
+        MigrateTableExt_ApprovalEntryFields();
+        MigrateTableExt_AssemblyHeaderFields();
+        MigrateTableExt_AssemblySetupFields();
+        MigrateTableExt_VendorLedgerEntryFields();
+        MigrateTableExt_BankAccReconciliationFields();
+        MigrateTableExt_BankAccReconciliationLineFields();
+        MigrateTableExt_BankAccountFields();
+        MigrateTableExt_BankAccountLedgerEntryFields();
+        MigrateTableExt_ContactFields();
+        MigrateTableExt_CurrencyFields();
+        MigrateTableExt_CurrencyExchangeRateFields();
+        MigrateTableExt_CustLedgerEntryFields();
+        MigrateTableExt_CustomerFields();
+        MigrateTableExt_CustomerPriceGroupFields();
+        MigrateTableExt_IssuedReminderHeaderFields();
+        MigrateTableExt_IssuedReminderLineFields();
+        MigrateTableExt_ItemFields();
+        MigrateTableExt_ItemCategoryFields();
+        MigrateTableExt_ItemChargeAssignmentPurchFields();
+        MigrateTableExt_ItemJournalBatchFields();
+        MigrateTableExt_ItemJournalLineFields();
+        MigrateTableExt_ItemLedgerEntryFields();
+        MigrateTableExt_LSCItemSpecialGroupsFields();
+        MigrateTableExt_DXCashJournalReceiptListFields();
+        MigrateTableExt_LocationFields();
+        MigrateTableExt_LSCMemberContactFields();
+        MigrateTableExt_LSCMemberPointOfferFields();
+        MigrateTableExt_LSCMemberPointOfferLineFields();
+        MigrateTableExt_LSCPeriodicDiscountFields();
+        MigrateTableExt_PostedAssemblyHeaderFields();
+        MigrateTableExt_LSCPostedStatementFields();
+        MigrateTableExt_LSCRetailProductGroupFields();
+        MigrateTableExt_PurchCommentLineFields();
+        MigrateTableExt_PurchCommentLineArchiveFields();
+        MigrateTableExt_PurchInvLineFields();
+        MigrateTableExt_ShiptoAddressFields();
+        MigrateTableExt_LSCStatementFields();
+        MigrateTableExt_LSCSTOREFields();
+        MigrateTableExt_TariffNumberFields();
+        MigrateTableExt_LSCTenderTypeFields();
+        MigrateTableExt_LSCTransSalesEntryFields();
+        MigrateTableExt_LSCTransactionHeaderFields();
+        MigrateTableExt_TransferHeaderFields();
+        MigrateTableExt_TransferLineFields();
+        MigrateTableExt_TransferReceiptHeaderFields();
+        MigrateTableExt_TransferShipmentHeaderFields();
+        MigrateTableExt_UserSetupFields();
+        MigrateTableExt_ValueEntryFields();
+        MigrateTableExt_VendorFields();
+        MigrateTableExt_WarehouseReceiptLineFields();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateLegacyTableData(50004, 53302); // AGR Log -> DXR_AGR Log
+        MigrateLegacyTableData(50071, 53341); // HisCargaMasivaBeneficiariosBPD -> DXR_HisCargaMasivaBenefBPD
+        MigrateLegacyTableData(50073, 53343); // HisLineasCargaMasivaBenefBPD -> DXR_HisLinCargaMasivaBenefBPD
+        MigrateLegacyTableData(50074, 53344); // Hist. Beneficiarios BPD -> DXR_Hist. Beneficiarios BPD
+        MigrateLegacyTableData(50075, 53345); // Hist. Cabecera Discrepancia -> DXR_Hist. Cabecera Discr
+        MigrateLegacyTableData(50076, 53346); // Hist. de Ganadores -> DXR_Hist. de Ganadores
+        MigrateLegacyTableData(50077, 53347); // Hist. Internal Consump. Header -> DXR_Hist. Int Consump. Header
+        MigrateLegacyTableData(50078, 53348); // Hist. Internal Consump. Line -> DXR_Hist. Int Consump. Line
+        MigrateLegacyTableData(50079, 53349); // Hist. Linea Discrepancia -> DXR_Hist. Linea Discrepancia
+        MigrateLegacyTableData(50081, 53350); // Historico Enc Requisicion -> DXR_Historico Enc Requisicion
+        MigrateLegacyTableData(50082, 53351); // Historico - Extracto Bancario -> DXR_Historico - Extr Bancario
+        MigrateLegacyTableData(50084, 53352); // Historico Requisicion Line -> DXR_Historico Requisicion Line
+        MigrateLegacyTableData(50085, 53353); // Hist Pre-Requisicion -> DXR_Hist Pre-Requisicion
+        MigrateLegacyTableData(50086, 53354); // Hist Pre-Requisicion Line -> DXR_Hist Pre-Requisicion Line
+        MigrateLegacyTableData(50095, 53357); // Internal Consumption Log -> DXR_Internal Consumption Log
+        MigrateLegacyTableData(50111, 53366); // Log - Bank Statement -> DXR_Log - Bank Statement
+        MigrateLegacyTableData(50112, 53367); // Log Email -> DXR_Log Email
+        MigrateLegacyTableData(50115, 53368); // Log Transaccion Azul -> DXR_Log Transaccion Azul
+        MigrateLegacyTableData(50116, 53369); // Log Transaccion Medallia -> DXR_Log Transaccion Medallia
+        MigrateLegacyTableData(50117, 53370); // Log Transfer error -> DXR_Log Transfer error
+        MigrateLegacyTableData(50132, 53377); // Posted Jnl Promotion Tickets -> DXR_Posted Jnl Promo Tickets
+        MigrateLegacyTableData(50141, 53384); // Printing Invoice Log -> DXR_Printing Invoice Log
+        MigrateLegacyTableData(50160, 53395); // Send Email Log -> DXR_Send Email Log
+        MigrateLegacyTableData(50186, 53407); // Trans. Archive Line -> DXR_Trans. Archive Line
+        MigrateLegacyTableData(50199, 53411); // UserLogs -> DXR_UserLogs
+        MigrateLegacyTableData(50206, 53415); // Printing Invoice Log BO -> DXR_Printing Invoice Log BO
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateLegacyTableData(50001, 53301); // Agente -> DXR_Agente
+        MigrateLegacyTableData(50007, 53305); // Archivo - Discrepancias -> DXR_Archivo - Discrepancias
+        MigrateLegacyTableData(50012, 53310); // Black List Promotion -> DXR_Black List Promotion
+        MigrateLegacyTableData(50013, 53311); // Cabecera Discrepancia -> DXR_Cabecera Discrepancia
+        MigrateLegacyTableData(50025, 53317); // Comentario - Discrepancias -> DXR_Comentario - Discrepancias
+        MigrateLegacyTableData(50048, 53330); // Departamento - Discrepancias -> DXR_Departamento - Discr
+        MigrateLegacyTableData(50103, 53363); // Linea Discrepancia -> DXR_Linea Discrepancia
+        MigrateLegacyTableData(50109, 53365); // LineRQBuffer -> DXR_LineRQBuffer
+        MigrateTableExt_LSCPOSTransLineFields();
+        MigrateTableExt_LSCPOSTransactionFields();
+        MigrateTableExt_PaymentMethodFields();
+    end;
+
     // ===== Generic copy engines (ported verbatim from "Bellon Upgrade Process") =====
 
     // Copies every row of a legacy table (OldTableId) to its DXR_ clone (NewTableId) by field
@@ -233,6 +441,15 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     end;
                 end;
                 NewRecRef.Insert(false);
+                // 2026-08-25 fix: NewRecRef.Close() was missing here, so the 2nd+ legacy row of
+                // ANY multi-row table still served by this shared helper (~99 of BELLON-P2's 137
+                // tables, the ones not yet converted to native per-table procedures) threw "The
+                // record is already open." on the next loop iteration's Open() call, aborting the
+                // whole OnRun() and rolling back the entire upgrade-tag-gated batch - the exact
+                // "HIGH PRIORITY FIX" root-caused from a real production run but never actually
+                // applied to this shared helper itself (only to the tables already carved out into
+                // their own native procedures, which stopped sharing this bug by construction).
+                NewRecRef.Close();
             until OldRecRef.Next() = 0;
         OldRecRef.Close();
     end;

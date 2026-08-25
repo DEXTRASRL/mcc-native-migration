@@ -39,6 +39,64 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         MigrateMissingOldToDxrBridgeFields(UpgradeTag);
     end;
 
+    procedure RunSetup()
+    var
+        NCFSetup: Record "DXR_NCF Setup";
+    begin
+        if not NCFSetup.Get() then begin
+            NCFSetup.Init();
+            NCFSetup."Primary Key" := '';
+            NCFSetup.Insert(false);
+        end;
+        NCFSetup."Grupo Contable BS_DXR" := NCFSetup."Grupo Contable BS_Old";
+        NCFSetup."Legal Tip %_DXR" := NCFSetup."Legal Tip %_Old";
+        NCFSetup.Modify(false);
+    end;
+
+    procedure RunMaster()
+    var
+        RecRef: RecordRef;
+    begin
+        RecRef.Open(Database::"Item Charge Assignment (Purch)");
+        if RecRef.FindSet(true) then
+            repeat
+                CopyFieldIfExists(RecRef, 50001, 52787);
+                RecRef.Modify(false);
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        RecRef.Open(52132);
+        if RecRef.FindSet(true) then
+            repeat
+                CopyFieldIfExists(RecRef, 50006, 52787);
+                CopyFieldIfExists(RecRef, 50008, 52789);
+                CopyFieldIfExists(RecRef, 50010, 52791);
+                CopyFieldIfExists(RecRef, 50011, 52792);
+                RecRef.Modify(false);
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        RecRef.Open(Database::Vendor);
+        if RecRef.FindSet(true) then
+            repeat
+                CopyFieldIfExists(RecRef, 50018, 57113);
+                CopyFieldIfExists(RecRef, 50019, 57114);
+                CopyFieldIfExists(RecRef, 50020, 57115);
+                CopyFieldIfExists(RecRef, 50021, 57116);
+                CopyFieldIfExists(RecRef, 50022, 57117);
+                CopyFieldIfExists(RecRef, 50023, 57118);
+                CopyFieldIfExists(RecRef, 50024, 57119);
+                CopyFieldIfExists(RecRef, 50025, 57120);
+                CopyFieldIfExists(RecRef, 50028, 57121);
+                CopyFieldIfExists(RecRef, 50029, 57122);
+                CopyFieldIfExists(RecRef, 50030, 57123);
+                CopyFieldIfExists(RecRef, 50031, 57124);
+                CopyFieldIfExists(RecRef, 50032, 57125);
+                RecRef.Modify(false);
+            until RecRef.Next() = 0;
+        RecRef.Close();
+    end;
+
     local procedure MigrateMissingOldToDxrBridgeFields(var UpgradeTag: Codeunit "Upgrade Tag")
     var
         RecRef: RecordRef;

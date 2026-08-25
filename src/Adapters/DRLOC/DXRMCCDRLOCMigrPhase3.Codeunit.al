@@ -218,6 +218,26 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
         UpgradeTagMgt.SetUpgradeTag(PhaseTags.Phase3CompletedTag());
     end;
 
+    procedure RunMaster()
+    begin
+        BootstrapPurchaseHeaderFields();
+        BootstrapPurchInvHeaderFields();
+        BootstrapPurchCrMemoHdrFields();
+        BootstrapPurchaseLineFields();
+        BootstrapPurchInvLineFields();
+        BootstrapPurchCrMemoLineFields();
+        BootstrapITBISPurchase606Table();
+        BootstrapPurchaseLineSettlementTable();
+        BootstrapPurchaseWSSettlementTable();
+        BootstrapVendorWithholdingHeaderTable();
+        BootstrapWithholdingVendorLinesTable();
+    end;
+
+    procedure RunHistoric()
+    begin
+        BootstrapArchivedPurchase606Table();
+    end;
+
     // ===== seq19: Purchase Header field restore (bulk) =====
     // Ported from MigrateFields_PurchaseHeader() (~line 412). Only the 26 named-field pairs (already
     // SourceRecord.FieldNo()-typed in real source) are portable - see the codeunit-level shadow-field

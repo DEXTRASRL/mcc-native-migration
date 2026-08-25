@@ -50,8 +50,8 @@ table 60002 "DXR MCC Run Log"
         field(9; "Status"; Option)
         {
             Caption = 'Status';
-            OptionMembers = Pending,Running,Completed,"Completed With Gaps",Error;
-            OptionCaption = 'Pending,Running,Completed,Completed With Gaps,Error';
+            OptionMembers = Pending,Running,Completed,"Completed With Gaps",Error,Skipped;
+            OptionCaption = 'Pending,Running,Completed,Completed With Gaps,Error,Skipped';
             DataClassification = SystemMetadata;
         }
         field(10; "Error Message"; Text[2048])

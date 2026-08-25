@@ -26,14 +26,29 @@ codeunit 60082 "DXR MCC DXP Migr Phase3"
 
     trigger OnRun()
     begin
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+    end;
+
+    procedure RunSetup()
+    begin
         MigratePaymentSetup();
+        MigratePromotionBinSetup();
+    end;
+
+    procedure RunMaster()
+    begin
         MigratePromotionBinCard();
         MigrateStorePayments();
-        MigratePaymentProcessLogs();
         MigratePromoBinHeader();
         MigratePromotionBinItemsLines();
         MigratePromotionBinLines();
-        MigratePromotionBinSetup();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigratePaymentProcessLogs();
         MigrateErrorAuditLog();
     end;
 

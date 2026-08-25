@@ -8,8 +8,18 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
 
     trigger OnRun()
     begin
-        MigrateApprovalEntryFields();
+        RunSetup();
+        RunOther();
+    end;
+
+    procedure RunSetup()
+    begin
         MigrateWorkflowFields();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateApprovalEntryFields();
     end;
 
     local procedure MigrateApprovalEntryFields()

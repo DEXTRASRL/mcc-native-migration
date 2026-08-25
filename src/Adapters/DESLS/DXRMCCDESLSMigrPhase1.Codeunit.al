@@ -35,20 +35,40 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
 
     trigger OnRun()
     begin
-        MigrateTable_DispatchLine();
+        RunSetup();
+        RunMaster();
+        RunHistoric();
+        RunOther();
+    end;
+
+    procedure RunSetup()
+    begin
         MigrateTable_DispatchSetup();
-        MigrateTable_LogReimpresionesCond();
         MigrateTable_Staff();
         MigrateTable_RetailUser();
-        MigrateTable_PickupHistoric();
-        MigrateTable_PickupList();
-        MigrateTable_PostedTransportLine();
+        MigrateTable_UserSetup();
+    end;
+
+    procedure RunMaster()
+    begin
+        MigrateTable_DispatchLine();
         MigrateTable_RetailProductGroup();
         MigrateTable_TransportHeader();
         MigrateTable_ShipmentHeader();
         MigrateTable_TransportLine();
+    end;
+
+    procedure RunHistoric()
+    begin
+        MigrateTable_LogReimpresionesCond();
+        MigrateTable_PickupHistoric();
+        MigrateTable_PostedTransportLine();
         MigrateTable_TransportLogs();
-        MigrateTable_UserSetup();
+    end;
+
+    procedure RunOther()
+    begin
+        MigrateTable_PickupList();
     end;
 
     local procedure MigrateTable_DispatchLine()
@@ -93,16 +113,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHSETUP-28.3') then
             exit;
 
-        if DispatchSetupRec.FindSet(true) then
+        if LegacyDispatchSetupRec.FindSet() then
             repeat
-                if LegacyDispatchSetupRec.Get(DispatchSetupRec."Key") then begin
-                    // 50840 "DXR-DE Enable Manual Gen. Doc." -> Enable Manual Gen. Doc._DXR
-                    if DispatchSetupRec."Enable Manual Gen. Doc._DXR" <> LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc." then begin
-                        DispatchSetupRec."Enable Manual Gen. Doc._DXR" := LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc.";
-                        DispatchSetupRec.Modify(false);
-                    end;
+                if not DispatchSetupRec.Get(LegacyDispatchSetupRec."Key") then begin
+                    DispatchSetupRec.Init();
+                    DispatchSetupRec."Key" := LegacyDispatchSetupRec."Key";
+                    DispatchSetupRec.Insert(false);
                 end;
-            until DispatchSetupRec.Next() = 0;
+
+                // 50840 "DXR-DE Enable Manual Gen. Doc." -> Enable Manual Gen. Doc._DXR
+                if DispatchSetupRec."Enable Manual Gen. Doc._DXR" <> LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc." then begin
+                    DispatchSetupRec."Enable Manual Gen. Doc._DXR" := LegacyDispatchSetupRec."DXR-DE Enable Manual Gen. Doc.";
+                    DispatchSetupRec.Modify(false);
+                end;
+            until LegacyDispatchSetupRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHSETUP-28.3');
     end;
