@@ -51,56 +51,34 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         MigrateTable_UserSetup();
     end;
 
-    // For each row of the true legacy table (LegacyTableId), finds the matching row on the active
-    // table (NewRecRef's table, already positioned on a row via FindSet/Next) by copying the
-    // active row's own primary key field values onto a legacy RecordRef and calling Get() -
-    // primary key fields are native, low-numbered fields unaffected by the DXR_/_DXR field
-    // normalization, so this works regardless of each table's specific business key layout.
-    // Returns true (with LegacyRecRef positioned on the match) only if found.
-    local procedure FindMatchingLegacyRow(LegacyTableId: Integer; var NewRecRef: RecordRef; var LegacyRecRef: RecordRef): Boolean
-    var
-        NewKeyRef: KeyRef;
-        NewFieldRef: FieldRef;
-        LegacyFieldRef: FieldRef;
-        FieldNo: Integer;
-        i: Integer;
-    begin
-        LegacyRecRef.Open(LegacyTableId);
-        NewKeyRef := NewRecRef.KeyIndex(1);
-        for i := 1 to NewKeyRef.FieldCount() do begin
-            NewFieldRef := NewKeyRef.FieldIndex(i);
-            FieldNo := NewFieldRef.Number();
-            if not LegacyRecRef.FieldExist(FieldNo) then
-                exit(false);
-            LegacyFieldRef := LegacyRecRef.Field(FieldNo);
-            LegacyFieldRef.Value := NewFieldRef.Value();
-        end;
-        exit(LegacyRecRef.Find());
-    end;
-
     local procedure MigrateTable_DispatchLine()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         DispatchLineRec: Record "DXR_Dispatch Line";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        StoreNoFld, DocRefFld : FieldRef;
+        LegacyDispatchLineRec: Record "DXR-DE Dispatch Line";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHLINE-28.3') then
             exit;
 
         if DispatchLineRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(DispatchLineRec);
-                if FindMatchingLegacyRow(50808, NewRecRef, LegacyRecRef) then begin
+                if LegacyDispatchLineRec.Get(DispatchLineRec.Type, DispatchLineRec."No.", DispatchLineRec."Invoice No.") then begin
                     // 50804 "DXR-DE Store No." -> Store No._DXR, 50805 "DXR-DE Document Reference" -> Document Reference_DXR
-                    StoreNoFld := LegacyRecRef.Field(50804);
-                    DocRefFld := LegacyRecRef.Field(50805);
-                    DispatchLineRec."Store No._DXR" := StoreNoFld.Value();
-                    DispatchLineRec."Document Reference_DXR" := DocRefFld.Value();
-                    DispatchLineRec.Modify(false);
+                    if (DispatchLineRec."Store No._DXR" <> LegacyDispatchLineRec."DXR-DE Store No.") or
+                       (DispatchLineRec."Document Reference_DXR" <> LegacyDispatchLineRec."DXR-DE Document Reference")
+                    then begin
+                        DispatchLineRec."Store No._DXR" := LegacyDispatchLineRec."DXR-DE Store No.";
+                        DispatchLineRec."Document Reference_DXR" := LegacyDispatchLineRec."DXR-DE Document Reference";
+                        DispatchLineRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
+
+                BatchCount += 1;
+                if BatchCount >= 200 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until DispatchLineRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHLINE-28.3');
@@ -133,23 +111,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         LogReimpresionesCondRec: Record "DXR_Log Reimpresiones Cond";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyLogReimpresionesCondRec: Record "DXR-DE Log Reimpresiones Cond";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-LOGREIMPRESIONESCOND-28.3') then
             exit;
 
         if LogReimpresionesCondRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(LogReimpresionesCondRec);
-                if FindMatchingLegacyRow(50830, NewRecRef, LegacyRecRef) then begin
+                if LegacyLogReimpresionesCondRec.Get(LogReimpresionesCondRec."Entry No.") then begin
                     // 50806 "DXR-DE Staff ID" -> Staff ID_DXR
-                    Fld := LegacyRecRef.Field(50806);
-                    LogReimpresionesCondRec."Staff ID_DXR" := Fld.Value();
-                    LogReimpresionesCondRec.Modify(false);
+                    if LogReimpresionesCondRec."Staff ID_DXR" <> LegacyLogReimpresionesCondRec."DXR-DE Staff ID" then begin
+                        LogReimpresionesCondRec."Staff ID_DXR" := LegacyLogReimpresionesCondRec."DXR-DE Staff ID";
+                        LogReimpresionesCondRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until LogReimpresionesCondRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-LOGREIMPRESIONESCOND-28.3');
@@ -195,23 +170,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PickupHistoricRec: Record "DXR_Pickup Historic";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyPickupHistoricRec: Record "DXR-DE Pickup Historic";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPHISTORIC-28.3') then
             exit;
 
         if PickupHistoricRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(PickupHistoricRec);
-                if FindMatchingLegacyRow(50833, NewRecRef, LegacyRecRef) then begin
+                if LegacyPickupHistoricRec.Get(PickupHistoricRec."Document No.") then begin
                     // 50802 "DXR-DE Store No." -> Store No._DXR
-                    Fld := LegacyRecRef.Field(50802);
-                    PickupHistoricRec."Store No._DXR" := Fld.Value();
-                    PickupHistoricRec.Modify(false);
+                    if PickupHistoricRec."Store No._DXR" <> LegacyPickupHistoricRec."DXR-DE Store No." then begin
+                        PickupHistoricRec."Store No._DXR" := LegacyPickupHistoricRec."DXR-DE Store No.";
+                        PickupHistoricRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until PickupHistoricRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPHISTORIC-28.3');
@@ -221,23 +193,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PickupListRec: Record "DXR_Pickup List";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyPickupListRec: Record "DXR-DE Pickup List";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPLIST-28.3') then
             exit;
 
         if PickupListRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(PickupListRec);
-                if FindMatchingLegacyRow(50834, NewRecRef, LegacyRecRef) then begin
+                if LegacyPickupListRec.Get(PickupListRec."Document No.") then begin
                     // 50800 "DXR-DE Store No." -> Store No._DXR
-                    Fld := LegacyRecRef.Field(50800);
-                    PickupListRec."Store No._DXR" := Fld.Value();
-                    PickupListRec.Modify(false);
+                    if PickupListRec."Store No._DXR" <> LegacyPickupListRec."DXR-DE Store No." then begin
+                        PickupListRec."Store No._DXR" := LegacyPickupListRec."DXR-DE Store No.";
+                        PickupListRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until PickupListRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPLIST-28.3');
@@ -247,25 +216,30 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PostedTransportLineRec: Record "DXR_Posted Transport Line";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        StoreFld, DocRefFld : FieldRef;
+        LegacyPostedTransportLineRec: Record "DXR-DE Posted Transport Line";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-POSTEDTRANSPORTLINE-28.3') then
             exit;
 
         if PostedTransportLineRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(PostedTransportLineRec);
-                if FindMatchingLegacyRow(50816, NewRecRef, LegacyRecRef) then begin
+                if LegacyPostedTransportLineRec.Get(PostedTransportLineRec.Type, PostedTransportLineRec."No.", PostedTransportLineRec."Transport No.", PostedTransportLineRec."Invoice No.") then begin
                     // 50803 "DXR-DE Store" -> Store_DXR, 50804 "DXR-DE Document Reference" -> Document Reference_DXR
-                    StoreFld := LegacyRecRef.Field(50803);
-                    DocRefFld := LegacyRecRef.Field(50804);
-                    PostedTransportLineRec."Store_DXR" := StoreFld.Value();
-                    PostedTransportLineRec."Document Reference_DXR" := DocRefFld.Value();
-                    PostedTransportLineRec.Modify(false);
+                    if (PostedTransportLineRec."Store_DXR" <> LegacyPostedTransportLineRec."DXR-DE Store") or
+                       (PostedTransportLineRec."Document Reference_DXR" <> LegacyPostedTransportLineRec."DXR-DE Document Reference")
+                    then begin
+                        PostedTransportLineRec."Store_DXR" := LegacyPostedTransportLineRec."DXR-DE Store";
+                        PostedTransportLineRec."Document Reference_DXR" := LegacyPostedTransportLineRec."DXR-DE Document Reference";
+                        PostedTransportLineRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
+
+                BatchCount += 1;
+                if BatchCount >= 200 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until PostedTransportLineRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-POSTEDTRANSPORTLINE-28.3');
@@ -292,23 +266,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransportHeaderRec: Record "DXR_Transport Header";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyTransportHeaderRec: Record "DXR-DE Transport Header";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTHEADER-28.3') then
             exit;
 
         if TransportHeaderRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(TransportHeaderRec);
-                if FindMatchingLegacyRow(50801, NewRecRef, LegacyRecRef) then begin
+                if LegacyTransportHeaderRec.Get(TransportHeaderRec."Code") then begin
                     // 50801 "DXR-DE Store" -> Store_DXR
-                    Fld := LegacyRecRef.Field(50801);
-                    TransportHeaderRec."Store_DXR" := Fld.Value();
-                    TransportHeaderRec.Modify(false);
+                    if TransportHeaderRec."Store_DXR" <> LegacyTransportHeaderRec."DXR-DE Store" then begin
+                        TransportHeaderRec."Store_DXR" := LegacyTransportHeaderRec."DXR-DE Store";
+                        TransportHeaderRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until TransportHeaderRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTHEADER-28.3');
@@ -318,23 +289,27 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ShipmentHeaderRec: Record "DXR_Shipment Header";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyShipmentHeaderRec: Record "DXR-DE Shipment Header";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-SHIPMENTHEADER-28.3') then
             exit;
 
         if ShipmentHeaderRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(ShipmentHeaderRec);
-                if FindMatchingLegacyRow(50813, NewRecRef, LegacyRecRef) then begin
+                if LegacyShipmentHeaderRec.Get(ShipmentHeaderRec."No.") then begin
                     // 50807 "DXR-DE Store No." -> Store No._DXR
-                    Fld := LegacyRecRef.Field(50807);
-                    ShipmentHeaderRec."Store No._DXR" := Fld.Value();
-                    ShipmentHeaderRec.Modify(false);
+                    if ShipmentHeaderRec."Store No._DXR" <> LegacyShipmentHeaderRec."DXR-DE Store No." then begin
+                        ShipmentHeaderRec."Store No._DXR" := LegacyShipmentHeaderRec."DXR-DE Store No.";
+                        ShipmentHeaderRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
+
+                BatchCount += 1;
+                if BatchCount >= 200 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until ShipmentHeaderRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-SHIPMENTHEADER-28.3');
@@ -344,25 +319,30 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransportLineRec: Record "DXR_Transport Line";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        StoreNoFld, DocRefFld : FieldRef;
+        LegacyTransportLineRec: Record "DXR-DE Transport Line";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLINE-28.3') then
             exit;
 
         if TransportLineRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(TransportLineRec);
-                if FindMatchingLegacyRow(50806, NewRecRef, LegacyRecRef) then begin
+                if LegacyTransportLineRec.Get(TransportLineRec."Line No.", TransportLineRec."Transport No.", TransportLineRec.Type) then begin
                     // 50805 "DXR-DE Store No." -> Store No._DXR, 50806 "DXR-DE Document Reference" -> Document Reference_DXR
-                    StoreNoFld := LegacyRecRef.Field(50805);
-                    DocRefFld := LegacyRecRef.Field(50806);
-                    TransportLineRec."Store No._DXR" := StoreNoFld.Value();
-                    TransportLineRec."Document Reference_DXR" := DocRefFld.Value();
-                    TransportLineRec.Modify(false);
+                    if (TransportLineRec."Store No._DXR" <> LegacyTransportLineRec."DXR-DE Store No.") or
+                       (TransportLineRec."Document Reference_DXR" <> LegacyTransportLineRec."DXR-DE Document Reference")
+                    then begin
+                        TransportLineRec."Store No._DXR" := LegacyTransportLineRec."DXR-DE Store No.";
+                        TransportLineRec."Document Reference_DXR" := LegacyTransportLineRec."DXR-DE Document Reference";
+                        TransportLineRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
+
+                BatchCount += 1;
+                if BatchCount >= 200 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until TransportLineRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLINE-28.3');
@@ -372,23 +352,20 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransportLogsRec: Record "DXR_Transport Log's";
-        NewRecRef: RecordRef;
-        LegacyRecRef: RecordRef;
-        Fld: FieldRef;
+        LegacyTransportLogsRec: Record "DXR-DE Transport Log's";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLOGS-28.3') then
             exit;
 
         if TransportLogsRec.FindSet(true) then
             repeat
-                NewRecRef.GetTable(TransportLogsRec);
-                if FindMatchingLegacyRow(50812, NewRecRef, LegacyRecRef) then begin
+                if LegacyTransportLogsRec.Get(TransportLogsRec."Entry No.") then begin
                     // 50800 "DXR-DE Document Reference" -> Document Reference_DXR
-                    Fld := LegacyRecRef.Field(50800);
-                    TransportLogsRec."Document Reference_DXR" := Fld.Value();
-                    TransportLogsRec.Modify(false);
+                    if TransportLogsRec."Document Reference_DXR" <> LegacyTransportLogsRec."DXR-DE Document Reference" then begin
+                        TransportLogsRec."Document Reference_DXR" := LegacyTransportLogsRec."DXR-DE Document Reference";
+                        TransportLogsRec.Modify(false);
+                    end;
                 end;
-                LegacyRecRef.Close();
             until TransportLogsRec.Next() = 0;
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLOGS-28.3');
