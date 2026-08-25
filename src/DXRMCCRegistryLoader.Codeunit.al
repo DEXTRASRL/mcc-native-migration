@@ -3,9 +3,10 @@ codeunit 60012 "DXR MCC Registry Loader"
     // Manual, idempotent seed-data loader for the Extension (60000) and Concept (60001) registries.
     // Not an Upgrade-subtype codeunit - this hub has no schema of its own to upgrade, only its own
     // reference data to (re)populate. Invoked via the "Reload Registry" action on page 60020.
-    // Concepts whose Legacy/New Table ID are both 0 are field-level migrations within a single
-    // table (not a table-pair swap) - row counts aren't a meaningful gap signal for those, so the
-    // Counter codeunit marks them "Not Row-Based" and they're tracked as run/not-run only.
+    // Concepts whose Legacy/New Table ID are both 0 and have a real dispatcher are field-level
+    // migrations: row counts are not a meaningful gap signal, so Counter marks them Not Row-Based.
+    // Rows with no dispatcher and no table IDs are historical/informational markers and are
+    // Skipped; they must never be presented as if MCC had verified a runtime migration.
     // Order No. is the operator-approved portfolio migration sequence. Values 10..190 preserve
     // the exact dependency order (Localization Base through Bellon Customization POS); 170 is
     // deliberately reserved for Mail Connector, which has no authoritative registry code,
@@ -132,8 +133,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-P4', 3, 'RETIRED 2026-08-24: superseded now that Phase 4''s entire real scope (9 actions, seq31-39) is natively ported into MCC codeunit 60168. Same bridge-elimination reasoning as DRLOC-P2 seq1 above.', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P5', 4, 'RETIRED 2026-08-25: coarse bridge superseded by the native, category-specific Phase 5 concepts.', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P6', 5, 'RETIRED 2026-08-25: coarse bridge superseded by the native, category-specific Phase 6 concepts.', 0, 0, 0, 'OTHER');
-        InsConcept('DRLOC', 'DRLOC-NCF', 6, 'Sales family NCF field cross-table ID collision fix (20 fields, live crash root cause)', 0, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-NCF', 7, 'Purchase family NCF field cross-table ID collision fix (98 fields, latent same bug)', 0, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-NCF', 6, 'RETIRED: Sales-family NCF cross-table field-ID schema correction (20 fields); runtime field restoration is tracked by DRLOC-P4 seq31-33', 0, 0, 0, 'OTHER');
+        InsConcept('DRLOC', 'DRLOC-NCF', 7, 'RETIRED: Purchase-family NCF cross-table field-ID schema correction (98 fields); runtime field restoration is tracked by DRLOC-P3 seq19-24', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P1', 8, 'Internal Closure Migration (Subtype=Upgrade, hard blocking prerequisite that Phase 2-6''s dispatcher checks via EnsurePhase1Completed - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs on its own publish/upgrade cycle only)', 0, 0, 0, 'OTHER');
         InsConcept('DRLOC', 'DRLOC-P2', 9, 'Bootstrap: CompanyInformation fields', 60165, 0, 0, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-P2', 10, 'Bootstrap: BankAccount/Customer/Vendor fields', 60165, 0, 0, 'MA');
@@ -175,8 +176,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         // OnRun(), not in RunOrphanedFieldMigrationsRetroactive() - it is intentionally NOT ported
         // into codeunit 60165 (see that codeunit's own header comment, "seq44 naming note"). Only the
         // Bulk+FlowFields field restore is covered by this row/codeunit.
-        InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields) + withholding migration repair', 60165, 0, 0, 'MA');
-        InsConcept('DRLOC', 'DRLOC-P5', 45, 'Detailed Cust. Ledg. Entry field restore', 60169, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 44, 'Vendor Ledger Entry field restore (bulk + FlowFields)', 60165, 0, 0, 'MA');
+        InsConcept('DRLOC', 'DRLOC-P5', 45, 'Vendor withholding migration repair + Detailed Cust. Ledg. Entry field restore', 60169, 0, 0, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 46, 'Arch. Withholding Gov. Hdr legacy table restore (54108 -> 52120)', 60169, 54108, 52120, 'HIST');
         InsConcept('DRLOC', 'DRLOC-P5', 47, 'Archived Bank Charges Hdr legacy table restore (54102 -> 52107)', 60169, 54102, 52107, 'MA');
         InsConcept('DRLOC', 'DRLOC-P5', 48, 'Withholding Govern. Header legacy table restore (54147 -> 52207)', 60169, 54147, 52207, 'MA');
@@ -245,7 +246,10 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DRLOC', 'DRLOC-GAP', 101, 'DXNCF Setup legacy table restore (54132 -> 52179)', 0, 54132, 52179, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-GAP', 102, 'DXNCF Categories legacy table restore (54129 -> 52176, active name NCFCategories_DXR)', 0, 54129, 52176, 'SETUP');
         InsConcept('DRLOC', 'DRLOC-GAP', 103, 'DXPayroll Interface Temp legacy table restore (54135 -> 52183)', 0, 54135, 52183, 'HIST');
-        InsConcept('DRLOC', 'DRLOC-GAP', 104, 'DXVendorWithholdingLedgerEntry legacy table restore (54145 -> 52204, active name DXR_VendWithholdLedgerEntry)', 0, 54145, 52204, 'MA');
+        // This table restore is already the first sub-step of Phase 5's native vendor-withholding
+        // repair. Route the audit row to that same dispatcher instead of running a second generic
+        // fallback copy over the same table pair.
+        InsConcept('DRLOC', 'DRLOC-GAP', 104, 'Vendor withholding repair: legacy ledger 54145 -> 52204 plus Vendor Ledger Entry field/document-type correction', 60169, 54145, 52204, 'MA');
         // Found 2026-08-22 answering the user's direct question "y lo ncf category de las
         // cuentas, estan?" - G/L Account has field "DXNCF Categories" (Pending, obsolete) whose
         // value needs copying into the active field "NCFCategories_DXR" on the same table row.
@@ -852,19 +856,22 @@ codeunit 60012 "DXR MCC Registry Loader"
         // table field copies - the exact procedure whose wrong target field numbers caused
         // "DXR_Payment Method Relation" and the 3 NCF Setup tables to silently receive zero EF
         // field data, fixed this same session) and DXR_Migr_Phase_8/9/10's own CopySameTableFields
-        // FieldMap.Add() calls (each phase's real per-table field list). Legacy/New Table ID left
-        // 0/0 for all of these - they're field-only fixes on tables whose own ROW existence is
-        // already tracked elsewhere (DRLOC-GAP seq99-101 for the 3 NCF Setup tables, DRLOC-P2
-        // seq13 for Payment Method Relation; the BC standard document/master tables here were
-        // never renumbered, so there's no separate legacy/new pair to restore) - same convention
-        // as every other pure field-realignment concept in this file (e.g. DESB-P2 seq40/41).
+        // FieldMap.Add() calls (each phase's real per-table field list). P7 now carries its exact
+        // Legacy/New table IDs for logging and one dispatcher per table. Its former 60136 entry
+        // point also traversed five unbounded document-line tables while Current Step still showed
+        // only the first NCF Purchase Setup concept; that unrelated repair is now its own row.
         // seq1-4 keep their original triples (same logical item, just corrected to the FIRST of
         // several sub-items each phase actually does - never repurposed to a different concept);
         // seq304+ are new, continuing after this extension's prior max (FE-P12 seq303).
-        InsConcept('FE', 'FE-P7', 1, 'NCF Purchase Setup field restore (DXNCF Purchase Setup 54130 -> DXR_NCF Purchase Setup 52177, fields 55502->52334/55501->52333)', 60136, 0, 0, 'SETUP');
-        InsConcept('FE', 'FE-P7', 304, 'NCF Sales Setup field restore (DXNCF Sales Setup 54131 -> DXR_NCF Sales Setup 52178, fields 55502->52334/55501->52333)', 60136, 0, 0, 'SETUP');
-        InsConcept('FE', 'FE-P7', 305, 'NCF Setup field restore (DXNCF Setup 54132 -> DXR_NCF Setup 52179, field 55501->52333)', 60136, 0, 0, 'SETUP');
-        InsConcept('FE', 'FE-P7', 306, 'Payment Method Relation field restore (DXPayment Method Relation 54133 -> DXR_Payment Method Relation 52180, fields 55502->52334/55501->52333)', 60136, 0, 0, 'SETUP');
+        InsConcept('FE', 'FE-P7', 1, 'NCF Purchase Setup field restore (DXNCF Purchase Setup 54130 -> DXR_NCF Purchase Setup 52177, fields 55502->52334/55501->52333)', 60335, 54130, 52177, 'SETUP');
+        InsConcept('FE', 'FE-P7', 304, 'NCF Sales Setup field restore (DXNCF Sales Setup 54131 -> DXR_NCF Sales Setup 52178, fields 55502->52334/55501->52333)', 60336, 54131, 52178, 'SETUP');
+        InsConcept('FE', 'FE-P7', 305, 'NCF Setup field restore (DXNCF Setup 54132 -> DXR_NCF Setup 52179, field 55501->52333)', 60337, 54132, 52179, 'SETUP');
+        InsConcept('FE', 'FE-P7', 306, 'Payment Method Relation field restore (DXPayment Method Relation 54133 -> DXR_Payment Method Relation 52180, fields 55502->52334/55501->52333)', 60338, 54133, 52180, 'SETUP');
+        InsConcept('FE', 'FE-P7', 320, 'Purch. Cr. Memo Line Applies Withholding field repair', 60339, Database::"Purch. Cr. Memo Line", Database::"Purch. Cr. Memo Line", 'HIST');
+        InsConcept('FE', 'FE-P7', 321, 'Purch. Inv. Line Applies Withholding field repair', 60340, Database::"Purch. Inv. Line", Database::"Purch. Inv. Line", 'HIST');
+        InsConcept('FE', 'FE-P7', 322, 'Sales Line Applies Withholding field repair', 60341, Database::"Sales Line", Database::"Sales Line", 'MA');
+        InsConcept('FE', 'FE-P7', 323, 'Sales Invoice Line Applies Withholding field repair', 60342, Database::"Sales Invoice Line", Database::"Sales Invoice Line", 'HIST');
+        InsConcept('FE', 'FE-P7', 324, 'Sales Cr.Memo Line Applies Withholding field repair', 60343, Database::"Sales Cr.Memo Line", Database::"Sales Cr.Memo Line", 'HIST');
         InsConcept('FE', 'FE-P8', 2, 'Currency field restore (Currency Type_DXR, 1 field)', 60137, 0, 0, 'SETUP');
         InsConcept('FE', 'FE-P8', 307, 'Item field restore (Applies for ISC_DXR/Tax Type_DXR, 2 fields, batched)', 60137, 0, 0, 'MA');
         InsConcept('FE', 'FE-P8', 308, 'Post Code field restore (Township/County Code_DXR, 2 fields)', 60137, 0, 0, 'SETUP');
@@ -927,27 +934,28 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSFE', 'LSFE-P1', 1, 'Assign PermSet to all users (background worker, runs synchronously when invoked directly)', 60144, 0, 0, 'SETUP');
         InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60145, 0, 0, 'OTHER');
 
-        // ---- LSLOC: LS Central DR Localization (dispatcher 54506 sequences all phases internally, tag-gated - same ID on every row is correct, matches BC-P2/BC-P3 convention) ----
+        // ---- LSLOC: LS Central DR Localization. Each registry concept points to the smallest
+        // callable MCC dispatcher available. In particular, setup field restores must never share
+        // one dispatcher: doing so held Label Functions plus the following setup tables in the
+        // same transaction while Current Step misleadingly advanced to another concept. ----
         InsConcept('LSLOC', 'LSLOC-OPOS', 1, 'OPOS Setup: DXR_Gaps Setup -> DXR_LS OPOS Print Setup field copy (fixes the documented SOLUCION_NCF_UPGRADE.md silent-migration-failure incident)', 60161, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 60174, 0, 0, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 2, 'Gen. Journal Line field range restore (same-table, via "DXR_LS TableExt Fields Upgrade" 54510)', 60174, Database::"Gen. Journal Line", Database::"Gen. Journal Line", 'MA');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 3, 'Archived Consumer Sales 607 dependency-field sync (54104 field range -> 52111, target rows must pre-exist, via "DXR_LS Dependency Fields Upgr." 54512)', 60178, 0, 0, 'MA');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 4, 'LSDX POS Setup legacy table restore (54300 -> 54492, via "DXR_LS Legacy Tables Upgrade" 54511)', 60171, 54300, 54492, 'SETUP');
-        // Expanded 2026-08-22 from 3 collapsed rows into individual ones - full breakdown read
-        // directly from "DXR_LS TableExt Fields Upgrade" (54510), "DXR_LS Dependency Fields Upgr."
-        // (54512), and "DXR_LS Legacy Tables Upgrade" (54511) - all 3 kept on dispatcher 54506
-        // (the already-established, working entry point that sequences them internally) rather
-        // than switching to the sub-codeunit IDs directly, since that invocation path was never
-        // independently confirmed safe to call in isolation.
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60174, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, 0, 0, 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60172, 0, 0, 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, 0, 0, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, 0, 0, 'OTHER');
+        // Breakdown read directly from "DXR_LS TableExt Fields Upgrade" (54510),
+        // "DXR_LS Dependency Fields Upgr." (54512), and "DXR_LS Legacy Tables Upgrade" (54511).
+        // MCC-owned normal codeunits expose their operations safely outside schema sync and keep
+        // idempotence at one Upgrade Tag per callable unit.
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60174, Database::Item, Database::Item, 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, Database::"LSC Hospitality Type", Database::"LSC Hospitality Type", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60180, Database::"LSC Label Functions", Database::"LSC Label Functions", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60181, Database::"LSC POS Print Setup Header", Database::"LSC POS Print Setup Header", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60182, Database::"LSC POS Terminal", Database::"LSC POS Terminal", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, Database::"LSC POS Transaction", Database::"LSC POS Transaction", 'OTHER');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60183, Database::"LSC Sales Type", Database::"LSC Sales Type", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60184, Database::"LSC Store", Database::"LSC Store", 'SETUP');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, Database::"LSC Store Inventory Line", Database::"LSC Store Inventory Line", 'MA');
+        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, Database::"LSC Transaction Header", Database::"LSC Transaction Header", 'OTHER');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60178, 0, 0, 'MA');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60177, 0, 0, 'SETUP');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60177, 0, 0, 'SETUP');
@@ -1009,6 +1017,7 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."Legacy Table ID" := LegacyId;
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
+            Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
             Concept.Modify(true);
         end else begin
             Concept.Init();
@@ -1020,6 +1029,7 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."Legacy Table ID" := LegacyId;
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
+            Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
             Concept.Status := Concept.Status::"Not Counted";
             Concept.Insert(true);
         end;

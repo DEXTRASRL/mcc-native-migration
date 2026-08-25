@@ -55,6 +55,60 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V5-PHASE1-BOOTSTRAP-20260625');
     end;
 
+    procedure RunNCFPurchaseSetup()
+    begin
+        MigrateNCFPurchaseSetupDependencyFields();
+    end;
+
+    procedure RunNCFSalesSetup()
+    begin
+        MigrateNCFSalesSetupDependencyFields();
+    end;
+
+    procedure RunNCFSetup()
+    begin
+        MigrateNCFSetupDependencyFields();
+    end;
+
+    procedure RunPaymentMethodRelation()
+    begin
+        MigratePaymentMethodRelationDependencyFields();
+    end;
+
+    procedure RunAppliesWithholdingRepair()
+    begin
+        CopyPurchCrMemoLineAppliesWithholding();
+        CopyPurchInvLineAppliesWithholding();
+        CopySalesLineAppliesWithholding();
+        CopySalesInvoiceLineAppliesWithholding();
+        CopySalesCrMemoLineAppliesWithholding();
+    end;
+
+    procedure RunPurchCrMemoLineWithholding()
+    begin
+        CopyPurchCrMemoLineAppliesWithholding();
+    end;
+
+    procedure RunPurchInvLineWithholding()
+    begin
+        CopyPurchInvLineAppliesWithholding();
+    end;
+
+    procedure RunSalesLineWithholding()
+    begin
+        CopySalesLineAppliesWithholding();
+    end;
+
+    procedure RunSalesInvoiceLineWithholding()
+    begin
+        CopySalesInvoiceLineAppliesWithholding();
+    end;
+
+    procedure RunSalesCrMemoLineWithholding()
+    begin
+        CopySalesCrMemoLineAppliesWithholding();
+    end;
+
     local procedure MigrateLegacyDependencyTableFields()
     begin
         // seq1: DXNCF Purchase Setup (54130) -> DXR_NCF Purchase Setup (52177): Alternal No.
@@ -192,15 +246,16 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         PurchCrMemoLine: Record "Purch. Cr. Memo Line";
         BatchCount: Integer;
     begin
-        if PurchCrMemoLine.FindSet(true) then
+        if PurchCrMemoLine.FindSet() then
             repeat
-                PurchCrMemoLine."Applies Withholding_DXR" := PurchCrMemoLine."EF Applies for Withholding";
-                PurchCrMemoLine.Modify(false);
-
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
+                if PurchCrMemoLine."Applies Withholding_DXR" <> PurchCrMemoLine."EF Applies for Withholding" then begin
+                    PurchCrMemoLine."Applies Withholding_DXR" := PurchCrMemoLine."EF Applies for Withholding";
+                    PurchCrMemoLine.Modify(false);
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until PurchCrMemoLine.Next() = 0;
     end;
@@ -210,15 +265,16 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         PurchInvLine: Record "Purch. Inv. Line";
         BatchCount: Integer;
     begin
-        if PurchInvLine.FindSet(true) then
+        if PurchInvLine.FindSet() then
             repeat
-                PurchInvLine."Applies Withholding_DXR" := PurchInvLine."EF Applies for Withholding";
-                PurchInvLine.Modify(false);
-
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
+                if PurchInvLine."Applies Withholding_DXR" <> PurchInvLine."EF Applies for Withholding" then begin
+                    PurchInvLine."Applies Withholding_DXR" := PurchInvLine."EF Applies for Withholding";
+                    PurchInvLine.Modify(false);
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until PurchInvLine.Next() = 0;
     end;
@@ -228,15 +284,16 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesLine: Record "Sales Line";
         BatchCount: Integer;
     begin
-        if SalesLine.FindSet(true) then
+        if SalesLine.FindSet() then
             repeat
-                SalesLine."Applies Withholding_DXR" := SalesLine."EF Applies for Withholding";
-                SalesLine.Modify(false);
-
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
+                if SalesLine."Applies Withholding_DXR" <> SalesLine."EF Applies for Withholding" then begin
+                    SalesLine."Applies Withholding_DXR" := SalesLine."EF Applies for Withholding";
+                    SalesLine.Modify(false);
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until SalesLine.Next() = 0;
     end;
@@ -246,15 +303,16 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesInvoiceLine: Record "Sales Invoice Line";
         BatchCount: Integer;
     begin
-        if SalesInvoiceLine.FindSet(true) then
+        if SalesInvoiceLine.FindSet() then
             repeat
-                SalesInvoiceLine."Applies Withholding_DXR" := SalesInvoiceLine."EF Applies for Withholding";
-                SalesInvoiceLine.Modify(false);
-
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
+                if SalesInvoiceLine."Applies Withholding_DXR" <> SalesInvoiceLine."EF Applies for Withholding" then begin
+                    SalesInvoiceLine."Applies Withholding_DXR" := SalesInvoiceLine."EF Applies for Withholding";
+                    SalesInvoiceLine.Modify(false);
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until SalesInvoiceLine.Next() = 0;
     end;
@@ -264,15 +322,16 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesCrMemoLine: Record "Sales Cr.Memo Line";
         BatchCount: Integer;
     begin
-        if SalesCrMemoLine.FindSet(true) then
+        if SalesCrMemoLine.FindSet() then
             repeat
-                SalesCrMemoLine."Applies Withholding_DXR" := SalesCrMemoLine."EF Applies for Withholding";
-                SalesCrMemoLine.Modify(false);
-
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
+                if SalesCrMemoLine."Applies Withholding_DXR" <> SalesCrMemoLine."EF Applies for Withholding" then begin
+                    SalesCrMemoLine."Applies Withholding_DXR" := SalesCrMemoLine."EF Applies for Withholding";
+                    SalesCrMemoLine.Modify(false);
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until SalesCrMemoLine.Next() = 0;
     end;

@@ -434,9 +434,14 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                 NewRecRef.Init();
                 for FieldIdx := 1 to OldRecRef.FieldCount() do begin
                     OldFieldRef := OldRecRef.FieldIndex(FieldIdx);
-                    if (OldFieldRef.Class() = FieldClass::Normal) and NewRecRef.FieldExist(OldFieldRef.Number()) then begin
-                        NewFieldRef := NewRecRef.Field(OldFieldRef.Number());
-                        if NewFieldRef.Class() = FieldClass::Normal then
+                    if (OldFieldRef.Number() < 2000000000) and
+                       (OldFieldRef.Class() = FieldClass::Normal) and
+                       NewRecRef.FieldExist(OldFieldRef.Name())
+                    then begin
+                        NewFieldRef := NewRecRef.Field(OldFieldRef.Name());
+                        if (NewFieldRef.Class() = FieldClass::Normal) and
+                           (OldFieldRef.Type() = NewFieldRef.Type())
+                        then
                             NewFieldRef.Value := OldFieldRef.Value();
                     end;
                 end;

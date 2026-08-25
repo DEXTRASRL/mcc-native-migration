@@ -186,6 +186,7 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         TargetPkFieldRef: FieldRef;
         FieldOffset: Integer;
         KeyFieldIndex: Integer;
+        AllKeyFieldsMapped: Boolean;
     begin
         SourceRef.Open(SourceTableId);
         TargetRef.Open(TargetTableId);
@@ -194,15 +195,20 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         if SourceRef.FindSet() then
             repeat
                 TargetRef.Reset();
+                AllKeyFieldsMapped := true;
                 for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
                     SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    if TargetRef.FieldExist(SourcePkFieldRef.Number) then begin
-                        TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Number);
-                        TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
-                    end;
+                    if TargetRef.FieldExist(SourcePkFieldRef.Name) then begin
+                        TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Name);
+                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
+                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
+                        else
+                            AllKeyFieldsMapped := false;
+                    end else
+                        AllKeyFieldsMapped := false;
                 end;
 
-                if TargetRef.FindFirst() then begin
+                if AllKeyFieldsMapped and TargetRef.FindFirst() then begin
                     for FieldOffset := 0 to FieldCount - 1 do
                         CopyFieldValueIfExists(SourceRef, TargetRef, SourceStartFieldNo + FieldOffset, TargetStartFieldNo + FieldOffset);
                     TargetRef.Modify(false);

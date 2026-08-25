@@ -14,7 +14,10 @@ codeunit 60089 "DXR MCC BC Migr P1 Vendor"
             exit;
         if NewSetup.Get('') then
             exit;
-        NewSetup.TransferFields(OldSetup, true);
+        NewSetup.Init();
+        NewSetup.Code := OldSetup.Code;
+        NewSetup.Active := OldSetup.Active;
+        NewSetup."Mandatory Currency Code" := OldSetup."Mandatory Currency Code";
         NewSetup.Insert(false);
     end;
 }

@@ -24,6 +24,7 @@ report 60040 "DXR MCC Extension Gap Report"
                 Line: Text;
             begin
                 Concept.SetRange("Extension Code", Extension.Code);
+                Concept.SetRange(Retired, false);
                 if Concept.FindSet() then
                     repeat
                         TotalConcepts2 += 1;

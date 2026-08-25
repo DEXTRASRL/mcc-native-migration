@@ -537,10 +537,9 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
             until Legacy.Next() = 0;
     end;
 
-    // Everything below is out of scope for MCC's 12 FE-P11 registry concepts (no registry row
-    // targets these tables) - left exactly as before, still generic RecordRef/FieldRef by numeric
-    // table ID, matching this plan's established precedent of leaving out-of-scope in-file code
-    // untouched.
+    // Generic standalone-table reconciliation used by the remaining FE-P11 table pairs. Tables
+    // are opened by object ID, but primary keys and stored values are matched by exact field name
+    // and type; field IDs are never used to infer cross-table identity.
     local procedure CopyStandaloneTable(SourceTableId: Integer; TargetTableId: Integer)
     var
         SourceRecordRef: RecordRef;
@@ -553,6 +552,7 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         FieldIndex: Integer;
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
+        AllKeyFieldsMapped: Boolean;
     begin
         SourceRecordRef.Open(SourceTableId);
         TargetRecordRef.Open(TargetTableId);
@@ -562,23 +562,41 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         if SourceRecordRef.FindSet() then
             repeat
                 TargetRecordRef.Reset();
+                AllKeyFieldsMapped := true;
 
                 for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
                     SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    TargetPkFieldRef := TargetRecordRef.Field(SourcePkFieldRef.Number);
-                    TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
+                    if TargetRecordRef.FieldExist(SourcePkFieldRef.Name) then begin
+                        TargetPkFieldRef := TargetRecordRef.Field(SourcePkFieldRef.Name);
+                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
+                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
+                        else
+                            AllKeyFieldsMapped := false;
+                    end else
+                        AllKeyFieldsMapped := false;
                 end;
 
-                TargetExists := TargetRecordRef.FindFirst();
+                TargetExists := AllKeyFieldsMapped and TargetRecordRef.FindFirst();
+
+                if not AllKeyFieldsMapped then begin
+                    TargetRecordRef.Close();
+                    SourceRecordRef.Close();
+                    exit;
+                end;
 
                 if TargetExists then begin
                     for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
                         SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
 
-                        if TargetRecordRef.FieldExist(SourceFieldRef.Number) then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Number);
+                        if (SourceFieldRef.Number < 2000000000) and
+                           (SourceFieldRef.Class = FieldClass::Normal) and
+                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
+                        then begin
+                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
 
-                            if TargetFieldRef.Class = FieldClass::Normal then
+                            if (TargetFieldRef.Class = FieldClass::Normal) and
+                               (SourceFieldRef.Type = TargetFieldRef.Type)
+                            then
                                 TargetFieldRef.Value := SourceFieldRef.Value;
                         end;
                     end;
@@ -590,10 +608,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
                         SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
 
-                        if TargetRecordRef.FieldExist(SourceFieldRef.Number) then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Number);
+                        if (SourceFieldRef.Number < 2000000000) and
+                           (SourceFieldRef.Class = FieldClass::Normal) and
+                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
+                        then begin
+                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
 
-                            if TargetFieldRef.Class = FieldClass::Normal then
+                            if (TargetFieldRef.Class = FieldClass::Normal) and
+                               (SourceFieldRef.Type = TargetFieldRef.Type)
+                            then
                                 TargetFieldRef.Value := SourceFieldRef.Value;
                         end;
                     end;

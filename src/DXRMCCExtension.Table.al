@@ -34,21 +34,21 @@ table 60000 "DXR MCC Extension"
         {
             Caption = 'Total Concepts';
             FieldClass = FlowField;
-            CalcFormula = count("DXR MCC Concept" where("Extension Code" = field(Code)));
+            CalcFormula = count("DXR MCC Concept" where("Extension Code" = field(Code), Retired = const(false)));
             Editable = false;
         }
         field(7; "Total Gap"; Integer)
         {
             Caption = 'Total Gap';
             FieldClass = FlowField;
-            CalcFormula = sum("DXR MCC Concept".Gap where("Extension Code" = field(Code)));
+            CalcFormula = sum("DXR MCC Concept".Gap where("Extension Code" = field(Code), Retired = const(false)));
             Editable = false;
         }
         field(8; "Last Run DateTime"; DateTime)
         {
             Caption = 'Last Run DateTime';
             FieldClass = FlowField;
-            CalcFormula = max("DXR MCC Concept"."Last Run DateTime" where("Extension Code" = field(Code)));
+            CalcFormula = max("DXR MCC Concept"."Last Run DateTime" where("Extension Code" = field(Code), Retired = const(false)));
             Editable = false;
         }
     }

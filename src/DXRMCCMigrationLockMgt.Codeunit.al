@@ -79,6 +79,24 @@ codeunit 60016 "DXR MCC Migration Lock Mgt."
         MigrationLock.Delete(false);
     end;
 
+    /// <summary>Keeps the global mutex alive while its owning Run Request is still producing heartbeats.</summary>
+    internal procedure RenewLockForRunRequest(RunRequestEntryNo: Integer; LockDuration: Duration): Boolean
+    var
+        MigrationLock: Record "DXR MCC Migration Lock";
+    begin
+        PrepareCoordinatorLockRecord(MigrationLock);
+        MigrationLock.LockTable();
+
+        if not MigrationLock.Get(GlobalLockRowKey(), GetGlobalMigrationLockCode()) then
+            exit(false);
+        if MigrationLock."Run Request Entry No." <> RunRequestEntryNo then
+            exit(false);
+
+        MigrationLock."Expires At" := CurrentDateTime() + LockDuration;
+        MigrationLock.Modify(false);
+        exit(true);
+    end;
+
     internal procedure GetActiveMigrationLock(var LockedForCompany: Text; var LockedBy: Code[50]; var LockedAt: DateTime; var ExpiresAt: DateTime): Boolean
     var
         MigrationLock: Record "DXR MCC Migration Lock";

@@ -2,6 +2,7 @@ page 60022 "DXR MCC Concept Subform"
 {
     PageType = ListPart;
     SourceTable = "DXR MCC Concept";
+    SourceTableView = where(Retired = const(false));
     ApplicationArea = All;
     UsageCategory = Administration;
 
@@ -52,6 +53,8 @@ page 60022 "DXR MCC Concept Subform"
                 var
                     Executor: Codeunit "DXR MCC Executor";
                 begin
+                    if Rec.Retired then
+                        Error('This concept is retired and has no runtime migration to execute.');
                     if Rec.Blocked then
                         Error('This concept is blocked: %1', Rec."Blocked Reason");
                     Executor.ScheduleConcept(Rec);
@@ -73,6 +76,8 @@ page 60022 "DXR MCC Concept Subform"
                     NotFoundText: Text;
                     NotFoundItem: Text;
                 begin
+                    if Rec.Retired then
+                        Error('This concept is retired and has no Upgrade Tag or runtime migration to rerun.');
                     if Rec.Blocked then
                         Error('This concept is blocked: %1', Rec."Blocked Reason");
                     if Rec."Upgrade Tags" = '' then

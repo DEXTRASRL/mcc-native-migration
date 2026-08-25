@@ -134,10 +134,8 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         // "DXR_Cash Journal Receipt List" is Access = Internal, so the new side is opened by
         // numeric table ID (52132) via RecordRef; the old (legacy) side is opened by RecordRef too
         // so KeyIndex() is available (only RecordRef exposes it, not a typed Record variable).
-        // Joined on "Document No." (the old table's own primary key) by matching field NUMBER
-        // across both tables - table renumbering in this portfolio preserves field numbers, only
-        // the table ID changes (same assumption the generic MigrateLegacyTableData engine relies
-        // on everywhere else in this migration).
+        // Joined on "Document No." (the old table's own primary key) by matching field NAME and
+        // TYPE across both tables. Field IDs are not trusted across different table objects.
         OldRef.Open(Database::"DXCash Journal Receipt List");
         NewRef.Open(52132); // DXR_Cash Journal Receipt List
 
@@ -149,9 +147,12 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
                 AllKeyFieldsMapped := true;
                 for KeyFieldIndex := 1 to OldKeyRef.FieldCount() do begin
                     OldPkFieldRef := OldKeyRef.FieldIndex(KeyFieldIndex);
-                    if NewRef.FieldExist(OldPkFieldRef.Number) then begin
-                        NewPkFieldRef := NewRef.Field(OldPkFieldRef.Number);
-                        NewPkFieldRef.SetRange(OldPkFieldRef.Value);
+                    if NewRef.FieldExist(OldPkFieldRef.Name) then begin
+                        NewPkFieldRef := NewRef.Field(OldPkFieldRef.Name);
+                        if OldPkFieldRef.Type = NewPkFieldRef.Type then
+                            NewPkFieldRef.SetRange(OldPkFieldRef.Value)
+                        else
+                            AllKeyFieldsMapped := false;
                     end else
                         AllKeyFieldsMapped := false;
                 end;

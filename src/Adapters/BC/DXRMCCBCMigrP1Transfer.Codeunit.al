@@ -14,7 +14,11 @@ codeunit 60090 "DXR MCC BC Migr P1 Transfer"
             exit;
         if NewSetup.Get('') then
             exit;
-        NewSetup.TransferFields(OldSetup, true);
+        NewSetup.Init();
+        NewSetup.Code := OldSetup.Code;
+        NewSetup.Active := OldSetup.Active;
+        NewSetup."Change Expected Date" := OldSetup."Change Expected Date";
+        NewSetup."Skip Zero Qty to Ship Lines" := OldSetup."Skip Zero Qty to Ship Lines";
         NewSetup.Insert(false);
     end;
 }

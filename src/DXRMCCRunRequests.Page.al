@@ -73,6 +73,18 @@ page 60023 "DXR MCC Run Requests"
                     Page.Run(Page::"DXR MCC Run Log", RunLog);
                 end;
             }
+            action(ViewTiming)
+            {
+                Caption = 'Ver Tiempos por Fase';
+                ApplicationArea = All;
+                Image = Timesheet;
+                ToolTip = 'Muestra inicio, finalización, duración y estado de Setup, Master/Accounting, Historic y Other para el Run Entire Portfolio seleccionado.';
+
+                trigger OnAction()
+                begin
+                    Page.Run(Page::"DXR MCC Run Timing", Rec);
+                end;
+            }
             action(Cancel)
             {
                 Caption = 'Cancel';

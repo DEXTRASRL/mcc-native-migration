@@ -210,8 +210,9 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     end;
 
     // Generic RecordRef copy of every row from a legacy table (ObsoleteState=Pending) to its new
-    // DXR_ clone - field IDs are identical between both, so a field-by-field copy by number is
-    // safe. Idempotent per table: if the destination already has rows, does not copy again.
+    // DXR_ clone. Matching is by exact field name and type; field IDs are deliberately not trusted
+    // between table objects. Idempotent per table: if the destination already has rows, does not
+    // copy again.
     local procedure MigrateLegacyTableData(OldTableId: Integer; NewTableId: Integer)
     var
         OldRecRef: RecordRef;
@@ -234,13 +235,18 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
                 NewRecRef.Init();
                 for FieldIdx := 1 to OldRecRef.FieldCount() do begin
                     OldFieldRef := OldRecRef.FieldIndex(FieldIdx);
-                    if (OldFieldRef.Class() = FieldClass::Normal) and NewRecRef.FieldExist(OldFieldRef.Number()) then begin
-                        NewFieldRef := NewRecRef.Field(OldFieldRef.Number());
+                    if (OldFieldRef.Number() < 2000000000) and
+                       (OldFieldRef.Class() = FieldClass::Normal) and
+                       NewRecRef.FieldExist(OldFieldRef.Name())
+                    then begin
+                        NewFieldRef := NewRecRef.Field(OldFieldRef.Name());
                         // Only Normal fields on both sides are copied: a FlowField/FlowFilter on
                         // the destination rejects a direct .Value assignment (runtime error), and
                         // one on the source would need CalcFields first - neither is physical data
                         // this clone needs to carry.
-                        if NewFieldRef.Class() = FieldClass::Normal then
+                        if (NewFieldRef.Class() = FieldClass::Normal) and
+                           (OldFieldRef.Type() = NewFieldRef.Type())
+                        then
                             NewFieldRef.Value := OldFieldRef.Value();
                     end;
                 end;

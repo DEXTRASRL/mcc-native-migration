@@ -192,13 +192,16 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
             repeat
                 DestRecRef.Open(DestTableNo);
                 DestRecRef.Init();
-                foreach FieldNo in FieldNos do
-                    if DestRecRef.FieldExist(FieldNo) then begin
-                        SourceFieldRef := SourceRecRef.Field(FieldNo);
-                        DestFieldRef := DestRecRef.Field(FieldNo);
-                        if DestFieldRef.Class = FieldClass::Normal then
+                foreach FieldNo in FieldNos do begin
+                    SourceFieldRef := SourceRecRef.Field(FieldNo);
+                    if DestRecRef.FieldExist(SourceFieldRef.Name) then begin
+                        DestFieldRef := DestRecRef.Field(SourceFieldRef.Name);
+                        if (DestFieldRef.Class = FieldClass::Normal) and
+                           (SourceFieldRef.Type = DestFieldRef.Type)
+                        then
                             DestFieldRef.Value := SourceFieldRef.Value;
                     end;
+                end;
                 TryInsertRow(DestRecRef);
                 DestRecRef.Close();
             until SourceRecRef.Next() = 0;

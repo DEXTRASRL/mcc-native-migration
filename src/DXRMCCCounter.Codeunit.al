@@ -16,8 +16,26 @@ codeunit 60010 "DXR MCC Counter"
         OldOpened: Boolean;
         NewOpened: Boolean;
     begin
+        if Concept.Retired then begin
+            Concept."Old Record Count" := 0;
+            Concept."Migrated Record Count" := 0;
+            Concept.Gap := 0;
+            Concept.Status := Concept.Status::Skipped;
+            Concept.Modify(true);
+            exit;
+        end;
+
         if (Concept."Legacy Table ID" = 0) and (Concept."New Table ID" = 0) then begin
-            Concept.Status := Concept.Status::"Not Row-Based";
+            Concept."Old Record Count" := 0;
+            Concept."Migrated Record Count" := 0;
+            Concept.Gap := 0;
+            // No dispatcher and no table identity means this row is an informational/retired
+            // registry marker, not a migration that MCC can execute or verify. Keep genuine
+            // field migrations (a real dispatcher with no table-pair count) as Not Row-Based.
+            if Concept."Dispatcher Codeunit ID" = 0 then
+                Concept.Status := Concept.Status::Skipped
+            else
+                Concept.Status := Concept.Status::"Not Row-Based";
             Concept.Modify(true);
             exit;
         end;
@@ -47,6 +65,7 @@ codeunit 60010 "DXR MCC Counter"
             // indicators (old and new fields live on the same rows). Leave counts as
             // informational only and don't compute a Gap from them.
             Concept.Gap := 0;
+            Concept.Status := Concept.Status::"Not Row-Based";
         end else
             Concept.Gap := OldCount - NewCount;
 

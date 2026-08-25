@@ -120,6 +120,14 @@ table 60001 "DXR MCC Concept"
             // Master-Accounting/Historic deliberately never include Other; Run Portfolio still
             // does, as its own trailing pass.
         }
+        field(18; Retired; Boolean)
+        {
+            Caption = 'Retired';
+            DataClassification = SystemMetadata;
+            Editable = false;
+            // Derived registry metadata. Retired rows stay stored so historical Run Log entries
+            // keep their Concept Entry No., but active pages, counters and executors exclude them.
+        }
     }
     keys
     {

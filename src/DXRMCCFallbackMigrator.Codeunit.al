@@ -4,9 +4,10 @@ codeunit 60015 "DXR MCC Fallback Migrator"
     // recompiling that extension?" - yes, but only for the one shape of migration that's generic
     // enough to run without knowing anything about the target extension's specific business logic:
     // a legacy-table -> new-table row restore, where "Legacy Table ID"/"New Table ID" are already
-    // tracked per DXR MCC Concept. Copies every Normal-class field that exists on both sides, by
-    // field NUMBER, row by row (same shape as Bellon Customization's/Bellon Customization POS's own
-    // "MigrateLegacyTableData" pattern), but as a true RECONCILIATION rather than an all-or-nothing
+    // tracked per DXR MCC Concept. Copies every compatible Normal-class field that exists on both
+    // sides by FIELD NAME and TYPE, never by field number. This prevents a reused field ID from
+    // writing a legacy value into an unrelated destination field. The copy is a true
+    // RECONCILIATION rather than an all-or-nothing
     // "only when the target table is still completely empty" copy: a row whose primary key already
     // exists in the target is skipped, never overwritten (TryInsertOrSkip below), so this can run
     // repeatedly and safely close whatever gap remains without ever touching a row already there.
@@ -102,15 +103,21 @@ codeunit 60015 "DXR MCC Fallback Migrator"
                 // one thing that makes a FlowField show the right value is its underlying source
                 // fields already being migrated, which this same loop does for every Normal field
                 // on the row, so no separate "migrate the FlowField's source first" step is needed.
-                if (OldFieldRef.Class() = FieldClass::Normal) and NewRecRef.FieldExist(OldFieldRef.Number()) then begin
-                    NewFieldRef := NewRecRef.Field(OldFieldRef.Number());
+                if (OldFieldRef.Number() < 2000000000) and
+                   (OldFieldRef.Class() = FieldClass::Normal) and
+                   NewRecRef.FieldExist(OldFieldRef.Name())
+                then begin
+                    NewFieldRef := NewRecRef.Field(OldFieldRef.Name());
                     // Skip when the source value equals NewFieldRef's still-untouched Init()
                     // default (blank Text/Code, 0, false, 0D...) - comparing by Format() keeps
                     // this type-agnostic. Target row is always freshly Init()'d here, so this is a
                     // no-op on the result (blank would've matched the default anyway); it exists so
                     // a blank source field is never mistaken, in a future re-run against a
                     // partially-populated row, for a real migrated value.
-                    if (NewFieldRef.Class() = FieldClass::Normal) and (Format(OldFieldRef.Value()) <> Format(NewFieldRef.Value())) then
+                    if (NewFieldRef.Class() = FieldClass::Normal) and
+                       (OldFieldRef.Type() = NewFieldRef.Type()) and
+                       (Format(OldFieldRef.Value()) <> Format(NewFieldRef.Value()))
+                    then
                         NewFieldRef.Value := OldFieldRef.Value();
                 end;
             end;

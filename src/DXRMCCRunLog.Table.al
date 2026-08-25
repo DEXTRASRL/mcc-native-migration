@@ -111,6 +111,21 @@ table 60002 "DXR MCC Run Log"
             DataClassification = SystemMetadata;
             // Companion to "Legacy Table Name" above - resolved from the concept's New Table ID.
         }
+        field(17; "Legacy Table ID"; Integer)
+        {
+            Caption = 'Legacy Table ID';
+            DataClassification = SystemMetadata;
+        }
+        field(18; "New Table ID"; Integer)
+        {
+            Caption = 'New Table ID';
+            DataClassification = SystemMetadata;
+        }
+        field(19; "Concept Description"; Text[250])
+        {
+            Caption = 'Concept Description';
+            DataClassification = SystemMetadata;
+        }
     }
     keys
     {

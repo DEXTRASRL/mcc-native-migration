@@ -178,6 +178,112 @@ table 60003 "DXR MCC Run Request"
             // a stale value means no progress was made for that long, not just "a slow single
             // dispatcher call". See DXR MCC Executor.ReconcileStaleRunningRequests.
         }
+        field(19; "Started At"; DateTime)
+        {
+            Caption = 'Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(20; "Setup Started At"; DateTime)
+        {
+            Caption = 'Setup Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(21; "Setup Completed At"; DateTime)
+        {
+            Caption = 'Setup Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(22; "Setup Duration"; Duration)
+        {
+            Caption = 'Setup Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(23; "Setup Phase Status"; Option)
+        {
+            Caption = 'Setup Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(24; "Master/Accounting Started At"; DateTime)
+        {
+            Caption = 'Master/Accounting Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(25; "Master/Accounting Completed At"; DateTime)
+        {
+            Caption = 'Master/Accounting Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(26; "Master/Accounting Duration"; Duration)
+        {
+            Caption = 'Master/Accounting Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(27; "Master/Accounting Status"; Option)
+        {
+            Caption = 'Master/Accounting Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(28; "Historic Started At"; DateTime)
+        {
+            Caption = 'Historic Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(29; "Historic Completed At"; DateTime)
+        {
+            Caption = 'Historic Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(30; "Historic Duration"; Duration)
+        {
+            Caption = 'Historic Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(31; "Historic Phase Status"; Option)
+        {
+            Caption = 'Historic Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(32; "Other Started At"; DateTime)
+        {
+            Caption = 'Other Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(33; "Other Completed At"; DateTime)
+        {
+            Caption = 'Other Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(34; "Other Duration"; Duration)
+        {
+            Caption = 'Other Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(35; "Other Phase Status"; Option)
+        {
+            Caption = 'Other Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
     }
     keys
     {

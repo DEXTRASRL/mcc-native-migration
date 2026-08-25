@@ -83,6 +83,11 @@
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Concept - Field Phase Code - Property Caption</note>
         </trans-unit>
+        <trans-unit id="Table 2176097165 - Field 4131727267 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Retired</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Concept - Field Retired - Property Caption</note>
+        </trans-unit>
         <trans-unit id="Table 2176097165 - Field 3014885516 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Sequence No.</source>
           <note from="Developer" annotates="general" priority="2"></note>
@@ -203,6 +208,11 @@
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Company Name - Property Caption</note>
         </trans-unit>
+        <trans-unit id="Table 3855977450 - Field 2877923018 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Concept Description</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Concept Description - Property Caption</note>
+        </trans-unit>
         <trans-unit id="Table 3855977450 - Field 2709992245 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Concept Entry No.</source>
           <note from="Developer" annotates="general" priority="2"></note>
@@ -228,6 +238,11 @@
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Extension Code - Property Caption</note>
         </trans-unit>
+        <trans-unit id="Table 3855977450 - Field 802856194 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Legacy Table ID</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Legacy Table ID - Property Caption</note>
+        </trans-unit>
         <trans-unit id="Table 3855977450 - Field 1757701432 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Legacy Table Name</source>
           <note from="Developer" annotates="general" priority="2"></note>
@@ -237,6 +252,11 @@
           <source>Migrated Record Count</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field Migrated Record Count - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 3855977450 - Field 580726777 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>New Table ID</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Log - Field New Table ID - Property Caption</note>
         </trans-unit>
         <trans-unit id="Table 3855977450 - Field 4283418895 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>New Table Name</source>
@@ -338,15 +358,90 @@
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Extension Code - Property Caption</note>
         </trans-unit>
+        <trans-unit id="Table 925793621 - Field 550746995 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Historic Completed At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Historic Completed At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2681406561 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Historic Duration</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Historic Duration - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 192527310 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Historic Phase Status</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Historic Phase Status - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 192527310 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Pending,Running,Completed,Failed,Cancelled</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Historic Phase Status - Property OptionCaption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 3392062503 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Historic Started At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Historic Started At - Property Caption</note>
+        </trans-unit>
         <trans-unit id="Table 925793621 - Field 4273901710 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Last Heartbeat</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Last Heartbeat - Property Caption</note>
         </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2916699622 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Master/Accounting Completed At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Master/Accounting Completed At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2228614048 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Master/Accounting Duration</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Master/Accounting Duration - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2390216218 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Master/Accounting Started At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Master/Accounting Started At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1530889066 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Master/Accounting Status</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Master/Accounting Status - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1530889066 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Pending,Running,Completed,Failed,Cancelled</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Master/Accounting Status - Property OptionCaption</note>
+        </trans-unit>
         <trans-unit id="Table 925793621 - Field 3262448222 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Notified</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Notified - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 3694262392 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Other Completed At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Other Completed At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 386658494 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Other Duration</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Other Duration - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2720688417 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Other Phase Status</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Other Phase Status - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2720688417 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Pending,Running,Completed,Failed,Cancelled</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Other Phase Status - Property OptionCaption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1010599300 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Other Started At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Other Started At - Property Caption</note>
         </trans-unit>
         <trans-unit id="Table 925793621 - Field 2589062571 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Processed Count</source>
@@ -377,6 +472,36 @@
           <source>Concept,Extension,Portfolio,Category,RecountAll</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Scope - Property OptionCaption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1969882401 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Setup Completed At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Setup Completed At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2197627827 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Setup Duration</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Setup Duration - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1209309144 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Setup Phase Status</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Setup Phase Status - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 1209309144 - Property 62802879" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Pending,Running,Completed,Failed,Cancelled</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Setup Phase Status - Property OptionCaption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2919328605 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Setup Started At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Setup Started At - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Table 925793621 - Field 2014922888 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Started At</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Table DXR MCC Run Request - Field Started At - Property Caption</note>
         </trans-unit>
         <trans-unit id="Table 925793621 - Field 513339096 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>Status</source>
@@ -502,6 +627,51 @@
           <source>Ver Detalle/Errores</source>
           <note from="Developer" annotates="general" priority="2"></note>
           <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action ViewLog - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1107228204 - Action 2892140815 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Muestra inicio, finalización, duración y estado de Setup, Master/Accounting, Historic y Other para el Run Entire Portfolio seleccionado.</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action ViewTiming - Property ToolTip</note>
+        </trans-unit>
+        <trans-unit id="Page 1107228204 - Action 2892140815 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Ver Tiempos por Fase</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Requests - Action ViewTiming - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>DXR MCC Run Timing</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Control 793394819 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Historic</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Control Historic - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Control 2410130335 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Master/Accounting</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Control MasterAccounting - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Control 3448339824 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Other</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Control Other - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Control 3851712227 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Run</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Control Run - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Control 1514883969 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Setup</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Control Setup - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 2722286086 - Action 2026913255 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Refresh</source>
+          <note from="Developer" annotates="general" priority="2"></note>
+          <note from="Xliff Generator" annotates="general" priority="3">Page DXR MCC Run Timing - Action Refresh - Property Caption</note>
         </trans-unit>
         <trans-unit id="Page 240190011 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
           <source>DXR MCC Table Map (Legacy -&gt; Active)</source>

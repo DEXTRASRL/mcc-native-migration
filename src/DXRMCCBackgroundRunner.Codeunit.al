@@ -29,6 +29,7 @@ codeunit 60013 "DXR MCC Background Runner"
     trigger OnRun()
     var
         LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
+        Executor: Codeunit "DXR MCC Executor";
         ResultSummary: Text[250];
         FailureText: Text;
         ExecutionHadErrors: Boolean;
@@ -45,6 +46,8 @@ codeunit 60013 "DXR MCC Background Runner"
         end;
 
         Rec.Status := Rec.Status::Running;
+        if Rec."Started At" = 0DT then
+            Rec."Started At" := CurrentDateTime();
         Rec."Last Heartbeat" := CurrentDateTime();
         Rec.Modify(true);
         Commit();
@@ -72,6 +75,12 @@ codeunit 60013 "DXR MCC Background Runner"
         end;
 
         FailureText := GetLastErrorText();
+        // TryFunction rolls the active call back to its last committed checkpoint. Phase start is
+        // committed before its category begins, so close that visible phase explicitly as Failed
+        // before retry/final failure handling instead of leaving it looking Running forever.
+        Executor.FailActivePortfolioPhase(Rec."Entry No.");
+        Executor.FailRunningLogsForRequest(Rec."Entry No.", FailureText);
+        Rec.Find();
 
         // Auto-retry on tag boundaries: every dispatcher codeunit in this portfolio already
         // breaks its own work into upgrade-tag-gated sub-steps (see the class comment above), so
@@ -171,7 +180,7 @@ codeunit 60013 "DXR MCC Background Runner"
                 begin
                     Executor.RunExtension(Rec."Extension Code", Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.");
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Extension %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped (blocked).',
+                        'Extension %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped/blocked/informational.',
                         Rec."Extension Code", Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;
@@ -179,7 +188,7 @@ codeunit 60013 "DXR MCC Background Runner"
                 begin
                     Executor.RunPortfolio(Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.");
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Portfolio: %1 completed, %2 completed with gaps, %3 failed, %4 skipped (blocked).',
+                        'Portfolio: %1 completed, %2 completed with gaps, %3 failed, %4 skipped/blocked/informational.',
                         Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;
@@ -187,7 +196,7 @@ codeunit 60013 "DXR MCC Background Runner"
                 begin
                     Executor.RunCategory(Rec.Category, Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.", CopyStr(Rec."Checkpoint Key", 1, 20));
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Category %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped (blocked).',
+                        'Category %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped/blocked/informational.',
                         Format(Rec.Category), Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;

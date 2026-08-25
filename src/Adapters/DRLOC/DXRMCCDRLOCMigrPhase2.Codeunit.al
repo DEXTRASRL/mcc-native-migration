@@ -1218,9 +1218,10 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     //   2) "DXCustomer Withholding Setup"/"DXVendor Withholding Setup" (seq60/seq61) - real source
     //      copies field 54100 explicitly (DXRCustomerWithholdingSetupNew."DXR_ISR withholding Type" :=
     //      DXCustomerWithholdingSetupOld."DXISR withholding Type") in ADDITION to TransferFields,
-    //      because the field was renamed ("DXISR withholding Type" -> "DXR_ISR withholding Type") and
-    //      TransferFields matches by field NAME, not field number, so it would silently miss this one
-    //      field. Ported below exactly as DR-Localization's own source does (explicit copy kept).
+    //      because the field was renamed ("DXISR withholding Type" -> "DXR_ISR withholding Type").
+    //      TransferFields actually matches by field NUMBER; the explicit semantic assignment from
+    //      the real source is retained so this renamed pair is auditable and does not depend on that
+    //      numeric behavior.
     // No AutoIncrement or BLOB fields exist on any of the 11 old/new table pairs (confirmed against
     // every real table source read for this task) - no special handling needed beyond ordinary typed
     // assignment.

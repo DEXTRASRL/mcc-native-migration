@@ -4,12 +4,10 @@ codeunit 60011 "DXR MCC Executor"
     // en el running para mostrar cuales tablas setup de cuentas esta migrando"): since Run
     // actions now execute immediately in the caller's own session instead of a background task,
     // there's no separate place to watch progress live - this dialog is that visual. Each entry
-    // point below (RunExtension/RunExtensionCategory/RunConcept) opens its own dialog only once
+    // point below (RunExtension/RunConcept) opens its own dialog only once
     // it knows it has at least one non-blocked concept to run (so extensions/categories with
-    // nothing to do never flash an empty dialog), updates it once per concept right before
-    // running that concept's dispatcher, and closes it before returning. RunCategory calling
-    // RunExtensionCategory in a loop means the dialog closes and reopens once per extension - a
-    // deliberate, visible "now on extension X" transition, not a bug.
+    // nothing to do never flash an empty dialog), updates it once per dispatcher group and once
+    // per concept during verification, and closes it before returning.
     local procedure OpenProgress(ScopeLabel: Text; TotalConcepts: Integer)
     begin
         ProgressWindow.Open('Migrando...\Alcance:         #1##########################################\Extensión:       #2##########\Estado:          #3####################################################\Detalle:         #4####################################################\Progreso:        #5###### / #6######');
@@ -71,12 +69,13 @@ codeunit 60011 "DXR MCC Executor"
     procedure RunExtension(ExtensionCode: Code[20]; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer)
     var
         Concept: Record "DXR MCC Concept";
-        DispatcherShareCount: Dictionary of [Integer, Integer];
-        ErrorText: Text;
-        DurationMs: Integer;
-        ShareCount: Integer;
+        SeenDispatchers: Dictionary of [Integer, Boolean];
+        DispatcherIds: List of [Integer];
+        ConceptEntryNos: List of [Integer];
+        DispatcherId: Integer;
     begin
         Concept.SetRange("Extension Code", ExtensionCode);
+        Concept.SetRange(Retired, false);
         Concept.SetRange(Blocked, true);
         BlockedCount += Concept.Count();
 
@@ -88,39 +87,26 @@ codeunit 60011 "DXR MCC Executor"
         if RunRequestEntryNo = 0 then
             OpenProgress(StrSubstNo('Extensión: %1', ExtensionCode), Concept.Count());
 
-        // Pre-pass: count how many concepts share each dispatcher, so the "starting" message
-        // below can say "N tablas" instead of the misleading single first-concept label.
+        // Execute each effective dispatcher exactly once. Registry rows are verification/logging
+        // units, not independent calls: many rows intentionally describe tables handled by the
+        // same category worker. Re-running that worker once per row made the first row execute the
+        // whole transaction and every later row become an Upgrade-Tag no-op.
         repeat
-            if DispatcherShareCount.Get(Concept."Dispatcher Codeunit ID", ShareCount) then
-                DispatcherShareCount.Set(Concept."Dispatcher Codeunit ID", ShareCount + 1)
-            else
-                DispatcherShareCount.Add(Concept."Dispatcher Codeunit ID", 1);
+            if not SeenDispatchers.ContainsKey(Concept."Dispatcher Codeunit ID") then begin
+                SeenDispatchers.Add(Concept."Dispatcher Codeunit ID", true);
+                DispatcherIds.Add(Concept."Dispatcher Codeunit ID");
+            end;
         until Concept.Next() = 0;
 
-        Concept.FindSet();
-        repeat
-            DispatcherShareCount.Get(Concept."Dispatcher Codeunit ID", ShareCount);
-            if RunRequestEntryNo = 0 then
-                UpdateProgressStarting(Concept."Extension Code", Concept.Description, ShareCount);
-            if not RunConceptUnit(Concept, RunRequestEntryNo, ErrorText, DurationMs) then begin
+        foreach DispatcherId in DispatcherIds do begin
+            Clear(ConceptEntryNos);
+            CollectDispatcherConcepts(ExtensionCode, DispatcherId, false, Concept.Category::Setup, ConceptEntryNos);
+            if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0) then begin
                 if RunRequestEntryNo = 0 then
                     CloseProgress();
                 exit;
             end;
-            LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo);
-            if RunRequestEntryNo = 0 then
-                UpdateProgressVerified(Concept."Extension Code", Concept.Description, Concept.Status, Concept."Old Record Count", Concept."Migrated Record Count", Concept.Gap);
-            case Concept.Status of
-                Concept.Status::Completed:
-                    CompletedCount += 1;
-                Concept.Status::"Completed With Gaps":
-                    GapCount += 1;
-                Concept.Status::Error:
-                    ErrorCount += 1;
-                Concept.Status::Skipped:
-                    BlockedCount += 1;
-            end;
-        until Concept.Next() = 0;
+        end;
         if RunRequestEntryNo = 0 then
             CloseProgress();
         Commit();
@@ -134,29 +120,28 @@ codeunit 60011 "DXR MCC Executor"
     /// <summary>RunRequestEntryNo-aware overload - same reasoning as RunExtension's.</summary>
     procedure RunConcept(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer)
     var
-        ErrorText: Text;
-        DurationMs: Integer;
+        ConceptEntryNos: List of [Integer];
+        CompletedCount: Integer;
+        GapCount: Integer;
+        ErrorCount: Integer;
+        BlockedCount: Integer;
+        RequestedConceptEntryNo: Integer;
     begin
-        if Concept.Blocked then
+        if Concept.Blocked or Concept.Retired then
             exit;
-        if RunRequestEntryNo = 0 then begin
-            OpenProgress('Concepto individual', 1);
-            UpdateProgressStarting(Concept."Extension Code", Concept.Description, 1);
-        end;
-        if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: ejecutando %2', Concept."Extension Code", Concept.Description)) then begin
-            MarkRunRequestCancelled(RunRequestEntryNo);
-            if RunRequestEntryNo = 0 then
-                CloseProgress();
-            exit;
-        end;
-        LogConceptStarting(Concept, RunRequestEntryNo);
-        RunDispatcher(Concept."Dispatcher Codeunit ID", ErrorText, DurationMs);
-        CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: verificando %2', Concept."Extension Code", Concept.Description));
-        LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo);
-        if RunRequestEntryNo = 0 then begin
-            UpdateProgressVerified(Concept."Extension Code", Concept.Description, Concept.Status, Concept."Old Record Count", Concept."Migrated Record Count", Concept.Gap);
+
+        // "Run Concept" still has to represent the dispatcher's real scope. If the selected row
+        // shares a category worker, that worker will touch every row in the group; log and verify
+        // all of them instead of pretending only the selected row ran.
+        RequestedConceptEntryNo := Concept."Entry No.";
+        CollectDispatcherConcepts(Concept."Extension Code", Concept."Dispatcher Codeunit ID", false, Concept.Category, ConceptEntryNos);
+        if RunRequestEntryNo = 0 then
+            OpenProgress(StrSubstNo('Dispatcher del concepto: %1', Concept.Description), ConceptEntryNos.Count());
+
+        RunDispatcherGroup(Concept."Extension Code", Concept."Dispatcher Codeunit ID", ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0);
+        Concept.Get(RequestedConceptEntryNo);
+        if RunRequestEntryNo = 0 then
             CloseProgress();
-        end;
     end;
 
     /// <summary>
@@ -204,6 +189,7 @@ codeunit 60011 "DXR MCC Executor"
                 MarkRunRequestCancelled(RunRequestEntryNo);
                 exit;
             end;
+            StartPortfolioPhase(RunRequestEntryNo, CategoryOrdinal);
             case CategoryOrdinal of
                 0:
                     RunCategory(Concept.Category::Setup, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
@@ -214,6 +200,11 @@ codeunit 60011 "DXR MCC Executor"
                 3:
                     RunCategory(Concept.Category::Other, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
             end;
+            if IsRunRequestCancelled(RunRequestEntryNo) then begin
+                FinishPortfolioPhase(RunRequestEntryNo, CategoryOrdinal, false, true);
+                exit;
+            end;
+            FinishPortfolioPhase(RunRequestEntryNo, CategoryOrdinal, true, false);
             SaveCheckpoint(RunRequestEntryNo, StrSubstNo('%1:', CategoryOrdinal + 1), CategoryOrdinal + 1);
         end;
     end;
@@ -243,10 +234,149 @@ codeunit 60011 "DXR MCC Executor"
         exit(CopyStr(RunRequest."Checkpoint Key", ColonPos + 1));
     end;
 
+    local procedure StartPortfolioPhase(RunRequestEntryNo: Integer; CategoryOrdinal: Integer)
+    var
+        RunRequest: Record "DXR MCC Run Request";
+        StartedAt: DateTime;
+    begin
+        if (RunRequestEntryNo = 0) or not RunRequest.Get(RunRequestEntryNo) then
+            exit;
+
+        StartedAt := CurrentDateTime();
+        case CategoryOrdinal of
+            0:
+                begin
+                    if RunRequest."Setup Started At" = 0DT then
+                        RunRequest."Setup Started At" := StartedAt;
+                    RunRequest."Setup Completed At" := 0DT;
+                    Clear(RunRequest."Setup Duration");
+                    RunRequest."Setup Phase Status" := RunRequest."Setup Phase Status"::Running;
+                end;
+            1:
+                begin
+                    if RunRequest."Master/Accounting Started At" = 0DT then
+                        RunRequest."Master/Accounting Started At" := StartedAt;
+                    RunRequest."Master/Accounting Completed At" := 0DT;
+                    Clear(RunRequest."Master/Accounting Duration");
+                    RunRequest."Master/Accounting Status" := RunRequest."Master/Accounting Status"::Running;
+                end;
+            2:
+                begin
+                    if RunRequest."Historic Started At" = 0DT then
+                        RunRequest."Historic Started At" := StartedAt;
+                    RunRequest."Historic Completed At" := 0DT;
+                    Clear(RunRequest."Historic Duration");
+                    RunRequest."Historic Phase Status" := RunRequest."Historic Phase Status"::Running;
+                end;
+            3:
+                begin
+                    if RunRequest."Other Started At" = 0DT then
+                        RunRequest."Other Started At" := StartedAt;
+                    RunRequest."Other Completed At" := 0DT;
+                    Clear(RunRequest."Other Duration");
+                    RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Running;
+                end;
+        end;
+        RunRequest.Modify(true);
+        Commit();
+    end;
+
+    local procedure FinishPortfolioPhase(RunRequestEntryNo: Integer; CategoryOrdinal: Integer; Completed: Boolean; Cancelled: Boolean)
+    var
+        RunRequest: Record "DXR MCC Run Request";
+        FinishedAt: DateTime;
+    begin
+        if (RunRequestEntryNo = 0) or not RunRequest.Get(RunRequestEntryNo) then
+            exit;
+
+        FinishedAt := CurrentDateTime();
+        case CategoryOrdinal of
+            0:
+                begin
+                    RunRequest."Setup Completed At" := FinishedAt;
+                    RunRequest."Setup Duration" := FinishedAt - RunRequest."Setup Started At";
+                    if Completed then
+                        RunRequest."Setup Phase Status" := RunRequest."Setup Phase Status"::Completed
+                    else
+                        if Cancelled then
+                            RunRequest."Setup Phase Status" := RunRequest."Setup Phase Status"::Cancelled
+                        else
+                            RunRequest."Setup Phase Status" := RunRequest."Setup Phase Status"::Failed;
+                end;
+            1:
+                begin
+                    RunRequest."Master/Accounting Completed At" := FinishedAt;
+                    RunRequest."Master/Accounting Duration" := FinishedAt - RunRequest."Master/Accounting Started At";
+                    if Completed then
+                        RunRequest."Master/Accounting Status" := RunRequest."Master/Accounting Status"::Completed
+                    else
+                        if Cancelled then
+                            RunRequest."Master/Accounting Status" := RunRequest."Master/Accounting Status"::Cancelled
+                        else
+                            RunRequest."Master/Accounting Status" := RunRequest."Master/Accounting Status"::Failed;
+                end;
+            2:
+                begin
+                    RunRequest."Historic Completed At" := FinishedAt;
+                    RunRequest."Historic Duration" := FinishedAt - RunRequest."Historic Started At";
+                    if Completed then
+                        RunRequest."Historic Phase Status" := RunRequest."Historic Phase Status"::Completed
+                    else
+                        if Cancelled then
+                            RunRequest."Historic Phase Status" := RunRequest."Historic Phase Status"::Cancelled
+                        else
+                            RunRequest."Historic Phase Status" := RunRequest."Historic Phase Status"::Failed;
+                end;
+            3:
+                begin
+                    RunRequest."Other Completed At" := FinishedAt;
+                    RunRequest."Other Duration" := FinishedAt - RunRequest."Other Started At";
+                    if Completed then
+                        RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Completed
+                    else
+                        if Cancelled then
+                            RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Cancelled
+                        else
+                            RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Failed;
+                end;
+        end;
+        RunRequest.Modify(true);
+        Commit();
+    end;
+
+    local procedure IsRunRequestCancelled(RunRequestEntryNo: Integer): Boolean
+    var
+        RunRequest: Record "DXR MCC Run Request";
+    begin
+        exit((RunRequestEntryNo <> 0) and RunRequest.Get(RunRequestEntryNo) and (RunRequest.Status = RunRequest.Status::Cancelled));
+    end;
+
+    internal procedure FailActivePortfolioPhase(RunRequestEntryNo: Integer)
+    var
+        RunRequest: Record "DXR MCC Run Request";
+    begin
+        if not RunRequest.Get(RunRequestEntryNo) then
+            exit;
+        if RunRequest.Scope <> RunRequest.Scope::Portfolio then
+            exit;
+
+        if RunRequest."Setup Phase Status" = RunRequest."Setup Phase Status"::Running then
+            FinishPortfolioPhase(RunRequestEntryNo, 0, false, false)
+        else
+            if RunRequest."Master/Accounting Status" = RunRequest."Master/Accounting Status"::Running then
+                FinishPortfolioPhase(RunRequestEntryNo, 1, false, false)
+            else
+                if RunRequest."Historic Phase Status" = RunRequest."Historic Phase Status"::Running then
+                    FinishPortfolioPhase(RunRequestEntryNo, 2, false, false)
+                else
+                    if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then
+                        FinishPortfolioPhase(RunRequestEntryNo, 3, false, false);
+    end;
+
     /// <summary>
     /// Runs every non-blocked concept of one Category across the whole portfolio, in extension
     /// dependency order (Order No.), then by that extension's own Sequence No. within the
-    /// category - same dedup-by-dispatcher-codeunit and same LogAndCount/fallback path as
+    /// category - with one invocation per effective dispatcher and the same LogAndCount/fallback path as
     /// RunExtension, just filtered to one category and spanning every extension instead of one.
     /// </summary>
     procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer)
@@ -263,6 +393,8 @@ codeunit 60011 "DXR MCC Executor"
     procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ResumeAfterExtCode: Code[20])
     var
         Extension: Record "DXR MCC Extension";
+        ExtensionCodes: List of [Code[20]];
+        ExtensionCode: Code[20];
         PastCheckpoint: Boolean;
         ProcessedNo: Integer;
     begin
@@ -278,8 +410,13 @@ codeunit 60011 "DXR MCC Executor"
         if not Extension.FindSet() then
             exit;
 
-        PastCheckpoint := (ResumeAfterExtCode = '');
         repeat
+            ExtensionCodes.Add(Extension.Code);
+        until Extension.Next() = 0;
+
+        PastCheckpoint := (ResumeAfterExtCode = '');
+        foreach ExtensionCode in ExtensionCodes do begin
+            Extension.Get(ExtensionCode);
             if not PastCheckpoint then begin
                 if Extension.Code = ResumeAfterExtCode then
                     PastCheckpoint := true;
@@ -295,17 +432,20 @@ codeunit 60011 "DXR MCC Executor"
                 ProcessedNo += 1;
                 SaveCheckpoint(RunRequestEntryNo, CopyStr(Extension.Code, 1, 250), ProcessedNo);
             end;
-        until Extension.Next() = 0;
+        end;
     end;
 
     local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer): Boolean
     var
         Concept: Record "DXR MCC Concept";
-        ErrorText: Text;
-        DurationMs: Integer;
+        SeenDispatchers: Dictionary of [Integer, Boolean];
+        DispatcherIds: List of [Integer];
+        ConceptEntryNos: List of [Integer];
+        DispatcherId: Integer;
     begin
         Concept.SetRange("Extension Code", ExtensionCode);
         Concept.SetRange(Category, Category);
+        Concept.SetRange(Retired, false);
         Concept.SetRange(Blocked, true);
         BlockedCount += Concept.Count();
 
@@ -313,6 +453,13 @@ codeunit 60011 "DXR MCC Executor"
         Concept.SetCurrentKey("Extension Code", "Sequence No.");
         if not Concept.FindSet() then
             exit(true);
+
+        repeat
+            if not SeenDispatchers.ContainsKey(Concept."Dispatcher Codeunit ID") then begin
+                SeenDispatchers.Add(Concept."Dispatcher Codeunit ID", true);
+                DispatcherIds.Add(Concept."Dispatcher Codeunit ID");
+            end;
+        until Concept.Next() = 0;
 
         // No progress Dialog here (2026-08-22, removed): RunCategory/RunPortfolio - the only
         // callers of this procedure - now always run as a background task (Dialog.Open() has no
@@ -322,14 +469,84 @@ codeunit 60011 "DXR MCC Executor"
         // for the synchronous, dialog-driven equivalent used by the still-immediate "Run Extension"/
         // "Run Concept" actions.
         //
-        // 2026-08-22: "Current Step" now updates per CONCEPT here too (not just once per extension,
-        // from RunCategory's own call) - shows the actual TABLE name being migrated right now (e.g.
-        // "Catálogo de cuentas"), resolved from Legacy/New Table ID, so a slow step is visibly
-        // explained instead of just looking stuck on the extension name.
-        repeat
-            if not RunConceptUnit(Concept, RunRequestEntryNo, ErrorText, DurationMs) then
+        // A registry category may contain dozens of table rows owned by one category dispatcher.
+        // Invoke that dispatcher once, log every covered row as Running before the call, and then
+        // verify every row after it returns. This keeps Current Step honest and removes repeated
+        // Upgrade-Tag no-op calls without weakening adapter-owned idempotency.
+        foreach DispatcherId in DispatcherIds do begin
+            Clear(ConceptEntryNos);
+            CollectDispatcherConcepts(ExtensionCode, DispatcherId, true, Category, ConceptEntryNos);
+            if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
                 exit(false);
-            LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo);
+        end;
+        Commit();
+        exit(true);
+    end;
+
+    local procedure CollectDispatcherConcepts(ExtensionCode: Code[20]; DispatcherId: Integer; FilterCategory: Boolean; Category: Option Setup,"Master/Accounting",Historic,Other; var ConceptEntryNos: List of [Integer])
+    var
+        Concept: Record "DXR MCC Concept";
+    begin
+        Concept.SetRange("Extension Code", ExtensionCode);
+        Concept.SetRange(Retired, false);
+        Concept.SetRange(Blocked, false);
+        Concept.SetRange("Dispatcher Codeunit ID", DispatcherId);
+        if FilterCategory then
+            Concept.SetRange(Category, Category);
+        Concept.SetCurrentKey("Extension Code", "Sequence No.");
+        if not Concept.FindSet() then
+            exit;
+
+        repeat
+            ConceptEntryNos.Add(Concept."Entry No.");
+        until Concept.Next() = 0;
+    end;
+
+    local procedure RunDispatcherGroup(ExtensionCode: Code[20]; DispatcherId: Integer; ConceptEntryNos: List of [Integer]; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ShowProgress: Boolean): Boolean
+    var
+        Concept: Record "DXR MCC Concept";
+        ErrorText: Text;
+        DispatcherDescription: Text;
+        DurationMs: Integer;
+        ConceptEntryNo: Integer;
+        RunningLogEntryNo: Integer;
+        RunningLogIndex: Integer;
+        SharedByCount: Integer;
+        RunningLogEntryNos: List of [Integer];
+    begin
+        SharedByCount := ConceptEntryNos.Count();
+        if SharedByCount = 0 then
+            exit(true);
+
+        ConceptEntryNos.Get(1, ConceptEntryNo);
+        Concept.Get(ConceptEntryNo);
+        DispatcherDescription := StrSubstNo('Dispatcher %1: %2', DispatcherId, Concept.Description);
+
+        if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: iniciando dispatcher %2 (%3 conceptos) - %4', ExtensionCode, DispatcherId, SharedByCount, ResolveConceptTableName(Concept))) then begin
+            MarkRunRequestCancelled(RunRequestEntryNo);
+            exit(false);
+        end;
+        if ShowProgress then
+            UpdateProgressStarting(ExtensionCode, DispatcherDescription, SharedByCount);
+
+        // Persist every covered table/concept as Running before entering the potentially long,
+        // blocking Codeunit.Run(). Never hold a FindSet cursor across these Commit boundaries.
+        foreach ConceptEntryNo in ConceptEntryNos do begin
+            Concept.Get(ConceptEntryNo);
+            RunningLogEntryNos.Add(LogConceptStarting(Concept, RunRequestEntryNo));
+        end;
+
+        RunDispatcher(DispatcherId, ErrorText, DurationMs);
+        CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: dispatcher %2 finalizado; verificando %3 conceptos', ExtensionCode, DispatcherId, SharedByCount));
+
+        RunningLogIndex := 0;
+        foreach ConceptEntryNo in ConceptEntryNos do begin
+            RunningLogIndex += 1;
+            RunningLogEntryNos.Get(RunningLogIndex, RunningLogEntryNo);
+            Concept.Get(ConceptEntryNo);
+            LogAndCount(Concept, ErrorText, DurationMs, RunRequestEntryNo, RunningLogEntryNo);
+            if ShowProgress then
+                UpdateProgressVerified(Concept."Extension Code", Concept.Description, Concept.Status, Concept."Old Record Count", Concept."Migrated Record Count", Concept.Gap);
             CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: verificado %2 (%3)', ExtensionCode, ResolveConceptTableName(Concept), Format(Concept.Status)));
             case Concept.Status of
                 Concept.Status::Completed:
@@ -341,8 +558,7 @@ codeunit 60011 "DXR MCC Executor"
                 Concept.Status::Skipped:
                     BlockedCount += 1;
             end;
-        until Concept.Next() = 0;
-        Commit();
+        end;
         exit(true);
     end;
 
@@ -379,6 +595,28 @@ codeunit 60011 "DXR MCC Executor"
         exit('');
     end;
 
+    local procedure ResolveLegacyTableName(var Concept: Record "DXR MCC Concept"): Text[250]
+    begin
+        if Concept."Legacy Table ID" <> 0 then
+            exit(ResolveTableNameById(Concept."Legacy Table ID"));
+        if Concept.Retired then
+            exit(CopyStr(StrSubstNo('[No aplica - concepto retirado] %1', Concept.Description), 1, 250));
+        if Concept."Dispatcher Codeunit ID" <> 0 then
+            exit(CopyStr(StrSubstNo('[No aplica - migración por campos] %1', Concept.Description), 1, 250));
+        exit(CopyStr(StrSubstNo('[Legacy ID no definido] %1', Concept.Description), 1, 250));
+    end;
+
+    local procedure ResolveNewTableName(var Concept: Record "DXR MCC Concept"): Text[250]
+    begin
+        if Concept."New Table ID" <> 0 then
+            exit(ResolveTableNameById(Concept."New Table ID"));
+        if Concept.Retired then
+            exit(CopyStr(StrSubstNo('[No aplica - concepto retirado] %1', Concept.Description), 1, 250));
+        if Concept."Dispatcher Codeunit ID" <> 0 then
+            exit(CopyStr(StrSubstNo('[No aplica - migración por campos] %1', Concept.Description), 1, 250));
+        exit(CopyStr(StrSubstNo('[New ID no definido] %1', Concept.Description), 1, 250));
+    end;
+
     /// <summary>Schedules one concept through the same background execution path used by every other scope.</summary>
     procedure ScheduleConcept(var Concept: Record "DXR MCC Concept")
     var
@@ -398,16 +636,10 @@ codeunit 60011 "DXR MCC Executor"
     end;
 
     /// <summary>
-    /// Category-scoped run - back to a background task (2026-08-22, reversing the same-day
-    /// earlier change to run inline). A Category filter only trims which CONCEPTS get logged -
-    /// the underlying dispatcher codeunit for each one is all-or-nothing (e.g. Despacho Base's
-    /// Worker migrates all 39 of its tables in one call, whether the triggering concept was 1 of
-    /// its 11 Setup rows or not - there's no way to ask a dispatcher to do only its Setup-tagged
-    /// subset). So "Run All Setup" doesn't do "the Setup rows' work" - it does EVERY dispatcher's
-    /// FULL workload for every extension that has at least one Setup concept, which today is
-    /// nearly all of them. That's real, unavoidable per-row FindSet/repeat work across many real
-    /// tables (some large), all inside one interactive request - confirmed to cause the same
-    /// server-side timeout as Recount All ("Something went wrong", no AL call stack).
+    /// Category-scoped runs stay in TaskScheduler because a portfolio category can legitimately
+    /// scan many large tables. Registry loading resolves the original monolithic dispatchers to
+    /// category workers, and RunExtensionCategory invokes each effective worker once regardless
+    /// of how many table/concept rows describe its workload.
     /// </summary>
     procedure ScheduleCategory(Category: Option Setup,"Master/Accounting",Historic,Other)
     var
@@ -467,6 +699,7 @@ codeunit 60011 "DXR MCC Executor"
 
         if ResumeAfterEntryNo <> 0 then
             Concept.SetFilter("Entry No.", '>%1', ResumeAfterEntryNo);
+        Concept.SetRange(Retired, false);
         if not Concept.FindSet(true) then
             exit(0);
         repeat
@@ -531,24 +764,6 @@ codeunit 60011 "DXR MCC Executor"
         // Task Id, request and global lock become visible atomically before the task can consume
         // the RecordId. The background runner owns lock release from this point forward.
         Commit();
-    end;
-
-    /// <summary>
-    /// Executes exactly one registry concept. MCC intentionally does not deduplicate shared
-    /// dispatcher IDs: ordering and observability belong to MCC, while safe repetition belongs
-    /// to the dispatcher's Upgrade Tags or to the adapter's own idempotent implementation.
-    /// </summary>
-    local procedure RunConceptUnit(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer; var ErrorText: Text; var DurationMs: Integer): Boolean
-    begin
-        if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: migrando %2', Concept."Extension Code", ResolveConceptTableName(Concept))) then begin
-            MarkRunRequestCancelled(RunRequestEntryNo);
-            exit(false);
-        end;
-
-        LogConceptStarting(Concept, RunRequestEntryNo);
-        RunDispatcher(Concept."Dispatcher Codeunit ID", ErrorText, DurationMs);
-        CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('%1: dispatcher finalizado para %2', Concept."Extension Code", ResolveConceptTableName(Concept)));
-        exit(true);
     end;
 
     [TryFunction]
@@ -662,7 +877,7 @@ codeunit 60011 "DXR MCC Executor"
         ]);
     end;
 
-    local procedure LogAndCount(var Concept: Record "DXR MCC Concept"; ErrorText: Text; DurationMs: Integer; RunRequestEntryNo: Integer)
+    local procedure LogAndCount(var Concept: Record "DXR MCC Concept"; ErrorText: Text; DurationMs: Integer; RunRequestEntryNo: Integer; RunningLogEntryNo: Integer)
     var
         Counter: Codeunit "DXR MCC Counter";
         RunLog: Record "DXR MCC Run Log";
@@ -672,6 +887,7 @@ codeunit 60011 "DXR MCC Executor"
         UsedFallback: Boolean;
         TableOpenFailed: Boolean;
         NotRowBased: Boolean;
+        InformationalSkipped: Boolean;
         HasGap: Boolean;
     begin
         // Count FIRST (2026-08-23 fix). The old order counted AFTER deciding whether to run the
@@ -697,6 +913,9 @@ codeunit 60011 "DXR MCC Executor"
         // later run, freezing whatever partial (or zero) field/row copy had happened forever.
         TableOpenFailed := Concept.Status = Concept.Status::Error;
         NotRowBased := Concept.Status = Concept.Status::"Not Row-Based";
+        InformationalSkipped := (Concept.Status = Concept.Status::Skipped) and
+            (Concept."Dispatcher Codeunit ID" = 0) and
+            (Concept."Legacy Table ID" = 0) and (Concept."New Table ID" = 0);
 
         HasGap := (not TableOpenFailed) and (not NotRowBased) and
             (Concept."Legacy Table ID" <> 0) and (Concept."New Table ID" <> 0) and
@@ -719,16 +938,21 @@ codeunit 60011 "DXR MCC Executor"
                     (Concept."Migrated Record Count" < Concept."Old Record Count");
             end;
 
-        RunLog.Init();
+        if not RunLog.Get(RunningLogEntryNo) then
+            RunLog.Init();
         RunLog."Concept Entry No." := Concept."Entry No.";
         RunLog."Run Request Entry No." := RunRequestEntryNo;
         RunLog."Extension Code" := Concept."Extension Code";
         RunLog."Phase Code" := Concept."Phase Code";
+        RunLog."Concept Description" := CopyStr(Concept.Description, 1, MaxStrLen(RunLog."Concept Description"));
+        RunLog."Legacy Table ID" := Concept."Legacy Table ID";
+        RunLog."New Table ID" := Concept."New Table ID";
         RunLog."Table Name" := CopyStr(ResolveConceptTableName(Concept), 1, 250);
-        RunLog."Legacy Table Name" := ResolveTableNameById(Concept."Legacy Table ID");
-        RunLog."New Table Name" := ResolveTableNameById(Concept."New Table ID");
+        RunLog."Legacy Table Name" := ResolveLegacyTableName(Concept);
+        RunLog."New Table Name" := ResolveNewTableName(Concept);
         RunLog."Company Name" := CopyStr(CompanyName(), 1, 30);
-        RunLog."Run DateTime" := CurrentDateTime();
+        if RunLog."Run DateTime" = 0DT then
+            RunLog."Run DateTime" := CurrentDateTime();
         RunLog."Old Record Count" := Concept."Old Record Count";
         RunLog."Migrated Record Count" := Concept."Migrated Record Count";
         RunLog."Duration (ms)" := DurationMs;
@@ -744,6 +968,11 @@ codeunit 60011 "DXR MCC Executor"
                 RunLog.Status := RunLog.Status::Error;
                 RunLog."Error Message" := CopyStr('Legacy y/o New Table ID no se pudo abrir en este entorno (tabla no publicada o ID incorrecto/renumerado) - ver DXR MCC Counter.', 1, MaxStrLen(RunLog."Error Message"));
                 Concept.Status := Concept.Status::Error;
+            end else
+            if InformationalSkipped then begin
+                RunLog.Status := RunLog.Status::Skipped;
+                RunLog."Error Message" := CopyStr('Concepto informativo o retirado: no tiene dispatcher ni identidad de tablas; no existe trabajo runtime que ejecutar.', 1, MaxStrLen(RunLog."Error Message"));
+                Concept.Status := Concept.Status::Skipped;
             end else
             if IsSkippableMissingRecordError(ErrorText) then begin
                 // Optional singleton setup records are validly absent in some companies. The
@@ -775,7 +1004,10 @@ codeunit 60011 "DXR MCC Executor"
 
         Concept."Last Run DateTime" := CurrentDateTime();
         Concept.Modify(true);
-        RunLog.Insert(true);
+        if RunLog."Entry No." = 0 then
+            RunLog.Insert(true)
+        else
+            RunLog.Modify(true);
     end;
 
     local procedure IsSkippableMissingRecordError(ErrorText: Text): Boolean
@@ -797,12 +1029,11 @@ codeunit 60011 "DXR MCC Executor"
     /// fact). Writes one "Running" Run Log row per concept sharing this dispatcher BEFORE
     /// Codeunit.Run() is called, so every table/bootstrap this dispatcher is about to touch shows up
     /// in the log immediately, in real time, not just once (or never, if it hangs) at the end.
-    /// LogAndCount still writes its own separate terminal row afterward (Completed/Error/etc.) -
-    /// this is deliberately a SEPARATE row, not an update-in-place, so the log preserves the real
-    /// timeline (started at X, finished/failed at Y) as an audit trail, consistent with every other
-    /// Run Log row being an immutable historical entry rather than a mutable "current status" cell.
+    /// LogAndCount updates this same row to Completed/Error/etc. after the dispatcher returns. One
+    /// row therefore represents the full concept execution and cannot remain as an orphaned
+    /// Running row beside a separate terminal entry.
     /// </summary>
-    local procedure LogConceptStarting(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer)
+    local procedure LogConceptStarting(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer): Integer
     var
         RunLog: Record "DXR MCC Run Log";
     begin
@@ -811,43 +1042,50 @@ codeunit 60011 "DXR MCC Executor"
         RunLog."Run Request Entry No." := RunRequestEntryNo;
         RunLog."Extension Code" := Concept."Extension Code";
         RunLog."Phase Code" := Concept."Phase Code";
+        RunLog."Concept Description" := CopyStr(Concept.Description, 1, MaxStrLen(RunLog."Concept Description"));
+        RunLog."Legacy Table ID" := Concept."Legacy Table ID";
+        RunLog."New Table ID" := Concept."New Table ID";
         RunLog."Table Name" := CopyStr(ResolveConceptTableName(Concept), 1, 250);
-        RunLog."Legacy Table Name" := ResolveTableNameById(Concept."Legacy Table ID");
-        RunLog."New Table Name" := ResolveTableNameById(Concept."New Table ID");
+        RunLog."Legacy Table Name" := ResolveLegacyTableName(Concept);
+        RunLog."New Table Name" := ResolveNewTableName(Concept);
         RunLog."Company Name" := CopyStr(CompanyName(), 1, 30);
         RunLog."Run DateTime" := CurrentDateTime();
         RunLog.Status := RunLog.Status::Running;
         RunLog."User ID" := CopyStr(UserId(), 1, 50);
         RunLog.Insert(true);
         Commit();
+        exit(RunLog."Entry No.");
     end;
 
     /// <summary>
     /// Global cross-company lock (same pattern as DR-Localization's "DXR_Migration Lock Mgt.") -
-    /// refuses to schedule a second run while one is already active anywhere in the tenant. Called
-    /// from every Schedule* procedure before it does anything else. LockDuration is generous (3
-    /// hours - longer than DESB's own Worker timeout of 1 hour, with headroom for Portfolio's 4
-    /// sequential category passes) so the lock still self-expires and never permanently blocks
-    /// future runs even if a session dies without releasing it.
+    /// refuses to schedule a second run while one is already active anywhere in the tenant. Its
+    /// lease is longer than TaskScheduler's normal maximum execution window and is renewed at
+    /// every heartbeat, so a valid long portfolio run never silently loses exclusivity.
     /// </summary>
     local procedure TryAcquireGlobalLock(var RunRequest: Record "DXR MCC Run Request"): Boolean
     var
         LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
     begin
         ReconcileStaleRunningRequests();
-        exit(LockMgt.TryAcquireLock(CompanyName(), CopyStr(UserId(), 1, 50), 3 * 60 * 60 * 1000, RunRequest."Entry No."));
+        exit(LockMgt.TryAcquireLock(CompanyName(), CopyStr(UserId(), 1, 50), MigrationLockDuration(), RunRequest."Entry No."));
+    end;
+
+    local procedure MigrationLockDuration(): Duration
+    begin
+        exit(13 * 60 * 60 * 1000);
     end;
 
     /// <summary>
     /// Self-heals a Category/Portfolio/RecountAll Run Request stuck showing Status = Running with
     /// no real background task behind it anymore (platform-killed session, server restart, or the
     /// task genuinely exceeding its TaskScheduler timeout) - see "Last Heartbeat" on DXR MCC Run
-    /// Request for the full root-cause writeup. Threshold is 4 hours: comfortably longer than
-    /// TryAcquireGlobalLock's own 3-hour lock duration, so a request that's still genuinely running
-    /// (heartbeat updates every extension boundary, well under an hour apart even for the slowest
-    /// known dispatcher) is never mistaken for dead. Called from TryAcquireGlobalLock (before every
-    /// new Schedule* attempt) and from the Run Requests page (OnOpenPage) so the operator sees
-    /// correct status without having to trigger a new run first.
+    /// Request for the full root-cause writeup. Called from TryAcquireGlobalLock (before every new
+    /// Schedule* attempt) and from the Run Requests page (OnOpenPage) so the operator sees correct
+    /// status without having to trigger a new run first. The 13-hour threshold intentionally
+    /// exceeds TaskScheduler's normal maximum execution window: a single blocking dispatcher
+    /// cannot emit an MCC heartbeat while Codeunit.Run() is active, so a shorter threshold could
+    /// falsely release the global lock while that session was still modifying business tables.
     /// </summary>
     internal procedure ReconcileStaleRunningRequests()
     var
@@ -883,6 +1121,7 @@ codeunit 60011 "DXR MCC Executor"
                 'Marcado como Failed automáticamente: sin heartbeat desde %1 (probablemente la sesión en background fue terminada por la plataforma - timeout de TaskScheduler, reinicio de servidor, etc.). Revise DXR MCC Run Log para ver hasta dónde llegó.',
                 RunRequest."Last Heartbeat"), 1, MaxStrLen(RunRequest."Result Summary"));
             RunRequest.Modify(true);
+            FailRunningLogsForRequest(RunRequest."Entry No.", RunRequest."Result Summary");
             LockMgt.ForceReleaseLockForRunRequest(RunRequest."Entry No.");
         until RunRequest.Next() = 0;
         Commit();
@@ -890,7 +1129,26 @@ codeunit 60011 "DXR MCC Executor"
 
     local procedure StaleRunningThresholdMs(): BigInteger
     begin
-        exit(4 * 60 * 60 * 1000);
+        exit(13 * 60 * 60 * 1000);
+    end;
+
+    internal procedure FailRunningLogsForRequest(RunRequestEntryNo: Integer; FailureText: Text)
+    var
+        RunLog: Record "DXR MCC Run Log";
+    begin
+        if RunRequestEntryNo = 0 then
+            exit;
+
+        RunLog.SetRange("Run Request Entry No.", RunRequestEntryNo);
+        RunLog.SetRange(Status, RunLog.Status::Running);
+        if not RunLog.FindSet(true) then
+            exit;
+
+        repeat
+            RunLog.Status := RunLog.Status::Error;
+            RunLog."Error Message" := CopyStr(FailureText, 1, MaxStrLen(RunLog."Error Message"));
+            RunLog.Modify(true);
+        until RunLog.Next() = 0;
     end;
 
     local procedure ReleaseGlobalLock(var RunRequest: Record "DXR MCC Run Request")
@@ -930,6 +1188,7 @@ codeunit 60011 "DXR MCC Executor"
     local procedure CheckCancelAndUpdateStep(RunRequestEntryNo: Integer; StepText: Text): Boolean
     var
         RunRequest: Record "DXR MCC Run Request";
+        LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
     begin
         if RunRequestEntryNo = 0 then
             exit(true);
@@ -941,6 +1200,7 @@ codeunit 60011 "DXR MCC Executor"
         RunRequest."Current Step" := CopyStr(StepText, 1, 250);
         RunRequest."Last Heartbeat" := CurrentDateTime();
         RunRequest.Modify(true);
+        LockMgt.RenewLockForRunRequest(RunRequestEntryNo, MigrationLockDuration());
         Commit();
         exit(true);
     end;

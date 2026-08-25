@@ -25,7 +25,15 @@ codeunit 60108 "DXR MCC RBPD Migr History"
         if OldHeader.FindSet() then
             repeat
                 NewHeader.Init();
-                NewHeader.TransferFields(OldHeader, false); // do not copy the AutoIncrement PK
+                // Do not copy the AutoIncrement PK.
+                NewHeader."Psusuario DXR-IB" := OldHeader."Psusuario DXR-IB";
+                NewHeader."psPassword DXR-IB" := OldHeader."psPassword DXR-IB";
+                NewHeader."Pscanal DXR-IB" := OldHeader."Pscanal DXR-IB";
+                NewHeader."Psreferencia DXR-IB" := OldHeader."Psreferencia DXR-IB";
+                NewHeader."Pfechapago DXR-IB" := OldHeader."Pfechapago DXR-IB";
+                NewHeader."PsMedioPago DXR-IB" := OldHeader."PsMedioPago DXR-IB";
+                NewHeader."Moneda DXR-IB" := OldHeader."Moneda DXR-IB";
+                NewHeader."Type DXR-IB" := Enum::"DXR_Ibanking Header Type".FromInteger(OldHeader."Type DXR-IB".AsInteger());
                 if NewHeader.Insert(true) then
                     OldToNewHeaderId.Add(OldHeader."id DXR-IB", NewHeader."id DXR-IB");
             until OldHeader.Next() = 0;
@@ -36,7 +44,11 @@ codeunit 60108 "DXR MCC RBPD Migr History"
                 if OldToNewHeaderId.ContainsKey(OldDetail."idheader DXR-IB") then begin
                     NewHeaderId := OldToNewHeaderId.Get(OldDetail."idheader DXR-IB");
                     NewDetail.Init();
-                    NewDetail.TransferFields(OldDetail, false); // do not copy the AutoIncrement PK
+                    // Do not copy the AutoIncrement PK; remap the parent id below.
+                    NewDetail."PsidDetalle DXR-IB" := OldDetail."PsidDetalle DXR-IB";
+                    NewDetail."Pidtransaccionbanco DXR-IB" := OldDetail."Pidtransaccionbanco DXR-IB";
+                    NewDetail."Pvalorpagado DXR-IB" := OldDetail."Pvalorpagado DXR-IB";
+                    NewDetail."NoAutorizacionInter DXR-IB" := OldDetail."NoAutorizacionInter DXR-IB";
                     NewDetail."idheader DXR-IB" := NewHeaderId;
                     NewDetail.Insert(true);
                 end;

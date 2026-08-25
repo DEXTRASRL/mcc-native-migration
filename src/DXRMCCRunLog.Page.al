@@ -17,10 +17,13 @@ page 60021 "DXR MCC Run Log"
                 field("Entry No."; Rec."Entry No.") { }
                 field("Run Request Entry No."; Rec."Run Request Entry No.") { Visible = false; }
                 field("Extension Code"; Rec."Extension Code") { }
+                field("Concept Description"; Rec."Concept Description") { }
+                field("Legacy Table ID"; Rec."Legacy Table ID") { }
                 field("Legacy Table Name"; Rec."Legacy Table Name")
                 {
                     ToolTip = 'The old/legacy table this concept migrates data FROM.';
                 }
+                field("New Table ID"; Rec."New Table ID") { }
                 field("New Table Name"; Rec."New Table Name")
                 {
                     ToolTip = 'The new/active table this concept migrates data TO.';

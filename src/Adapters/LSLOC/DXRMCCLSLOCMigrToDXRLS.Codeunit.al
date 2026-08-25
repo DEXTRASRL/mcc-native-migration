@@ -58,6 +58,37 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         MigrateSameTableEnumFields();
     end;
 
+    procedure RunHospitalityTypeFields()
+    begin
+        CopyLSCHospitalityTypeFields();
+    end;
+
+    procedure RunLabelFunctionsFields()
+    begin
+        CopyLSCLabelFunctionsFields();
+    end;
+
+    procedure RunPOSPrintSetupHeaderFields()
+    begin
+        CopyLSCPOSPrintSetupHeaderFields();
+    end;
+
+    procedure RunPOSTerminalFields()
+    begin
+        CopyLSCPOSTerminalFields();
+        MigratePOSTerminalEnumFields();
+    end;
+
+    procedure RunSalesTypeFields()
+    begin
+        CopyLSCSalesTypeFields();
+    end;
+
+    procedure RunStoreFields()
+    begin
+        CopyLSCStoreFields();
+    end;
+
     procedure RunSetupRelations()
     begin
         CopyLSDXTenderTypesRelationToDXR();
@@ -117,11 +148,16 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Hospitality Type";
     begin
-        if Rec.FindSet(true) then
+        if Rec.FindSet() then
             repeat
-                Rec."Void line after Bill Prin_DXR" := Rec."LSDX Void line after Bill Prin";
-                Rec."Void Tran. after Bill Prnt_DXR" := Rec."LSDXVoid Tran. after Bill Prnt";
-                Rec.Modify(false);
+                if (Rec."Void line after Bill Prin_DXR" <> Rec."LSDX Void line after Bill Prin") or
+                   (Rec."Void Tran. after Bill Prnt_DXR" <> Rec."LSDXVoid Tran. after Bill Prnt")
+                then begin
+                    Rec."Void line after Bill Prin_DXR" := Rec."LSDX Void line after Bill Prin";
+                    Rec."Void Tran. after Bill Prnt_DXR" := Rec."LSDXVoid Tran. after Bill Prnt";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -129,10 +165,13 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Label Functions";
     begin
-        if Rec.FindSet(true) then
+        if Rec.FindSet() then
             repeat
-                Rec."Function Description_DXR" := Rec."LSDX Function Description";
-                Rec.Modify(false);
+                if Rec."Function Description_DXR" <> Rec."LSDX Function Description" then begin
+                    Rec."Function Description_DXR" := Rec."LSDX Function Description";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -140,10 +179,13 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC POS Print Setup Header";
     begin
-        if Rec.FindSet(true) then
+        if Rec.FindSet() then
             repeat
-                Rec."Print Voucher Loc._DXR" := Rec."LSDX Print Voucher Loc.";
-                Rec.Modify(false);
+                if Rec."Print Voucher Loc._DXR" <> Rec."LSDX Print Voucher Loc." then begin
+                    Rec."Print Voucher Loc._DXR" := Rec."LSDX Print Voucher Loc.";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -274,24 +316,39 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     end;
 
     local procedure MigrateSameTableEnumFields()
+    begin
+        MigratePOSTerminalEnumFields();
+        MigratePOSTransactionEnumFields();
+        MigrateTransactionHeaderEnumFields();
+    end;
+
+    local procedure MigratePOSTerminalEnumFields()
     var
         POSTerminal: Record "LSC POS Terminal";
-        POSTransaction: Record "LSC POS Transaction";
-        TransactionHeader: Record "LSC Transaction Header";
     begin
         if POSTerminal.FindSet(true) then
             repeat
                 POSTerminal."Ext. POS Type_DXR" := Enum::"DXR_LS POS Type".FromInteger(POSTerminal."LSDXExt. POS Type".AsInteger());
                 POSTerminal.Modify(false);
             until POSTerminal.Next() = 0;
+    end;
 
+    local procedure MigratePOSTransactionEnumFields()
+    var
+        POSTransaction: Record "LSC POS Transaction";
+    begin
         if POSTransaction.FindSet(true) then
             repeat
                 POSTransaction."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(POSTransaction."LSDX Tipo Doc. Fiscal".AsInteger());
                 POSTransaction."Tipo Identificacion_DXR" := Enum::"DXR_LS Fiscal Identity Type".FromInteger(POSTransaction."LSDX Tipo Identificacion".AsInteger());
                 POSTransaction.Modify(false);
             until POSTransaction.Next() = 0;
+    end;
 
+    local procedure MigrateTransactionHeaderEnumFields()
+    var
+        TransactionHeader: Record "LSC Transaction Header";
+    begin
         if TransactionHeader.FindSet(true) then
             repeat
                 TransactionHeader."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(TransactionHeader."LSDX Tipo Doc. Fiscal".AsInteger());
@@ -425,6 +482,7 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         FieldIndex: Integer;
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
+        AllKeyFieldsMapped: Boolean;
     begin
         SourceRef.Open(SourceTableId);
         TargetRef.Open(TargetTableId);
@@ -433,20 +491,41 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         if SourceRef.FindSet() then
             repeat
                 TargetRef.Reset();
+                AllKeyFieldsMapped := true;
                 for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
                     SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Number);
-                    TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
+                    if TargetRef.FieldExist(SourcePkFieldRef.Name) then begin
+                        TargetPkFieldRef := TargetRef.Field(SourcePkFieldRef.Name);
+                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
+                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
+                        else
+                            AllKeyFieldsMapped := false;
+                    end else
+                        AllKeyFieldsMapped := false;
                 end;
 
-                TargetExists := TargetRef.FindFirst();
+                TargetExists := AllKeyFieldsMapped and TargetRef.FindFirst();
+
+                if not AllKeyFieldsMapped then begin
+                    TargetRef.Close();
+                    SourceRef.Close();
+                    exit;
+                end;
                 if not TargetExists then
                     TargetRef.Init();
 
                 for FieldIndex := 1 to SourceRef.FieldCount() do begin
                     SourceFieldRef := SourceRef.FieldIndex(FieldIndex);
-                    if TargetRef.FieldExist(SourceFieldRef.Number) then
-                        CopyFieldValueIfExists(SourceRef, TargetRef, SourceFieldRef.Number, SourceFieldRef.Number);
+                    if (SourceFieldRef.Number < 2000000000) and
+                       (SourceFieldRef.Class = FieldClass::Normal) and
+                       TargetRef.FieldExist(SourceFieldRef.Name)
+                    then begin
+                        TargetPkFieldRef := TargetRef.Field(SourceFieldRef.Name);
+                        if (TargetPkFieldRef.Class = FieldClass::Normal) and
+                           (SourceFieldRef.Type = TargetPkFieldRef.Type)
+                        then
+                            TargetPkFieldRef.Value := SourceFieldRef.Value;
+                    end;
                 end;
 
                 if TargetExists then

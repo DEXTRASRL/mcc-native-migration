@@ -15,7 +15,15 @@ codeunit 60098 "DXR MCC BC Migr P2 StatusHist"
             exit;
         repeat
             if not NewStatus.Get(OldStatus."Company Name", OldStatus."Phase No.") then begin
-                NewStatus.TransferFields(OldStatus, true);
+                NewStatus.Init();
+                NewStatus."Company Name" := OldStatus."Company Name";
+                NewStatus."Phase No." := OldStatus."Phase No.";
+                NewStatus.Description := OldStatus.Description;
+                NewStatus.Status := OldStatus.Status;
+                NewStatus."Started At" := OldStatus."Started At";
+                NewStatus."Completed At" := OldStatus."Completed At";
+                NewStatus."Error Message" := OldStatus."Error Message";
+                NewStatus.Attempts := OldStatus.Attempts;
                 NewStatus.Insert(false);
             end;
         until OldStatus.Next() = 0;
