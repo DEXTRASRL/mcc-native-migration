@@ -444,7 +444,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         // shares 60126, so this causes no double-processing - see IsDispatcherAlreadyDone's
         // per-dispatcher dedup in DXR MCC Executor).
         InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
-        InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 0, 57301, 53602, 'MA');
+        InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 60126, 57301, 53602, 'MA');
 
         // ---- DESB: Despacho Base (38 table pairs + 2 collision-fix phases + permission repair) ----
         InsConcept('DESB', 'DESB-P1', 1, 'Additional Truck legacy table restore', 60127, 50809, 53837, 'MA');
