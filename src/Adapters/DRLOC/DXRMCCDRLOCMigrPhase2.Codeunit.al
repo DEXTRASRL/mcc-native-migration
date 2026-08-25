@@ -1248,6 +1248,19 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // seq55: Purchase Type Relation legacy table restore (54140 -> 52242). Real source has no
     // IsEmpty() guard for this one table (same faithful-to-source choice as
     // MigrateNCFSalesSetupTable()/MigrateGubernamentales623Table() above) - ported exactly as-is.
+    //
+    // INSERT-ONLY, NOT upsert (2026-08-25 fix, found during Phase 6 Batch 4 review): table 52242 is
+    // ALSO written by Phase 6's own seq91 (codeunit 60170, MigratePurchaseTypeRelationV27(), source
+    // table 54167 "DX Purchase Type Relation" - the NEWER/successor generation of this same data,
+    // confirmed via 54140's own real ObsoleteReason chain: "...replaced by Table 54167..."). MCC's
+    // executor runs dispatchers by ascending Sequence No.; codeunit 60170 owns seq50 (< this
+    // codeunit's seq54/55), so 60170's newer-generation write ALWAYS lands first on any fresh run.
+    // The original upsert (Insert-or-Modify) would let this OLDER-generation write silently clobber
+    // the newer-generation value on any "Grupo Contable Prod." key present in both legacy sources
+    // with a different Tipo - backwards from the intended newer-generation-is-authoritative semantics,
+    // fully deterministic, and invisible to MCC's own row-count-based gap detection. Changed to
+    // insert-only (skip existing rows entirely) so this older generation only fills gaps the newer
+    // generation's write didn't already cover, regardless of future execution-order changes.
     local procedure MigratePurchaseTypeRelationTable()
     var
         PurchaseTypeRelationOld: Record "DXPurchase Type Relation";
@@ -1255,13 +1268,15 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     begin
         if PurchaseTypeRelationOld.FindSet() then
             repeat
-                PurchaseTypeRelationNew."Grupo Contable Prod." := PurchaseTypeRelationOld."Grupo Contable Prod.";
-                // "Tipo" is a plain (non-Enum) Option field on both tables, with identical
-                // OptionMembers/order (" ",Bienes,Servicios) - AL permits direct cross-record Option
-                // field assignment (unlike Enum, Option is not nominally typed).
-                PurchaseTypeRelationNew.Tipo := PurchaseTypeRelationOld.Tipo;
-                if not PurchaseTypeRelationNew.Insert(false) then
-                    PurchaseTypeRelationNew.Modify(false);
+                if not PurchaseTypeRelationNew.Get(PurchaseTypeRelationOld."Grupo Contable Prod.") then begin
+                    PurchaseTypeRelationNew.Init();
+                    PurchaseTypeRelationNew."Grupo Contable Prod." := PurchaseTypeRelationOld."Grupo Contable Prod.";
+                    // "Tipo" is a plain (non-Enum) Option field on both tables, with identical
+                    // OptionMembers/order (" ",Bienes,Servicios) - AL permits direct cross-record
+                    // Option field assignment (unlike Enum, Option is not nominally typed).
+                    PurchaseTypeRelationNew.Tipo := PurchaseTypeRelationOld.Tipo;
+                    PurchaseTypeRelationNew.Insert(false);
+                end;
             until PurchaseTypeRelationOld.Next() = 0;
     end;
 
