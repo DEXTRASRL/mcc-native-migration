@@ -2,11 +2,25 @@ codeunit 60141 "DXR MCC FE Migr Phase12"
 {
     // Native local migration - ported verbatim from Facturacion Electronica's own
     // "DXR_Migr. Phase 12 History".OnRun() (Access = Internal). "EF Payload Text Chunk" (55703)
-    // and "EF ATEB Send Registry" (55610) are both Access = Internal on FE's side - accessed here
-    // purely via RecordRef by numeric table ID. Each includes an enum re-mapping step
-    // (Enum::"DXR_..." .FromInteger(SourceValue.AsInteger())) since the legacy tables use their
-    // own "EF ..." enum types.
+    // and "EF ATEB Send Registry" (55610), and their DXR_ targets, are all Access = Internal on
+    // FE's side - but FE grants MCC's own app ID internalsVisibleTo directly (see FE's own
+    // app.json), so MCC can declare typed Record variables on all 4 directly. Converted from
+    // RecordRef/FieldRef positional field access to direct typed field assignment, zero
+    // RecordRef/FieldRef/TransferFields. Field positions confirmed against real table source in
+    // "...\Facturacion Workspace\BC-Facturacion-Electronica\Facturacion Electronica\Base\old\Tables.old\EFPayloadTextChunk.Table.al"/
+    // "EFSendRegistry.Table.al" (source) and "...\Base\Tables\EFPayloadTextChunk.Table.al"/
+    // "EFSendRegistry.Table.al" (target) - identical field lists/order on both sides, only the
+    // enum/table names differ ("EF ..." vs "DXR_..."). Each enum re-mapping step
+    // (Enum::"DXR_...".FromInteger(Source.AsInteger())) uses structurally identical enum pairs
+    // ("EF Payload Source"/"DXR_Payload Source", "EF Payload Kind"/"DXR_Payload Kind",
+    // "EF Service Provider"/"DXR_Service Provider", "EF Send Payload Type"/"DXR_Send Payload
+    // Type", "EF Send Registry Status"/"DXR_Send Registry Status" - all confirmed by reading both
+    // enum sources). "Source Type" (field 6 on both tables) is a plain Option with identical
+    // OptionMembers (Sales,Purchase,POS) on both sides, so it is copied by direct assignment
+    // with no enum conversion needed.
     Permissions =
+        tabledata "EF Payload Text Chunk" = R,
+        tabledata "EF ATEB Send Registry" = R,
         tabledata "DXR_Payload Text Chunk" = RIMD,
         tabledata "DXR_ATEB Send Registry" = RIMD;
 
@@ -23,109 +37,78 @@ codeunit 60141 "DXR MCC FE Migr Phase12"
         UpgradeTag.SetUpgradeTag('DXR-EF-TASKSCHEDULER-V6-PHASE6-HISTORICAL-TABLES-20260720');
     end;
 
+    // "EF Payload Text Chunk" holds every historical eCF payload split into ~2048-char chunks
+    // (multiple rows per document) - potentially unbounded row volume, so batched in
+    // Commit-groups of 100, matching this campaign's precedent for large history/audit tables.
     local procedure MigratePayloadTextChunks()
     var
+        Source: Record "EF Payload Text Chunk";
         Target: Record "DXR_Payload Text Chunk";
-        SourceRef: RecordRef;
-        PayloadSourceFld, DocumentNoFld, NCFFld, TrackIDFld, PayloadKindFld : FieldRef;
-        LineNoFld, TextChunkFld, ContentHashFld, CreatedDateTimeFld, IsBase64Fld : FieldRef;
+        BatchCount: Integer;
     begin
-        SourceRef.Open(55703); // EF Payload Text Chunk
-        if SourceRef.FindSet(false) then
+        if Source.FindSet(false) then
             repeat
-                PayloadSourceFld := SourceRef.Field(1);
-                DocumentNoFld := SourceRef.Field(2);
-                NCFFld := SourceRef.Field(3);
-                TrackIDFld := SourceRef.Field(4);
-                PayloadKindFld := SourceRef.Field(5);
-                LineNoFld := SourceRef.Field(6);
-                TextChunkFld := SourceRef.Field(7);
-                ContentHashFld := SourceRef.Field(8);
-                CreatedDateTimeFld := SourceRef.Field(9);
-                IsBase64Fld := SourceRef.Field(10);
-
                 Target.Init();
-                Target."Payload Source" := Enum::"DXR_Payload Source".FromInteger(GetVariantAsInteger(PayloadSourceFld.Value()));
-                Target."Document No." := DocumentNoFld.Value();
-                Target.NCF := NCFFld.Value();
-                Target."Track ID" := TrackIDFld.Value();
-                Target."Payload Kind" := Enum::"DXR_Payload Kind".FromInteger(GetVariantAsInteger(PayloadKindFld.Value()));
-                Target."Line No." := LineNoFld.Value();
-                Target."Text Chunk" := TextChunkFld.Value();
-                Target."Content Hash" := ContentHashFld.Value();
-                Target."Created DateTime" := CreatedDateTimeFld.Value();
-                Target."Is Base64" := IsBase64Fld.Value();
+                Target."Payload Source" := Enum::"DXR_Payload Source".FromInteger(Source."Payload Source".AsInteger());
+                Target."Document No." := Source."Document No.";
+                Target.NCF := Source.NCF;
+                Target."Track ID" := Source."Track ID";
+                Target."Payload Kind" := Enum::"DXR_Payload Kind".FromInteger(Source."Payload Kind".AsInteger());
+                Target."Line No." := Source."Line No.";
+                Target."Text Chunk" := Source."Text Chunk";
+                Target."Content Hash" := Source."Content Hash";
+                Target."Created DateTime" := Source."Created DateTime";
+                Target."Is Base64" := Source."Is Base64";
                 if not Target.Insert(false) then
                     Target.Modify(false);
-            until SourceRef.Next() = 0;
-        SourceRef.Close();
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
     end;
 
+    // "EF ATEB Send Registry" holds one row per historical send attempt - also potentially
+    // unbounded row volume, same batching discipline as MigratePayloadTextChunks above.
     local procedure MigrateSendRegistry()
     var
+        Source: Record "EF ATEB Send Registry";
         Target: Record "DXR_ATEB Send Registry";
-        SourceRef: RecordRef;
-        ProviderFld, ProviderCompanyIDFld, NCFFld, PayloadTypeFld, DocumentNoFld : FieldRef;
-        SourceTypeFld, StatusFld, ProviderServiceURLFld, ReservedDateTimeFld, LastAttemptDateTimeFld : FieldRef;
-        SentDateTimeFld, TrackIDFld, SecurityCodeFld, ResponseStatusFld, ProviderInternalDocNoFld : FieldRef;
-        LastMessageFld, RetryCountFld, SessionIDFld, EventSourceFld, IsResendFld : FieldRef;
+        BatchCount: Integer;
     begin
-        SourceRef.Open(55610); // EF ATEB Send Registry
-        if SourceRef.FindSet(false) then
+        if Source.FindSet(false) then
             repeat
-                ProviderFld := SourceRef.Field(1);
-                ProviderCompanyIDFld := SourceRef.Field(2);
-                NCFFld := SourceRef.Field(3);
-                PayloadTypeFld := SourceRef.Field(4);
-                DocumentNoFld := SourceRef.Field(5);
-                SourceTypeFld := SourceRef.Field(6);
-                StatusFld := SourceRef.Field(7);
-                ProviderServiceURLFld := SourceRef.Field(8);
-                ReservedDateTimeFld := SourceRef.Field(9);
-                LastAttemptDateTimeFld := SourceRef.Field(10);
-                SentDateTimeFld := SourceRef.Field(11);
-                TrackIDFld := SourceRef.Field(12);
-                SecurityCodeFld := SourceRef.Field(13);
-                ResponseStatusFld := SourceRef.Field(14);
-                ProviderInternalDocNoFld := SourceRef.Field(15);
-                LastMessageFld := SourceRef.Field(16);
-                RetryCountFld := SourceRef.Field(17);
-                SessionIDFld := SourceRef.Field(18);
-                EventSourceFld := SourceRef.Field(19);
-                IsResendFld := SourceRef.Field(20);
-
                 Target.Init();
-                Target.Provider := Enum::"DXR_Service Provider".FromInteger(GetVariantAsInteger(ProviderFld.Value()));
-                Target."Provider Company ID" := ProviderCompanyIDFld.Value();
-                Target.NCF := NCFFld.Value();
-                Target."Payload Type" := Enum::"DXR_Send Payload Type".FromInteger(GetVariantAsInteger(PayloadTypeFld.Value()));
-                Target."Document No." := DocumentNoFld.Value();
-                Target."Source Type" := SourceTypeFld.Value();
-                Target.Status := Enum::"DXR_Send Registry Status".FromInteger(GetVariantAsInteger(StatusFld.Value()));
-                Target."Provider Service URL" := ProviderServiceURLFld.Value();
-                Target."Reserved DateTime" := ReservedDateTimeFld.Value();
-                Target."Last Attempt DateTime" := LastAttemptDateTimeFld.Value();
-                Target."Sent DateTime" := SentDateTimeFld.Value();
-                Target."Track ID" := TrackIDFld.Value();
-                Target."Security Code" := SecurityCodeFld.Value();
-                Target."Response Status" := ResponseStatusFld.Value();
-                Target."Provider Internal Doc. No." := ProviderInternalDocNoFld.Value();
-                Target."Last Message" := LastMessageFld.Value();
-                Target."Retry Count" := RetryCountFld.Value();
-                Target."Session ID" := SessionIDFld.Value();
-                Target."Event Source" := EventSourceFld.Value();
-                Target."Is Resend" := IsResendFld.Value();
+                Target.Provider := Enum::"DXR_Service Provider".FromInteger(Source.Provider.AsInteger());
+                Target."Provider Company ID" := Source."Provider Company ID";
+                Target.NCF := Source.NCF;
+                Target."Payload Type" := Enum::"DXR_Send Payload Type".FromInteger(Source."Payload Type".AsInteger());
+                Target."Document No." := Source."Document No.";
+                Target."Source Type" := Source."Source Type";
+                Target.Status := Enum::"DXR_Send Registry Status".FromInteger(Source.Status.AsInteger());
+                Target."Provider Service URL" := Source."Provider Service URL";
+                Target."Reserved DateTime" := Source."Reserved DateTime";
+                Target."Last Attempt DateTime" := Source."Last Attempt DateTime";
+                Target."Sent DateTime" := Source."Sent DateTime";
+                Target."Track ID" := Source."Track ID";
+                Target."Security Code" := Source."Security Code";
+                Target."Response Status" := Source."Response Status";
+                Target."Provider Internal Doc. No." := Source."Provider Internal Doc. No.";
+                Target."Last Message" := Source."Last Message";
+                Target."Retry Count" := Source."Retry Count";
+                Target."Session ID" := Source."Session ID";
+                Target."Event Source" := Source."Event Source";
+                Target."Is Resend" := Source."Is Resend";
                 if not Target.Insert(false) then
                     Target.Modify(false);
-            until SourceRef.Next() = 0;
-        SourceRef.Close();
-    end;
 
-    local procedure GetVariantAsInteger(Value: Variant): Integer
-    var
-        Result: Integer;
-    begin
-        Result := Value;
-        exit(Result);
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
+            until Source.Next() = 0;
     end;
 }
