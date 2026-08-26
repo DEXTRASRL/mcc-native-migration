@@ -1,3 +1,4 @@
+#if not BCDX
 codeunit 60145 "DXR MCC LSFE Migr POS Cont."
 {
     // Native local migration - ported verbatim from LS Facturacion Electronica's own
@@ -285,3 +286,5 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         end;
     end;
 }
+
+#endif

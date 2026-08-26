@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60172 "DXR MCC LSLOC Hospitality"
 {
     trigger OnRun()
@@ -11,3 +12,5 @@ codeunit 60172 "DXR MCC LSLOC Hospitality"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-HOSPITALITY-20260825.');
     end;
 }
+
+#endif

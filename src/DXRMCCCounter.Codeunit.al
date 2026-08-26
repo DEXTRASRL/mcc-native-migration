@@ -76,6 +76,7 @@ codeunit 60010 "DXR MCC Counter"
     local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
         RecRef: RecordRef;
+#if not ESCUDEA and not BCDX
         DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
     begin
         // The owning adapter carries the external DESB table permissions. Generic RecordRef
@@ -85,7 +86,9 @@ codeunit 60010 "DXR MCC Counter"
             Count := DESBWorker.CountTable(TableId);
             exit;
         end;
-
+#else
+    begin
+#endif
         RecRef.Open(TableId);
         Count := RecRef.Count();
         RecRef.Close();

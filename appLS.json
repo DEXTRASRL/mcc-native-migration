@@ -2,7 +2,7 @@
   "id": "a5b9bf50-7945-4455-8df4-3be9c7431a7b",
   "name": "DXR Migration Control Center",
   "publisher": "Dextra",
-  "version": "2.0.0.6",
+  "version": "2.0.0.5",
   "brief": "Central registry and launcher for every DXR ID-renumbering data migration across the Dextra BC portfolio.",
   "description": "Centralizes visibility and execution of the portfolio-wide data migrations created by the 2026-08 DXR_ ID renumbering remediation: per-extension, per-concept old/migrated record counts, dependency-ordered execution, run history, and a gap report to identify extensions that still need re-running.",
   "platform": "1.0.0.0",
@@ -22,10 +22,28 @@
       "version": "28.3.6.4"
     },
     {
+      "id": "4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2",
+      "publisher": "Dextra",
+      "name": "facturacion-electronica-ls",
+      "version": "28.5.0.3"
+    },
+    {
+      "id": "b18ab944-2133-4326-bcd7-a235e0a8bdef",
+      "publisher": "Dextra",
+      "name": "LS Central DR Localization",
+      "version": "28.3.3.7"
+    },
+    {
       "id": "b269ef93-1340-452e-bc44-732c5dacd1c8",
       "publisher": "Dextra",
       "name": "Base App DR Localization",
       "version": "28.3.6.12"
+    },
+    {
+      "id": "5ecfc871-5d82-43f1-9c54-59685e82318d",
+      "publisher": "LS Retail",
+      "name": "LS Central",
+      "version": "28.0.0.1608"
     }
   ],
   "idRanges": [
@@ -39,7 +57,7 @@
     "TranslationFile",
     "GenerateCaptions"
   ],
-  "preprocessorSymbols": ["BCDX"],
+  "preprocessorSymbols": ["ESCUDEA"],
   "resourceExposurePolicy": {
     "allowDebugging": false,
     "includeSourceInSymbolFile": false,

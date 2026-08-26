@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60309 "DXR MCC Bellon P2 Setup"
 {
     trigger OnRun()
@@ -177,3 +178,5 @@ codeunit 60388 "DXR MCC Bellon P14 Accounting"
         Worker.RunAccounting(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P14-ACCOUNTING-20260825.');
     end;
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60157 "DXR MCC Bellon Migr Phase13"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -210,3 +211,5 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         TargetField.Value := SourceField.Value();
     end;
 }
+
+#endif

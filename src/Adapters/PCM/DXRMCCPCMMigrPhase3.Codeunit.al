@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60123 "DXR MCC PCM Migr Phase3"
 {
     // Native local migration - ported verbatim from Price Controls Mgt.'s own
@@ -116,3 +117,5 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
         exit('DXR-WorkflowFieldsMigrated-28.3.0.0');
     end;
 }
+
+#endif

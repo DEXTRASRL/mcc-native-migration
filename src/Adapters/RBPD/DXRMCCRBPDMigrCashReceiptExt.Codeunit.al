@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60112 "DXR MCC RBPD Migr CashRcptExt"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -27,3 +28,5 @@ codeunit 60112 "DXR MCC RBPD Migr CashRcptExt"
             until OldRec.Next() = 0;
     end;
 }
+
+#endif

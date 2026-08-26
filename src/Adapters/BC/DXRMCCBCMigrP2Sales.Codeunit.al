@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60094 "DXR MCC BC Migr P2 Sales"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -85,3 +86,5 @@ codeunit 60094 "DXR MCC BC Migr P2 Sales"
             (not OldSetup."Mandatory Return Reason"));
     end;
 }
+
+#endif

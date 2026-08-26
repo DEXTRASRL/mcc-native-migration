@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60104 "DXR MCC BC Migr PermRepair"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Perm Repair" -
@@ -36,3 +37,5 @@ codeunit 60104 "DXR MCC BC Migr PermRepair"
         until UserRec.Next() = 0;
     end;
 }
+
+#endif

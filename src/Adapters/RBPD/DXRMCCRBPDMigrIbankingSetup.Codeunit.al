@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60107 "DXR MCC RBPD Migr IBSetup"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -96,3 +97,5 @@ codeunit 60107 "DXR MCC RBPD Migr IBSetup"
             until OldRec.Next() = 0;
     end;
 }
+
+#endif

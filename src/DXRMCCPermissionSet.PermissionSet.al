@@ -30,6 +30,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Completion Notify" = X,
         codeunit "DXR MCC Portfolio Perm. Mgt." = X,
         codeunit "DXR MCC Upgrade Tag Seed" = X,
+#if not ESCUDEA and not BCDX
         codeunit "DXR MCC SD Migr Customer" = X,
         codeunit "DXR MCC SD Migr DispModSetup" = X,
         codeunit "DXR MCC SD Migr SalesHeader" = X,
@@ -97,6 +98,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC RC Migr Phase3" = X,
         codeunit "DXR MCC RC Migr Phase4" = X,
         codeunit "DXR MCC RC Migr Phase5" = X,
+#endif
         codeunit "DXR MCC FE Migr Phase7" = X,
         codeunit "DXR MCC FE Migr Phase8" = X,
         codeunit "DXR MCC FE Migr Phase9" = X,
@@ -114,8 +116,11 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P7 Sales Line" = X,
         codeunit "DXR MCC FE P7 Sales Inv. Line" = X,
         codeunit "DXR MCC FE P7 Sales CrMemoLn" = X,
+#if not BCDX
         codeunit "DXR MCC LSFE Migr PermSet" = X,
         codeunit "DXR MCC LSFE Migr POS Cont." = X,
+#endif
+#if not ESCUDEA and not BCDX
         codeunit "DXR MCC Bellon Migr Phase2" = X,
         codeunit "DXR MCC Bellon SPOldGenBridge" = X,
         codeunit "DXR MCC Bellon Migr Phase3" = X,
@@ -195,6 +200,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC PCM P5 Other" = X,
         codeunit "DXR MCC TU Setup" = X,
         codeunit "DXR MCC TU Master" = X,
+#endif
         codeunit "DXR MCC FE P8 Setup" = X,
         codeunit "DXR MCC FE P8 Master" = X,
         codeunit "DXR MCC FE P9 Master" = X,
@@ -204,6 +210,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P11 Setup" = X,
         codeunit "DXR MCC FE P11 Master" = X,
         codeunit "DXR MCC FE P11 Historic" = X,
+#if not ESCUDEA and not BCDX
         codeunit "DXR MCC Bellon P2 Setup" = X,
         codeunit "DXR MCC Bellon P2 Master" = X,
         codeunit "DXR MCC Bellon P2 Historic" = X,
@@ -219,6 +226,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC BPOS P2 Setup" = X,
         codeunit "DXR MCC BPOS P2 Historic" = X,
         codeunit "DXR MCC BPOS P2 Other" = X,
+#endif
         codeunit "DXR MCC Adapt DRLOC PmtMethod" = X,
         codeunit "DXR MCC DRLOC Migr Phase2" = X,
         codeunit "DXR MCC DRLOC Migr Phase3" = X,
@@ -243,6 +251,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P9 Accounting" = X,
         codeunit "DXR MCC FE P10 Accounting" = X,
         codeunit "DXR MCC FE P11 Accounting" = X,
+#if not ESCUDEA and not BCDX
         codeunit "DXR MCC LSLOC Accounting Fld" = X,
         codeunit "DXR MCC LSLOC Accounting Dep" = X,
         codeunit "DXR MCC DESB Accounting" = X,
@@ -275,6 +284,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC SD Sales Accounting" = X,
         codeunit "DXR MCC SD Whse Accounting" = X,
         codeunit "DXR MCC SD GJL Accounting" = X,
+#endif
         page "DXR Migration Control Center" = X,
         page "DXR MCC Concept Subform" = X,
         page "DXR MCC Run Log" = X,

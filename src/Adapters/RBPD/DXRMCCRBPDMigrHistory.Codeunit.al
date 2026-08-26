@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60108 "DXR MCC RBPD Migr History"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -55,3 +56,5 @@ codeunit 60108 "DXR MCC RBPD Migr History"
             until OldDetail.Next() = 0;
     end;
 }
+
+#endif

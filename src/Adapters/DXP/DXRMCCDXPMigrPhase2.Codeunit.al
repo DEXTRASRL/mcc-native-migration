@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60081 "DXR MCC DXP Migr Phase2"
 {
     // Converted 2026-08-24: previously routed 38 field copies across 5 tables through a generic
@@ -126,3 +127,5 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
             until TransPaymentEntry.Next() = 0;
     end;
 }
+
+#endif

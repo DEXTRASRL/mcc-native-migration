@@ -103,6 +103,7 @@ codeunit 60012 "DXR MCC Registry Loader"
 
     local procedure LoadConcepts()
     begin
+#if not ESCUDEA and not BCDX
         // ---- BC: Base Controls (Phase 1 gen-1 legacy restore + Phase 2 current + Phase 3 fields + Perm repair) ----
         InsConcept('BC', 'BC-P2', 1, 'Warehouse Controls Setup: legacy row restore', 60092, 56407, 54798, 'SETUP');
         InsConcept('BC', 'BC-P2', 2, 'Purchase Controls Setup: legacy row restore', 60093, 56408, 54800, 'SETUP');
@@ -127,6 +128,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BC', 'BC-P1', 17, 'Transfer Controls Setup: legacy row restore (gen-1, "DXR Transfer Controls Setup" 56403 -> active "DXR_Transfer Controls Setup" 54806)', 60090, 56403, 54806, 'SETUP');
         InsConcept('BC', 'BC-P1', 18, 'Customer Controls Setup: legacy row restore (gen-1, "DXR Customer Controls Setup" 56405 -> active "DXR_Customer Controls Setup" 54807)', 60091, 56405, 54807, 'SETUP');
         InsConcept('BC', 'BC-PERM', 19, 'Permission set assignment repair (all users, DXR_BaseControls)', 60104, 0, 0, 'OTHER');
+#endif
 
         // ---- DRLOC: Base App DR Localization ----
         InsConcept('DRLOC', 'DRLOC-P2', 1, 'RETIRED 2026-08-24: this coarse row bridged to DR-Localization''s own dispatcher (52208) via Codeunit 60069 - superseded now that Phase 2''s entire real scope (48 actions, seq9-18/93-106/etc.) is natively ported into MCC codeunit 60165. Keeping this row pointed at 60069 would still invoke DRLOC''s own dispatcher (and its EnsurePhase1Completed hard-block) every run, exactly the cross-repo bridge dependency this whole campaign exists to eliminate. Retired in place rather than deleted, matching the DPP-P5/DPP-P6 precedent above.', 0, 0, 0, 'OTHER');
@@ -264,6 +266,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         // (confirmed via grep, zero matches) - a genuine untracked gap, same class as seq96-104 above.
         InsConcept('DRLOC', 'DRLOC-P2', 106, 'Application Area Setup field restore (Dextra Business Central/LS Central/Empty Labels flags)', 60165, 0, 0, 'SETUP');
 
+#if not ESCUDEA and not BCDX
         // ---- VP: Vendor Payloads (Phase 1-6 legacy population + Phase 7 Id Cutover, 23 table pairs) ----
         InsConcept('VP', 'VP-P7', 1, 'VP Setup legacy table restore', 60121, 55325, 52684, 'SETUP');
         InsConcept('VP', 'VP-P7', 2, 'VP Payload Header legacy table restore', 60121, 55326, 52687, 'MA');
@@ -311,12 +314,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('VP', 'VP-P5', 44, 'VP API Log Entry legacy table restore (gen-1)', 60119, 55324, 52714, 'HIST');
         InsConcept('VP', 'VP-P5', 45, 'VP Response Log legacy table restore (gen-1, + Response/Request Body BLOB substep)', 60119, 55323, 52716, 'HIST');
         InsConcept('VP', 'VP-P6', 46, 'Tableextension field cutover: Bank Account/Gen. Journal Line/Post Code/User Setup/Vendor/Vendor Bank Account/Purchase Header (7 tables, _DXR field pairs)', 60120, 0, 0, 'OTHER');
+#endif
 
         // ---- DPP: DescuentoProntoPago (registry correction 2026-08-22 - see Extension Notes) ----
         InsConcept('DPP', 'DPP-P5', 1, 'RETIRED 2026-08-22: dispatcher 53650 does not exist anywhere in DescuentoProntoPago-OLD source - this was a stale/incorrect registry entry. See DPP-UPG for the extension''s one real migration action.', 0, 0, 0, 'OTHER');
         InsConcept('DPP', 'DPP-P6', 2, 'RETIRED 2026-08-22: dispatcher 53652 does not exist anywhere in DescuentoProntoPago-OLD source - this was a stale/incorrect registry entry. See DPP-UPG for the extension''s one real migration action.', 0, 0, 0, 'OTHER');
         InsConcept('DPP', 'DPP-UPG', 3, 'Cash Journal Receipt List: DPP Disc. PP Amount restore from DPPDisc. Cash Payment ("DPP Upgrade Manager" 54283/52120102, Subtype=Upgrade - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs automatically on next publish/upgrade only)', 54283, 0, 0, 'HIST');
 
+#if not ESCUDEA and not BCDX
         // ---- RBPD: RecaudoBPD ----
         InsConcept('RBPD', 'RBPD-P1', 1, 'Cust. Ledger Entry legacy tableextension (DXR-IB Cust. Led) restore', 60105, 0, 0, 'MA');
         InsConcept('RBPD', 'RBPD-P1', 2, 'Gen. Journal Line legacy tableextension (DXR-IB Gen. Jrnl Line) restore', 60106, 0, 0, 'MA');
@@ -454,7 +459,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         // per-dispatcher dedup in DXR MCC Executor).
         InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
         InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 60126, 57301, 53602, 'MA');
+#endif
 
+#if not ESCUDEA and not BCDX
         // ---- DESB: Despacho Base (38 table pairs + 2 collision-fix phases + permission repair) ----
         InsConcept('DESB', 'DESB-P1', 1, 'Additional Truck legacy table restore', 60127, 50809, 53837, 'MA');
         InsConcept('DESB', 'DESB-P1', 2, 'Codigos de Auditoria legacy table restore', 60127, 50836, 53838, 'SETUP');
@@ -861,6 +868,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('RC', 'RC-P2', 10, 'Sales Invoice Header field restore (Documents Retro pass, high volume, batched)', 60132, 0, 0, 'MA');
         InsConcept('RC', 'RC-P3', 11, 'Cross-table field-ID collision retro-fix (ID Collision Retro: Sales Header/Sales Invoice Header/Purchase Header/LSC POS Func. Profile/DXR_Sales Controls Setup/DXR_Purchase Controls Setup, 9 fields, 54675-54677->56531-56538)', 60133, 0, 0, 'OTHER');
         InsConcept('RC', 'RC-P4', 12, 'Permission set assignment repair (all users, DXR_Retail Controls, PermSet Repair)', 60134, 0, 0, 'OTHER');
+#endif
 
         // ---- FE: Facturacion Electronica ----
         // FE-P7/P8/P9/P10 expanded 2026-08-22 (follow-up completed - previously phase-level only,
@@ -943,10 +951,13 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('FE', 'FE-P12', 6, 'EF Payload Text Chunk legacy table restore (55703 -> 52524)', 60141, 55703, 52524, 'HIST');
         InsConcept('FE', 'FE-P12', 303, 'EF ATEB Send Registry legacy table restore (55610 -> 52509, has an enum re-mapping step)', 60141, 55610, 52509, 'HIST');
 
+#if not BCDX
         // ---- LSFE: LS Facturacion Electronica (2 on-demand background repairs, both scheduled by the "Run Migration Now" action on DXR_LSFE Migration Status) ----
         InsConcept('LSFE', 'LSFE-P1', 1, 'Assign PermSet to all users (background worker, runs synchronously when invoked directly)', 60144, 0, 0, 'SETUP');
         InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60145, 0, 0, 'OTHER');
+#endif
 
+#if not ESCUDEA and not BCDX
         // ---- LSLOC: LS Central DR Localization. Each registry concept points to the smallest
         // callable MCC dispatcher available. In particular, setup field restores must never share
         // one dispatcher: doing so held Label Functions plus the following setup tables in the
@@ -979,6 +990,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 60173, 54302, 54494, 'SETUP');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60176, 54324, 54495, 'HIST');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60176, 54328, 54496, 'HIST');
+#endif
     end;
 
     local procedure InsExt(Code2: Code[20]; Name2: Text[100]; AppIdText: Text; OrderNo: Integer; Notes2: Text)

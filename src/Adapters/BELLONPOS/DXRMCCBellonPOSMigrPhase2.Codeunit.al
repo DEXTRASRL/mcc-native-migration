@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
 {
     // Native local migration - ported verbatim from Bellon Customization POS's own "Bellon POS
@@ -302,3 +303,5 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         TargetRecRef.Insert(false);
     end;
 }
+
+#endif

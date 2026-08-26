@@ -1,3 +1,4 @@
+#if not BCDX
 codeunit 60144 "DXR MCC LSFE Migr PermSet"
 {
     // Native local migration - ported verbatim from LS Facturacion Electronica's own
@@ -61,3 +62,5 @@ codeunit 60144 "DXR MCC LSFE Migr PermSet"
         exit('4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2');
     end;
 }
+
+#endif

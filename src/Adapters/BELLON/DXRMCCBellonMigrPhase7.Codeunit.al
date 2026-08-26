@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60151 "DXR MCC Bellon Migr Phase7"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -946,3 +947,5 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Close();
     end;
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60114 "DXR MCC RBPD Migr MidwareCons"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -52,3 +53,5 @@ codeunit 60114 "DXR MCC RBPD Migr MidwareCons"
         MiddlewareSetup.Modify(true);
     end;
 }
+
+#endif

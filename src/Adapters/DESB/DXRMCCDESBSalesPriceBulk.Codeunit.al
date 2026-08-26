@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60442 "DXR MCC DESB Sales Price Bulk"
 {
     trigger OnRun()
@@ -12,3 +13,5 @@ codeunit 60442 "DXR MCC DESB Sales Price Bulk"
         UpgradeTag.SetUpgradeTag('DXR-MCC-DESB-SALES-PRICE-BULK-20260825.');
     end;
 }
+
+#endif

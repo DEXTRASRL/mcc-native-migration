@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60095 "DXR MCC BC Migr P2 Vendor"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -37,3 +38,5 @@ codeunit 60095 "DXR MCC BC Migr P2 Vendor"
             (not OldSetup."Mandatory Currency Code"));
     end;
 }
+
+#endif

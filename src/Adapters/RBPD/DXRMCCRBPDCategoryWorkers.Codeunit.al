@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60431 "DXR MCC RBPD CLE Accounting"
 {
     trigger OnRun()
@@ -105,3 +106,5 @@ codeunit 60436 "DXR MCC RBPD Cash Accounting"
         exit('DXR-MCC-RBPD-CASH-ACCOUNTING-20260825.');
     end;
 }
+
+#endif

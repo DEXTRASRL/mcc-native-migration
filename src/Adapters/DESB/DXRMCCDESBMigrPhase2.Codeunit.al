@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60128 "DXR MCC DESB Migr Phase2"
 {
     // Native local migration - ported verbatim from Despacho Base's own "DXR_Despacho Migr Phase
@@ -785,3 +786,5 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-WAREHOUSESHIPMTHDR-28.3');
     end;
 }
+
+#endif

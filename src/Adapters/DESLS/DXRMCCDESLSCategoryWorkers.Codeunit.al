@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60254 "DXR MCC DESLS Setup"
 {
     trigger OnRun()
@@ -78,3 +79,5 @@ codeunit 60257 "DXR MCC DESLS Other"
         UpgradeTag.SetUpgradeTag('DXR-MCC-DESLS-OTHER-20260825.');
     end;
 }
+
+#endif

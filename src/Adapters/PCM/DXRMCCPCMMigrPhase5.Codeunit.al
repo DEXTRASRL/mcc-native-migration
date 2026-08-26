@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60125 "DXR MCC PCM Migr Phase5"
 {
     // Native local migration - ported verbatim from Price Controls Mgt.'s own
@@ -597,3 +598,5 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         exit('DXR-Phase5Step8SalesLine-28.3.0.0');
     end;
 }
+
+#endif

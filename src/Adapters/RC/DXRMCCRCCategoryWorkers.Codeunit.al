@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60258 "DXR MCC RC Setup"
 {
     trigger OnRun()
@@ -59,3 +60,5 @@ codeunit 60382 "DXR MCC RC Accounting"
         UpgradeTag.SetUpgradeTag('DXR-MCC-RC-ACCOUNTING-20260825.');
     end;
 }
+
+#endif

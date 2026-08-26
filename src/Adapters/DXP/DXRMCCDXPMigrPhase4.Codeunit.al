@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60083 "DXR MCC DXP Migr Phase4"
 {
     // Native local migration - ported verbatim from DX-Payments' own "DXR_DXP_Migr_Phase4_Legacy"
@@ -410,3 +411,5 @@ codeunit 60083 "DXR MCC DXP Migr Phase4"
         Dest."Additional Context" := Source."Additional Context";
     end;
 }
+
+#endif

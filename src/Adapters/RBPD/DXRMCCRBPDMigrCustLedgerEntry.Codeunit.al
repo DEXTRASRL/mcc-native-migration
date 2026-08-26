@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60105 "DXR MCC RBPD Migr CustLedgEnt"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -19,3 +20,5 @@ codeunit 60105 "DXR MCC RBPD Migr CustLedgEnt"
             until CustLedgerEntry.Next() = 0;
     end;
 }
+
+#endif

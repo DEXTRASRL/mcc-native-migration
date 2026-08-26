@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60131 "DXR MCC RC Migr Phase1"
 {
     // Native local migration - ported verbatim from Retail Controls' own "DXR_Migr Phase1 Setup
@@ -130,3 +131,5 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
         until FuncProfile.Next() = 0;
     end;
 }
+
+#endif

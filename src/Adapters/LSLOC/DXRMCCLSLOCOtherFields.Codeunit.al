@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60175 "DXR MCC LSLOC Other Fields"
 {
     trigger OnRun()
@@ -11,3 +12,5 @@ codeunit 60175 "DXR MCC LSLOC Other Fields"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-OTHERFIELDS-20260825.');
     end;
 }
+
+#endif

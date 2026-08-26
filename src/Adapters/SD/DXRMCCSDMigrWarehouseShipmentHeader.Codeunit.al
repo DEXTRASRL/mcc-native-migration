@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60075 "DXR MCC SD Migr WhseShipHdr"
 {
     // Native local migration - see "DXR MCC SD Migr Customer" for the full design rationale. Ported
@@ -16,3 +17,5 @@ codeunit 60075 "DXR MCC SD Migr WhseShipHdr"
             until WhseShptHeader.Next() = 0;
     end;
 }
+
+#endif

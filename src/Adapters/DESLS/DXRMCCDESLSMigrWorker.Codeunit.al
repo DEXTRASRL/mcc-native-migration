@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60129 "DXR MCC DESLS Migr Worker"
 {
     // Native local migration - ported verbatim from Despacho LS's own "DXR_Desp LS Migr Worker"
@@ -145,3 +146,5 @@ codeunit 60129 "DXR MCC DESLS Migr Worker"
         UpgradeTag.SetUpgradeTag('DXR-DESPACHOLS-TABLEMIGR-02-50871-28.3');
     end;
 }
+
+#endif

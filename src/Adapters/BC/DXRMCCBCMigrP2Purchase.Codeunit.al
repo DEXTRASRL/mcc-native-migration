@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60093 "DXR MCC BC Migr P2 Purchase"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -79,3 +80,5 @@ codeunit 60093 "DXR MCC BC Migr P2 Purchase"
             (not OldSetup."Validate Document Date"));
     end;
 }
+
+#endif

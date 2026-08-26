@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60154 "DXR MCC Bellon Migr Phase10"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -23,3 +24,5 @@ codeunit 60154 "DXR MCC Bellon Migr Phase10"
         UpgradeTag.SetUpgradeTag('DXR-SalesPurchOldDedup2');
     end;
 }
+
+#endif

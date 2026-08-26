@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60120 "DXR MCC VP Migr Phase6"
 {
     // Native local migration - ported verbatim from Vendor Payloads' own
@@ -172,3 +173,5 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
         exit(CopyStr(StrSubstNo('VP-DXR-MIGR-P6-%1-20260728', Suffix), 1, 250));
     end;
 }
+
+#endif

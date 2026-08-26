@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60088 "DXR MCC BC Migr P1 Sales"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 1".
@@ -45,3 +46,5 @@ codeunit 60088 "DXR MCC BC Migr P1 Sales"
         NewSetup.Insert(false);
     end;
 }
+
+#endif

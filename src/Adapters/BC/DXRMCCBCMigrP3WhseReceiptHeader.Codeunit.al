@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60102 "DXR MCC BC Migr P3 WhseRcptHd"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
@@ -40,3 +41,5 @@ codeunit 60102 "DXR MCC BC Migr P3 WhseRcptHd"
         until WhseReceiptHeaderRec.Next() = 0;
     end;
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60135 "DXR MCC RC Migr Phase5"
 {
     // Native local migration - ported verbatim from Retail Controls' own "DXR_Migr Phase5 Setup
@@ -152,3 +153,5 @@ codeunit 60135 "DXR MCC RC Migr Phase5"
         until OldStatus.Next() = 0;
     end;
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60437 "DXR MCC SD Customer Master"
 {
     trigger OnRun()
@@ -69,3 +70,5 @@ codeunit 60440 "DXR MCC SD GJL Accounting"
         exit('DXR-MCC-SD-GJL-ACCOUNTING-20260825.');
     end;
 }
+
+#endif

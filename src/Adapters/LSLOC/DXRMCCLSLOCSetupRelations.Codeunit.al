@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60173 "DXR MCC LSLOC Setup Rel."
 {
     trigger OnRun()
@@ -11,3 +12,5 @@ codeunit 60173 "DXR MCC LSLOC Setup Rel."
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-SETUPRELATIONS-20260825.');
     end;
 }
+
+#endif

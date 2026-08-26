@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60166 "DXR MCC Bellon SPOldGenBridge"
 {
     // Native local migration for registry concept BELLON-P2 seq135 ("Sales/Purchase
@@ -64,3 +65,5 @@ codeunit 60166 "DXR MCC Bellon SPOldGenBridge"
         UpgradeTag.SetUpgradeTag('DXR-SalesPurchOldGenBridge');
     end;
 }
+
+#endif
