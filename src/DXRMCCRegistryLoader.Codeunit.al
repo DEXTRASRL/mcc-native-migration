@@ -99,6 +99,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
+        InsExt('REPORTING', 'Portfolio Reporting Migration', '', 990,
+            'MCC-owned final portfolio phase. Reassigns persisted legacy report IDs to the report IDs declared by the current physical AL build.');
     end;
 
     local procedure LoadConcepts()
@@ -508,7 +510,7 @@ codeunit 60012 "DXR MCC Registry Loader"
 
         // ---- BELLON: Bellon Customization (11-phase chain, Phase2 through Phase12, no standalone
         // Phase1 - it's a completion-tag gate only, nothing to register) ----
-        InsConcept('BELLON', 'BELLON-P3', 1, 'Sales/Purchase 14-table field-ID dedup (CRITICAL: was blocking Phase 2->3+ from ever running - the crash-fix)', 60147, 0, 0, 'MA');
+        InsConcept('BELLON', 'BELLON-P3', 1, 'Sales/Purchase 14-table field-ID dedup (batched and idempotent; Accounting, not Master)', 60147, 0, 0, 'ACCOUNTING');
         InsConcept('BELLON', 'BELLON-P5', 2, 'Customer+Item field restore (79 fields: 46 Customer + 33 Item)', 60149, 0, 0, 'MA');
         // Expanded 2026-08-22 from 1 collapsed row into 114 individual rows - full list read
         // directly from the 114 MigrateLegacyTableData(LegacyId, NewId) calls inside
@@ -991,6 +993,9 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60176, 54324, 54495, 'HIST');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60176, 54328, 54496, 'HIST');
 #endif
+        InsConcept('REPORTING', 'REPORTING-P1', 1,
+            'Reassign legacy report IDs in Report Selections, custom selections, layouts, printers and extension setup tables',
+            60443, 0, 0, 'REPORTING');
     end;
 
     local procedure InsExt(Code2: Code[20]; Name2: Text[100]; AppIdText: Text; OrderNo: Integer; Notes2: Text)
@@ -1044,7 +1049,8 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
             ApplyExecutionPolicy(Concept, ExtCode, PhaseCode, SeqNo, CategoryCode);
-            Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
+            Concept.Retired := ((DispatcherId = 0) and (LegacyId = 0) and (NewId = 0)) or
+                IsExplicitlyRetiredConcept(ExtCode, PhaseCode, SeqNo);
             Concept.Modify(true);
         end else begin
             Concept.Init();
@@ -1057,10 +1063,21 @@ codeunit 60012 "DXR MCC Registry Loader"
             Concept."New Table ID" := NewId;
             Concept.Category := CategoryOption(CategoryCode);
             ApplyExecutionPolicy(Concept, ExtCode, PhaseCode, SeqNo, CategoryCode);
-            Concept.Retired := (DispatcherId = 0) and (LegacyId = 0) and (NewId = 0);
+            Concept.Retired := ((DispatcherId = 0) and (LegacyId = 0) and (NewId = 0)) or
+                IsExplicitlyRetiredConcept(ExtCode, PhaseCode, SeqNo);
             Concept.Status := Concept.Status::"Not Counted";
             Concept.Insert(true);
         end;
+    end;
+
+    local procedure IsExplicitlyRetiredConcept(ExtCode: Code[20]; PhaseCode: Code[20]; SeqNo: Integer): Boolean
+    begin
+        // These Bellon bridges are deliberate no-op tag setters. Their source and destination
+        // fields never existed as live tenant data, so invoking/logging them adds noise without
+        // performing migration work. Keep their registry identity only for historical log links.
+        exit((ExtCode = 'BELLON') and
+            (((PhaseCode = 'BELLON-P10') and (SeqNo = 7)) or
+             ((PhaseCode = 'BELLON-P2') and (SeqNo = 135))));
     end;
 
     local procedure ApplyExecutionPolicy(var Concept: Record "DXR MCC Concept"; ExtCode: Code[20]; PhaseCode: Code[20]; SeqNo: Integer; CategoryCode: Code[10])
@@ -1329,7 +1346,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         Error('No category dispatcher is registered for category %1.', CategoryCode);
     end;
 
-    local procedure CategoryOption(CategoryCode: Code[10]): Option Setup,"Master/Accounting",Historic,Other,Master,Accounting
+    local procedure CategoryOption(CategoryCode: Code[10]): Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting
     var
         Concept: Record "DXR MCC Concept";
     begin
@@ -1344,6 +1361,8 @@ codeunit 60012 "DXR MCC Registry Loader"
                 exit(Concept.Category::Accounting);
             'HIST':
                 exit(Concept.Category::Historic);
+            'REPORTING':
+                exit(Concept.Category::Reporting);
             else
                 exit(Concept.Category::Other);
         end;

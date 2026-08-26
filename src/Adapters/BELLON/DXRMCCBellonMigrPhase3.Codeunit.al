@@ -35,12 +35,14 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283') then
+        if UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283') or
+           UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283.')
+        then
             exit;
 
         MigrateAllSalesPurchFieldIdDedup();
 
-        UpgradeTag.SetUpgradeTag('DXR-SalesPurchIdDedup283');
+        UpgradeTag.SetUpgradeTag('DXR-SalesPurchIdDedup283.');
     end;
 
     local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
@@ -75,7 +77,37 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
 
         SourceField := RecRef.Field(SourceField.Name());
         TargetField := RecRef.Field(TargetField.Name());
+        if Format(TargetField) = Format(SourceField) then
+            exit;
+
         TargetField.Value := SourceField.Value();
+        RecordChanged := true;
+    end;
+
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure MigrateAllSalesPurchFieldIdDedup()
@@ -119,9 +151,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52801, 57213);
                 // 57214 (Gestor_ID_DXR.) is a FlowField - no physical data to copy.
                 CopyFieldIfExists(RecRef, 52803, 57215);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesInvoiceHeaderIdDedup()
@@ -145,9 +177,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52798, 57241);
                 CopyFieldIfExists(RecRef, 52799, 57242);
                 CopyFieldIfExists(RecRef, 52800, 57243);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesCrMemoHeaderIdDedup()
@@ -162,9 +194,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52789, 57262);
                 CopyFieldIfExists(RecRef, 52790, 57263);
                 // 57264 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesShipmentHeaderIdDedup()
@@ -180,9 +212,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52790, 57283);
                 CopyFieldIfExists(RecRef, 52791, 57284);
                 // 57285 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesLineIdDedup()
@@ -204,9 +236,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52796, 57309);
                 CopyFieldIfExists(RecRef, 52797, 57310);
                 CopyFieldIfExists(RecRef, 52798, 57311);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesInvoiceLineIdDedup()
@@ -217,9 +249,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         if RecRef.FindSet(true) then
             repeat
                 CopyFieldIfExists(RecRef, 52787, 57330);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesHeaderArchiveIdDedup()
@@ -231,9 +263,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
             repeat
                 CopyFieldIfExists(RecRef, 52787, 57340);
                 // 57341 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesLineArchiveIdDedup()
@@ -251,9 +283,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52792, 57355);
                 CopyFieldIfExists(RecRef, 52793, 57356);
                 CopyFieldIfExists(RecRef, 52794, 57357);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchaseHeaderIdDedup()
@@ -274,9 +306,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 // 57378 (Transito Internacional_DXR) is a FlowField - no physical data to copy.
                 CopyFieldIfExists(RecRef, 52796, 57379);
                 CopyFieldIfExists(RecRef, 52797, 57380);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchInvHeaderIdDedup()
@@ -289,9 +321,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52787, 57400);
                 // 57401 (Envio Compras_DXR) is a FlowField - no physical data to copy.
                 CopyFieldIfExists(RecRef, 52789, 57402);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchRcptHeaderIdDedup()
@@ -311,9 +343,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52794, 57417);
                 CopyFieldIfExists(RecRef, 52795, 57418);
                 CopyFieldIfExists(RecRef, 52796, 57419);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchaseHeaderArchiveIdDedup()
@@ -327,9 +359,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52788, 57431);
                 CopyFieldIfExists(RecRef, 52789, 57432);
                 // 57433 (Envio Compras_DXR) is a FlowField - no physical data to copy.
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchaseLineIdDedup()
@@ -346,9 +378,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
                 CopyFieldIfExists(RecRef, 52791, 57444);
                 CopyFieldIfExists(RecRef, 52792, 57445);
                 CopyFieldIfExists(RecRef, 52793, 57446);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchRcptLineIdDedup()
@@ -359,10 +391,14 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         if RecRef.FindSet(true) then
             repeat
                 CopyFieldIfExists(RecRef, 52787, 57460);
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

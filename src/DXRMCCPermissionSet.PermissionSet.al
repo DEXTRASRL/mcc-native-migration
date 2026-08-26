@@ -29,6 +29,9 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Migration Lock Mgt." = X,
         codeunit "DXR MCC Completion Notify" = X,
         codeunit "DXR MCC Portfolio Perm. Mgt." = X,
+        codeunit "DXR MCC Reporting Migration" = X,
+        codeunit "DXR MCC Reporting Upgrade" = X,
+        codeunit "DXR MCC Tenant Run Mgt." = X,
         codeunit "DXR MCC Upgrade Tag Seed" = X,
 #if not ESCUDEA and not BCDX
         codeunit "DXR MCC SD Migr Customer" = X,
@@ -290,6 +293,7 @@ permissionset 60000 "DXR MCC"
         page "DXR MCC Run Log" = X,
         page "DXR MCC Run Requests" = X,
         page "DXR MCC Run Timing" = X,
+        page "DXR MCC Tenant Runs" = X,
         page "DXR MCC Table Map" = X,
         report "DXR MCC Extension Gap Report" = X;
 }

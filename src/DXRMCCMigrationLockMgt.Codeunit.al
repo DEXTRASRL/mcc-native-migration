@@ -75,6 +75,8 @@ codeunit 60016 "DXR MCC Migration Lock Mgt."
 
         if MigrationLock."Run Request Entry No." <> RunRequestEntryNo then
             exit;
+        if MigrationLock."Locked For Company" <> CopyStr(CompanyName(), 1, MaxStrLen(MigrationLock."Locked For Company")) then
+            exit;
 
         MigrationLock.Delete(false);
     end;
@@ -90,6 +92,8 @@ codeunit 60016 "DXR MCC Migration Lock Mgt."
         if not MigrationLock.Get(GlobalLockRowKey(), GetGlobalMigrationLockCode()) then
             exit(false);
         if MigrationLock."Run Request Entry No." <> RunRequestEntryNo then
+            exit(false);
+        if MigrationLock."Locked For Company" <> CopyStr(CompanyName(), 1, MaxStrLen(MigrationLock."Locked For Company")) then
             exit(false);
 
         MigrationLock."Expires At" := CurrentDateTime() + LockDuration;

@@ -23,6 +23,9 @@ page 60023 "DXR MCC Run Requests"
             repeater(Group)
             {
                 field("Entry No."; Rec."Entry No.") { }
+                field("Company Name"; Rec."Company Name") { }
+                field("Tenant Run ID"; Rec."Tenant Run ID") { Visible = false; }
+                field("Company Sequence"; Rec."Company Sequence") { Visible = false; }
                 field(Scope; Rec.Scope) { }
                 field(Category; Rec.Category) { Visible = false; }
                 field("Extension Code"; Rec."Extension Code") { }

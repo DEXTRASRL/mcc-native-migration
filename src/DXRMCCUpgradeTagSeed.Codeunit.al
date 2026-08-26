@@ -43,6 +43,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         SeedLSFacturacionElectronica(SeededCount);
         SeedLSLocalizacionBase(SeededCount);
         SeedPriceControlsMgt(SeededCount);
+        SeedIfBlank('REPORTING', 'REPORTING-P1', 1, 'DXR-MCC-REPORTING-ID-MIGRATION-20260825.', SeededCount);
         SeedRecaudoBPD(SeededCount);
         SeedSpecialDispatch(SeededCount);
         SeedTransUnion(SeededCount);
@@ -565,7 +566,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
     var
         i: Integer;
     begin
-        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-BELLON-SALESPURCH-ID-DEDUP-28.3-1', SeededCount);
+        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-SalesPurchIdDedup283;DXR-SalesPurchIdDedup283.', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P5', 2, 'BELLON-MIGR-PHASE5-CUSTITEMDXR-COMPLETED-20260820', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P6', 3, 'DXR-BELLON-TABLEID-RENUMBER-RESTORE-28.3-1', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P7', 4, 'DXR-BELLON-TABLEEXT-ID-RESTORE-28.3-1', SeededCount);

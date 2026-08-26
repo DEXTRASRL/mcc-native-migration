@@ -1,0 +1,336 @@
+codeunit 60443 "DXR MCC Reporting Migration"
+{
+    Permissions =
+        tabledata "Report Selections" = RM,
+        tabledata "Custom Report Selection" = RM,
+        tabledata "Report Layout Selection" = RM,
+        tabledata "Printer Selection" = RM,
+        tabledata "Gen. Journal Template" = RM;
+
+    trigger OnRun()
+    begin
+        RunMigration();
+    end;
+
+    procedure RunMigration()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-REPORTING-ID-MIGRATION-20260825.') then
+            exit;
+
+        UpdateTableField(Database::"Report Selections", 3);
+        UpdateTableField(Database::"Custom Report Selection", 5);
+        UpdateTableField(Database::"Report Layout Selection", 1);
+        UpdateTableField(Database::"Printer Selection", 2);
+        UpdateTableField(Database::"Gen. Journal Template", 51811);
+        UpdateTableField(53358, 33); // DXR_Inventory Masks.Report Object ID
+        UpdateTableField(54048, 9);  // DXR_Pending G/L Email.Report ID
+        UpdateTableField(54531, 11); // DXR_Transport Email Setup.Report ID
+
+        UpgradeTag.SetUpgradeTag('DXR-MCC-REPORTING-ID-MIGRATION-20260825.');
+    end;
+
+    local procedure UpdateTableField(TableId: Integer; FieldId: Integer)
+    begin
+        if not TryUpdateTableField(TableId, FieldId) then
+            ClearLastError();
+        Commit();
+    end;
+
+    [TryFunction]
+    local procedure TryUpdateTableField(TableId: Integer; FieldId: Integer)
+    var
+        RecRef: RecordRef;
+        ReportIdField: FieldRef;
+        OldReportId: Integer;
+        NewReportId: Integer;
+    begin
+        RecRef.Open(TableId);
+        if not RecRef.FieldExist(FieldId) then begin
+            RecRef.Close();
+            exit;
+        end;
+
+        ReportIdField := RecRef.Field(FieldId);
+        if RecRef.FindSet(true) then
+            repeat
+                OldReportId := ReportIdField.Value();
+                NewReportId := ResolveNewReportId(OldReportId);
+                if (NewReportId <> OldReportId) and ReportExists(NewReportId) then begin
+                    ReportIdField.Validate(NewReportId);
+                    RecRef.Modify(true);
+                end;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+    end;
+
+    local procedure ReportExists(ReportId: Integer): Boolean
+    var
+        AllObjWithCaption: Record AllObjWithCaption;
+    begin
+        AllObjWithCaption.SetRange("Object Type", AllObjWithCaption."Object Type"::Report);
+        AllObjWithCaption.SetRange("Object ID", ReportId);
+        exit(not AllObjWithCaption.IsEmpty());
+    end;
+
+    local procedure ResolveNewReportId(OldReportId: Integer): Integer
+    begin
+        case OldReportId of
+            50139: exit(54747);
+            50140: exit(54748);
+            50342: exit(53543);
+            50400: exit(52789);
+            50401: exit(52794);
+            50402: exit(52798);
+            50403: exit(52802);
+            50404: exit(52806);
+            50405: exit(52810);
+            50406: exit(52814);
+            50407: exit(52817);
+            50408: exit(52821);
+            50409: exit(52824);
+            50410: exit(52827);
+            50411: exit(52830);
+            50412: exit(52832);
+            50413: exit(52836);
+            50415: exit(52840);
+            50416: exit(52842);
+            50417: exit(52844);
+            50418: exit(52846);
+            50419: exit(52848);
+            50420: exit(52851);
+            50423: exit(52859);
+            50424: exit(52862);
+            50425: exit(52866);
+            50427: exit(52872);
+            50428: exit(52876);
+            50429: exit(52879);
+            50431: exit(52886);
+            50432: exit(52889);
+            50433: exit(52892);
+            50434: exit(52895);
+            50435: exit(52898);
+            50437: exit(52904);
+            50438: exit(52907);
+            50439: exit(52910);
+            50440: exit(52913);
+            50442: exit(52917);
+            50443: exit(52920);
+            50444: exit(52921);
+            50446: exit(52928);
+            50447: exit(52931);
+            50450: exit(52940);
+            50451: exit(52942);
+            50452: exit(52946);
+            50453: exit(52949);
+            50454: exit(52952);
+            50455: exit(52955);
+            50456: exit(52957);
+            50457: exit(52959);
+            50458: exit(52962);
+            50459: exit(52965);
+            50460: exit(52969);
+            50461: exit(52972);
+            50462: exit(52973);
+            50463: exit(52976);
+            50464: exit(52980);
+            50465: exit(52983);
+            50466: exit(52986);
+            50467: exit(52988);
+            50468: exit(52990);
+            50469: exit(52993);
+            50470: exit(52996);
+            50471: exit(52998);
+            50472: exit(53000);
+            50473: exit(53002);
+            50474: exit(53004);
+            50475: exit(53007);
+            50477: exit(53011);
+            50478: exit(53014);
+            50479: exit(53016);
+            50480: exit(53018);
+            50481: exit(53020);
+            50482: exit(53022);
+            50485: exit(53030);
+            50486: exit(53033);
+            50487: exit(53036);
+            50489: exit(53042);
+            50490: exit(53044);
+            50491: exit(53047);
+            50492: exit(53050);
+            50493: exit(53052);
+            50496: exit(53058);
+            50497: exit(53061);
+            50498: exit(53064);
+            50499: exit(53067);
+            50500: exit(53069);
+            50501: exit(53070);
+            50503: exit(53071);
+            50504: exit(53072);
+            50505: exit(53073);
+            50506: exit(53074);
+            50507: exit(53075);
+            50508: exit(53076);
+            50509: exit(53077);
+            50511: exit(53078);
+            50512: exit(53079);
+            50513: exit(53080);
+            50514: exit(53081);
+            50515: exit(53082);
+            50517: exit(53083);
+            50518: exit(53084);
+            50519: exit(53086);
+            50520: exit(53087);
+            50521: exit(53088);
+            50522: exit(53089);
+            50523: exit(53090);
+            50524: exit(53091);
+            50528: exit(53092);
+            50529: exit(53093);
+            50530: exit(53094);
+            50531: exit(53096);
+            50532: exit(53097);
+            50533: exit(53098);
+            50535: exit(53099);
+            50536: exit(53100);
+            50537: exit(53101);
+            50538: exit(53102);
+            50800: exit(53821);
+            50801: exit(53814);
+            50802: exit(53818);
+            50803: exit(53824);
+            50804: exit(53827);
+            50805: exit(53826);
+            50806: exit(53828);
+            50807: exit(53817);
+            50808: exit(53815);
+            50809: exit(53820);
+            50810: exit(53822);
+            50811: exit(53825);
+            50814: exit(53816);
+            50816: exit(53819);
+            54211: exit(52317);
+            54212: exit(52318);
+            54301: exit(54077);
+            54302: exit(54081);
+            54303: exit(54085);
+            54304: exit(54089);
+            54305: exit(54093);
+            54306: exit(54097);
+            54307: exit(54414);
+            54309: exit(54421);
+            54310: exit(54425);
+            54311: exit(54430);
+            54743: exit(52317);
+            54744: exit(52318);
+            55300: exit(52611);
+            55301: exit(52617);
+            55302: exit(52622);
+            55303: exit(52627);
+            55304: exit(52632);
+            55310: exit(52611);
+            54101: exit(51823);
+            54102: exit(51832);
+            54103: exit(51840);
+            54104: exit(51848);
+            54105: exit(51855);
+            54106: exit(51862);
+            54107: exit(51867);
+            54108: exit(51872);
+            54109: exit(51877);
+            54110: exit(51882);
+            54111: exit(51887);
+            54112: exit(51892);
+            54113: exit(51896);
+            54114: exit(51901);
+            54115: exit(51906);
+            54116: exit(51911);
+            54117: exit(51916);
+            54118: exit(51921);
+            54119: exit(51926);
+            54122: exit(51939);
+            54123: exit(51944);
+            54124: exit(51949);
+            54125: exit(51954);
+            54126: exit(51959);
+            54127: exit(51964);
+            54128: exit(51969);
+            54129: exit(51974);
+            54132: exit(51986);
+            54133: exit(51991);
+            54134: exit(51995);
+            54135: exit(51999);
+            54136: exit(52003);
+            54137: exit(52007);
+            54138: exit(52011);
+            54139: exit(52015);
+            54141: exit(52022);
+            54142: exit(52025);
+            54143: exit(52028);
+            54144: exit(52031);
+            54145: exit(52034);
+            54146: exit(52038);
+            54147: exit(52042);
+            54148: exit(52045);
+            54149: exit(52048);
+            54150: exit(52052);
+            54151: exit(52056);
+            54152: exit(52060);
+            54153: exit(52064);
+            54154: exit(52068);
+            54156: exit(52073);
+            54158: exit(52078);
+            54159: exit(52081);
+            54160: exit(52084);
+            55501: exit(52336);
+            55502: exit(52341);
+            55503: exit(52346);
+            55504: exit(52350);
+            55505: exit(52354);
+            55506: exit(52357);
+            55507: exit(52361);
+            55508: exit(52366);
+            56600: exit(53618);
+            56601: exit(53624);
+            59001: exit(53994);
+            52119581: exit(53624);
+            52119582: exit(53618);
+            52120003: exit(54282);
+            52120004: exit(54283);
+            52120005: exit(54284);
+            52120006: exit(54287);
+            52120007: exit(54286);
+            52120010: exit(54285);
+            52120012: exit(54281);
+            52120100: exit(54281);
+            52120101: exit(54282);
+            52120102: exit(54283);
+            52120103: exit(54284);
+            52120104: exit(54285);
+            52120105: exit(54286);
+            52120106: exit(54287);
+            52120382: exit(52611);
+            52120383: exit(52617);
+            52120384: exit(52622);
+            52120385: exit(52627);
+            52120386: exit(52632);
+            55520: exit(52413);
+            55708: exit(52521);
+            59139: exit(53278);
+        end;
+        exit(OldReportId);
+    end;
+}
+
+codeunit 60444 "DXR MCC Reporting Upgrade"
+{
+    Subtype = Upgrade;
+
+    trigger OnUpgradePerCompany()
+    var
+        ReportingMigration: Codeunit "DXR MCC Reporting Migration";
+    begin
+        ReportingMigration.RunMigration();
+    end;
+}

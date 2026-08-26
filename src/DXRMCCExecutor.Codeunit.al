@@ -76,9 +76,6 @@ codeunit 60011 "DXR MCC Executor"
     begin
         Concept.SetRange("Extension Code", ExtensionCode);
         Concept.SetRange(Retired, false);
-        Concept.SetRange(Blocked, true);
-        BlockedCount += Concept.Count();
-
         Concept.SetRange(Blocked, false);
         Concept.SetCurrentKey("Extension Code", "Sequence No.");
         if not Concept.FindSet() then
@@ -100,7 +97,7 @@ codeunit 60011 "DXR MCC Executor"
 
         foreach DispatcherId in DispatcherIds do begin
             Clear(ConceptEntryNos);
-            CollectDispatcherConcepts(ExtensionCode, DispatcherId, false, Concept.Category::Setup, ConceptEntryNos);
+            CollectDispatcherConcepts(ExtensionCode, DispatcherId, false, Concept.Category::Setup, false, 0, ConceptEntryNos);
             if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0) then begin
                 if RunRequestEntryNo = 0 then
                     CloseProgress();
@@ -134,7 +131,7 @@ codeunit 60011 "DXR MCC Executor"
         // shares a category worker, that worker will touch every row in the group; log and verify
         // all of them instead of pretending only the selected row ran.
         RequestedConceptEntryNo := Concept."Entry No.";
-        CollectDispatcherConcepts(Concept."Extension Code", Concept."Dispatcher Codeunit ID", false, Concept.Category, ConceptEntryNos);
+        CollectDispatcherConcepts(Concept."Extension Code", Concept."Dispatcher Codeunit ID", false, Concept.Category, false, 0, ConceptEntryNos);
         if RunRequestEntryNo = 0 then
             OpenProgress(StrSubstNo('Dispatcher del concepto: %1', Concept.Description), ConceptEntryNos.Count());
 
@@ -175,6 +172,7 @@ codeunit 60011 "DXR MCC Executor"
         StartCategoryOrdinal: Integer;
         CategoryOrdinal: Integer;
         ColonPos: Integer;
+        ErrorsBeforeCategory: Integer;
     begin
         StartCategoryOrdinal := 0;
         if (RunRequestEntryNo <> 0) and RunRequest.Get(RunRequestEntryNo) and (RunRequest."Checkpoint Key" <> '') then begin
@@ -184,56 +182,46 @@ codeunit 60011 "DXR MCC Executor"
                     StartCategoryOrdinal := 0;
         end;
 
-        for CategoryOrdinal := StartCategoryOrdinal to 4 do begin
-            if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('Portafolio: iniciando categoría %1/5', CategoryOrdinal + 1)) then begin
+        for CategoryOrdinal := StartCategoryOrdinal to 5 do begin
+            if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('Portafolio: iniciando categoría %1/6', CategoryOrdinal + 1)) then begin
                 MarkRunRequestCancelled(RunRequestEntryNo);
                 exit;
             end;
             StartPortfolioPhase(RunRequestEntryNo, CategoryOrdinal);
+            ErrorsBeforeCategory := ErrorCount;
             case CategoryOrdinal of
                 0:
-                    RunCategory(Concept.Category::Setup, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
+                    RunCategory(Concept.Category::Setup, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
                 1:
-                    RunCategory(Concept.Category::Master, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
+                    RunCategory(Concept.Category::Master, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
                 2:
-                    RunCategory(Concept.Category::Accounting, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
+                    RunCategory(Concept.Category::Accounting, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
                 3:
-                    RunCategory(Concept.Category::Historic, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
+                    RunCategory(Concept.Category::Historic, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
                 4:
-                    RunCategory(Concept.Category::Other, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, PortfolioResumeExtCode(RunRequestEntryNo, CategoryOrdinal));
+                    RunCategory(Concept.Category::Other, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
+                5:
+                    RunCategory(Concept.Category::Reporting, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, GetCheckpointKey(RunRequestEntryNo));
             end;
             if IsRunRequestCancelled(RunRequestEntryNo) then begin
                 FinishPortfolioPhase(RunRequestEntryNo, CategoryOrdinal, false, true);
                 exit;
             end;
-            FinishPortfolioPhase(RunRequestEntryNo, CategoryOrdinal, true, false);
-            SaveCheckpoint(RunRequestEntryNo, StrSubstNo('%1:', CategoryOrdinal + 1), CategoryOrdinal + 1);
+            FinishPortfolioPhase(RunRequestEntryNo, CategoryOrdinal, ErrorCount = ErrorsBeforeCategory, false);
+            SaveCheckpoint(RunRequestEntryNo, StrSubstNo('%1:-1:', CategoryOrdinal + 1), CategoryOrdinal + 1);
         end;
     end;
 
     /// <summary>Only the resuming category (the one named in the checkpoint) skips its already-done extensions - every later category pass always starts from its own first extension.</summary>
-    local procedure PortfolioResumeExtCode(RunRequestEntryNo: Integer; CategoryOrdinal: Integer): Code[20]
+    local procedure GetCheckpointKey(RunRequestEntryNo: Integer): Text[250]
     var
         RunRequest: Record "DXR MCC Run Request";
-        CheckpointOrdinal: Integer;
-        ColonPos: Integer;
     begin
         if RunRequestEntryNo = 0 then
             exit('');
         if not RunRequest.Get(RunRequestEntryNo) then
             exit('');
-        if RunRequest."Checkpoint Key" = '' then
-            exit('');
-
-        ColonPos := StrPos(RunRequest."Checkpoint Key", ':');
-        if ColonPos = 0 then
-            exit('');
-        if not Evaluate(CheckpointOrdinal, CopyStr(RunRequest."Checkpoint Key", 1, ColonPos - 1)) then
-            exit('');
-        if CheckpointOrdinal <> CategoryOrdinal then
-            exit('');
-
-        exit(CopyStr(RunRequest."Checkpoint Key", ColonPos + 1));
+        exit(RunRequest."Checkpoint Key");
     end;
 
     local procedure StartPortfolioPhase(RunRequestEntryNo: Integer; CategoryOrdinal: Integer)
@@ -285,6 +273,14 @@ codeunit 60011 "DXR MCC Executor"
                     RunRequest."Other Completed At" := 0DT;
                     Clear(RunRequest."Other Duration");
                     RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Running;
+                end;
+            5:
+                begin
+                    if RunRequest."Reporting Started At" = 0DT then
+                        RunRequest."Reporting Started At" := StartedAt;
+                    RunRequest."Reporting Completed At" := 0DT;
+                    Clear(RunRequest."Reporting Duration");
+                    RunRequest."Reporting Phase Status" := RunRequest."Reporting Phase Status"::Running;
                 end;
         end;
         RunRequest.Modify(true);
@@ -361,6 +357,18 @@ codeunit 60011 "DXR MCC Executor"
                         else
                             RunRequest."Other Phase Status" := RunRequest."Other Phase Status"::Failed;
                 end;
+            5:
+                begin
+                    RunRequest."Reporting Completed At" := FinishedAt;
+                    RunRequest."Reporting Duration" := FinishedAt - RunRequest."Reporting Started At";
+                    if Completed then
+                        RunRequest."Reporting Phase Status" := RunRequest."Reporting Phase Status"::Completed
+                    else
+                        if Cancelled then
+                            RunRequest."Reporting Phase Status" := RunRequest."Reporting Phase Status"::Cancelled
+                        else
+                            RunRequest."Reporting Phase Status" := RunRequest."Reporting Phase Status"::Failed;
+                end;
         end;
         RunRequest.Modify(true);
         Commit();
@@ -394,8 +402,11 @@ codeunit 60011 "DXR MCC Executor"
                     if RunRequest."Historic Phase Status" = RunRequest."Historic Phase Status"::Running then
                         FinishPortfolioPhase(RunRequestEntryNo, 3, false, false)
                     else
-                        if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then
-                            FinishPortfolioPhase(RunRequestEntryNo, 4, false, false);
+                    if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then
+                            FinishPortfolioPhase(RunRequestEntryNo, 4, false, false)
+                    else
+                        if RunRequest."Reporting Phase Status" = RunRequest."Reporting Phase Status"::Running then
+                            FinishPortfolioPhase(RunRequestEntryNo, 5, false, false);
     end;
 
     /// <summary>
@@ -404,7 +415,7 @@ codeunit 60011 "DXR MCC Executor"
     /// category - with one invocation per effective dispatcher and the same LogAndCount/fallback path as
     /// RunExtension, just filtered to one category and spanning every extension instead of one.
     /// </summary>
-    procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer)
+    procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer)
     begin
         RunCategory(Category, CompletedCount, GapCount, ErrorCount, BlockedCount, 0, '');
     end;
@@ -415,7 +426,7 @@ codeunit 60011 "DXR MCC Executor"
     /// assumed already done from a prior attempt, since Checkpoint Key is only ever set AFTER an
     /// extension's own RunExtensionCategory call returns.
     /// </summary>
-    procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ResumeAfterExtCode: Code[20])
+    procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ResumeCheckpoint: Text[250])
     var
         Extension: Record "DXR MCC Extension";
         PortfolioPermissionMgt: Codeunit "DXR MCC Portfolio Perm. Mgt.";
@@ -428,7 +439,10 @@ codeunit 60011 "DXR MCC Executor"
         ExistingPermissionCount: Integer;
         PermissionSetCount: Integer;
         PermissionUserCount: Integer;
+        ResumeBandOrdinal: Integer;
+        ResumeAfterExtCode: Code[20];
     begin
+        ResolveCategoryResumeCheckpoint(RunRequestEntryNo, Category, ResumeCheckpoint, ResumeBandOrdinal, ResumeAfterExtCode);
         // Safety: if the checkpointed extension no longer exists (registry changed between
         // attempts), don't silently skip the entire category by never finding it to resume past -
         // treat as a fresh start instead. Checked (and the record variable reset via FindSet
@@ -450,9 +464,15 @@ codeunit 60011 "DXR MCC Executor"
         // the path of smaller work. A retry may revisit a completed band; adapter tags and row-level
         // idempotency make that safe, while bulk table checkpoints avoid repeating inserted rows.
         for BandOrdinal := 0 to 1 do begin
-            PastCheckpoint := (ResumeAfterExtCode = '') or (BandOrdinal = 1);
+            if (ResumeBandOrdinal >= 0) and (BandOrdinal < ResumeBandOrdinal) then
+                PastCheckpoint := false
+            else
+                PastCheckpoint := (ResumeBandOrdinal <> BandOrdinal) or (ResumeAfterExtCode = '');
             foreach ExtensionCode in ExtensionCodes do begin
                 Extension.Get(ExtensionCode);
+                if (ResumeBandOrdinal >= 0) and (BandOrdinal < ResumeBandOrdinal) then begin
+                    // The complete band was checkpointed before the failed attempt.
+                end else
                 if not PastCheckpoint then begin
                     if Extension.Code = ResumeAfterExtCode then
                         PastCheckpoint := true;
@@ -464,7 +484,7 @@ codeunit 60011 "DXR MCC Executor"
                     if not RunExtensionCategory(Extension.Code, Category, BandOrdinal, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo) then
                         exit;
                     ProcessedNo += 1;
-                    SaveCategoryCheckpoint(RunRequestEntryNo, Extension.Code, ProcessedNo);
+                    SaveCategoryCheckpoint(RunRequestEntryNo, BandOrdinal, Extension.Code, ProcessedNo);
                 end;
             end;
         end;
@@ -492,7 +512,74 @@ codeunit 60011 "DXR MCC Executor"
         exit(Concept.Category::Setup);
     end;
 
-    local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; BandOrdinal: Integer; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer): Boolean
+    local procedure ResolveCategoryResumeCheckpoint(RunRequestEntryNo: Integer; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; CheckpointKey: Text[250]; var ResumeBandOrdinal: Integer; var ResumeAfterExtCode: Code[20])
+    var
+        RunRequest: Record "DXR MCC Run Request";
+        FirstSeparatorPos: Integer;
+        SecondSeparatorPos: Integer;
+        CheckpointCategoryOrdinal: Integer;
+        RemainingCheckpoint: Text;
+    begin
+        ResumeBandOrdinal := -1;
+        Clear(ResumeAfterExtCode);
+        if (RunRequestEntryNo = 0) or (CheckpointKey = '') or not RunRequest.Get(RunRequestEntryNo) then
+            exit;
+
+        FirstSeparatorPos := StrPos(CheckpointKey, ':');
+        if FirstSeparatorPos = 0 then
+            exit; // Legacy extension-only checkpoint: restart safely instead of skipping the wrong band.
+
+        if RunRequest.Scope = RunRequest.Scope::Portfolio then begin
+            if not Evaluate(CheckpointCategoryOrdinal, CopyStr(CheckpointKey, 1, FirstSeparatorPos - 1)) then
+                exit;
+            if CheckpointCategoryOrdinal <> PortfolioOrdinalForCategory(Category) then
+                exit;
+
+            RemainingCheckpoint := CopyStr(CheckpointKey, FirstSeparatorPos + 1);
+            SecondSeparatorPos := StrPos(RemainingCheckpoint, ':');
+            if SecondSeparatorPos = 0 then
+                exit; // Legacy portfolio checkpoint "phase:extension".
+            if not Evaluate(ResumeBandOrdinal, CopyStr(RemainingCheckpoint, 1, SecondSeparatorPos - 1)) then begin
+                ResumeBandOrdinal := -1;
+                exit;
+            end;
+            ResumeAfterExtCode := CopyStr(RemainingCheckpoint, SecondSeparatorPos + 1, MaxStrLen(ResumeAfterExtCode));
+        end else begin
+            if not Evaluate(ResumeBandOrdinal, CopyStr(CheckpointKey, 1, FirstSeparatorPos - 1)) then begin
+                ResumeBandOrdinal := -1;
+                exit;
+            end;
+            ResumeAfterExtCode := CopyStr(CheckpointKey, FirstSeparatorPos + 1, MaxStrLen(ResumeAfterExtCode));
+        end;
+
+        if not (ResumeBandOrdinal in [0, 1]) then begin
+            ResumeBandOrdinal := -1;
+            Clear(ResumeAfterExtCode);
+        end;
+    end;
+
+    local procedure PortfolioOrdinalForCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting): Integer
+    var
+        Concept: Record "DXR MCC Concept";
+    begin
+        case Category of
+            Concept.Category::Setup:
+                exit(0);
+            Concept.Category::Master:
+                exit(1);
+            Concept.Category::Accounting:
+                exit(2);
+            Concept.Category::Historic:
+                exit(3);
+            Concept.Category::Other:
+                exit(4);
+            Concept.Category::Reporting:
+                exit(5);
+        end;
+        exit(-1);
+    end;
+
+    local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; BandOrdinal: Integer; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer): Boolean
     var
         Concept: Record "DXR MCC Concept";
         SeenDispatchers: Dictionary of [Integer, Boolean];
@@ -504,9 +591,6 @@ codeunit 60011 "DXR MCC Executor"
         Concept.SetRange(Category, Category);
         Concept.SetRange("Execution Band", BandOrdinal);
         Concept.SetRange(Retired, false);
-        Concept.SetRange(Blocked, true);
-        BlockedCount += Concept.Count();
-
         Concept.SetRange(Blocked, false);
         Concept.SetCurrentKey("Extension Code", "Sequence No.");
         if not Concept.FindSet() then
@@ -533,7 +617,7 @@ codeunit 60011 "DXR MCC Executor"
         // Upgrade-Tag no-op calls without weakening adapter-owned idempotency.
         foreach DispatcherId in DispatcherIds do begin
             Clear(ConceptEntryNos);
-            CollectDispatcherConcepts(ExtensionCode, DispatcherId, true, Category, ConceptEntryNos);
+            CollectDispatcherConcepts(ExtensionCode, DispatcherId, true, Category, true, BandOrdinal, ConceptEntryNos);
             if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
                 exit(false);
         end;
@@ -541,7 +625,7 @@ codeunit 60011 "DXR MCC Executor"
         exit(true);
     end;
 
-    local procedure CollectDispatcherConcepts(ExtensionCode: Code[20]; DispatcherId: Integer; FilterCategory: Boolean; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting; var ConceptEntryNos: List of [Integer])
+    local procedure CollectDispatcherConcepts(ExtensionCode: Code[20]; DispatcherId: Integer; FilterCategory: Boolean; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; FilterExecutionBand: Boolean; ExecutionBandOrdinal: Integer; var ConceptEntryNos: List of [Integer])
     var
         Concept: Record "DXR MCC Concept";
     begin
@@ -551,6 +635,8 @@ codeunit 60011 "DXR MCC Executor"
         Concept.SetRange("Dispatcher Codeunit ID", DispatcherId);
         if FilterCategory then
             Concept.SetRange(Category, Category);
+        if FilterExecutionBand then
+            Concept.SetRange("Execution Band", ExecutionBandOrdinal);
         Concept.SetCurrentKey("Extension Code", "Sequence No.");
         if not Concept.FindSet() then
             exit;
@@ -700,7 +786,7 @@ codeunit 60011 "DXR MCC Executor"
     /// category workers, and RunExtensionCategory invokes each effective worker once regardless
     /// of how many table/concept rows describe its workload.
     /// </summary>
-    procedure ScheduleCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting)
+    procedure ScheduleCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting)
     var
         RunRequest: Record "DXR MCC Run Request";
     begin
@@ -786,7 +872,15 @@ codeunit 60011 "DXR MCC Executor"
         RunRequest.Status := RunRequest.Status::Scheduled;
         RunRequest."Scheduled At" := CurrentDateTime();
         RunRequest."Requested By" := CopyStr(UserId(), 1, MaxStrLen(RunRequest."Requested By"));
+        RunRequest."Company Name" := CopyStr(CompanyName(), 1, MaxStrLen(RunRequest."Company Name"));
         RunRequest.Insert(true);
+        RunRequest."Company Entry No." := RunRequest."Entry No.";
+        RunRequest.Modify(true);
+    end;
+
+    internal procedure SchedulePreparedRunRequest(var RunRequest: Record "DXR MCC Run Request")
+    begin
+        ScheduleRunRequestInBackground(RunRequest);
     end;
 
     local procedure ScheduleRunRequestInBackground(var RunRequest: Record "DXR MCC Run Request")
@@ -827,9 +921,14 @@ codeunit 60011 "DXR MCC Executor"
 
     [TryFunction]
     local procedure TryCreateBackgroundTask(var RunRequest: Record "DXR MCC Run Request")
+    var
+        TargetCompanyName: Text;
     begin
+        TargetCompanyName := RunRequest."Company Name";
+        if TargetCompanyName = '' then
+            TargetCompanyName := CompanyName();
         RunRequest."Task Id" := TaskScheduler.CreateTask(
-            Codeunit::"DXR MCC Background Runner", 0, true, CompanyName(), CurrentDateTime(), RunRequest.RecordId(), MigrationTaskTimeout());
+            Codeunit::"DXR MCC Background Runner", 0, true, TargetCompanyName, CurrentDateTime(), RunRequest.RecordId(), MigrationTaskTimeout());
         RunRequest.Modify(true);
     end;
 
@@ -1180,7 +1279,15 @@ codeunit 60011 "DXR MCC Executor"
         LockMgt: Codeunit "DXR MCC Migration Lock Mgt.";
     begin
         ReconcileStaleRunningRequests();
-        exit(LockMgt.TryAcquireLock(CompanyName(), CopyStr(UserId(), 1, 50), MigrationLockDuration(), RunRequest."Entry No."));
+        exit(LockMgt.TryAcquireLock(RunRequestCompanyName(RunRequest), CopyStr(UserId(), 1, 50), MigrationLockDuration(), RunRequest."Entry No."));
+    end;
+
+    local procedure RunRequestCompanyName(var RunRequest: Record "DXR MCC Run Request"): Text
+    begin
+        if RunRequest."Company Name" <> '' then
+            exit(RunRequest."Company Name");
+
+        exit(CompanyName());
     end;
 
     local procedure MigrationLockDuration(): Duration
@@ -1332,7 +1439,7 @@ codeunit 60011 "DXR MCC Executor"
         Commit();
     end;
 
-    local procedure SaveCategoryCheckpoint(RunRequestEntryNo: Integer; ExtensionCode: Code[20]; ProcessedCount: Integer)
+    local procedure SaveCategoryCheckpoint(RunRequestEntryNo: Integer; BandOrdinal: Integer; ExtensionCode: Code[20]; ProcessedCount: Integer)
     var
         RunRequest: Record "DXR MCC Run Request";
         PortfolioOrdinal: Integer;
@@ -1341,12 +1448,12 @@ codeunit 60011 "DXR MCC Executor"
             exit;
 
         if RunRequest.Scope <> RunRequest.Scope::Portfolio then begin
-            SaveCheckpoint(RunRequestEntryNo, CopyStr(ExtensionCode, 1, 250), ProcessedCount);
+            SaveCheckpoint(RunRequestEntryNo, CopyStr(StrSubstNo('%1:%2', BandOrdinal, ExtensionCode), 1, 250), ProcessedCount);
             exit;
         end;
 
         PortfolioOrdinal := ActivePortfolioOrdinal(RunRequest);
-        SaveCheckpoint(RunRequestEntryNo, CopyStr(StrSubstNo('%1:%2', PortfolioOrdinal, ExtensionCode), 1, 250), ProcessedCount);
+        SaveCheckpoint(RunRequestEntryNo, CopyStr(StrSubstNo('%1:%2:%3', PortfolioOrdinal, BandOrdinal, ExtensionCode), 1, 250), ProcessedCount);
     end;
 
     local procedure ActivePortfolioOrdinal(var RunRequest: Record "DXR MCC Run Request"): Integer
@@ -1356,6 +1463,7 @@ codeunit 60011 "DXR MCC Executor"
         if RunRequest."Accounting Phase Status" = RunRequest."Accounting Phase Status"::Running then exit(2);
         if RunRequest."Historic Phase Status" = RunRequest."Historic Phase Status"::Running then exit(3);
         if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then exit(4);
+        if RunRequest."Reporting Phase Status" = RunRequest."Reporting Phase Status"::Running then exit(5);
         exit(0);
     end;
 
