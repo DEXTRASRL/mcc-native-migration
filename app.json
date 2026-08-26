@@ -17,88 +17,64 @@
   "screenshots": [],
   "dependencies": [
     {
-      "id": "18373840-6093-4765-8799-491f61accb2b",
-      "publisher": "Dextra",
-      "name": "Special Dispatch",
-      "version": "28.3.3.9"
-    },
-    {
       "id": "36b9c68f-cc27-46b1-bf63-4400a31c5f61",
       "publisher": "Dextra",
       "name": "DX-Payments",
       "version": "28.3.0.5"
     },
     {
-      "id": "e8b1de99-1c7d-454d-b0bc-7cc1dc7b86ae",
+      "id": "e1d04ee5-1f08-42bd-9909-6fbaf552508e",
       "publisher": "Dextra",
-      "name": "Base Controls",
-      "version": "28.3.3.8"
+      "name": "Brik Interfaces",
+      "version": "28.3.0.0"
     },
     {
-      "id": "e5a19345-02ce-4433-b03b-b1a2136682bf",
+      "id": "ce10d5e7-3cc1-4feb-a0dd-d437d3d07932",
       "publisher": "Dextra",
-      "name": "Recaudo BPD",
-      "version": "28.3.2.4"
+      "name": "DXR-POS Advanced Features",
+      "version": "28.0.0.0"
     },
     {
-      "id": "f64305eb-aae2-4479-8726-e604fe48c051",
+      "id": "464d7e61-e021-4895-bde1-744d83fe8d45",
       "publisher": "Dextra",
-      "name": "Vendor Payloads",
-      "version": "28.1.13.6"
+      "name": "DXR-POS-PRINTING",
+      "version": "28.1.0.0"
     },
     {
-      "id": "0ef94c34-cbc6-41d8-ab1a-258e9085707d",
-      "publisher": "Dextra SRL",
-      "name": "Price Controls Mgt.",
-      "version": "28.3.4.7"
+      "id": "48545db5-4c13-4b3a-ac3b-75e7aa30e15e",
+      "publisher": "Dextra",
+      "name": "ECF Simple",
+      "version": "28.0.0.79"
     },
     {
-      "id": "7c42bd17-42ea-4c0a-b6db-e7034ad57faf",
+      "id": "7c3f9e21-6b1a-4e2d-9a3f-8d5c6b7a1234",
       "publisher": "Dextra",
-      "name": "TransUnion",
-      "version": "28.3.2.5"
+      "name": "ECF Simple Credito Parcial",
+      "version": "28.0.0.5"
     },
     {
-      "id": "c7a48d32-662c-4e8a-a315-494b174556cf",
+      "id": "e7b9d3a1-c248-4f1e-9a6d-8b2c5f01e74a",
       "publisher": "Dextra",
-      "name": "Despacho Base",
-      "version": "28.3.4.21"
+      "name": "POS Delivery",
+      "version": "28.3.0.0"
     },
     {
-      "id": "adb067e6-0e65-4ab0-8d61-160e7df7763f",
+      "id": "d7e730f6-1ca7-41ca-8494-8bc008144454",
       "publisher": "Dextra",
-      "name": "Despacho LS",
-      "version": "28.3.2.10"
+      "name": "Price Checker",
+      "version": "28.4.0.0"
     },
     {
-      "id": "6e53178d-a25a-4432-9b46-977d98c087fc",
+      "id": "06310d08-d51d-4ebb-b513-d464f5f2d3d1",
       "publisher": "Dextra",
-      "name": "Retail Controls",
-      "version": "28.3.5.5"
+      "name": "STRATA KPI Connector",
+      "version": "28.0.0.22"
     },
     {
       "id": "4ccf94f0-8e86-437f-99fc-a4eeda4a5122",
       "publisher": "Dextra",
       "name": "Facturacion Electronica",
       "version": "28.3.6.4"
-    },
-    {
-      "id": "4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2",
-      "publisher": "Dextra",
-      "name": "facturacion-electronica-ls",
-      "version": "28.5.0.3"
-    },
-    {
-      "id": "a9734a52-02bb-4e3d-8150-2f9ee4b50530",
-      "publisher": "Dextra",
-      "name": "Bellon Customization",
-      "version": "28.3.4.16"
-    },
-    {
-      "id": "6b2c910b-6607-4ffa-859e-1ba16790e4d8",
-      "publisher": "Dextra",
-      "name": "Bellon Customization POS",
-      "version": "28.3.2.5"
     },
     {
       "id": "b18ab944-2133-4326-bcd7-a235e0a8bdef",
@@ -124,6 +100,9 @@
       "from": 60000,
       "to": 65000
     }
+  ],
+  "preprocessorSymbols": [
+    "BCDX"
   ],
   "features": [
     "NoImplicitWith",

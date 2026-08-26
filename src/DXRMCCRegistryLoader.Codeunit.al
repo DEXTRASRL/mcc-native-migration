@@ -99,6 +99,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
+        // Draft adapter (2026-08-26) - dispatcher still wrapped in /* */ under src/Adapters/ECF
+        // pending human review; see its header comment for the symbol-table findings. Of this
+        // branch's 8 non-core dependencies, ECF Simple is the only one with a genuine 27->28
+        // table-move to migrate (the other 7 - Brik Interfaces, DXR-POS Advanced Features,
+        // DXR-POS-PRINTING, ECF Simple Credito Parcial, POS Delivery, Price Checker, STRATA KPI
+        // Connector - were checked the same way and carry no "Moved to table..."/"Renamed to..."
+        // ObsoleteReason markers, so they are intentionally not registered here).
+        InsExt('ECF', 'ECF Simple', '48545db5-4c13-4b3a-ac3b-75e7aa30e15e', 1030, '');
         InsExt('REPORTING', 'Portfolio Reporting Migration', '', 990,
             'MCC-owned final portfolio phase. Reassigns persisted legacy report IDs to the report IDs declared by the current physical AL build.');
     end;
@@ -461,6 +469,10 @@ codeunit 60012 "DXR MCC Registry Loader"
         // per-dispatcher dedup in DXR MCC Executor).
         InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
         InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 60126, 57301, 53602, 'MA');
+
+        // ---- ECF: ECF Simple (draft adapter, src/Adapters/ECF, dispatcher still wrapped in
+        // /* */ pending review) ----
+        InsConcept('ECF', 'ECF-P1', 1, 'Administration Setup field restore (EF Administration Setup -> DXR_Administration Setup, 13 fields)', 60446, 0, 0, 'SETUP');
 #endif
 
 #if not ESCUDEA and not BCDX

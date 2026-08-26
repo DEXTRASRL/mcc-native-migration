@@ -72,6 +72,15 @@ codeunit 60010 "DXR MCC Counter"
         Concept.Modify(true);
     end;
 
+    // FIXED (2026-08-26): this procedure raised AL0185 "Codeunit 'DXR MCC DESB Migr Worker' is
+    // missing" on every compile of this branch. Root cause was not this file - app.json was
+    // missing "preprocessorSymbols": ["BCDX"] (documented in the manual §1 as exactly the switch
+    // that excludes references to extensions absent from a given build). Without BCDX defined,
+    // the "#if not ESCUDEA and not BCDX" guard below always evaluated true and pulled in the
+    // DESBWorker declaration even though src/Adapters/DESB does not exist on this branch (DESB
+    // was never a dependency here). Restoring preprocessorSymbols in app.json makes this guard
+    // correctly fall through to the #else branch (plain RecordRef counting) on this branch,
+    // matching what BCDX is documented to do; no change was needed in this codeunit itself.
     [TryFunction]
     local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
