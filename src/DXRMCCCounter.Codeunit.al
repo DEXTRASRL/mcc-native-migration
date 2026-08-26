@@ -76,15 +76,15 @@ codeunit 60010 "DXR MCC Counter"
     local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
         RecRef: RecordRef;
-        DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
+    // DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
     begin
         // The owning adapter carries the external DESB table permissions. Generic RecordRef
         // counting under the interactive caller can otherwise report a false open failure even
         // though the typed migration worker just read and wrote the same table successfully.
-        if ExtensionCode = 'DESB' then begin
-            Count := DESBWorker.CountTable(TableId);
-            exit;
-        end;
+        // if ExtensionCode = 'DESB' then begin
+        //     Count := DESBWorker.CountTable(TableId);
+        //     exit;
+        // end;
 
         RecRef.Open(TableId);
         Count := RecRef.Count();
