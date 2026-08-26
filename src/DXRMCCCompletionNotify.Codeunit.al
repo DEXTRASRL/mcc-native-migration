@@ -17,7 +17,7 @@ codeunit 60017 "DXR MCC Completion Notify"
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Company Triggers", 'OnCompanyOpen', '', false, false)]
     local procedure OnCompanyOpen()
     begin
-        ShowPendingCompletionIfAny();
+        
     end;
 
     internal procedure ShowPendingCompletionIfAny()

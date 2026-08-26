@@ -104,6 +104,7 @@ codeunit 60011 "DXR MCC Executor"
                 exit;
             end;
         end;
+        AssignPortfolioPermissions(RunRequestEntryNo);
         if RunRequestEntryNo = 0 then
             CloseProgress();
         Commit();
@@ -137,6 +138,7 @@ codeunit 60011 "DXR MCC Executor"
 
         RunDispatcherGroup(Concept."Extension Code", Concept."Dispatcher Codeunit ID", ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0);
         Concept.Get(RequestedConceptEntryNo);
+        AssignPortfolioPermissions(RunRequestEntryNo);
         if RunRequestEntryNo = 0 then
             CloseProgress();
     end;
@@ -429,16 +431,11 @@ codeunit 60011 "DXR MCC Executor"
     procedure RunCategory(Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ResumeCheckpoint: Text[250])
     var
         Extension: Record "DXR MCC Extension";
-        PortfolioPermissionMgt: Codeunit "DXR MCC Portfolio Perm. Mgt.";
         ExtensionCodes: List of [Code[20]];
         ExtensionCode: Code[20];
         PastCheckpoint: Boolean;
         ProcessedNo: Integer;
         BandOrdinal: Integer;
-        AssignedPermissionCount: Integer;
-        ExistingPermissionCount: Integer;
-        PermissionSetCount: Integer;
-        PermissionUserCount: Integer;
         ResumeBandOrdinal: Integer;
         ResumeAfterExtCode: Code[20];
     begin
@@ -489,27 +486,38 @@ codeunit 60011 "DXR MCC Executor"
             end;
         end;
 
-        if Category = ConceptCategorySetup() then begin
-            if not CheckCancelAndUpdateStep(RunRequestEntryNo, 'Setup: asignando permission sets del portafolio a todos los usuarios.') then begin
-                MarkRunRequestCancelled(RunRequestEntryNo);
-                exit;
-            end;
-            PortfolioPermissionMgt.AssignAllPortfolioPermissionSets(
-                RunRequestEntryNo, AssignedPermissionCount, ExistingPermissionCount,
-                PermissionSetCount, PermissionUserCount);
-            CheckCancelAndUpdateStep(
-                RunRequestEntryNo,
-                StrSubstNo(
-                    'Setup: permisos completados (%1 nuevos, %2 existentes, %3 permission sets, %4 usuarios).',
-                    AssignedPermissionCount, ExistingPermissionCount, PermissionSetCount, PermissionUserCount));
-        end;
+        AssignPortfolioPermissions(RunRequestEntryNo);
     end;
 
-    local procedure ConceptCategorySetup(): Integer
+    /// <summary>
+    /// Reasigna los permission sets de TODO el portafolio a todos los usuarios (ver DXR MCC
+    /// Portfolio Perm. Mgt.) - punto único usado por RunCategory (cualquier categoría, no solo
+    /// Setup), RunExtension y RunConcept, para que una extensión/usuario nuevo quede con permisos
+    /// completos sin importar qué alcance/fase disparó la corrida. AssignAllPortfolioPermissionSets
+    /// ya es idempotente (EnsureAssignment no reinserta lo que ya existe), así que repetir esta
+    /// llamada en cada alcance es seguro, no solo la primera vez que corre Setup.
+    /// </summary>
+    local procedure AssignPortfolioPermissions(RunRequestEntryNo: Integer): Boolean
     var
-        Concept: Record "DXR MCC Concept";
+        PortfolioPermissionMgt: Codeunit "DXR MCC Portfolio Perm. Mgt.";
+        AssignedPermissionCount: Integer;
+        ExistingPermissionCount: Integer;
+        PermissionSetCount: Integer;
+        PermissionUserCount: Integer;
     begin
-        exit(Concept.Category::Setup);
+        if not CheckCancelAndUpdateStep(RunRequestEntryNo, 'Asignando permission sets del portafolio a todos los usuarios.') then begin
+            MarkRunRequestCancelled(RunRequestEntryNo);
+            exit(false);
+        end;
+        PortfolioPermissionMgt.AssignAllPortfolioPermissionSets(
+            RunRequestEntryNo, AssignedPermissionCount, ExistingPermissionCount,
+            PermissionSetCount, PermissionUserCount);
+        CheckCancelAndUpdateStep(
+            RunRequestEntryNo,
+            StrSubstNo(
+                'Permisos completados (%1 nuevos, %2 existentes, %3 permission sets, %4 usuarios).',
+                AssignedPermissionCount, ExistingPermissionCount, PermissionSetCount, PermissionUserCount));
+        exit(true);
     end;
 
     local procedure ResolveCategoryResumeCheckpoint(RunRequestEntryNo: Integer; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; CheckpointKey: Text[250]; var ResumeBandOrdinal: Integer; var ResumeAfterExtCode: Code[20])
