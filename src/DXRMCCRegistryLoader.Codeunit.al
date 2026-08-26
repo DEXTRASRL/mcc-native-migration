@@ -106,6 +106,24 @@ codeunit 60012 "DXR MCC Registry Loader"
         // discovered after that sequence was set) - see PRP-UPG below for its one real concept.
         InsExt('PRP', 'PROINDEL PERSONALIZATIONS', '496759b2-39eb-419b-999c-a3191c399c33', 930,
             'Own field-level migration only: tableextensions 56005 (legacy, extends "DXGaps Setup", ObsoleteState=Pending)/56007 (active, extends "DXR_Gaps Setup") carry field "PRP Package Implementation ". The base table pair itself (54122 -> 52165) is DRLOC''s, already tracked at DRLOC-GAP seq98 - this extension only owns migrating its own field''s value, via its own Subtype=Upgrade codeunit (56005 "PRP Proindel Upgrade").');
+        // 2026-08-26: declared as a dependency in this app's own app.json (id 698ea82a-...) but had
+        // ZERO registry representation, same class of gap as PRP above. No InsConcept here - zero
+        // DXR_ code found anywhere in this extension's source, so there is no migration concept to
+        // register (unlike PRP, which had a real Subtype=Upgrade field migration). Order No. 940
+        // (900+ series, discovered after the approved 10-190 sequence was set).
+        // RISK found during this audit, documented here for operator visibility only (no code
+        // changed): this extension's WorkflowHandling/ApprovalMgt codeunits (57200-57207) and
+        // PROINDEL PERSONALIZATIONS' own "Extensions/Workflows" codeunits (56000-56004) are two
+        // independently-evolved forks of the same original workflow logic - same shape, PROINDEL's
+        // side renamed to "V2" workflow codes plus 2 extra approve/reject events - both attached to
+        // the same base tables (Approval Entry, Sales Header, Sales Line) and, per the user,
+        // BOTH ACTIVE IN PARALLEL on the same tenant(s) today. IDs don't collide (57200s vs 56000s)
+        // so this compiles/publishes clean, but duplicate/contradictory workflow triggers on the
+        // same document are a real runtime risk this registry cannot detect on its own. Flagged for
+        // the user/business to decide (retire one, merge logic, or confirm intentional) - out of
+        // scope for a naming/reference migration, not touched here.
+        InsExt('SAF', 'Sales-Approval-flows', '698ea82a-1b19-4a50-86aa-e989967a7054', 940,
+            'No dependencies declared in its own app.json. No DXR_ migration surface - not part of the ID-renumbering campaign. RISK: its WorkflowHandling/ApprovalMgt codeunits (57200-57207) and PROINDEL PERSONALIZATIONS'' own Extensions/Workflows codeunits (56000-56004) are parallel forks of the same original logic (PROINDEL''s side is a "V2" rewrite with 2 extra approve/reject events), both attached to Approval Entry/Sales Header/Sales Line, confirmed by the user to be ACTIVE IN PARALLEL on the same tenant(s) - potential duplicate/contradictory workflow triggers, not resolved, needs a business decision.');
         InsExt('REPORTING', 'Portfolio Reporting Migration', '', 990,
             'MCC-owned final portfolio phase. Reassigns persisted legacy report IDs to the report IDs declared by the current physical AL build.');
     end;
