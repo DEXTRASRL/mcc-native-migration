@@ -8,9 +8,9 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
     // "DXR_Internal Migr Phase Tags" codeunit (also Access = Internal, so the literal string is
     // hardcoded rather than called).
     Permissions =
-        tabledata "LYT. Controls Setup" = R,
+        tabledata "DXR LYT Controls Setup" = R,
         tabledata "DXR_LYT Controls Setup" = RIM,
-        tabledata "Pos Controls Setup" = R,
+        tabledata "DXR Pos Controls Setup" = R,
         tabledata "DXR_Pos Controls Setup" = RIM,
         tabledata "DXR_Purchase Controls Setup" = RIM,
         tabledata "DXR_Sales Controls Setup" = RIM,
@@ -44,7 +44,7 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
 
     local procedure CopyLYTControlsSetup()
     var
-        OldSetup: Record "LYT. Controls Setup";
+        OldSetup: Record "DXR LYT Controls Setup";
         NewSetup: Record "DXR_LYT Controls Setup";
     begin
         if not OldSetup.FindSet() then
@@ -66,7 +66,7 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
 
     local procedure CopyPosControlsSetup()
     var
-        OldSetup: Record "Pos Controls Setup";
+        OldSetup: Record "DXR Pos Controls Setup";
         NewSetup: Record "DXR_Pos Controls Setup";
     begin
         if not OldSetup.FindSet() then
@@ -99,7 +99,7 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
         if not Setup.FindSet(true) then
             exit;
         repeat
-            Setup."BarCode Length_DXR" := Setup."BarCode Length";
+            Setup."BarCode Length_DXR" := Setup."BarCode Length_DXR_Old";
             Setup.Modify();
         until Setup.Next() = 0;
     end;
@@ -111,9 +111,9 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
         if not Setup.FindSet(true) then
             exit;
         repeat
-            Setup."Special POS Order_DXR" := Setup."Special POS Order";
-            Setup."Non Decimal Qty on Lines_DXR" := Setup."Non Decimal Qty on Lines";
-            Setup."Mand Return Reason Code_DXR" := Setup."Mandatory Return Reason Code";
+            Setup."Special POS Order_DXR" := Setup."Special POS Order_DXR_Old";
+            Setup."Non Decimal Qty on Lines_DXR" := Setup."Non Decimal Qty on Lines_old";
+            Setup."Mand Return Reason Code_DXR" := Setup."Mand Return Reason Code_Old";
             Setup.Modify();
         until Setup.Next() = 0;
     end;
