@@ -1,3 +1,4 @@
+/*
 codeunit 60133 "DXR MCC RC Migr Phase3"
 {
     // Native local migration - ported verbatim from Retail Controls' own "DXR_Migr Phase3 ID
@@ -143,3 +144,5 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
         until Setup.Next() = 0;
     end;
 }
+
+*/

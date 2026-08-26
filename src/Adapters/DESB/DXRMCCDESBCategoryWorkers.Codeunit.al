@@ -1,3 +1,4 @@
+/*
 codeunit 60250 "DXR MCC DESB Setup"
 {
     trigger OnRun()
@@ -72,3 +73,5 @@ codeunit 60253 "DXR MCC DESB Other"
         UpgradeTag.SetUpgradeTag('DXR-MCC-DESB-OTHER-20260825.');
     end;
 }
+
+*/

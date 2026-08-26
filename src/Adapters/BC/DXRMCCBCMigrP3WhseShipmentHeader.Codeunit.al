@@ -1,3 +1,4 @@
+/*
 codeunit 60103 "DXR MCC BC Migr P3 WhseShipHd"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
@@ -40,3 +41,5 @@ codeunit 60103 "DXR MCC BC Migr P3 WhseShipHd"
         until WhseShipmentHeaderRec.Next() = 0;
     end;
 }
+
+*/

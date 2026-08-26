@@ -1,3 +1,4 @@
+/*
 codeunit 60106 "DXR MCC RBPD Migr GenJnlLine"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -34,3 +35,5 @@ codeunit 60106 "DXR MCC RBPD Migr GenJnlLine"
             until GenJournalLine.Next() = 0;
     end;
 }
+
+*/

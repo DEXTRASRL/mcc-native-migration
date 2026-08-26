@@ -1,3 +1,4 @@
+/*
 codeunit 60109 "DXR MCC RBPD Migr PagosProv"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -42,3 +43,5 @@ codeunit 60109 "DXR MCC RBPD Migr PagosProv"
             until OldRec.Next() = 0;
     end;
 }
+
+*/

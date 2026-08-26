@@ -1,3 +1,4 @@
+/*
 codeunit 60100 "DXR MCC BC Migr P3 Item"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
@@ -29,3 +30,5 @@ codeunit 60100 "DXR MCC BC Migr P3 Item"
         until ItemRec.Next() = 0;
     end;
 }
+
+*/

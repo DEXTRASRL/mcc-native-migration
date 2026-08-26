@@ -1,3 +1,4 @@
+/*
 codeunit 60147 "DXR MCC Bellon Migr Phase3"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -363,3 +364,5 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Close();
     end;
 }
+
+*/

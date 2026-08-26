@@ -1,3 +1,4 @@
+/*
 codeunit 60090 "DXR MCC BC Migr P1 Transfer"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 1".
@@ -22,3 +23,5 @@ codeunit 60090 "DXR MCC BC Migr P1 Transfer"
         NewSetup.Insert(false);
     end;
 }
+
+*/

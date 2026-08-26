@@ -1,3 +1,4 @@
+/*
 codeunit 60099 "DXR MCC BC Migr P3 Customer"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
@@ -35,3 +36,5 @@ codeunit 60099 "DXR MCC BC Migr P3 Customer"
         until CustomerRec.Next() = 0;
     end;
 }
+
+*/

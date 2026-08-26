@@ -1,3 +1,4 @@
+/*
 codeunit 60152 "DXR MCC Bellon Migr Phase8"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -89,3 +90,5 @@ codeunit 60152 "DXR MCC Bellon Migr Phase8"
         RecRef.Close();
     end;
 }
+
+*/

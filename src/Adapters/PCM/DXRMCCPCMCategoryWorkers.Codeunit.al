@@ -1,3 +1,4 @@
+/*
 codeunit 60226 "DXR MCC PCM P2 Setup"
 {
     trigger OnRun()
@@ -188,3 +189,5 @@ codeunit 60429 "DXR MCC PCM P5 Accounting"
         exit('DXR-MCC-PCM-P5-ACCOUNTING-20260825.');
     end;
 }
+
+*/

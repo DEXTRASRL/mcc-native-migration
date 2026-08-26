@@ -1,3 +1,4 @@
+/*
 codeunit 60074 "DXR MCC SD Migr SalesShipHdr"
 {
     // Native local migration - see "DXR MCC SD Migr Customer" for the full design rationale. Ported
@@ -16,3 +17,5 @@ codeunit 60074 "DXR MCC SD Migr SalesShipHdr"
             until SalesShptHeader.Next() = 0;
     end;
 }
+
+*/

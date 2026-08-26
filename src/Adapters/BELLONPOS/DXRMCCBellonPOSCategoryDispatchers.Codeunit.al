@@ -1,3 +1,4 @@
+/*
 codeunit 60321 "DXR MCC BPOS P2 Setup"
 {
     trigger OnRun()
@@ -27,3 +28,5 @@ codeunit 60323 "DXR MCC BPOS P2 Other"
         Worker.RunOther(); Tag.SetUpgradeTag('DXR-MCC-BPOS-P2-OTHER-20260825.');
     end;
 }
+
+*/

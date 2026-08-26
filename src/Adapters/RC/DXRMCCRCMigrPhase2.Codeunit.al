@@ -1,3 +1,4 @@
+/*
 codeunit 60132 "DXR MCC RC Migr Phase2"
 {
     // Native local migration - ported verbatim from Retail Controls' own "DXR_Migr Phase2
@@ -75,3 +76,5 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
         until SalesInvHeader.Next() = 0;
     end;
 }
+
+*/

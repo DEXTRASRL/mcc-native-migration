@@ -1,3 +1,4 @@
+/*
 codeunit 60101 "DXR MCC BC Migr P3 SalesHdr"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
@@ -18,3 +19,5 @@ codeunit 60101 "DXR MCC BC Migr P3 SalesHdr"
         until SalesHeaderRec.Next() = 0;
     end;
 }
+
+*/

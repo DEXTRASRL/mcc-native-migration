@@ -1,3 +1,4 @@
+/*
 codeunit 60096 "DXR MCC BC Migr P2 Transfer"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -39,3 +40,5 @@ codeunit 60096 "DXR MCC BC Migr P2 Transfer"
             (not OldSetup."Skip Zero Qty to Ship Lines"));
     end;
 }
+
+*/

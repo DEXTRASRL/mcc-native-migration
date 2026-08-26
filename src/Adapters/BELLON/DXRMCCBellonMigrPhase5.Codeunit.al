@@ -1,3 +1,4 @@
+/*
 codeunit 60149 "DXR MCC Bellon Migr Phase5"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -195,3 +196,5 @@ codeunit 60149 "DXR MCC Bellon Migr Phase5"
         end;
     end;
 }
+
+*/

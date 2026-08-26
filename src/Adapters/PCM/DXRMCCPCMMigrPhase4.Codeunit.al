@@ -1,3 +1,4 @@
+/*
 codeunit 60124 "DXR MCC PCM Migr Phase4"
 {
     // Native local migration - ported verbatim from Price Controls Mgt.'s own
@@ -308,3 +309,5 @@ codeunit 60124 "DXR MCC PCM Migr Phase4"
         exit('DXR-SalesLineFieldsMigrated-28.3.0.0');
     end;
 }
+
+*/

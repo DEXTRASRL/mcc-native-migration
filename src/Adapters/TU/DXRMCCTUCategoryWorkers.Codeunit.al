@@ -1,3 +1,4 @@
+/*
 codeunit 60234 "DXR MCC TU Setup"
 {
     trigger OnRun()
@@ -54,3 +55,5 @@ codeunit 60430 "DXR MCC TU Accounting"
         exit('DXR-MCC-TU-ACCOUNTING-20260825.');
     end;
 }
+
+*/

@@ -1,3 +1,4 @@
+/*
 codeunit 60150 "DXR MCC Bellon Migr Phase6"
 {
     // Native local migration - ported verbatim from Bellon Customization's own "Bellon Migr.
@@ -1447,3 +1448,5 @@ codeunit 60150 "DXR MCC Bellon Migr Phase6"
         MigrateLegacyTableData(59345, 53415); // DXR_Printing Invoice Log BO restored at true original ID
     end;
 }
+
+*/

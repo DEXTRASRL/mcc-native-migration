@@ -1,3 +1,4 @@
+/*
 codeunit 60130 "DXR MCC DESLS Migr Phase1"
 {
     // Native local migration - ported verbatim from Despacho LS's own "DXR_Desp LS Migr Phase 1"
@@ -418,3 +419,5 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-USERSETUP-28.3');
     end;
 }
+
+*/

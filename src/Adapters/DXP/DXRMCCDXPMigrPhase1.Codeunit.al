@@ -1,3 +1,4 @@
+/*
 codeunit 60080 "DXR MCC DXP Migr Phase1"
 {
     // Native local migration (2026-08-23, per user directive to stop delegating via .Run() and
@@ -422,3 +423,5 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest."Additional Context" := Source."Additional Context";
     end;
 }
+
+*/

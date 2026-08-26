@@ -1,3 +1,4 @@
+/*
 codeunit 60079 "DXR MCC SD Migr PermSetAssign"
 {
     // Native local migration - ported from Special Dispatch's own
@@ -42,3 +43,5 @@ codeunit 60079 "DXR MCC SD Migr PermSetAssign"
         until UserRec.Next() = 0;
     end;
 }
+
+*/

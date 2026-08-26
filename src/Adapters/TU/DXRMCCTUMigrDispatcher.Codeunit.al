@@ -1,3 +1,4 @@
+/*
 codeunit 60126 "DXR MCC TU Migr Dispatcher"
 {
     // Native local migration - ported verbatim from TransUnion's own
@@ -390,3 +391,5 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         exit('DXR-MCC-TU-ACCOUNTING-CLE-GEN2-20260825.');
     end;
 }
+
+*/

@@ -1,3 +1,4 @@
+/*
 codeunit 60111 "DXR MCC RBPD Migr DocsPend"
 {
     // Native local migration - ported from Recaudo BPD's own
@@ -25,3 +26,5 @@ codeunit 60111 "DXR MCC RBPD Migr DocsPend"
             until OldRec.Next() = 0;
     end;
 }
+
+*/

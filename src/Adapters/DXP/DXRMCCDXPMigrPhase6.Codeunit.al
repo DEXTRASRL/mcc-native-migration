@@ -1,3 +1,4 @@
+/*
 codeunit 60085 "DXR MCC DXP Migr Phase6"
 {
     // Native local migration - ported verbatim from DX-Payments' own "DXR_DXP_Migr_Phase6_Fields"
@@ -121,3 +122,5 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
             until TransPaymentEntry.Next() = 0;
     end;
 }
+
+*/

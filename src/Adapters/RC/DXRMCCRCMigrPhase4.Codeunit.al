@@ -1,3 +1,4 @@
+/*
 codeunit 60134 "DXR MCC RC Migr Phase4"
 {
     // Native local migration - ported verbatim from Retail Controls' own "DXR_Migr Phase4 PermSet
@@ -59,3 +60,5 @@ codeunit 60134 "DXR MCC RC Migr Phase4"
         exit('6e53178d-a25a-4432-9b46-977d98c087fc');
     end;
 }
+
+*/

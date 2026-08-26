@@ -1,3 +1,4 @@
+/*
 codeunit 60077 "DXR MCC SD Migr UserSetup"
 {
     // Native local migration - see "DXR MCC SD Migr Customer" for the full design rationale. Ported
@@ -18,3 +19,5 @@ codeunit 60077 "DXR MCC SD Migr UserSetup"
             until UserSetup.Next() = 0;
     end;
 }
+
+*/

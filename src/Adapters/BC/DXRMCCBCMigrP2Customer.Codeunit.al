@@ -1,3 +1,4 @@
+/*
 codeunit 60097 "DXR MCC BC Migr P2 Customer"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -37,3 +38,5 @@ codeunit 60097 "DXR MCC BC Migr P2 Customer"
             (not OldSetup."Mandatory Currency Code"));
     end;
 }
+
+*/

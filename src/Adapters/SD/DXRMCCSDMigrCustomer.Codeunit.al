@@ -1,3 +1,4 @@
+/*
 codeunit 60070 "DXR MCC SD Migr Customer"
 {
     // Native local migration (2026-08-23, per user directive to stop delegating via .Run() and
@@ -20,3 +21,5 @@ codeunit 60070 "DXR MCC SD Migr Customer"
             until Cust.Next() = 0;
     end;
 }
+
+*/

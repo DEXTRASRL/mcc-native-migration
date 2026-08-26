@@ -1,3 +1,4 @@
+/*
 codeunit 60078 "DXR MCC SD Migr LSCStore"
 {
     // Native local migration - see "DXR MCC SD Migr Customer" for the full design rationale. Ported
@@ -18,3 +19,5 @@ codeunit 60078 "DXR MCC SD Migr LSCStore"
             until LSCStore.Next() = 0;
     end;
 }
+
+*/

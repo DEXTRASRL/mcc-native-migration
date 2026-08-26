@@ -1,3 +1,4 @@
+/*
 codeunit 60084 "DXR MCC DXP Migr Phase5"
 {
     // Native local migration - ported verbatim from DX-Payments' own "DXR_DXP_Migr_Phase5_Tables"
@@ -466,3 +467,5 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."Additional Context" := Source."Additional Context";
     end;
 }
+
+*/

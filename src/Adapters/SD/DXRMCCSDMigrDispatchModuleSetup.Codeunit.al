@@ -1,3 +1,4 @@
+/*
 codeunit 60071 "DXR MCC SD Migr DispModSetup"
 {
     // Native local migration - ported from Special Dispatch's own
@@ -38,3 +39,5 @@ codeunit 60071 "DXR MCC SD Migr DispModSetup"
         New."Show Special Dispatch Action" := Old."Show Special Dispatch Action";
     end;
 }
+
+*/

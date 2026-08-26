@@ -1,3 +1,4 @@
+/*
 codeunit 60076 "DXR MCC SD Migr GenJnlLine"
 {
     // Native local migration - see "DXR MCC SD Migr Customer" for the full design rationale. Ported
@@ -16,3 +17,5 @@ codeunit 60076 "DXR MCC SD Migr GenJnlLine"
             until GenJnlLine.Next() = 0;
     end;
 }
+
+*/

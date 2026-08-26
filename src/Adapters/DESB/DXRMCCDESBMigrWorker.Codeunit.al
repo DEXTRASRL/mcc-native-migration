@@ -1,3 +1,4 @@
+/*
 codeunit 60127 "DXR MCC DESB Migr Worker"
 {
     // Native local migration - ported verbatim from Despacho Base's own "DXR_Despacho Migr
@@ -1566,3 +1567,5 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
     var
         RecordsSinceCommit: Integer;
 }
+
+*/

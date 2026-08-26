@@ -99,6 +99,18 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
+        // ---- Draft adapters added 2026-08-26 - all dispatcher/worker codeunits are still wrapped
+        // in /* */ under src/Adapters/<Code>/ pending human review; see each adapter's header
+        // comment for the symbol-table findings this registration is based on. ----
+        InsExt('RO', 'Reportes Operativos', 'e02aa60f-28f3-4d39-ad95-16f2904b29a6', 1000,
+            'Draft adapter added 2026-08-26, pending review (src/Adapters/RO). No internalsVisibleTo gap found.');
+        InsExt('INBC', 'Interfaz Nomina BC', '1c09dc85-18ef-4c7e-9087-26a896040b93', 980, '');
+        InsExt('REQ', 'Requisitions', '4805fd15-75a5-46a2-952f-39c1c4eab821', 1020,
+            'Draft adapter added 2026-08-26 (src/Adapters/REQ). Own native upgrade framework (56173-56180) exists on the Requisitions side but is Access = Internal and not in app.json''s internalsVisibleTo, so this adapter re-implements the field copies directly. Pending human review before enabling.');
+        // Not registered - agents confirmed no DXR_ renumbering surface exists in the currently
+        // cached .app build (no old/new table or field pairs found): Azul, BodyShop,
+        // BODYSHOP_REPORTES, Control Acceso, DX Commissions, Recibo de Ingresos & P.P,
+        // Requisicion_Almacen. Revisit if/when those vendors ship a renumbered build.
     end;
 
     local procedure LoadConcepts()
@@ -454,6 +466,58 @@ codeunit 60012 "DXR MCC Registry Loader"
         // per-dispatcher dedup in DXR MCC Executor).
         InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
         InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 60126, 57301, 53602, 'MA');
+
+        // ---- BANKREC: DX Bank Reconciliation (draft adapter added 2026-08-26, src/Adapters/BANKREC,
+        // dispatcher/workers still wrapped in /* */ pending review - see that adapter's header
+        // comment; flags a possible Enum "ObjectType" (Id 50250) name collision with the platform
+        // intrinsic used elsewhere in this app, same as AL0275 seen in DXRMCCCompletionNotify) ----
+        InsConcept('BANKREC', 'BANKREC-P1', 1, 'Setup - Bank Statement legacy table restore', 60451, 50256, 50268, 'SETUP');
+        InsConcept('BANKREC', 'BANKREC-P1', 2, 'File Structure legacy table restore', 60451, 50258, 50270, 'SETUP');
+        InsConcept('BANKREC', 'BANKREC-P1', 3, 'Bank legacy table restore', 60452, 50250, 50262, 'MA');
+        InsConcept('BANKREC', 'BANKREC-P1', 4, 'Bank Relation legacy table restore', 60452, 50251, 50263, 'MA');
+        InsConcept('BANKREC', 'BANKREC-P1', 5, 'Banks - Bank Statement legacy table restore', 60452, 50252, 50264, 'MA');
+        InsConcept('BANKREC', 'BANKREC-P1', 6, 'BhdFile legacy table restore', 60453, 50253, 50265, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 7, 'BpdFile legacy table restore', 60453, 50254, 50266, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 8, 'BrsFile legacy table restore', 60453, 50255, 50267, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 9, 'BscFile legacy table restore', 60453, 50261, 50273, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 10, 'Detail - Bank Statement legacy table restore', 60453, 50257, 50269, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 11, 'History - Bank Statement legacy table restore', 60453, 50259, 50271, 'HIST');
+        InsConcept('BANKREC', 'BANKREC-P1', 12, 'Log - Bank Statement legacy table restore', 60453, 50260, 50272, 'HIST');
+
+        // ---- RO: Reportes Operativos (draft adapter added 2026-08-26, src/Adapters/RO, dispatcher
+        // still wrapped in /* */ pending review) ----
+        InsConcept('RO', 'RO-P1', 1, 'DX Report Configuration legacy table restore (51200 -> 51261)', 60610, 51200, 51261, 'SETUP');
+        InsConcept('RO', 'RO-P1', 2, 'Payment Method: DX Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 3, 'Bank Account Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 4, 'Cust. Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 5, 'Gen. Journal Line: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 6, 'G/L Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 7, 'Vendor Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 8, 'Sales Header: DX Work Description field restore (Blob)', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 9, 'User Setup: Firma Encargado/Cargo/Nombre Archivo field restore (2 Text + 1 Blob)', 60610, 0, 0, 'MA');
+
+        // ---- INBC: Interfaz Nomina BC (draft adapter added 2026-08-26, src/Adapters/INBC, dispatcher
+        // still wrapped in /* */ pending review - Enum type change on EntryType/Status fields needs
+        // value-mapping verification before enabling, see that adapter's header comment) ----
+        InsConcept('INBC', 'INBC-P1', 1, 'Payroll Setup legacy table restore (56100 -> 56107)', 60570, 56100, 56107, 'SETUP');
+        InsConcept('INBC', 'INBC-P1', 2, 'Payroll Method Relation legacy table restore (56105 -> 56110)', 60570, 56105, 56110, 'SETUP');
+        InsConcept('INBC', 'INBC-P1', 3, 'Payroll Interface legacy table restore (56101 -> 56108, Enum type change on EntryType - verify value mapping)', 60570, 56101, 56108, 'MA');
+        InsConcept('INBC', 'INBC-P1', 4, 'Payroll POST OData legacy table restore (56102 -> 56109, Enum type change on EntryType - verify value mapping)', 60570, 56102, 56109, 'MA');
+        InsConcept('INBC', 'INBC-P1', 5, 'Payroll Logs legacy table restore (56106 -> 56111, Enum type change on Status/EntryType - verify value mapping)', 60570, 56106, 56111, 'HIST');
+
+        // ---- REQ: Requisitions (draft adapter added 2026-08-26, src/Adapters/REQ, dispatcher still
+        // wrapped in /* */ pending review; dispatcher IDs below point at the per-category workers in
+        // DXRMCCREQCategoryWorkers.Codeunit.al, not the shared Migr Dispatcher, matching how other
+        // adapters register) ----
+        InsConcept('REQ', 'REQ-P1', 1, 'Requsiciones Setup legacy table restore (56156 -> 56163)', 60651, 56156, 56163, 'SETUP');
+        InsConcept('REQ', 'REQ-P1', 2, 'User Setup approval-flag field restore (5 fields, incl. Responsibility Center)', 60652, 0, 0, 'MASTER');
+        InsConcept('REQ', 'REQ-P1', 3, 'Proveedores Requisiciones legacy table restore (56150 -> 56157)', 60653, 56150, 56157, 'OTHER');
+        InsConcept('REQ', 'REQ-P1', 4, 'Requisiciones Header legacy table restore (56151 -> 56158)', 60653, 56151, 56158, 'OTHER');
+        InsConcept('REQ', 'REQ-P1', 5, 'Requisiciones Lines legacy table restore (56153 -> 56160)', 60653, 56153, 56160, 'OTHER');
+        InsConcept('REQ', 'REQ-P1', 6, 'Quotation legacy table restore (56155 -> 56162)', 60653, 56155, 56162, 'OTHER');
+        InsConcept('REQ', 'REQ-P1', 7, 'Purchase Header Req. No. field restore', 60653, 0, 0, 'OTHER');
+        InsConcept('REQ', 'REQ-P1', 8, 'Req. Header Hist legacy table restore (56152 -> 56159)', 60654, 56152, 56159, 'HIST');
+        InsConcept('REQ', 'REQ-P1', 9, 'Req.LinesHistory legacy table restore (56154 -> 56161)', 60654, 56154, 56161, 'HIST');
 
         // ---- DESB: Despacho Base (38 table pairs + 2 collision-fix phases + permission repair) ----
         InsConcept('DESB', 'DESB-P1', 1, 'Additional Truck legacy table restore', 60127, 50809, 53837, 'MA');

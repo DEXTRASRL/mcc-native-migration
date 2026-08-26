@@ -1,3 +1,4 @@
+/*
 codeunit 60098 "DXR MCC BC Migr P2 StatusHist"
 {
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 2".
@@ -29,3 +30,5 @@ codeunit 60098 "DXR MCC BC Migr P2 StatusHist"
         until OldStatus.Next() = 0;
     end;
 }
+
+*/
