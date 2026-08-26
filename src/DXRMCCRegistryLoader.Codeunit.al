@@ -518,7 +518,10 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DESB', 'DESB-P1', 26, 'Posted Transport Line legacy table restore', 60127, 50816, 53862, 'HIST');
         InsConcept('DESB', 'DESB-P1', 27, 'Preparador legacy table restore', 60127, 50835, 53863, 'MA');
         InsConcept('DESB', 'DESB-P1', 28, 'Routes legacy table restore', 60127, 50825, 53864, 'SETUP');
-        InsConcept('DESB', 'DESB-P1', 29, 'Sales Price View legacy table restore', 60442, 50824, 53865, 'MA');
+        // 2026-08-26: disabled per user instruction - no longer needed for DESB. Dispatcher 60442
+        // ("DXR MCC DESB Sales Price Bulk") also commented out to match, its OnRun is now a no-op.
+        // Left commented (not deleted/renumbered) so seq29 and its table IDs stay reserved.
+        // InsConcept('DESB', 'DESB-P1', 29, 'Sales Price View legacy table restore', 60442, 50824, 53865, 'MA');
         InsConcept('DESB', 'DESB-P1', 30, 'Shipment Header legacy table restore', 60127, 50813, 53866, 'MA');
         InsConcept('DESB', 'DESB-P1', 31, 'Shipment Line legacy table restore', 60127, 50815, 53867, 'MA');
         InsConcept('DESB', 'DESB-P1', 32, 'Transportation Staff legacy table restore', 60127, 50803, 53876, 'MA');
