@@ -99,6 +99,13 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
+        // 2026-08-26: declared as a dependency in this app''s own app.json (id 496759b2-...) since
+        // v28.0.0.3 but had ZERO registry representation (no InsExt, no InsConcept) - confirmed via
+        // direct source read of DXRMCCRegistryLoader and a full grep for PRP/PROINDEL across src/,
+        // both empty before this row. Order No. 930 (not in the 10-190 approved portfolio sequence,
+        // discovered after that sequence was set) - see PRP-UPG below for its one real concept.
+        InsExt('PRP', 'PROINDEL PERSONALIZATIONS', '496759b2-39eb-419b-999c-a3191c399c33', 930,
+            'Own field-level migration only: tableextensions 56005 (legacy, extends "DXGaps Setup", ObsoleteState=Pending)/56007 (active, extends "DXR_Gaps Setup") carry field "PRP Package Implementation ". The base table pair itself (54122 -> 52165) is DRLOC''s, already tracked at DRLOC-GAP seq98 - this extension only owns migrating its own field''s value, via its own Subtype=Upgrade codeunit (56005 "PRP Proindel Upgrade").');
         InsExt('REPORTING', 'Portfolio Reporting Migration', '', 990,
             'MCC-owned final portfolio phase. Reassigns persisted legacy report IDs to the report IDs declared by the current physical AL build.');
     end;
@@ -973,15 +980,15 @@ codeunit 60012 "DXR MCC Registry Loader"
         // MCC-owned normal codeunits expose their operations safely outside schema sync and keep
         // idempotence at one Upgrade Tag per callable unit.
         InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60174, Database::Item, Database::Item, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, Database::"LSC Hospitality Type", Database::"LSC Hospitality Type", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60180, Database::"LSC Label Functions", Database::"LSC Label Functions", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60181, Database::"LSC POS Print Setup Header", Database::"LSC POS Print Setup Header", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60182, Database::"LSC POS Terminal", Database::"LSC POS Terminal", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, Database::"LSC POS Transaction", Database::"LSC POS Transaction", 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60183, Database::"LSC Sales Type", Database::"LSC Sales Type", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60184, Database::"LSC Store", Database::"LSC Store", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, Database::"LSC Store Inventory Line", Database::"LSC Store Inventory Line", 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, Database::"LSC Transaction Header", Database::"LSC Transaction Header", 'OTHER');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, Database::"LSC Hospitality Type", Database::"LSC Hospitality Type", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60180, Database::"LSC Label Functions", Database::"LSC Label Functions", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60181, Database::"LSC POS Print Setup Header", Database::"LSC POS Print Setup Header", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60182, Database::"LSC POS Terminal", Database::"LSC POS Terminal", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, Database::"LSC POS Transaction", Database::"LSC POS Transaction", 'OTHER');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60183, Database::"LSC Sales Type", Database::"LSC Sales Type", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60184, Database::"LSC Store", Database::"LSC Store", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, Database::"LSC Store Inventory Line", Database::"LSC Store Inventory Line", 'MA');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, Database::"LSC Transaction Header", Database::"LSC Transaction Header", 'OTHER');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60178, 0, 0, 'MA');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60177, 0, 0, 'SETUP');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60177, 0, 0, 'SETUP');
@@ -996,6 +1003,15 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('REPORTING', 'REPORTING-P1', 1,
             'Reassign legacy report IDs in Report Selections, custom selections, layouts, printers and extension setup tables',
             60443, 0, 0, 'REPORTING');
+
+        // PRP: PROINDEL PERSONALIZATIONS. Codeunit 56005 "PRP Proindel Upgrade" is Subtype=Upgrade
+        // (OnUpgradePerCompany) - same class as DRLOC-P1 seq8 above: Codeunit.Run() cannot invoke it
+        // outside schema-sync, it runs on its own publish/upgrade cycle only. Dispatcher/Legacy/New
+        // all 0 by design (auto-marks Retired, matching DRLOC-P1's own pattern) - this is not a gap,
+        // MCC has no mechanism to dispatch/count a Subtype=Upgrade codeunit's own trigger.
+        InsConcept('PRP', 'PRP-UPG', 1,
+            'PRP Package Implementation field migration (Subtype=Upgrade, Codeunit 56005 "PRP Proindel Upgrade" runs OnUpgradePerCompany, transfers value from legacy "DXGaps Setup" tableext 56005 field to active "DXR_Gaps Setup" tableext 56007 field; base table pair 54122->52165 already tracked at DRLOC-GAP seq98)',
+            0, 0, 0, 'OTHER');
     end;
 
     local procedure InsExt(Code2: Code[20]; Name2: Text[100]; AppIdText: Text; OrderNo: Integer; Notes2: Text)
