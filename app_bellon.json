@@ -1,0 +1,139 @@
+{
+  "id": "a5b9bf50-7945-4455-8df4-3be9c7431a7b",
+  "name": "DXR Migration Control Center",
+  "publisher": "Dextra",
+  "version": "2.0.1.3",
+  "brief": "Central registry and launcher for every DXR ID-renumbering data migration across the Dextra BC portfolio.",
+  "description": "Centralizes visibility and execution of the portfolio-wide data migrations created by the 2026-08 DXR_ ID renumbering remediation: per-extension, per-concept old/migrated record counts, dependency-ordered execution, run history, and a gap report to identify extensions that still need re-running.",
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "runtime": "17.0",
+  "logo": "",
+  "url": "",
+  "EULA": "",
+  "privacyStatement": "",
+  "help": "",
+  "target": "Cloud",
+  "screenshots": [],
+  "dependencies": [
+    {
+      "id": "18373840-6093-4765-8799-491f61accb2b",
+      "publisher": "Dextra",
+      "name": "Special Dispatch",
+      "version": "28.3.3.9"
+    },
+    {
+      "id": "36b9c68f-cc27-46b1-bf63-4400a31c5f61",
+      "publisher": "Dextra",
+      "name": "DX-Payments",
+      "version": "28.3.0.5"
+    },
+    {
+      "id": "e8b1de99-1c7d-454d-b0bc-7cc1dc7b86ae",
+      "publisher": "Dextra",
+      "name": "Base Controls",
+      "version": "28.3.3.8"
+    },
+    {
+      "id": "e5a19345-02ce-4433-b03b-b1a2136682bf",
+      "publisher": "Dextra",
+      "name": "Recaudo BPD",
+      "version": "28.3.2.4"
+    },
+    {
+      "id": "f64305eb-aae2-4479-8726-e604fe48c051",
+      "publisher": "Dextra",
+      "name": "Vendor Payloads",
+      "version": "28.1.13.6"
+    },
+    {
+      "id": "0ef94c34-cbc6-41d8-ab1a-258e9085707d",
+      "publisher": "Dextra SRL",
+      "name": "Price Controls Mgt.",
+      "version": "28.3.4.7"
+    },
+    {
+      "id": "7c42bd17-42ea-4c0a-b6db-e7034ad57faf",
+      "publisher": "Dextra",
+      "name": "TransUnion",
+      "version": "28.3.2.5"
+    },
+    {
+      "id": "c7a48d32-662c-4e8a-a315-494b174556cf",
+      "publisher": "Dextra",
+      "name": "Despacho Base",
+      "version": "28.3.4.21"
+    },
+    {
+      "id": "adb067e6-0e65-4ab0-8d61-160e7df7763f",
+      "publisher": "Dextra",
+      "name": "Despacho LS",
+      "version": "28.3.2.10"
+    },
+    {
+      "id": "6e53178d-a25a-4432-9b46-977d98c087fc",
+      "publisher": "Dextra",
+      "name": "Retail Controls",
+      "version": "28.3.5.5"
+    },
+    {
+      "id": "4ccf94f0-8e86-437f-99fc-a4eeda4a5122",
+      "publisher": "Dextra",
+      "name": "Facturacion Electronica",
+      "version": "28.3.6.4"
+    },
+    {
+      "id": "4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2",
+      "publisher": "Dextra",
+      "name": "facturacion-electronica-ls",
+      "version": "28.5.0.3"
+    },
+    {
+      "id": "a9734a52-02bb-4e3d-8150-2f9ee4b50530",
+      "publisher": "Dextra",
+      "name": "Bellon Customization",
+      "version": "28.3.4.16"
+    },
+    {
+      "id": "6b2c910b-6607-4ffa-859e-1ba16790e4d8",
+      "publisher": "Dextra",
+      "name": "Bellon Customization POS",
+      "version": "28.3.2.5"
+    },
+    {
+      "id": "b18ab944-2133-4326-bcd7-a235e0a8bdef",
+      "publisher": "Dextra",
+      "name": "LS Central DR Localization",
+      "version": "28.3.3.7"
+    },
+    {
+      "id": "b269ef93-1340-452e-bc44-732c5dacd1c8",
+      "publisher": "Dextra",
+      "name": "Base App DR Localization",
+      "version": "28.3.6.12"
+    },
+    {
+      "id": "5ecfc871-5d82-43f1-9c54-59685e82318d",
+      "publisher": "LS Retail",
+      "name": "LS Central",
+      "version": "28.0.0.1608"
+    }
+  ],
+  "idRanges": [
+    {
+      "from": 60000,
+      "to": 65000
+    }
+  ],
+  "features": [
+    "NoImplicitWith",
+    "TranslationFile",
+    "GenerateCaptions"
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": false,
+    "includeSourceInSymbolFile": false,
+    "allowDownloadingSource": false,
+    "applyToDevExtension": true
+  }
+}
