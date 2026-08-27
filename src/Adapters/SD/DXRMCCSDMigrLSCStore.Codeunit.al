@@ -15,6 +15,7 @@ codeunit 60078 "DXR MCC SD Migr LSCStore"
     var
         LSCStore: Record "LSC Store";
         LSCStoreToUpdate: Record "LSC Store";
+        Blank: Record "LSC Store";
     begin
         LSCStore.SetLoadFields("No.", "Print Header Doc._DXR", "PE Print Header Doc. DXR");
         if not LSCStore.FindSet(false) then
@@ -22,7 +23,11 @@ codeunit 60078 "DXR MCC SD Migr LSCStore"
         repeat
             if LSCStore."Print Header Doc._DXR" <> LSCStore."PE Print Header Doc. DXR" then
                 if LSCStoreToUpdate.Get(LSCStore."No.") then begin
-                    LSCStoreToUpdate."Print Header Doc._DXR" := LSCStoreToUpdate."PE Print Header Doc. DXR";
+                    // Fixed 2026-08-27 (never-overwrite): the dirty-check above only avoids a no-op
+                    // write - it does not stop a re-run from overwriting an already-populated _DXR
+                    // value with the legacy one.
+                    if LSCStoreToUpdate."Print Header Doc._DXR" = Blank."Print Header Doc._DXR" then
+                        LSCStoreToUpdate."Print Header Doc._DXR" := LSCStoreToUpdate."PE Print Header Doc. DXR";
                     LSCStoreToUpdate.Modify(false);
                 end;
         until LSCStore.Next() = 0;

@@ -376,6 +376,7 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure CopyLSCPOSTerminalFields()
     var
         Rec: Record "LSC POS Terminal";
+        Blank: Record "LSC POS Terminal";
     begin
         // Fixed 2026-08-27 (A1, partial records): solo estos 26 campos se leen/escriben; sin
         // SetLoadFields se une la companion table de cada tableextension de POS Terminal por fila.
@@ -409,19 +410,36 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
                    (Rec."NCF Credito Reg Especiales_DXR" <> Rec."LSDXNCF Credito Reg Especiales") or
                    (Rec."Ext. Cmd. Nota de Credito_DXR" <> Rec."LSDXExt. Cmd. Nota de Credito")
                 then begin
-                    Rec."No. Serie NCF Gubern._DXR" := Rec."LSDXNo. Serie NCF Gubern.";
-                    Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDXNo. Serie NCF Reg. Esp.";
-                    Rec."No. Serie NCF Cred. Fiscal_DXR" := Rec."LSDXNo. Serie NCF Cred. Fiscal";
-                    Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" := Rec."LSDXExt. Cmd. NCF Cr. Fiscal";
-                    Rec."External Cmd. NCF Guvern_DXR" := Rec."LSDXExternal Cmd. NCF Guvern";
-                    Rec."Ext. Cmd. NCF Reg. Esp._DXR" := Rec."LSDXExt. Cmd. NCF Reg. Esp.";
-                    Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDXNo. Serie NCF Cons. Final";
-                    Rec."Ext. Cmd. NCF Cons. Final_DXR" := Rec."LSDXExt. Cmd. NCF Cons. Final";
-                    Rec."NCF Nota de Credito_DXR" := Rec."LSDXNCF Nota de Credito";
-                    Rec."NCF Credito U. Final_DXR" := Rec."LSDXNCF Credito U. Final";
-                    Rec."NCF Credito Gubernamental_DXR" := Rec."LSDXNCF Credito Gubernamental";
-                    Rec."NCF Credito Reg Especiales_DXR" := Rec."LSDXNCF Credito Reg Especiales";
-                    Rec."Ext. Cmd. Nota de Credito_DXR" := Rec."LSDXExt. Cmd. Nota de Credito";
+                    // Fixed 2026-08-27 (never-overwrite): the OR condition above only decides whether
+                    // ANY field differs from source (avoids a no-op write) - it does not stop a
+                    // re-run from overwriting an already-populated _DXR value. Guarded fill-only-if-
+                    // blank, field by field, same as the rest of this portfolio's migrations.
+                    if Rec."No. Serie NCF Gubern._DXR" = Blank."No. Serie NCF Gubern._DXR" then
+                        Rec."No. Serie NCF Gubern._DXR" := Rec."LSDXNo. Serie NCF Gubern.";
+                    if Rec."No. Serie NCF Reg. Esp._DXR" = Blank."No. Serie NCF Reg. Esp._DXR" then
+                        Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDXNo. Serie NCF Reg. Esp.";
+                    if Rec."No. Serie NCF Cred. Fiscal_DXR" = Blank."No. Serie NCF Cred. Fiscal_DXR" then
+                        Rec."No. Serie NCF Cred. Fiscal_DXR" := Rec."LSDXNo. Serie NCF Cred. Fiscal";
+                    if Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" = Blank."Ext. Cmd. NCF Cr. Fiscal_DXR" then
+                        Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" := Rec."LSDXExt. Cmd. NCF Cr. Fiscal";
+                    if Rec."External Cmd. NCF Guvern_DXR" = Blank."External Cmd. NCF Guvern_DXR" then
+                        Rec."External Cmd. NCF Guvern_DXR" := Rec."LSDXExternal Cmd. NCF Guvern";
+                    if Rec."Ext. Cmd. NCF Reg. Esp._DXR" = Blank."Ext. Cmd. NCF Reg. Esp._DXR" then
+                        Rec."Ext. Cmd. NCF Reg. Esp._DXR" := Rec."LSDXExt. Cmd. NCF Reg. Esp.";
+                    if Rec."No. Serie NCF Cons. Final_DXR" = Blank."No. Serie NCF Cons. Final_DXR" then
+                        Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDXNo. Serie NCF Cons. Final";
+                    if Rec."Ext. Cmd. NCF Cons. Final_DXR" = Blank."Ext. Cmd. NCF Cons. Final_DXR" then
+                        Rec."Ext. Cmd. NCF Cons. Final_DXR" := Rec."LSDXExt. Cmd. NCF Cons. Final";
+                    if Rec."NCF Nota de Credito_DXR" = Blank."NCF Nota de Credito_DXR" then
+                        Rec."NCF Nota de Credito_DXR" := Rec."LSDXNCF Nota de Credito";
+                    if Rec."NCF Credito U. Final_DXR" = Blank."NCF Credito U. Final_DXR" then
+                        Rec."NCF Credito U. Final_DXR" := Rec."LSDXNCF Credito U. Final";
+                    if Rec."NCF Credito Gubernamental_DXR" = Blank."NCF Credito Gubernamental_DXR" then
+                        Rec."NCF Credito Gubernamental_DXR" := Rec."LSDXNCF Credito Gubernamental";
+                    if Rec."NCF Credito Reg Especiales_DXR" = Blank."NCF Credito Reg Especiales_DXR" then
+                        Rec."NCF Credito Reg Especiales_DXR" := Rec."LSDXNCF Credito Reg Especiales";
+                    if Rec."Ext. Cmd. Nota de Credito_DXR" = Blank."Ext. Cmd. Nota de Credito_DXR" then
+                        Rec."Ext. Cmd. Nota de Credito_DXR" := Rec."LSDXExt. Cmd. Nota de Credito";
                     Rec.Modify(false);
                     Commit();
                 end;
@@ -431,6 +449,7 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure CopyLSCSalesTypeFields()
     var
         Rec: Record "LSC Sales Type";
+        Blank: Record "LSC Sales Type";
     begin
         // Fixed 2026-08-27 (A1, partial records): solo estos cuatro campos se leen/escriben.
         Rec.SetLoadFields(
@@ -441,8 +460,14 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
                 if (Rec."Exento ITBIS_DXR" <> Rec."LSDX Exento ITBIS") or
                    (Rec."POS VAT Exento_DXR" <> Rec."LSDX POS VAT Exento")
                 then begin
-                    Rec."Exento ITBIS_DXR" := Rec."LSDX Exento ITBIS";
-                    Rec."POS VAT Exento_DXR" := Rec."LSDX POS VAT Exento";
+                    // Fixed 2026-08-27 (never-overwrite): the OR condition above only decides whether
+                    // ANY field differs from source (avoids a no-op write) - it does not stop a
+                    // re-run from overwriting an already-populated _DXR value. Guarded fill-only-if-
+                    // blank, field by field, same as the rest of this portfolio's migrations.
+                    if Rec."Exento ITBIS_DXR" = Blank."Exento ITBIS_DXR" then
+                        Rec."Exento ITBIS_DXR" := Rec."LSDX Exento ITBIS";
+                    if Rec."POS VAT Exento_DXR" = Blank."POS VAT Exento_DXR" then
+                        Rec."POS VAT Exento_DXR" := Rec."LSDX POS VAT Exento";
                     Rec.Modify(false);
                     Commit();
                 end;
@@ -452,6 +477,7 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure CopyLSCStoreFields()
     var
         Rec: Record "LSC Store";
+        Blank: Record "LSC Store";
     begin
         // Fixed 2026-08-27 (A1, partial records): solo estos 18 campos se leen/escriben; sin
         // SetLoadFields se une la companion table de cada tableextension de Store por fila.
@@ -477,15 +503,28 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
                    (Rec."Address 3_DXR" <> Rec."LSDX Address 3") or
                    (Rec."Utiliza NCF Unico_DXR" <> Rec."LSDX Utiliza NCF Unico")
                 then begin
-                    Rec."Cod. Cliente Contado_DXR" := Rec."LSDX Cod. Cliente Contado";
-                    Rec."No. Serie 3er. Party Item_DXR" := Rec."LSDX No. Serie 3er. Party Item";
-                    Rec."No. Serie NCF Unico_DXR" := Rec."LSDX No. Serie NCF Unico";
-                    Rec."No. Serie NCF Gubern._DXR" := Rec."LSDX No. Serie NCF Gubern.";
-                    Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDX No. Serie NCF Reg. Esp.";
-                    Rec."No. Serie NCF Cr. Fiscal_DXR" := Rec."LSDX No. Serie NCF Cr. Fiscal";
-                    Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
-                    Rec."Address 3_DXR" := Rec."LSDX Address 3";
-                    Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
+                    // Fixed 2026-08-27 (never-overwrite): the OR condition above only decides whether
+                    // ANY field differs from source (avoids a no-op write) - it does not stop a
+                    // re-run from overwriting an already-populated _DXR value. Guarded fill-only-if-
+                    // blank, field by field, same as the rest of this portfolio's migrations.
+                    if Rec."Cod. Cliente Contado_DXR" = Blank."Cod. Cliente Contado_DXR" then
+                        Rec."Cod. Cliente Contado_DXR" := Rec."LSDX Cod. Cliente Contado";
+                    if Rec."No. Serie 3er. Party Item_DXR" = Blank."No. Serie 3er. Party Item_DXR" then
+                        Rec."No. Serie 3er. Party Item_DXR" := Rec."LSDX No. Serie 3er. Party Item";
+                    if Rec."No. Serie NCF Unico_DXR" = Blank."No. Serie NCF Unico_DXR" then
+                        Rec."No. Serie NCF Unico_DXR" := Rec."LSDX No. Serie NCF Unico";
+                    if Rec."No. Serie NCF Gubern._DXR" = Blank."No. Serie NCF Gubern._DXR" then
+                        Rec."No. Serie NCF Gubern._DXR" := Rec."LSDX No. Serie NCF Gubern.";
+                    if Rec."No. Serie NCF Reg. Esp._DXR" = Blank."No. Serie NCF Reg. Esp._DXR" then
+                        Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDX No. Serie NCF Reg. Esp.";
+                    if Rec."No. Serie NCF Cr. Fiscal_DXR" = Blank."No. Serie NCF Cr. Fiscal_DXR" then
+                        Rec."No. Serie NCF Cr. Fiscal_DXR" := Rec."LSDX No. Serie NCF Cr. Fiscal";
+                    if Rec."No. Serie NCF Cons. Final_DXR" = Blank."No. Serie NCF Cons. Final_DXR" then
+                        Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
+                    if Rec."Address 3_DXR" = Blank."Address 3_DXR" then
+                        Rec."Address 3_DXR" := Rec."LSDX Address 3";
+                    if Rec."Utiliza NCF Unico_DXR" = Blank."Utiliza NCF Unico_DXR" then
+                        Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
                     Rec.Modify(false);
                     Commit();
                 end;
@@ -675,12 +714,17 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure MigratePOSTerminalEnumFields()
     var
         POSTerminal: Record "LSC POS Terminal";
+        Blank: Record "LSC POS Terminal";
     begin
         // Fixed 2026-08-27 (A1, partial records): solo estos dos campos se leen/escriben.
         POSTerminal.SetLoadFields("Ext. POS Type_DXR", "LSDXExt. POS Type");
         if POSTerminal.FindSet(true) then
             repeat
-                POSTerminal."Ext. POS Type_DXR" := Enum::"DXR_LS POS Type".FromInteger(POSTerminal."LSDXExt. POS Type".AsInteger());
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this migration
+                // (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if POSTerminal."Ext. POS Type_DXR" = Blank."Ext. POS Type_DXR" then
+                    POSTerminal."Ext. POS Type_DXR" := Enum::"DXR_LS POS Type".FromInteger(POSTerminal."LSDXExt. POS Type".AsInteger());
                 POSTerminal.Modify(false);
             until POSTerminal.Next() = 0;
     end;

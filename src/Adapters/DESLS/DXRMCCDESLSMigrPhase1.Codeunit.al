@@ -352,6 +352,7 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         RetailProductGroupRec: Record "LSC Retail Product Group";
+        Blank: Record "LSC Retail Product Group";
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-RETAILPRODUCTGROUP-28.3') then
             exit;
@@ -360,7 +361,11 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         RetailProductGroupRec.SetLoadFields("Comision_Cobro_DXR", "DXR-DE Comision_Cobro");
         if RetailProductGroupRec.FindSet(true) then
             repeat
-                RetailProductGroupRec."Comision_Cobro_DXR" := RetailProductGroupRec."DXR-DE Comision_Cobro";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this upgrade
+                // tag (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if RetailProductGroupRec."Comision_Cobro_DXR" = Blank."Comision_Cobro_DXR" then
+                    RetailProductGroupRec."Comision_Cobro_DXR" := RetailProductGroupRec."DXR-DE Comision_Cobro";
                 RetailProductGroupRec.Modify(false);
             until RetailProductGroupRec.Next() = 0;
 

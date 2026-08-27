@@ -416,6 +416,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         BankAccountRec: Record "Bank Account";
         BankAccountToUpdate: Record "Bank Account";
+        Blank: Record "Bank Account";
     begin
         // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every Bank Account row for the whole run
         // and, without SetLoadFields, joined every tableextension companion table per row. Read
@@ -426,8 +427,13 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                 if (BankAccountRec."Cod. Proveedor Bco._DXR" <> BankAccountRec."DxCod. Proveedor Bco.") or
                    (BankAccountRec."Cargar Estados CSV_DXR" <> BankAccountRec."DxCargar Estados CSV") then
                     if BankAccountToUpdate.Get(BankAccountRec."No.") then begin
-                        BankAccountToUpdate."Cod. Proveedor Bco._DXR" := BankAccountToUpdate."DxCod. Proveedor Bco.";
-                        BankAccountToUpdate."Cargar Estados CSV_DXR" := BankAccountToUpdate."DxCargar Estados CSV";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if BankAccountToUpdate."Cod. Proveedor Bco._DXR" = Blank."Cod. Proveedor Bco._DXR" then
+                            BankAccountToUpdate."Cod. Proveedor Bco._DXR" := BankAccountToUpdate."DxCod. Proveedor Bco.";
+                        if BankAccountToUpdate."Cargar Estados CSV_DXR" = Blank."Cargar Estados CSV_DXR" then
+                            BankAccountToUpdate."Cargar Estados CSV_DXR" := BankAccountToUpdate."DxCargar Estados CSV";
                         BankAccountToUpdate.Modify(false);
                     end;
             until BankAccountRec.Next() = 0;
@@ -444,6 +450,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         CustomerRec: Record Customer;
         CustomerToUpdate: Record Customer;
+        Blank: Record Customer;
         BatchCount: Integer;
     begin
         // Fixed 2026-08-27: FindSet(true) over the whole Customer table held a SQL UPDLOCK on every
@@ -486,25 +493,47 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (CustomerRec."Default ISR Withholding_DXR" <> CustomerRec."DXDefault ISR Withholding") or
                    (CustomerRec."Apply Cust Withhold_DXR" <> CustomerRec."DX Apply Customer Withholding") then
                     if CustomerToUpdate.Get(CustomerRec."No.") then begin
-                    CustomerToUpdate."Tipo NCF_DXR" := CustomerToUpdate."DxTipo NCF";
-                    CustomerToUpdate."Utiliza NCF_DXR" := CustomerToUpdate."DxUtiliza NCF";
-                    CustomerToUpdate."Tipo Identificacion_DXR" := CustomerToUpdate."DXTipo Identificacion";
-                    CustomerToUpdate."Razon Social_DXR" := CustomerToUpdate."DxRazon Social";
-                    CustomerToUpdate."Nombre Comercial_DXR" := CustomerToUpdate."DxNombre Comercial";
-                    CustomerToUpdate."Tipo Negocio_DXR" := CustomerToUpdate."DxTipo Negocio";
-                    CustomerToUpdate."Fecha Constitucion_DXR" := CustomerToUpdate."DxFecha Constitucion";
-                    CustomerToUpdate."Estatus_DXR" := CustomerToUpdate."DxEstatus";
-                    CustomerToUpdate."Fecha Act. DGII_DXR" := CustomerToUpdate."DxFecha Act. DGII";
-                    CustomerToUpdate."Tax Identification Type_DXR" := CustomerToUpdate."DxTax Identification Type";
-                    CustomerToUpdate."Proveedor Tarjeta Cr._DXR" := CustomerToUpdate."DxProveedor Tarjeta Cr.";
-                    CustomerToUpdate."International Customer_DXR" := CustomerToUpdate."DX International Customer";
-                    CustomerToUpdate."Uses Withholding_DXR" := CustomerToUpdate."DX Uses Withholding";
-                    CustomerToUpdate."Bank Commission_DXR" := CustomerToUpdate."DX Bank Commission";
-                    CustomerToUpdate."Cod. Retencion ITBIS_DXR" := CustomerToUpdate."DXCod. Retencion ITBIS";
-                    CustomerToUpdate."Cod. Retencion ISR_DXR" := CustomerToUpdate."DXCod. Retencion ISR";
-                    CustomerToUpdate."Bank Commission Account_DXR" := CustomerToUpdate."DX Bank Commission Account";
-                    CustomerToUpdate."Def ITBIS Withhold_DXR" := CustomerToUpdate."DXDefault ITBIS Withholding";
-                    CustomerToUpdate."Default ISR Withholding_DXR" := CustomerToUpdate."DXDefault ISR Withholding";
+                    // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                    // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                    // would blindly overwrite an already-populated _DXR value.
+                    if CustomerToUpdate."Tipo NCF_DXR" = Blank."Tipo NCF_DXR" then
+                        CustomerToUpdate."Tipo NCF_DXR" := CustomerToUpdate."DxTipo NCF";
+                    if CustomerToUpdate."Utiliza NCF_DXR" = Blank."Utiliza NCF_DXR" then
+                        CustomerToUpdate."Utiliza NCF_DXR" := CustomerToUpdate."DxUtiliza NCF";
+                    if CustomerToUpdate."Tipo Identificacion_DXR" = Blank."Tipo Identificacion_DXR" then
+                        CustomerToUpdate."Tipo Identificacion_DXR" := CustomerToUpdate."DXTipo Identificacion";
+                    if CustomerToUpdate."Razon Social_DXR" = Blank."Razon Social_DXR" then
+                        CustomerToUpdate."Razon Social_DXR" := CustomerToUpdate."DxRazon Social";
+                    if CustomerToUpdate."Nombre Comercial_DXR" = Blank."Nombre Comercial_DXR" then
+                        CustomerToUpdate."Nombre Comercial_DXR" := CustomerToUpdate."DxNombre Comercial";
+                    if CustomerToUpdate."Tipo Negocio_DXR" = Blank."Tipo Negocio_DXR" then
+                        CustomerToUpdate."Tipo Negocio_DXR" := CustomerToUpdate."DxTipo Negocio";
+                    if CustomerToUpdate."Fecha Constitucion_DXR" = Blank."Fecha Constitucion_DXR" then
+                        CustomerToUpdate."Fecha Constitucion_DXR" := CustomerToUpdate."DxFecha Constitucion";
+                    if CustomerToUpdate."Estatus_DXR" = Blank."Estatus_DXR" then
+                        CustomerToUpdate."Estatus_DXR" := CustomerToUpdate."DxEstatus";
+                    if CustomerToUpdate."Fecha Act. DGII_DXR" = Blank."Fecha Act. DGII_DXR" then
+                        CustomerToUpdate."Fecha Act. DGII_DXR" := CustomerToUpdate."DxFecha Act. DGII";
+                    if CustomerToUpdate."Tax Identification Type_DXR" = Blank."Tax Identification Type_DXR" then
+                        CustomerToUpdate."Tax Identification Type_DXR" := CustomerToUpdate."DxTax Identification Type";
+                    if CustomerToUpdate."Proveedor Tarjeta Cr._DXR" = Blank."Proveedor Tarjeta Cr._DXR" then
+                        CustomerToUpdate."Proveedor Tarjeta Cr._DXR" := CustomerToUpdate."DxProveedor Tarjeta Cr.";
+                    if CustomerToUpdate."International Customer_DXR" = Blank."International Customer_DXR" then
+                        CustomerToUpdate."International Customer_DXR" := CustomerToUpdate."DX International Customer";
+                    if CustomerToUpdate."Uses Withholding_DXR" = Blank."Uses Withholding_DXR" then
+                        CustomerToUpdate."Uses Withholding_DXR" := CustomerToUpdate."DX Uses Withholding";
+                    if CustomerToUpdate."Bank Commission_DXR" = Blank."Bank Commission_DXR" then
+                        CustomerToUpdate."Bank Commission_DXR" := CustomerToUpdate."DX Bank Commission";
+                    if CustomerToUpdate."Cod. Retencion ITBIS_DXR" = Blank."Cod. Retencion ITBIS_DXR" then
+                        CustomerToUpdate."Cod. Retencion ITBIS_DXR" := CustomerToUpdate."DXCod. Retencion ITBIS";
+                    if CustomerToUpdate."Cod. Retencion ISR_DXR" = Blank."Cod. Retencion ISR_DXR" then
+                        CustomerToUpdate."Cod. Retencion ISR_DXR" := CustomerToUpdate."DXCod. Retencion ISR";
+                    if CustomerToUpdate."Bank Commission Account_DXR" = Blank."Bank Commission Account_DXR" then
+                        CustomerToUpdate."Bank Commission Account_DXR" := CustomerToUpdate."DX Bank Commission Account";
+                    if CustomerToUpdate."Def ITBIS Withhold_DXR" = Blank."Def ITBIS Withhold_DXR" then
+                        CustomerToUpdate."Def ITBIS Withhold_DXR" := CustomerToUpdate."DXDefault ITBIS Withholding";
+                    if CustomerToUpdate."Default ISR Withholding_DXR" = Blank."Default ISR Withholding_DXR" then
+                        CustomerToUpdate."Default ISR Withholding_DXR" := CustomerToUpdate."DXDefault ISR Withholding";
                     // Explicit conversion required - "Apply Cust Withhold_DXR" (52201) and
                     // "DX Apply Customer Withholding" (54203) are two distinct Enum objects (the
                     // latter Obsolete = Pending, replaced by the former), even though their value
@@ -512,8 +541,11 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                     // confirmed against DXR_ApplyCustomerWithholding.Enum.al and
                     // DXApplyCustomerWithholding.Enum.al). AL does not implicitly convert between
                     // different Enum types on assignment (AL0122), so FromInteger/AsInteger is used.
-                    CustomerToUpdate."Apply Cust Withhold_DXR" :=
-                        "Apply Cust Withhold_DXR".FromInteger(CustomerToUpdate."DX Apply Customer Withholding".AsInteger());
+                    // Fixed 2026-08-27 (never-overwrite): same unconditional-copy gap as the fields
+                    // above - guarded the same way.
+                    if CustomerToUpdate."Apply Cust Withhold_DXR" = Blank."Apply Cust Withhold_DXR" then
+                        CustomerToUpdate."Apply Cust Withhold_DXR" :=
+                            "Apply Cust Withhold_DXR".FromInteger(CustomerToUpdate."DX Apply Customer Withholding".AsInteger());
                     CustomerToUpdate.Modify(false);
 
                     BatchCount += 1;
@@ -554,6 +586,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         VendorRec: Record Vendor;
         VendorToUpdate: Record Vendor;
+        Blank: Record Vendor;
         BatchCount: Integer;
     begin
         // Fixed 2026-08-27: same A1 fix as MigrateCustomerFields - FindSet(true) over the whole Vendor
@@ -595,26 +628,49 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (VendorRec."Reporta 609_DXR" <> VendorRec."DXReporta 609") or
                    (VendorRec."Addtl Currency Code_DXR" <> VendorRec."DX Additional Currency Code") then
                     if VendorToUpdate.Get(VendorRec."No.") then begin
-                        VendorToUpdate."NCF Interno Proveedor_DXR" := VendorToUpdate."DXNCF Interno Proveedor";
-                        VendorToUpdate."Utiliza NCF Externo_DXR" := VendorToUpdate."DXUtiliza NCF Externo";
-                        VendorToUpdate."Tipo Identificacion_DXR" := VendorToUpdate."DXTipo Identificacion";
-                        VendorToUpdate."Razon Social_DXR" := VendorToUpdate."DXRazon Social";
-                        VendorToUpdate."Nombre Comercial_DXR" := VendorToUpdate."DXNombre Comercial";
-                        VendorToUpdate."Tipo Negocio_DXR" := VendorToUpdate."DXTipo Negocio";
-                        VendorToUpdate."Fecha Constitucion_DXR" := VendorToUpdate."DXFecha Constitucion";
-                        VendorToUpdate."Estatus_DXR" := VendorToUpdate."DXEstatus";
-                        VendorToUpdate."Fecha Act. DGII_DXR" := VendorToUpdate."DXFecha Act. DGII";
-                        VendorToUpdate."Tax Identificaction Type_DXR" := VendorToUpdate."DXTax Identificaction Type";
-                        VendorToUpdate."Cod. Retencion ITBIS_DXR" := VendorToUpdate."DXCod. Retencion ITBIS";
-                        VendorToUpdate."Cod. Retencion ISR_DXR" := VendorToUpdate."DXCod. Retencion ISR";
-                        VendorToUpdate."Proveedor Internacional_DXR" := VendorToUpdate."DXProveedor Internacional";
-                        VendorToUpdate."Utiliza Retencion_DXR" := VendorToUpdate."DXUtiliza Retencion";
-                        VendorToUpdate."Uses Sel Amount Tip_DXR" := VendorToUpdate."DXUses Selective Amount Tip";
-                        VendorToUpdate."Uses Legal Tip_DXR" := VendorToUpdate."DXUses Legal Tip";
-                        VendorToUpdate."Uses Other Fees Tip_DXR" := VendorToUpdate."DXUses Other Fees Tip";
-                        VendorToUpdate."Parte Relacionada_DXR" := VendorToUpdate."DxParte Relacionada";
-                        VendorToUpdate."Reporta 609_DXR" := VendorToUpdate."DXReporta 609";
-                        VendorToUpdate."Addtl Currency Code_DXR" := VendorToUpdate."DX Additional Currency Code";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if VendorToUpdate."NCF Interno Proveedor_DXR" = Blank."NCF Interno Proveedor_DXR" then
+                            VendorToUpdate."NCF Interno Proveedor_DXR" := VendorToUpdate."DXNCF Interno Proveedor";
+                        if VendorToUpdate."Utiliza NCF Externo_DXR" = Blank."Utiliza NCF Externo_DXR" then
+                            VendorToUpdate."Utiliza NCF Externo_DXR" := VendorToUpdate."DXUtiliza NCF Externo";
+                        if VendorToUpdate."Tipo Identificacion_DXR" = Blank."Tipo Identificacion_DXR" then
+                            VendorToUpdate."Tipo Identificacion_DXR" := VendorToUpdate."DXTipo Identificacion";
+                        if VendorToUpdate."Razon Social_DXR" = Blank."Razon Social_DXR" then
+                            VendorToUpdate."Razon Social_DXR" := VendorToUpdate."DXRazon Social";
+                        if VendorToUpdate."Nombre Comercial_DXR" = Blank."Nombre Comercial_DXR" then
+                            VendorToUpdate."Nombre Comercial_DXR" := VendorToUpdate."DXNombre Comercial";
+                        if VendorToUpdate."Tipo Negocio_DXR" = Blank."Tipo Negocio_DXR" then
+                            VendorToUpdate."Tipo Negocio_DXR" := VendorToUpdate."DXTipo Negocio";
+                        if VendorToUpdate."Fecha Constitucion_DXR" = Blank."Fecha Constitucion_DXR" then
+                            VendorToUpdate."Fecha Constitucion_DXR" := VendorToUpdate."DXFecha Constitucion";
+                        if VendorToUpdate."Estatus_DXR" = Blank."Estatus_DXR" then
+                            VendorToUpdate."Estatus_DXR" := VendorToUpdate."DXEstatus";
+                        if VendorToUpdate."Fecha Act. DGII_DXR" = Blank."Fecha Act. DGII_DXR" then
+                            VendorToUpdate."Fecha Act. DGII_DXR" := VendorToUpdate."DXFecha Act. DGII";
+                        if VendorToUpdate."Tax Identificaction Type_DXR" = Blank."Tax Identificaction Type_DXR" then
+                            VendorToUpdate."Tax Identificaction Type_DXR" := VendorToUpdate."DXTax Identificaction Type";
+                        if VendorToUpdate."Cod. Retencion ITBIS_DXR" = Blank."Cod. Retencion ITBIS_DXR" then
+                            VendorToUpdate."Cod. Retencion ITBIS_DXR" := VendorToUpdate."DXCod. Retencion ITBIS";
+                        if VendorToUpdate."Cod. Retencion ISR_DXR" = Blank."Cod. Retencion ISR_DXR" then
+                            VendorToUpdate."Cod. Retencion ISR_DXR" := VendorToUpdate."DXCod. Retencion ISR";
+                        if VendorToUpdate."Proveedor Internacional_DXR" = Blank."Proveedor Internacional_DXR" then
+                            VendorToUpdate."Proveedor Internacional_DXR" := VendorToUpdate."DXProveedor Internacional";
+                        if VendorToUpdate."Utiliza Retencion_DXR" = Blank."Utiliza Retencion_DXR" then
+                            VendorToUpdate."Utiliza Retencion_DXR" := VendorToUpdate."DXUtiliza Retencion";
+                        if VendorToUpdate."Uses Sel Amount Tip_DXR" = Blank."Uses Sel Amount Tip_DXR" then
+                            VendorToUpdate."Uses Sel Amount Tip_DXR" := VendorToUpdate."DXUses Selective Amount Tip";
+                        if VendorToUpdate."Uses Legal Tip_DXR" = Blank."Uses Legal Tip_DXR" then
+                            VendorToUpdate."Uses Legal Tip_DXR" := VendorToUpdate."DXUses Legal Tip";
+                        if VendorToUpdate."Uses Other Fees Tip_DXR" = Blank."Uses Other Fees Tip_DXR" then
+                            VendorToUpdate."Uses Other Fees Tip_DXR" := VendorToUpdate."DXUses Other Fees Tip";
+                        if VendorToUpdate."Parte Relacionada_DXR" = Blank."Parte Relacionada_DXR" then
+                            VendorToUpdate."Parte Relacionada_DXR" := VendorToUpdate."DxParte Relacionada";
+                        if VendorToUpdate."Reporta 609_DXR" = Blank."Reporta 609_DXR" then
+                            VendorToUpdate."Reporta 609_DXR" := VendorToUpdate."DXReporta 609";
+                        if VendorToUpdate."Addtl Currency Code_DXR" = Blank."Addtl Currency Code_DXR" then
+                            VendorToUpdate."Addtl Currency Code_DXR" := VendorToUpdate."DX Additional Currency Code";
                         VendorToUpdate.Modify(false);
 
                         BatchCount += 1;
@@ -1121,6 +1177,7 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         Item: Record Item;
         ItemToUpdate: Record Item;
+        Blank: Record Item;
         NCFCategory: Code[20];
         BatchCount: Integer;
     begin
@@ -1138,7 +1195,13 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
             repeat
                 if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then
                     if ItemToUpdate.Get(Item."No.") then begin
-                        ItemToUpdate."NCF Category_DXR" := NCFCategory;
+                        // Fixed 2026-08-27 (never-overwrite): the inequality dirty-check above only
+                        // avoids a no-op write - it does not stop a re-run from overwriting a
+                        // previously-migrated (or manually corrected) _DXR value with a freshly
+                        // recomputed one. Added a fill-only-if-blank guard, same as this codeunit's
+                        // other master-data copies.
+                        if ItemToUpdate."NCF Category_DXR" = Blank."NCF Category_DXR" then
+                            ItemToUpdate."NCF Category_DXR" := NCFCategory;
                         ItemToUpdate.Modify(false);
 
                         BatchCount += 1;

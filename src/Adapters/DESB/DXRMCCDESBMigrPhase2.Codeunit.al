@@ -322,6 +322,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         CustomerRec: Record Customer;
         CustomerToUpdate: Record Customer;
+        Blank: Record Customer;
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-CUSTOMER-28.3') then
@@ -339,8 +340,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                    (CustomerRec."Ruta_DXR" <> CustomerRec."DXR-DE Ruta")
                 then
                     if CustomerToUpdate.Get(CustomerRec."No.") then begin
-                        CustomerToUpdate."Clasific. Cliente ABC_DXR" := CustomerToUpdate."DXR-DE Clasific. Cliente ABC";
-                        CustomerToUpdate."Ruta_DXR" := CustomerToUpdate."DXR-DE Ruta";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if CustomerToUpdate."Clasific. Cliente ABC_DXR" = Blank."Clasific. Cliente ABC_DXR" then
+                            CustomerToUpdate."Clasific. Cliente ABC_DXR" := CustomerToUpdate."DXR-DE Clasific. Cliente ABC";
+                        if CustomerToUpdate."Ruta_DXR" = Blank."Ruta_DXR" then
+                            CustomerToUpdate."Ruta_DXR" := CustomerToUpdate."DXR-DE Ruta";
                         CustomerToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;
@@ -571,6 +577,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         FixedAssetRec: Record "Fixed Asset";
         FixedAssetToUpdate: Record "Fixed Asset";
+        Blank: Record "Fixed Asset";
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-FIXEDASSET-28.3') then
@@ -582,7 +589,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             repeat
                 if FixedAssetRec."GTIN_DXR" <> FixedAssetRec."DXR-DE GTIN" then
                     if FixedAssetToUpdate.Get(FixedAssetRec."No.") then begin
-                        FixedAssetToUpdate."GTIN_DXR" := FixedAssetToUpdate."DXR-DE GTIN";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if FixedAssetToUpdate."GTIN_DXR" = Blank."GTIN_DXR" then
+                            FixedAssetToUpdate."GTIN_DXR" := FixedAssetToUpdate."DXR-DE GTIN";
                         FixedAssetToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;
@@ -599,6 +610,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         ItemRec: Record Item;
         ItemToUpdate: Record Item;
+        Blank: Record Item;
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEM-28.3') then
@@ -610,7 +622,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             repeat
                 if ItemRec."Descripcion Bellon_DXR" <> ItemRec."DXR-DE Descripcion Bellon" then
                     if ItemToUpdate.Get(ItemRec."No.") then begin
-                        ItemToUpdate."Descripcion Bellon_DXR" := ItemToUpdate."DXR-DE Descripcion Bellon";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if ItemToUpdate."Descripcion Bellon_DXR" = Blank."Descripcion Bellon_DXR" then
+                            ItemToUpdate."Descripcion Bellon_DXR" := ItemToUpdate."DXR-DE Descripcion Bellon";
                         ItemToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;
@@ -691,6 +707,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         LocationRec: Record Location;
         LocationToUpdate: Record Location;
+        Blank: Record Location;
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-LOCATION-28.3') then
@@ -702,7 +719,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             repeat
                 if LocationRec."Req. Transport_DXR" <> LocationRec."DXR-DE Req. Transport" then
                     if LocationToUpdate.Get(LocationRec."Code") then begin
-                        LocationToUpdate."Req. Transport_DXR" := LocationToUpdate."DXR-DE Req. Transport";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if LocationToUpdate."Req. Transport_DXR" = Blank."Req. Transport_DXR" then
+                            LocationToUpdate."Req. Transport_DXR" := LocationToUpdate."DXR-DE Req. Transport";
                         LocationToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;
@@ -719,6 +740,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         PaymentMethodRec: Record "Payment Method";
         PaymentMethodToUpdate: Record "Payment Method";
+        Blank: Record "Payment Method";
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PAYMENTMETHOD-28.3') then
@@ -730,7 +752,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             repeat
                 if PaymentMethodRec."Prioridad_DXR" <> PaymentMethodRec."DXR-DE Prioridad" then
                     if PaymentMethodToUpdate.Get(PaymentMethodRec."Code") then begin
-                        PaymentMethodToUpdate."Prioridad_DXR" := PaymentMethodToUpdate."DXR-DE Prioridad";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if PaymentMethodToUpdate."Prioridad_DXR" = Blank."Prioridad_DXR" then
+                            PaymentMethodToUpdate."Prioridad_DXR" := PaymentMethodToUpdate."DXR-DE Prioridad";
                         PaymentMethodToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;
@@ -994,6 +1020,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         ShipToAddressRec: Record "Ship-to Address";
         ShipToAddressToUpdate: Record "Ship-to Address";
+        Blank: Record "Ship-to Address";
         RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SHIPTOADDRESS-28.3') then
@@ -1010,8 +1037,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                    (ShipToAddressRec."Longitud_DXR" <> ShipToAddressRec."DXR-DE Longitud")
                 then
                     if ShipToAddressToUpdate.Get(ShipToAddressRec."Customer No.", ShipToAddressRec."Code") then begin
-                        ShipToAddressToUpdate."Latitud_DXR" := ShipToAddressToUpdate."DXR-DE Latitud";
-                        ShipToAddressToUpdate."Longitud_DXR" := ShipToAddressToUpdate."DXR-DE Longitud";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if ShipToAddressToUpdate."Latitud_DXR" = Blank."Latitud_DXR" then
+                            ShipToAddressToUpdate."Latitud_DXR" := ShipToAddressToUpdate."DXR-DE Latitud";
+                        if ShipToAddressToUpdate."Longitud_DXR" = Blank."Longitud_DXR" then
+                            ShipToAddressToUpdate."Longitud_DXR" := ShipToAddressToUpdate."DXR-DE Longitud";
                         ShipToAddressToUpdate.Modify(false);
                         CommitEvery500(RowsSinceCommit);
                     end;

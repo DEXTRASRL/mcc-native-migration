@@ -64,6 +64,7 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     local procedure CopyPOSTerminalFields()
     var
         PosTerminal: Record "LSC POS Terminal";
+        Blank: Record "LSC POS Terminal";
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
@@ -98,99 +99,103 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
         if PosTerminal.FindSet(true) then
             repeat
                 RecordChanged := false;
-                if PosTerminal."Uses VeriPhone_DXR" <> PosTerminal."Uses VeriPhone_Old" then begin
+                // Fixed 2026-08-27 (never-overwrite): each guard below used to compare against the
+                // "_Old" source field (<>), which only skips a no-op write - it does not stop a
+                // re-run from overwriting an already-populated _DXR value with the "_Old" one. Now
+                // fill-only-if-blank, same as the rest of this portfolio's tableextension migrations.
+                if PosTerminal."Uses VeriPhone_DXR" = Blank."Uses VeriPhone_DXR" then begin
                     PosTerminal."Uses VeriPhone_DXR" := PosTerminal."Uses VeriPhone_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal.Puerto_DXR <> PosTerminal.Puerto_Old then begin
+                if PosTerminal.Puerto_DXR = Blank.Puerto_DXR then begin
                     PosTerminal.Puerto_DXR := PosTerminal.Puerto_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.Proveedor_DXR <> PosTerminal.Proveedor_Old then begin
+                if PosTerminal.Proveedor_DXR = Blank.Proveedor_DXR then begin
                     PosTerminal.Proveedor_DXR := PosTerminal.Proveedor_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal."Imprime Ticket_DXR" <> PosTerminal."Imprime Ticket_Old" then begin
+                if PosTerminal."Imprime Ticket_DXR" = Blank."Imprime Ticket_DXR" then begin
                     PosTerminal."Imprime Ticket_DXR" := PosTerminal."Imprime Ticket_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Puerto Secundario_DXR" <> PosTerminal."Puerto Secundario_Old" then begin
+                if PosTerminal."Puerto Secundario_DXR" = Blank."Puerto Secundario_DXR" then begin
                     PosTerminal."Puerto Secundario_DXR" := PosTerminal."Puerto Secundario_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Direccion IP Secundaria_DXR" <> PosTerminal."Direccion IP Secundaria_Old" then begin
+                if PosTerminal."Direccion IP Secundaria_DXR" = Blank."Direccion IP Secundaria_DXR" then begin
                     PosTerminal."Direccion IP Secundaria_DXR" := PosTerminal."Direccion IP Secundaria_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Direccion IP_DXR" <> PosTerminal."Direccion IP_Old" then begin
+                if PosTerminal."Direccion IP_DXR" = Blank."Direccion IP_DXR" then begin
                     PosTerminal."Direccion IP_DXR" := PosTerminal."Direccion IP_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Puerto IP_DXR" <> PosTerminal."Puerto IP_Old" then begin
+                if PosTerminal."Puerto IP_DXR" = Blank."Puerto IP_DXR" then begin
                     PosTerminal."Puerto IP_DXR" := PosTerminal."Puerto IP_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Numero Transaccion_DXR" <> PosTerminal."Numero Transaccion_Old" then begin
+                if PosTerminal."Numero Transaccion_DXR" = Blank."Numero Transaccion_DXR" then begin
                     PosTerminal."Numero Transaccion_DXR" := PosTerminal."Numero Transaccion_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Numero Terminal_DXR" <> PosTerminal."Numero Terminal_Old" then begin
+                if PosTerminal."Numero Terminal_DXR" = Blank."Numero Terminal_DXR" then begin
                     PosTerminal."Numero Terminal_DXR" := PosTerminal."Numero Terminal_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Merchant ID_DXR" <> PosTerminal."Merchant ID_Old" then begin
+                if PosTerminal."Merchant ID_DXR" = Blank."Merchant ID_DXR" then begin
                     PosTerminal."Merchant ID_DXR" := PosTerminal."Merchant ID_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal.RutaFirma_DXR <> PosTerminal.RutaFirma_Old then begin
+                if PosTerminal.RutaFirma_DXR = Blank.RutaFirma_DXR then begin
                     PosTerminal.RutaFirma_DXR := PosTerminal.RutaFirma_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.Auth1_DXR <> PosTerminal.Auth1_Old then begin
+                if PosTerminal.Auth1_DXR = Blank.Auth1_DXR then begin
                     PosTerminal.Auth1_DXR := PosTerminal.Auth1_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.Auth2_DXR <> PosTerminal.Auth2_Old then begin
+                if PosTerminal.Auth2_DXR = Blank.Auth2_DXR then begin
                     PosTerminal.Auth2_DXR := PosTerminal.Auth2_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.IpString_DXR <> PosTerminal.IpString_Old then begin
+                if PosTerminal.IpString_DXR = Blank.IpString_DXR then begin
                     PosTerminal.IpString_DXR := PosTerminal.IpString_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.Rpuerto_DXR <> PosTerminal.Rpuerto_Old then begin
+                if PosTerminal.Rpuerto_DXR = Blank.Rpuerto_DXR then begin
                     PosTerminal.Rpuerto_DXR := PosTerminal.Rpuerto_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.LocalIpString_DXR <> PosTerminal.LocalIpString_Old then begin
+                if PosTerminal.LocalIpString_DXR = Blank.LocalIpString_DXR then begin
                     PosTerminal.LocalIpString_DXR := PosTerminal.LocalIpString_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal.LPuerto_DXR <> PosTerminal.LPuerto_Old then begin
+                if PosTerminal.LPuerto_DXR = Blank.LPuerto_DXR then begin
                     PosTerminal.LPuerto_DXR := PosTerminal.LPuerto_Old;
                     RecordChanged := true;
                 end;
-                if PosTerminal."Cierre Automatico_DXR" <> PosTerminal."Cierre Automatico_Old" then begin
+                if PosTerminal."Cierre Automatico_DXR" = Blank."Cierre Automatico_DXR" then begin
                     PosTerminal."Cierre Automatico_DXR" := PosTerminal."Cierre Automatico_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Visanet IpString_DXR" <> PosTerminal."Visanet IpString_Old" then begin
+                if PosTerminal."Visanet IpString_DXR" = Blank."Visanet IpString_DXR" then begin
                     PosTerminal."Visanet IpString_DXR" := PosTerminal."Visanet IpString_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Visanet Puerto_DXR" <> PosTerminal."Visanet Puerto_Old" then begin
+                if PosTerminal."Visanet Puerto_DXR" = Blank."Visanet Puerto_DXR" then begin
                     PosTerminal."Visanet Puerto_DXR" := PosTerminal."Visanet Puerto_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."URLEndPoint_DXR" <> PosTerminal."URLEndPoint_Old" then begin
+                if PosTerminal."URLEndPoint_DXR" = Blank."URLEndPoint_DXR" then begin
                     PosTerminal."URLEndPoint_DXR" := PosTerminal."URLEndPoint_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Use Amount In Currency_DXR" <> PosTerminal."Use Amount In Currency_Old" then begin
+                if PosTerminal."Use Amount In Currency_DXR" = Blank."Use Amount In Currency_DXR" then begin
                     PosTerminal."Use Amount In Currency_DXR" := PosTerminal."Use Amount In Currency_Old";
                     RecordChanged := true;
                 end;
-                if PosTerminal."Local Currency Symbol_DXR" <> PosTerminal."Local Currency Symbol_Old" then begin
+                if PosTerminal."Local Currency Symbol_DXR" = Blank."Local Currency Symbol_DXR" then begin
                     PosTerminal."Local Currency Symbol_DXR" := PosTerminal."Local Currency Symbol_Old";
                     RecordChanged := true;
                 end;
@@ -256,6 +261,7 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     local procedure CopyTenderTypeFields()
     var
         TenderType: Record "LSC Tender Type";
+        Blank: Record "LSC Tender Type";
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
@@ -271,23 +277,27 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
         if TenderType.FindSet(true) then
             repeat
                 RecordChanged := false;
-                if TenderType."ReqVeriphoneProcessing_DXR" <> TenderType."ReqVeriphoneProcessing_Old" then begin
+                // Fixed 2026-08-27 (never-overwrite): each guard below used to compare against the
+                // "_Old" source field (<>), which only skips a no-op write - it does not stop a
+                // re-run from overwriting an already-populated _DXR value with the "_Old" one. Now
+                // fill-only-if-blank, same as the rest of this portfolio's tableextension migrations.
+                if TenderType."ReqVeriphoneProcessing_DXR" = Blank."ReqVeriphoneProcessing_DXR" then begin
                     TenderType."ReqVeriphoneProcessing_DXR" := TenderType."ReqVeriphoneProcessing_Old";
                     RecordChanged := true;
                 end;
-                if TenderType.tPayment_DXR <> TenderType.tPayment_Old then begin
+                if TenderType.tPayment_DXR = Blank.tPayment_DXR then begin
                     TenderType.tPayment_DXR := TenderType.tPayment_Old;
                     RecordChanged := true;
                 end;
-                if TenderType."Cuota Payment_DXR" <> TenderType."Cuota Payment_Old" then begin
+                if TenderType."Cuota Payment_DXR" = Blank."Cuota Payment_DXR" then begin
                     TenderType."Cuota Payment_DXR" := TenderType."Cuota Payment_Old";
                     RecordChanged := true;
                 end;
-                if TenderType."Use Form For Cuotas_DXR" <> TenderType."Use Form For Cuotas_Old" then begin
+                if TenderType."Use Form For Cuotas_DXR" = Blank."Use Form For Cuotas_DXR" then begin
                     TenderType."Use Form For Cuotas_DXR" := TenderType."Use Form For Cuotas_Old";
                     RecordChanged := true;
                 end;
-                if TenderType."InfoCode For Cuotas_DXR" <> TenderType."InfoCode For Cuotas_Old" then begin
+                if TenderType."InfoCode For Cuotas_DXR" = Blank."InfoCode For Cuotas_DXR" then begin
                     TenderType."InfoCode For Cuotas_DXR" := TenderType."InfoCode For Cuotas_Old";
                     RecordChanged := true;
                 end;

@@ -29,6 +29,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         BankAccount: Record "Bank Account";
+        Blank: Record "Bank Account";
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('BANK-ACCOUNT')) then
@@ -40,7 +41,11 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
         BankAccount.SetLoadFields("VP Account Type_DXR", "VP Account Type");
         if BankAccount.FindSet(true) then
             repeat
-                BankAccount."VP Account Type_DXR" := Enum::"DXR_VP Account Type Bank".FromInteger(BankAccount."VP Account Type".AsInteger());
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this upgrade
+                // tag (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if BankAccount."VP Account Type_DXR" = Blank."VP Account Type_DXR" then
+                    BankAccount."VP Account Type_DXR" := Enum::"DXR_VP Account Type Bank".FromInteger(BankAccount."VP Account Type".AsInteger());
                 BankAccount.Modify(false);
                 CommitBatch(BatchCount);
             until BankAccount.Next() = 0;
@@ -132,6 +137,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Vendor: Record Vendor;
+        Blank: Record Vendor;
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('VENDOR')) then
@@ -152,16 +158,29 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
             "Business Partnert Id 2_DXR", "Business Partnert Id 2");
         if Vendor.FindSet(true) then
             repeat
-                Vendor."VP Name BPD_DXR" := Vendor."VP Name BPD";
-                Vendor."VP Sent BPD_DXR" := Vendor."VP Sent BPD";
-                Vendor."VP Date Sent BPD_DXR" := Vendor."VP Date Sent BPD";
-                Vendor."VP Document Type BPD_DXR" := Enum::"DXR_VP Document Type".FromInteger(Vendor."VP Document Type BPD".AsInteger());
-                Vendor."VP Contract account type_DXR" := Enum::"DXR_VP Contract Account Type".FromInteger(Vendor."VP Contract account type".AsInteger());
-                Vendor."VP Send BPD_DXR" := Vendor."VP Send BPD";
-                Vendor."VP Ident Type BPD_DXR" := Enum::"DXR_VP ID Types".FromInteger(Vendor."VP Identificaction Type BPD".AsInteger());
-                Vendor."VPTaxIdentTypeBPD_DXR" := Enum::"DXR_VP TaxIdentificactionType".FromInteger(Vendor."VPTaxIdentificactionTypeBPD".AsInteger());
-                Vendor."Business Partnert Id 1_DXR" := Vendor."Business Partnert Id 1";
-                Vendor."Business Partnert Id 2_DXR" := Vendor."Business Partnert Id 2";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this upgrade
+                // tag (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if Vendor."VP Name BPD_DXR" = Blank."VP Name BPD_DXR" then
+                    Vendor."VP Name BPD_DXR" := Vendor."VP Name BPD";
+                if Vendor."VP Sent BPD_DXR" = Blank."VP Sent BPD_DXR" then
+                    Vendor."VP Sent BPD_DXR" := Vendor."VP Sent BPD";
+                if Vendor."VP Date Sent BPD_DXR" = Blank."VP Date Sent BPD_DXR" then
+                    Vendor."VP Date Sent BPD_DXR" := Vendor."VP Date Sent BPD";
+                if Vendor."VP Document Type BPD_DXR" = Blank."VP Document Type BPD_DXR" then
+                    Vendor."VP Document Type BPD_DXR" := Enum::"DXR_VP Document Type".FromInteger(Vendor."VP Document Type BPD".AsInteger());
+                if Vendor."VP Contract account type_DXR" = Blank."VP Contract account type_DXR" then
+                    Vendor."VP Contract account type_DXR" := Enum::"DXR_VP Contract Account Type".FromInteger(Vendor."VP Contract account type".AsInteger());
+                if Vendor."VP Send BPD_DXR" = Blank."VP Send BPD_DXR" then
+                    Vendor."VP Send BPD_DXR" := Vendor."VP Send BPD";
+                if Vendor."VP Ident Type BPD_DXR" = Blank."VP Ident Type BPD_DXR" then
+                    Vendor."VP Ident Type BPD_DXR" := Enum::"DXR_VP ID Types".FromInteger(Vendor."VP Identificaction Type BPD".AsInteger());
+                if Vendor."VPTaxIdentTypeBPD_DXR" = Blank."VPTaxIdentTypeBPD_DXR" then
+                    Vendor."VPTaxIdentTypeBPD_DXR" := Enum::"DXR_VP TaxIdentificactionType".FromInteger(Vendor."VPTaxIdentificactionTypeBPD".AsInteger());
+                if Vendor."Business Partnert Id 1_DXR" = Blank."Business Partnert Id 1_DXR" then
+                    Vendor."Business Partnert Id 1_DXR" := Vendor."Business Partnert Id 1";
+                if Vendor."Business Partnert Id 2_DXR" = Blank."Business Partnert Id 2_DXR" then
+                    Vendor."Business Partnert Id 2_DXR" := Vendor."Business Partnert Id 2";
                 Vendor.Modify(false);
                 CommitBatch(BatchCount);
             until Vendor.Next() = 0;

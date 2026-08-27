@@ -18,6 +18,7 @@ codeunit 60070 "DXR MCC SD Migr Customer"
     var
         Cust: Record Customer;
         CustToUpdate: Record Customer;
+        Blank: Record Customer;
         RowsSinceCommit: Integer;
     begin
         Cust.SetLoadFields("No.", "Special Dispatch_DXR", "Special Dispatch DXR");
@@ -26,7 +27,11 @@ codeunit 60070 "DXR MCC SD Migr Customer"
         repeat
             if Cust."Special Dispatch_DXR" <> Cust."Special Dispatch DXR" then
                 if CustToUpdate.Get(Cust."No.") then begin
-                    CustToUpdate."Special Dispatch_DXR" := CustToUpdate."Special Dispatch DXR";
+                    // Fixed 2026-08-27 (never-overwrite): the dirty-check above only avoids a no-op
+                    // write - it does not stop a re-run from overwriting an already-populated _DXR
+                    // value with the legacy one.
+                    if CustToUpdate."Special Dispatch_DXR" = Blank."Special Dispatch_DXR" then
+                        CustToUpdate."Special Dispatch_DXR" := CustToUpdate."Special Dispatch DXR";
                     CustToUpdate.Modify(false);
                     RowsSinceCommit += 1;
                     if RowsSinceCommit >= BatchSize() then begin

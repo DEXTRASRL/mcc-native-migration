@@ -60,6 +60,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     local procedure CopyPOSTerminalFields()
     var
         PosTerminal: Record "LSC POS Terminal";
+        Blank: Record "LSC POS Terminal";
         RowsSinceCommit: Integer;
     begin
         // Fixed 2026-08-27: added SetLoadFields (PK + exactly the fields read/written below) to avoid
@@ -93,36 +94,64 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
             "Local Currency Symbol_DXR", "DX Local Currency Symbol");
         if PosTerminal.FindSet(true) then begin
             repeat
-                PosTerminal."Uses VeriPhone_DXR" := PosTerminal."DX Uses VeriPhone";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this migration
+                // (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value. Guarded fill-only-if-blank, field by
+                // field, same as the rest of this portfolio's tableextension migrations.
+                if PosTerminal."Uses VeriPhone_DXR" = Blank."Uses VeriPhone_DXR" then
+                    PosTerminal."Uses VeriPhone_DXR" := PosTerminal."DX Uses VeriPhone";
                 // Cross-enum-type conversion: DXPuerto (enum "DX Port") → Puerto_DXR (enum DXR_Port)
                 // Ordinal values verified identical before .AsInteger() conversion (Port: {0:COM1..9:COM10}).
                 // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
-                PosTerminal.Puerto_DXR := (PosTerminal.DXPuerto.AsInteger());
+                if PosTerminal.Puerto_DXR = Blank.Puerto_DXR then
+                    PosTerminal.Puerto_DXR := (PosTerminal.DXPuerto.AsInteger());
                 // Cross-enum-type conversion: DXProveedor (enum "DX Provider") → Proveedor_DXR (enum DXR_Provider)
                 // Ordinal values verified identical before .AsInteger() conversion (Provider: {0:" ",1:Azul,2:Cardnet,3:Visanet,4:"Azul Com"}).
                 // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
-                PosTerminal.Proveedor_DXR := (PosTerminal.DXProveedor.AsInteger());
-                PosTerminal."Imprime Ticket_DXR" := PosTerminal."DXImprime Ticket";
-                PosTerminal."Puerto Secundario_DXR" := PosTerminal."DXPuerto Secundario";
-                PosTerminal."Direccion IP Secundaria_DXR" := PosTerminal."DXDireccion IP Secundaria";
-                PosTerminal."Direccion IP_DXR" := PosTerminal."DXDireccion IP";
-                PosTerminal."Puerto IP_DXR" := PosTerminal."DXPuerto IP";
-                PosTerminal."Numero Transaccion_DXR" := PosTerminal."DXNumero Transaccion";
-                PosTerminal."Numero Terminal_DXR" := PosTerminal."DXNumero Terminal";
-                PosTerminal."Merchant ID_DXR" := PosTerminal."DXMerchant ID";
-                PosTerminal.RutaFirma_DXR := PosTerminal.DXRutaFirma;
-                PosTerminal.Auth1_DXR := PosTerminal.DXAuth1;
-                PosTerminal.Auth2_DXR := PosTerminal.DXAuth2;
-                PosTerminal.IpString_DXR := PosTerminal.DXIpString;
-                PosTerminal.Rpuerto_DXR := PosTerminal.DXRpuerto;
-                PosTerminal.LocalIpString_DXR := PosTerminal.DXLocalIpString;
-                PosTerminal.LPuerto_DXR := PosTerminal.DXLPuerto;
-                PosTerminal."Cierre Automatico_DXR" := PosTerminal."DXCierre Automatico";
-                PosTerminal."Visanet IpString_DXR" := PosTerminal."DX Visanet IpString";
-                PosTerminal."Visanet Puerto_DXR" := PosTerminal."DX Visanet Puerto";
-                PosTerminal.URLEndPoint_DXR := PosTerminal.DXURLEndPoint;
-                PosTerminal."Use Amount In Currency_DXR" := PosTerminal."DX Use Amount In Currency";
-                PosTerminal."Local Currency Symbol_DXR" := PosTerminal."DX Local Currency Symbol";
+                if PosTerminal.Proveedor_DXR = Blank.Proveedor_DXR then
+                    PosTerminal.Proveedor_DXR := (PosTerminal.DXProveedor.AsInteger());
+                if PosTerminal."Imprime Ticket_DXR" = Blank."Imprime Ticket_DXR" then
+                    PosTerminal."Imprime Ticket_DXR" := PosTerminal."DXImprime Ticket";
+                if PosTerminal."Puerto Secundario_DXR" = Blank."Puerto Secundario_DXR" then
+                    PosTerminal."Puerto Secundario_DXR" := PosTerminal."DXPuerto Secundario";
+                if PosTerminal."Direccion IP Secundaria_DXR" = Blank."Direccion IP Secundaria_DXR" then
+                    PosTerminal."Direccion IP Secundaria_DXR" := PosTerminal."DXDireccion IP Secundaria";
+                if PosTerminal."Direccion IP_DXR" = Blank."Direccion IP_DXR" then
+                    PosTerminal."Direccion IP_DXR" := PosTerminal."DXDireccion IP";
+                if PosTerminal."Puerto IP_DXR" = Blank."Puerto IP_DXR" then
+                    PosTerminal."Puerto IP_DXR" := PosTerminal."DXPuerto IP";
+                if PosTerminal."Numero Transaccion_DXR" = Blank."Numero Transaccion_DXR" then
+                    PosTerminal."Numero Transaccion_DXR" := PosTerminal."DXNumero Transaccion";
+                if PosTerminal."Numero Terminal_DXR" = Blank."Numero Terminal_DXR" then
+                    PosTerminal."Numero Terminal_DXR" := PosTerminal."DXNumero Terminal";
+                if PosTerminal."Merchant ID_DXR" = Blank."Merchant ID_DXR" then
+                    PosTerminal."Merchant ID_DXR" := PosTerminal."DXMerchant ID";
+                if PosTerminal.RutaFirma_DXR = Blank.RutaFirma_DXR then
+                    PosTerminal.RutaFirma_DXR := PosTerminal.DXRutaFirma;
+                if PosTerminal.Auth1_DXR = Blank.Auth1_DXR then
+                    PosTerminal.Auth1_DXR := PosTerminal.DXAuth1;
+                if PosTerminal.Auth2_DXR = Blank.Auth2_DXR then
+                    PosTerminal.Auth2_DXR := PosTerminal.DXAuth2;
+                if PosTerminal.IpString_DXR = Blank.IpString_DXR then
+                    PosTerminal.IpString_DXR := PosTerminal.DXIpString;
+                if PosTerminal.Rpuerto_DXR = Blank.Rpuerto_DXR then
+                    PosTerminal.Rpuerto_DXR := PosTerminal.DXRpuerto;
+                if PosTerminal.LocalIpString_DXR = Blank.LocalIpString_DXR then
+                    PosTerminal.LocalIpString_DXR := PosTerminal.DXLocalIpString;
+                if PosTerminal.LPuerto_DXR = Blank.LPuerto_DXR then
+                    PosTerminal.LPuerto_DXR := PosTerminal.DXLPuerto;
+                if PosTerminal."Cierre Automatico_DXR" = Blank."Cierre Automatico_DXR" then
+                    PosTerminal."Cierre Automatico_DXR" := PosTerminal."DXCierre Automatico";
+                if PosTerminal."Visanet IpString_DXR" = Blank."Visanet IpString_DXR" then
+                    PosTerminal."Visanet IpString_DXR" := PosTerminal."DX Visanet IpString";
+                if PosTerminal."Visanet Puerto_DXR" = Blank."Visanet Puerto_DXR" then
+                    PosTerminal."Visanet Puerto_DXR" := PosTerminal."DX Visanet Puerto";
+                if PosTerminal.URLEndPoint_DXR = Blank.URLEndPoint_DXR then
+                    PosTerminal.URLEndPoint_DXR := PosTerminal.DXURLEndPoint;
+                if PosTerminal."Use Amount In Currency_DXR" = Blank."Use Amount In Currency_DXR" then
+                    PosTerminal."Use Amount In Currency_DXR" := PosTerminal."DX Use Amount In Currency";
+                if PosTerminal."Local Currency Symbol_DXR" = Blank."Local Currency Symbol_DXR" then
+                    PosTerminal."Local Currency Symbol_DXR" := PosTerminal."DX Local Currency Symbol";
                 PosTerminal.Modify(false);
                 RowsSinceCommit += 1;
                 if RowsSinceCommit >= 500 then begin
@@ -187,6 +216,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     local procedure CopyTenderTypeFields()
     var
         TenderType: Record "LSC Tender Type";
+        Blank: Record "LSC Tender Type";
         RowsSinceCommit: Integer;
     begin
         // Fixed 2026-08-27: added SetLoadFields (PK + exactly the fields read/written below) to avoid
@@ -201,11 +231,19 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
             "InfoCode For Cuotas_DXR", "DXInfoCode For Cuotas");
         if TenderType.FindSet(true) then begin
             repeat
-                TenderType."ReqVeriphoneProcessing_DXR" := TenderType."DXRequiredVeriphoneProcessing";
-                TenderType.tPayment_DXR := TenderType.DXtPayment;
-                TenderType."Cuota Payment_DXR" := TenderType."DXCuota Payment";
-                TenderType."Use Form For Cuotas_DXR" := TenderType."DXUse Form For Cuotas";
-                TenderType."InfoCode For Cuotas_DXR" := TenderType."DXInfoCode For Cuotas";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this migration
+                // (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if TenderType."ReqVeriphoneProcessing_DXR" = Blank."ReqVeriphoneProcessing_DXR" then
+                    TenderType."ReqVeriphoneProcessing_DXR" := TenderType."DXRequiredVeriphoneProcessing";
+                if TenderType.tPayment_DXR = Blank.tPayment_DXR then
+                    TenderType.tPayment_DXR := TenderType.DXtPayment;
+                if TenderType."Cuota Payment_DXR" = Blank."Cuota Payment_DXR" then
+                    TenderType."Cuota Payment_DXR" := TenderType."DXCuota Payment";
+                if TenderType."Use Form For Cuotas_DXR" = Blank."Use Form For Cuotas_DXR" then
+                    TenderType."Use Form For Cuotas_DXR" := TenderType."DXUse Form For Cuotas";
+                if TenderType."InfoCode For Cuotas_DXR" = Blank."InfoCode For Cuotas_DXR" then
+                    TenderType."InfoCode For Cuotas_DXR" := TenderType."DXInfoCode For Cuotas";
                 TenderType.Modify(false);
                 RowsSinceCommit += 1;
                 if RowsSinceCommit >= 500 then begin

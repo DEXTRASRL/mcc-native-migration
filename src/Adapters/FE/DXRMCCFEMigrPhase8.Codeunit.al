@@ -78,6 +78,7 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     local procedure CopyCurrencyFields()
     var
         Currency: Record Currency;
+        Blank: Record Currency;
     begin
         // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields this loop reads/writes; PK
         // fields are always loaded) so the scan stops joining the companion table of every Currency
@@ -85,7 +86,11 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
         Currency.SetLoadFields("Currency Type_DXR", "EF Currency Type");
         if Currency.FindSet(true) then
             repeat
-                Currency."Currency Type_DXR" := Currency."EF Currency Type";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this migration
+                // (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if Currency."Currency Type_DXR" = Blank."Currency Type_DXR" then
+                    Currency."Currency Type_DXR" := Currency."EF Currency Type";
                 Currency.Modify(false);
             until Currency.Next() = 0;
     end;
@@ -150,6 +155,7 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     var
         Item: Record Item;
         ItemToUpdate: Record Item;
+        Blank: Record Item;
         BatchCount: Integer;
     begin
         // Fixed 2026-08-27 (A1): this scanned the WHOLE Item table with FindSet(true), i.e. an UPDLOCK
@@ -166,8 +172,13 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
                    (Item."Tax Type_DXR" <> Item."EF Tax Type")
                 then
                     if ItemToUpdate.Get(Item."No.") then begin
-                        ItemToUpdate."Applies for ISC_DXR" := ItemToUpdate."EF Applies for ISC";
-                        ItemToUpdate."Tax Type_DXR" := ItemToUpdate."EF Tax Type";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // migration (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value.
+                        if ItemToUpdate."Applies for ISC_DXR" = Blank."Applies for ISC_DXR" then
+                            ItemToUpdate."Applies for ISC_DXR" := ItemToUpdate."EF Applies for ISC";
+                        if ItemToUpdate."Tax Type_DXR" = Blank."Tax Type_DXR" then
+                            ItemToUpdate."Tax Type_DXR" := ItemToUpdate."EF Tax Type";
                         ItemToUpdate.Modify(false);
 
                         BatchCount += 1;

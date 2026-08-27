@@ -5298,6 +5298,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         LSCMemberContact: Record "LSC Member Contact";
         LSCMemberContactToUpdate: Record "LSC Member Contact";
+        Blank: Record "LSC Member Contact";
     begin
         // Fixed 2026-08-24: MemberContact.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (none of the _DXR replacements are themselves
@@ -5324,12 +5325,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (LSCMemberContact."Sucursal Preferida_DXR" <> LSCMemberContact."Sucursal Preferida")
                 then
                     if LSCMemberContactToUpdate.GetBySystemId(LSCMemberContact.SystemId) then begin
-                        LSCMemberContactToUpdate."Cedula_DXR" := LSCMemberContactToUpdate.Cedula;
-                        LSCMemberContactToUpdate."Newsletter_DXR" := LSCMemberContactToUpdate.Newsletter;
-                        LSCMemberContactToUpdate."Profesion_DXR" := LSCMemberContactToUpdate.Profesion;
-                        LSCMemberContactToUpdate."Area de Trabajo_DXR" := LSCMemberContactToUpdate."Area de Trabajo";
-                        LSCMemberContactToUpdate."Cantidad De Hijos_DXR" := LSCMemberContactToUpdate."Cantidad De Hijos";
-                        LSCMemberContactToUpdate."Sucursal Preferida_DXR" := LSCMemberContactToUpdate."Sucursal Preferida";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if LSCMemberContactToUpdate."Cedula_DXR" = Blank."Cedula_DXR" then
+                            LSCMemberContactToUpdate."Cedula_DXR" := LSCMemberContactToUpdate.Cedula;
+                        if LSCMemberContactToUpdate."Newsletter_DXR" = Blank."Newsletter_DXR" then
+                            LSCMemberContactToUpdate."Newsletter_DXR" := LSCMemberContactToUpdate.Newsletter;
+                        if LSCMemberContactToUpdate."Profesion_DXR" = Blank."Profesion_DXR" then
+                            LSCMemberContactToUpdate."Profesion_DXR" := LSCMemberContactToUpdate.Profesion;
+                        if LSCMemberContactToUpdate."Area de Trabajo_DXR" = Blank."Area de Trabajo_DXR" then
+                            LSCMemberContactToUpdate."Area de Trabajo_DXR" := LSCMemberContactToUpdate."Area de Trabajo";
+                        if LSCMemberContactToUpdate."Cantidad De Hijos_DXR" = Blank."Cantidad De Hijos_DXR" then
+                            LSCMemberContactToUpdate."Cantidad De Hijos_DXR" := LSCMemberContactToUpdate."Cantidad De Hijos";
+                        if LSCMemberContactToUpdate."Sucursal Preferida_DXR" = Blank."Sucursal Preferida_DXR" then
+                            LSCMemberContactToUpdate."Sucursal Preferida_DXR" := LSCMemberContactToUpdate."Sucursal Preferida";
                         LSCMemberContactToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -5527,6 +5538,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         PaymentMethod: Record "Payment Method";
         PaymentMethodToUpdate: Record "Payment Method";
+        Blank: Record "Payment Method";
     begin
         // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
         // row - including the vast majority with nothing to migrate - and held it for the whole
@@ -5546,10 +5558,18 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (PaymentMethod."Tipo Venta_DXR" <> PaymentMethod."Tipo Venta")
                 then
                     if PaymentMethodToUpdate.GetBySystemId(PaymentMethod.SystemId) then begin
-                        PaymentMethodToUpdate."Payment Processor_DXR" := PaymentMethodToUpdate."Payment Processor";
-                        PaymentMethodToUpdate."Prioridad_DXR." := PaymentMethodToUpdate.Prioridad;
-                        PaymentMethodToUpdate."Contado_DXR" := PaymentMethodToUpdate.Contado;
-                        PaymentMethodToUpdate."Tipo Venta_DXR" := PaymentMethodToUpdate."Tipo Venta";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if PaymentMethodToUpdate."Payment Processor_DXR" = Blank."Payment Processor_DXR" then
+                            PaymentMethodToUpdate."Payment Processor_DXR" := PaymentMethodToUpdate."Payment Processor";
+                        if PaymentMethodToUpdate."Prioridad_DXR." = Blank."Prioridad_DXR." then
+                            PaymentMethodToUpdate."Prioridad_DXR." := PaymentMethodToUpdate.Prioridad;
+                        if PaymentMethodToUpdate."Contado_DXR" = Blank."Contado_DXR" then
+                            PaymentMethodToUpdate."Contado_DXR" := PaymentMethodToUpdate.Contado;
+                        if PaymentMethodToUpdate."Tipo Venta_DXR" = Blank."Tipo Venta_DXR" then
+                            PaymentMethodToUpdate."Tipo Venta_DXR" := PaymentMethodToUpdate."Tipo Venta";
                         PaymentMethodToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -5634,6 +5654,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         LSCRetailProductGroup: Record "LSC Retail Product Group";
         LSCRetailProductGroupToUpdate: Record "LSC Retail Product Group";
+        Blank: Record "LSC Retail Product Group";
     begin
         // Fixed 2026-08-24: ProductGroup.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (neither _DXR replacement is itself obsolete), are
@@ -5655,8 +5676,14 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (LSCRetailProductGroup."Comision_Cobro_DXR." <> LSCRetailProductGroup."Comision_Cobro")
                 then
                     if LSCRetailProductGroupToUpdate.GetBySystemId(LSCRetailProductGroup.SystemId) then begin
-                        LSCRetailProductGroupToUpdate."Block, Sand And Cement_DXR" := LSCRetailProductGroupToUpdate."Block, Sand And Cement";
-                        LSCRetailProductGroupToUpdate."Comision_Cobro_DXR." := LSCRetailProductGroupToUpdate."Comision_Cobro";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if LSCRetailProductGroupToUpdate."Block, Sand And Cement_DXR" = Blank."Block, Sand And Cement_DXR" then
+                            LSCRetailProductGroupToUpdate."Block, Sand And Cement_DXR" := LSCRetailProductGroupToUpdate."Block, Sand And Cement";
+                        if LSCRetailProductGroupToUpdate."Comision_Cobro_DXR." = Blank."Comision_Cobro_DXR." then
+                            LSCRetailProductGroupToUpdate."Comision_Cobro_DXR." := LSCRetailProductGroupToUpdate."Comision_Cobro";
                         LSCRetailProductGroupToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -6034,6 +6061,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         LSCSalesType: Record "LSC Sales Type";
         LSCSalesTypeToUpdate: Record "LSC Sales Type";
+        Blank: Record "LSC Sales Type";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "Venta Ex. ITBIS" into the dead
         // "_Old" shadow field (50001) - SalesType.TableExt.al's real active target, confirmed via
@@ -6051,7 +6079,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
             repeat
                 if LSCSalesType."Venta Ex. ITBIS_DXR" <> LSCSalesType."Venta Ex. ITBIS" then
                     if LSCSalesTypeToUpdate.GetBySystemId(LSCSalesType.SystemId) then begin
-                        LSCSalesTypeToUpdate."Venta Ex. ITBIS_DXR" := LSCSalesTypeToUpdate."Venta Ex. ITBIS";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if LSCSalesTypeToUpdate."Venta Ex. ITBIS_DXR" = Blank."Venta Ex. ITBIS_DXR" then
+                            LSCSalesTypeToUpdate."Venta Ex. ITBIS_DXR" := LSCSalesTypeToUpdate."Venta Ex. ITBIS";
                         LSCSalesTypeToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -6063,6 +6096,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         SalespersonPurchaser: Record "Salesperson/Purchaser";
         SalespersonPurchaserToUpdate: Record "Salesperson/Purchaser";
+        Blank: Record "Salesperson/Purchaser";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
         // shadow fields (50007-50009) - SalespersonPurchaser.TableExt.al's real active targets,
@@ -6085,9 +6119,16 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (SalespersonPurchaser."Tipo Comision_DXR" <> SalespersonPurchaser."Tipo Comision")
                 then
                     if SalespersonPurchaserToUpdate.GetBySystemId(SalespersonPurchaser.SystemId) then begin
-                        SalespersonPurchaserToUpdate."Gestor_CXP_DXR" := SalespersonPurchaserToUpdate.Gestor_CXP;
-                        SalespersonPurchaserToUpdate."Comisiona_DXR" := SalespersonPurchaserToUpdate.Comisiona;
-                        SalespersonPurchaserToUpdate."Tipo Comision_DXR" := SalespersonPurchaserToUpdate."Tipo Comision";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if SalespersonPurchaserToUpdate."Gestor_CXP_DXR" = Blank."Gestor_CXP_DXR" then
+                            SalespersonPurchaserToUpdate."Gestor_CXP_DXR" := SalespersonPurchaserToUpdate.Gestor_CXP;
+                        if SalespersonPurchaserToUpdate."Comisiona_DXR" = Blank."Comisiona_DXR" then
+                            SalespersonPurchaserToUpdate."Comisiona_DXR" := SalespersonPurchaserToUpdate.Comisiona;
+                        if SalespersonPurchaserToUpdate."Tipo Comision_DXR" = Blank."Tipo Comision_DXR" then
+                            SalespersonPurchaserToUpdate."Tipo Comision_DXR" := SalespersonPurchaserToUpdate."Tipo Comision";
                         SalespersonPurchaserToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -6218,6 +6259,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         TariffNumber: Record "Tariff Number";
         TariffNumberToUpdate: Record "Tariff Number";
+        Blank: Record "Tariff Number";
     begin
         // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
         // row - including the vast majority with nothing to migrate - and held it for the whole
@@ -6235,9 +6277,16 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (TariffNumber."% Selectivo_DXR" <> TariffNumber."% Selectivo")
                 then
                     if TariffNumberToUpdate.GetBySystemId(TariffNumber.SystemId) then begin
-                        TariffNumberToUpdate."% Arancel_DXR" := TariffNumberToUpdate."% Arancel";
-                        TariffNumberToUpdate."ISC_DXR" := TariffNumberToUpdate.ISC;
-                        TariffNumberToUpdate."% Selectivo_DXR" := TariffNumberToUpdate."% Selectivo";
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if TariffNumberToUpdate."% Arancel_DXR" = Blank."% Arancel_DXR" then
+                            TariffNumberToUpdate."% Arancel_DXR" := TariffNumberToUpdate."% Arancel";
+                        if TariffNumberToUpdate."ISC_DXR" = Blank."ISC_DXR" then
+                            TariffNumberToUpdate."ISC_DXR" := TariffNumberToUpdate.ISC;
+                        if TariffNumberToUpdate."% Selectivo_DXR" = Blank."% Selectivo_DXR" then
+                            TariffNumberToUpdate."% Selectivo_DXR" := TariffNumberToUpdate."% Selectivo";
                         TariffNumberToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
@@ -6253,6 +6302,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     var
         LSCTenderType: Record "LSC Tender Type";
         LSCTenderTypeToUpdate: Record "LSC Tender Type";
+        Blank: Record "LSC Tender Type";
     begin
         // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
         // row - including the vast majority with nothing to migrate - and held it for the whole
@@ -6266,7 +6316,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
             repeat
                 if LSCTenderType."IsCreditMemo_DXR" <> LSCTenderType.IsCreditMemo then
                     if LSCTenderTypeToUpdate.GetBySystemId(LSCTenderType.SystemId) then begin
-                        LSCTenderTypeToUpdate."IsCreditMemo_DXR" := LSCTenderTypeToUpdate.IsCreditMemo;
+                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
+                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
+                        // would blindly overwrite an already-populated _DXR value. Guarded like the
+                        // rest of this codeunit's tableextension migrations.
+                        if LSCTenderTypeToUpdate."IsCreditMemo_DXR" = Blank."IsCreditMemo_DXR" then
+                            LSCTenderTypeToUpdate."IsCreditMemo_DXR" := LSCTenderTypeToUpdate.IsCreditMemo;
                         LSCTenderTypeToUpdate.Modify(false);
                         CheckpointCommit();
                     end;
