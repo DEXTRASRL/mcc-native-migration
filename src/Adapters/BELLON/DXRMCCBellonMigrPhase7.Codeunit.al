@@ -10,6 +10,73 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
     // this phase bridges old -> new, same row, same table. Excludes Customer/Item (Phase 5),
     // the Sales/Purchase Header family (Phase 3), Contact (Phase 8, verified NOT colliding - see
     // that codeunit's header comment) and Transfer Header (Phase 9).
+    //
+    // Added 2026-08-27: this codeunit runs in background via TaskScheduler and had NO Permissions
+    // property at all, despite RecRef.Open()'ing 55 tables (53 via Database::"..." literal, plus
+    // "DXR_Cash Journal Receipt List" and "DXR_NCF Setup" via numeric ID - both Access = Internal
+    // in DR-Localization, confirmed via that dependency's own SymbolReference.json). DXR MCC
+    // PermissionSet (60000) only grants codeunit Execute and MCC's own tabledata, never
+    // third-party tabledata, so a per-object Permissions block is the sole runtime access
+    // mechanism in this codebase (see Phase2's own header comment). Every table here is read via
+    // FindSet(true) and, when a field is copied, written back via RecRef.Modify(false) on the SAME
+    // row (CopyFieldIfExists/PersistChangedRecord) - never Insert - so RM is correct for all 55.
+    Permissions =
+        tabledata "Approval Entry" = RM,
+        tabledata "Assembly Setup" = RM,
+        tabledata "Bank Acc. Reconciliation" = RM,
+        tabledata "Bank Acc. Reconciliation Line" = RM,
+        tabledata "Bank Account" = RM,
+        tabledata "Bank Account Ledger Entry" = RM,
+        tabledata "Check Ledger Entry" = RM,
+        tabledata "Company Information" = RM,
+        tabledata "Country/Region" = RM,
+        tabledata "Currency" = RM,
+        tabledata "Currency Exchange Rate" = RM,
+        tabledata "Cust. Ledger Entry" = RM,
+        tabledata "Customer Price Group" = RM,
+        tabledata "Gen. Journal Batch" = RM,
+        tabledata "Gen. Journal Line" = RM,
+        tabledata "Gen. Product Posting Group" = RM,
+        tabledata "General Ledger Setup" = RM,
+        tabledata "Issued Reminder Header" = RM,
+        tabledata "Item Category" = RM,
+        tabledata "Item Charge Assignment (Purch)" = RM,
+        tabledata "LSC Item Special Groups" = RM,
+        tabledata "DXR_Cash Journal Receipt List" = RM,
+        tabledata "Location" = RM,
+        tabledata "LSC Member Contact" = RM,
+        tabledata "LSC Member Point Offer" = RM,
+        tabledata "DXR_NCF Setup" = RM,
+        tabledata "Payment Method" = RM,
+        tabledata "LSC Periodic Discount" = RM,
+        tabledata "LSC Posted Statement" = RM,
+        tabledata "LSC Retail Product Group" = RM,
+        tabledata "Purch. Comment Line" = RM,
+        tabledata "Purch. Comment Line Archive" = RM,
+        tabledata "Purch. Inv. Line" = RM,
+        tabledata "Reason Code" = RM,
+        tabledata "LSC Replen. Journal Lines" = RM,
+        tabledata "LSC Replen. Template" = RM,
+        tabledata "LSC Retail Setup" = RM,
+        tabledata "LSC Retail User" = RM,
+        tabledata "Sales Price" = RM,
+        tabledata "Sales & Receivables Setup" = RM,
+        tabledata "LSC Sales Type" = RM,
+        tabledata "Salesperson/Purchaser" = RM,
+        tabledata "Ship-to Address" = RM,
+        tabledata "LSC Statement" = RM,
+        tabledata "LSC STORE" = RM,
+        tabledata "Tariff Number" = RM,
+        tabledata "LSC Tender Type" = RM,
+        tabledata "LSC Trans. Sales Entry" = RM,
+        tabledata "LSC Transaction Header" = RM,
+        tabledata "Transfer Receipt Header" = RM,
+        tabledata "Transfer Shipment Header" = RM,
+        tabledata "User Setup" = RM,
+        tabledata "Value Entry" = RM,
+        tabledata "Vendor" = RM,
+        tabledata "Warehouse Receipt Line" = RM;
+
     trigger OnRun()
     var
         UpgradeTag: Codeunit "Upgrade Tag";

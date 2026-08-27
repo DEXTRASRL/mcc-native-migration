@@ -12,8 +12,29 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
     // harmless since every field copy inside it is itself an "only if blank" guard, and this
     // matches the exact behavior the deleted delegation adapter already had (it called both real
     // methods in the same order every time it ran).
+    //
+    // Extended 2026-08-27 (retroactive repair - RepairLegacyTransactionFieldsIfNeeded below).
+    // The ported UpgradeLegacyFieldsToDXR()/UpgradePOSContingencyAuthority() above reproduce the
+    // real "DXR_LSFE Upgrade" verbatim, INCLUDING a gap in it: MigrateTransactions() only carries
+    // forward 6 of the 14 fields that the "LSEF LSC Transaction Header" tableextension (field IDs
+    // 55600-55613, every one ObsoleteState = Pending) renumbered into "DXR_LEF LSC Trans. Header"
+    // (52554-52570), and nothing anywhere migrates "LSEF LSC Trans. Sales Entry" (55600-55603) into
+    // "DXR_LEF LSC Trans Sales Entry" (52554-52557) at all. Verified field by field against
+    // Dextra_facturacion-electronica-ls_28.5.0.4.app - the exact dependency symbol package this
+    // project compiles against - in src\Base\old\TableExts.old\ (sources) vs src\Base\TableExts\
+    // (destinations).
+    // This is not cosmetic. LSFE's own DXR_LSFERetailEvents.Codeunit.al decides whether a
+    // transaction still needs to be stamped/sent by testing "Security Code_DXR" and
+    // "Stamped Date/Time_DXR" for blank, so historical transactions that WERE already stamped come
+    // back as pending-to-send once their value is stranded on the un-migrated 55xxx field.
+    // Both existing tags ('DXR-LSFE-FIELD-MIGRATION-20260820' and
+    // 'LSEF-POS-CONTINGENCY-AUTHORITY-27.2') are already set in production, so neither can be
+    // reused to ship this correction - a company that already ran them would skip it forever. The
+    // repair is therefore a SIBLING step with its own new tag, evaluated on every run regardless of
+    // how far that company got before (the retroactive-repair pattern this portfolio already uses).
     Permissions =
         tabledata "LSC Transaction Header" = RM,
+        tabledata "LSC Trans. Sales Entry" = RM,
         tabledata "LSC POS Terminal" = RM,
         tabledata "EF Administration Setup" = R,
         tabledata "DXR_Administration Setup" = RIMD,
@@ -28,6 +49,7 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
     begin
         UpgradeLegacyFieldsToDXR();
         UpgradePOSContingencyAuthority();
+        RepairLegacyTransactionFieldsIfNeeded();
     end;
 
     local procedure UpgradeLegacyFieldsToDXR()
@@ -68,12 +90,6 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         if TransactionHeader.FindSet(true) then
             repeat
                 Changed := false;
-                if IsNullGuid(TransactionHeader.QRImage_DXR.MediaId()) and
-                   (not IsNullGuid(TransactionHeader.LSEfQRImage.MediaId()))
-                then begin
-                    TransactionHeader.QRImage_DXR := TransactionHeader.LSEfQRImage;
-                    Changed := true;
-                end;
                 if (TransactionHeader."DGII Message_DXR" = '') and (TransactionHeader."EF DGII Message" <> '') then begin
                     TransactionHeader."DGII Message_DXR" := TransactionHeader."EF DGII Message";
                     Changed := true;
@@ -267,6 +283,174 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
                 if Changed then
                     POSTerminal.Modify(false);
             until POSTerminal.Next() = 0;
+    end;
+
+    /// <summary>
+    /// Retroactive repair for the 8 "LSEF LSC Transaction Header" fields and the 4
+    /// "LSEF LSC Trans. Sales Entry" fields that the ported upgrade never carried forward. Own tag,
+    /// evaluated unconditionally - see this codeunit's header for why neither existing tag could be
+    /// reused. Every copy is "only if the destination is still blank", so this is idempotent and can
+    /// never overwrite a value the real upgrade (or a user) already put there.
+    /// </summary>
+    local procedure RepairLegacyTransactionFieldsIfNeeded()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(LegacyTransactionFieldsRepairTag()) then
+            exit;
+
+        RepairTransactionHeaderFields();
+        RepairTransSalesEntryFields();
+
+        UpgradeTag.SetUpgradeTag(LegacyTransactionFieldsRepairTag());
+    end;
+
+    local procedure LegacyTransactionFieldsRepairTag(): Code[250]
+    begin
+        exit('DXR-MCC-LSFE-LEGACY-TRANS-FIELDS-REPAIR-20260827');
+    end;
+
+    local procedure RepairTransactionHeaderFields()
+    var
+        TransactionHeader: Record "LSC Transaction Header";
+        InStr: InStream;
+        OutStr: OutStream;
+        Changed: Boolean;
+        RowsSinceCommit: Integer;
+    begin
+        if not TransactionHeader.FindSet(true) then
+            exit;
+        repeat
+            Changed := false;
+
+            // The two fields LSFE's own retail events read to decide "already stamped?".
+            if (TransactionHeader."Security Code_DXR" = '') and (TransactionHeader."LSEF Security Code" <> '') then begin
+                TransactionHeader."Security Code_DXR" := TransactionHeader."LSEF Security Code";
+                Changed := true;
+            end;
+            if (TransactionHeader."Stamped Date/Time_DXR" = '') and (TransactionHeader."LSEF Stamped Date/Time" <> '') then begin
+                TransactionHeader."Stamped Date/Time_DXR" := TransactionHeader."LSEF Stamped Date/Time";
+                Changed := true;
+            end;
+
+            if (TransactionHeader."RequestedDateTime_DXR" = 0DT) and (TransactionHeader."LSEF Requested DateTime" <> 0DT) then begin
+                TransactionHeader."RequestedDateTime_DXR" := TransactionHeader."LSEF Requested DateTime";
+                Changed := true;
+            end;
+            if (TransactionHeader."NCF Mod. Reason_DXR" = 0) and (TransactionHeader."LSEF NCF Modification Reason" <> 0) then begin
+                TransactionHeader."NCF Mod. Reason_DXR" := TransactionHeader."LSEF NCF Modification Reason";
+                Changed := true;
+            end;
+            if (not TransactionHeader."Applies for ISC_DXR") and TransactionHeader."LSEF Applies for ISC" then begin
+                TransactionHeader."Applies for ISC_DXR" := true;
+                Changed := true;
+            end;
+
+            // Source and destination are different enum types, so the value crosses by ordinal -
+            // same technique MigrateTenderTypeRelations() already uses in this codeunit.
+            if (TransactionHeader."e-NCF Type_DXR".AsInteger() = 0) and
+               (TransactionHeader."LSEF e-NCF Type".AsInteger() <> 0)
+            then begin
+                TransactionHeader."e-NCF Type_DXR" :=
+                    Enum::"DXR_ecfType Basic".FromInteger(TransactionHeader."LSEF e-NCF Type".AsInteger());
+                Changed := true;
+            end;
+
+            // 55610/55612/55613 are the FIRST hop of a two-hop chain (55xxx -> 5256x -> final
+            // _DXR). MigrateTransactions() above only ever performed the second hop, so a value
+            // still sitting on the 55xxx field never arrived. Copied straight to the final
+            // destination here: the intermediate is itself ObsoleteState = Pending, so writing it
+            // would only move the problem one field along.
+            // NOT migrated here: 55610 LSEfQRImageOld (Media) -> QRImage_DXR. The QR image is
+            // regenerable presentation data, and the equivalent Media copy was deliberately removed
+            // from MigrateTransactions() above, so re-introducing it here would contradict that.
+            // The two BLOBs further down are kept on purpose - a signature value and the encoded
+            // fiscal barcode are not presentation data, they are the fiscal evidence of the stamp.
+            if (TransactionHeader."DGII Message_DXR" = '') and (TransactionHeader."LSEF DGII Message" <> '') then begin
+                TransactionHeader."DGII Message_DXR" := TransactionHeader."LSEF DGII Message";
+                Changed := true;
+            end;
+            if (TransactionHeader."Status_DXR".AsInteger() = 0) and (TransactionHeader."LSEF Status".AsInteger() <> 0) then begin
+                TransactionHeader."Status_DXR" :=
+                    Enum::"DXR_Approval Status Type".FromInteger(TransactionHeader."LSEF Status".AsInteger());
+                Changed := true;
+            end;
+
+            // BLOB fields have no ":=" operator in AL - CalcFields first, then move the bytes with
+            // CreateInStream/CreateOutStream/CopyStream (the documented way).
+            TransactionHeader.CalcFields("Signature Value_DXR", "LSEF Signature Value", "Encoded Barcode_DXR", "LSEF Encoded Barcode");
+            if (TransactionHeader."Signature Value_DXR".Length() = 0) and
+               (TransactionHeader."LSEF Signature Value".Length() > 0)
+            then begin
+                TransactionHeader."LSEF Signature Value".CreateInStream(InStr);
+                TransactionHeader."Signature Value_DXR".CreateOutStream(OutStr);
+                CopyStream(OutStr, InStr);
+                Changed := true;
+            end;
+            if (TransactionHeader."Encoded Barcode_DXR".Length() = 0) and
+               (TransactionHeader."LSEF Encoded Barcode".Length() > 0)
+            then begin
+                TransactionHeader."LSEF Encoded Barcode".CreateInStream(InStr);
+                TransactionHeader."Encoded Barcode_DXR".CreateOutStream(OutStr);
+                CopyStream(OutStr, InStr);
+                Changed := true;
+            end;
+
+            if Changed then
+                TransactionHeader.Modify(false);
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= BatchSize() then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
+        until TransactionHeader.Next() = 0;
+        Commit();
+    end;
+
+    /// <summary>
+    /// "LSEF LSC Trans. Sales Entry" (55600-55603) -> "DXR_LEF LSC Trans Sales Entry" (52554-52557).
+    /// This table had ZERO migration coverage anywhere - not in LSFE's own upgrade, not in MCC.
+    /// </summary>
+    local procedure RepairTransSalesEntryFields()
+    var
+        TransSalesEntry: Record "LSC Trans. Sales Entry";
+        Changed: Boolean;
+        RowsSinceCommit: Integer;
+    begin
+        if not TransSalesEntry.FindSet(true) then
+            exit;
+        repeat
+            Changed := false;
+
+            if (not TransSalesEntry."Applies for ISC_DXR") and TransSalesEntry."LSEF Applies for ISC" then begin
+                TransSalesEntry."Applies for ISC_DXR" := true;
+                Changed := true;
+            end;
+            if (not TransSalesEntry."Appl. Withholding_DXR") and TransSalesEntry."LSEF Applies for Withholding" then begin
+                TransSalesEntry."Appl. Withholding_DXR" := true;
+                Changed := true;
+            end;
+            if (TransSalesEntry."UOM Type_DXR" = '') and (TransSalesEntry."LSEF UOM Type" <> '') then begin
+                TransSalesEntry."UOM Type_DXR" := TransSalesEntry."LSEF UOM Type";
+                Changed := true;
+            end;
+            if (TransSalesEntry."Tax Indicator_DXR".AsInteger() = 0) and
+               (TransSalesEntry."LSEF Tax Indicator".AsInteger() <> 0)
+            then begin
+                TransSalesEntry."Tax Indicator_DXR" :=
+                    Enum::"DXR_Inv. Tax Indicator Type".FromInteger(TransSalesEntry."LSEF Tax Indicator".AsInteger());
+                Changed := true;
+            end;
+
+            if Changed then
+                TransSalesEntry.Modify(false);
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= BatchSize() then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
+        until TransSalesEntry.Next() = 0;
+        Commit();
     end;
 
     local procedure CopyIfBlank(var Target: Code[20]; Source: Code[20]; var Changed: Boolean)

@@ -215,6 +215,9 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P11 Master" = X,
         codeunit "DXR MCC FE P11 Historic" = X,
 #if not ESCUDEA and not BCDX
+        // Added 2026-08-27: Codeunit.Run needs Execute permission on the target, and every BELLON
+        // Phase 2 step now goes through this runner (see "Per-step isolation" in that codeunit).
+        codeunit "DXR MCC Bellon P2 Step" = X,
         codeunit "DXR MCC Bellon P2 Setup" = X,
         codeunit "DXR MCC Bellon P2 Master" = X,
         codeunit "DXR MCC Bellon P2 Historic" = X,

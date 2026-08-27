@@ -1,4 +1,56 @@
 #if not ESCUDEA and not BCDX
+/// <summary>
+/// Runs exactly ONE named step of "DXR MCC Bellon Migr Phase2" through Codeunit.Run, so that a
+/// failure in a single table is rolled back alone instead of taking the whole category with it.
+/// Added 2026-08-27 together with that codeunit's RunIsolatedStep()/ExecuteStep() pair - see the
+/// "Per-step isolation" block there for the full rationale and the Learn references.
+///
+/// This exists as its own object rather than as a second entry point on Phase 2 because Phase 2's
+/// OnRun already means "run the entire legacy phase", and Codeunit.Run's error isolation is only
+/// available through a codeunit's OnRun trigger. The step code is carried on the instance (set via
+/// SetStep before Run), which is the standard AL way to parameterise a Codeunit.Run call that has
+/// no associated source table.
+///
+/// Declares no Permissions of its own on purpose: the data access happens inside Phase 2's own
+/// ExecuteStep(), so Phase 2's Permissions block is what governs it.
+/// </summary>
+codeunit 60389 "DXR MCC Bellon P2 Step"
+{
+    var
+        Worker: Codeunit "DXR MCC Bellon Migr Phase2";
+        StepCode: Text;
+        OldTableId: Integer;
+        NewTableId: Integer;
+
+    /// <summary>Named step: one specific Migrate... procedure, resolved by Phase 2's ExecuteStep.</summary>
+    procedure SetStep(NewStepCode: Text)
+    begin
+        StepCode := NewStepCode;
+        OldTableId := 0;
+        NewTableId := 0;
+    end;
+
+    /// <summary>
+    /// Generic legacy-table-pair step, for the Historic/Other categories where the migration is a
+    /// plain MigrateLegacyTableData(OldId, NewId) call. Carried as two integers instead of a named
+    /// step so those ~34 table pairs do not each need their own branch in ExecuteStep.
+    /// </summary>
+    procedure SetTablePair(NewOldTableId: Integer; NewNewTableId: Integer)
+    begin
+        StepCode := '';
+        OldTableId := NewOldTableId;
+        NewTableId := NewNewTableId;
+    end;
+
+    trigger OnRun()
+    begin
+        if StepCode <> '' then
+            Worker.ExecuteStep(StepCode)
+        else
+            Worker.ExecuteTablePair(OldTableId, NewTableId);
+    end;
+}
+
 codeunit 60309 "DXR MCC Bellon P2 Setup"
 {
     trigger OnRun()

@@ -74,6 +74,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // other procedure fixed 2026-08-24 above), is its "_DXR"-suffixed sibling. Converted to typed
     // Record with direct field access, matching this codeunit's established fix pattern - needs
     // the same RM grant as the other ~50 sibling tables above.
+    //
+    // Fixed 2026-08-27 (never-overwrite policy on the 10 typed MASTER-DATA field groups: Bank
+    // Account, Currency, Customer, "Customer Price Group", Item, "Item Category", Location,
+    // "Ship-to Address", "LSC STORE", Vendor - 118 field assignments in total). Those procedures
+    // used to copy unconditionally:
+    //     if (X_DXR <> X) then X_DXR := X;
+    // which overwrites the destination EVEN WITH A BLANK SOURCE. That is a real data-loss path, not
+    // a theoretical one: "DXR MCC Bellon Migr Phase5" (the port of "Bellon Migr. Phase 5 CustItem")
+    // repopulates these SAME _DXR fields from the "_BE_DXR" intermediates using a never-overwrite
+    // policy, and MigrateTableExt_ContactFields here already does the same through "DXR MCC Master
+    // Field Resolver". On a tenant where the live value sits in _BE_DXR and the original 500xx field
+    // is blank, running Phase 5 and then Phase 2 erased exactly what Phase 5 had just recovered -
+    // and nothing in the code declared or enforced the safe ordering. Each assignment is now:
+    //     if X_DXR = Blank.X_DXR then X_DXR := X;
+    // where Blank is a Record variable of the same table that is never read from the database, so
+    // every one of its fields sits at that field's declared default/InitValue. Comparing against it
+    // is deliberately type-agnostic - it is correct for Text, Code, Decimal, Integer, Boolean, Date,
+    // DateTime and Option alike, which hand-written "= ''"/"= 0"/"= false" tests are not (that exact
+    // Boolean/Option blind spot exists in the resolver's own TestField-based HasValue). Net effect:
+    // Phase 2 now only ever FILLS an empty destination, never replaces a value another phase or a
+    // user already put there, which also makes the Phase 2 / Phase 5 execution order irrelevant.
+    // NOT applied to the ~47 accounting/historic field groups in this same codeunit - they keep the
+    // original unconditional copy; see the task notes for that pending follow-up.
     Permissions =
         tabledata "DXR_NCF Setup" = RM,
         tabledata "Bancos - Extracto Bancario" = R,
@@ -156,6 +179,17 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata "Bank Acc. Reconciliation Line" = RM,
         tabledata "Bank Account" = RM,
         tabledata "Bank Account Ledger Entry" = RM,
+        // Added 2026-08-27 (Critical, found auditing why the Master category never produced Contact
+        // data): MigrateTableExt_ContactFields() does RecRef.Open(Database::"Contact") followed by
+        // RecRef.Modify(false), but Contact had NO grant here at all - every other master table this
+        // procedure family touches did (Customer, Item, Vendor, Location, "Ship-to Address", "Bank
+        // Account", Currency, "Customer Price Group", "Item Category", "LSC STORE"). Since
+        // permissionset 60000 "DXR MCC" grants only MCC's own tabledata plus codeunit Execute, a
+        // per-object Permissions entry is the ONLY runtime write path in this codebase, so this
+        // procedure could only ever fail with "Required permission ... Modify ... Contact" in the
+        // background session - and, before the step isolation added below, that single failure
+        // aborted the rest of RunMaster() with it.
+        tabledata Contact = RM,
         tabledata Currency = RM,
         tabledata "Currency Exchange Rate" = RM,
         tabledata "Cust. Ledger Entry" = RM,
@@ -177,6 +211,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata "Payment Method" = RM,
         tabledata "LSC Posted Statement" = RM,
         tabledata "LSC Retail Product Group" = RM,
+        // Added 2026-08-27, same gap as Contact above: MigrateTableExt_LSCRetailSetupFields()
+        // declares Record "LSC Retail Setup" and calls CalcFields + Modify on it (including the
+        // "Terminos Devoluciones" BLOB) from RunSetup(), with no grant.
+        tabledata "LSC Retail Setup" = RM,
         tabledata "Purch. Comment Line" = RM,
         tabledata "Purch. Comment Line Archive" = RM,
         tabledata "Purch. Inv. Line" = RM,
@@ -215,216 +253,708 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         end;
     end;
 
-    procedure RunSetup()
+    // ===== Per-step isolation (added 2026-08-27) =====
+    //
+    // WHY: RunMaster()/RunAccounting() were a single flat sequence of ~30-50 calls running in ONE
+    // transaction under ONE upgrade tag, set by the category dispatcher only after the very last
+    // call returned (see "DXR MCC Bellon P2 Master"/"DXR MCC Bellon P2 Accounting" in
+    // DXRMCCBellonCategoryDispatchers.Codeunit.al). That shape has three compounding failure modes,
+    // all three confirmed against a real BELLON run that stopped on "Item HTML"/"Item Image View"
+    // and consequently never migrated Contact, Customer, Item, Location, LSC STORE or Vendor at all:
+    //   1) one failing table aborted every remaining table in the same category;
+    //   2) the abort rolled back the tables that HAD already succeeded, because nothing committed
+    //      between them;
+    //   3) the dispatcher's tag was therefore never set, so the next run restarted from the first
+    //      table and stopped in exactly the same place - the category could never move forward.
+    // Removing the offending tables (done above) fixes today's symptom but not the shape, which is
+    // why this exists: it makes any future bad table cost exactly one step instead of a category.
+    //
+    // HOW: each table is now its own step, run through Codeunit.Run and guarded by its own upgrade
+    // tag. Per Learn ("Codeunit.Run(Integer [, var Record]) Method" - Transaction semantics): when
+    // the Boolean return value is used, the callee's changes are committed at the end unless an
+    // error occurs, and "If you're already in a transaction you must commit first before calling
+    // Codeunit.Run" - hence the Commit() immediately before each step. A failing step is thus rolled
+    // back ALONE, its tag stays unset, every other step still runs, and the next run retries only
+    // what actually failed. Codeunit.Run rather than [TryFunction] is REQUIRED here: the steps
+    // themselves commit internally (CheckpointCommit/FinishBatch) and Commit is illegal inside a
+    // TryFunction.
+    //
+    // Failures are accumulated and re-raised once at the end of the category, so the run is still
+    // reported as Failed in DXR MCC Run Log with the full list rather than silently swallowed.
+
+    /// <summary>
+    /// Executes exactly one named migration step. Public only so codeunit "DXR MCC Bellon P2 Step"
+    /// can invoke it through Codeunit.Run; never call it directly - go through RunIsolatedStep so
+    /// the step gets its commit boundary and its upgrade tag.
+    /// </summary>
+    internal procedure ExecuteStep(StepCode: Text)
     begin
-        MigrateAGRSetupTable(); // AGR Setup -> DXR_AGR Setup (native - fixes NewRecRef.Open-inside-loop leak, see MigrateLegacyTableData)
-        MigrateAjusteInventarioConfigTable(); // Ajuste Inventario Config -> DXR_Ajuste Inventario Config (native)
-        MigrateAreaDeTrabajoTable(); // Area de Trabajo -> DXR_Area de Trabajo (native)
-        MigrateCategoriaServiciosTable(); // Categoria Servicios -> DXR_Categoria Servicios (native)
-        MigrateCilindrosSetupTable(); // Cilindros - Setup -> DXR_Cilindros - Setup (native)
-        MigrateCodigosDeAuditoriaTable(); // Codigos de Auditoria -> DXR_Codigos de Auditoria. (native)
-        MigrateConfExtractoBancarioTable(); // Conf. Extracto Bancario -> DXR_Conf. Extracto Bancario (native)
-        MigrateConfigNCFVentasTable(); // Config. NCF Ventas -> DXR_Config. NCF Ventas (native)
-        MigrateConfigNCFVentasSTDTable(); // Config. NCF Ventas STD -> DXR_Config. NCF Ventas STD (native)
-        MigrateConfigPolizasTable(); // Config. Polizas -> DXR_Config. Polizas (native)
-        MigrateConfiguracionCBTable(); // Configuracion CB -> DXR_Configuracion CB (native)
-        MigrateConfiguracionDiscrepanciasTable(); // Configuracion - Discrepancias -> DXR_Config - Discr (native)
-        MigrateConfiguracionEncuestasPOSTable(); // Configuracion Encuestas - POS -> DXR_Config Encuestas - POS (native)
-        MigrateConfiguracionesRequisicionTable(); // Configuraciones Requisicion -> DXR_Config Req (native)
-        MigrateConfiguracionMedalliaTable(); // Configuracion - MEDALLIA -> DXR_Configuracion - MEDALLIA (native)
-        MigrateConfPagosEcommerceAzulTable(); // Conf. Pagos Ecommerce Azul -> DXR_Conf. Pagos Ecommerce Azul (native)
-        MigrateControlProcesosPorAlmacenTable(); // Control Procesos por Almacen -> DXR_Control Proc por Almacen (native)
-        MigrateDrawSetupTable(); // Draw Setup -> DXR_Draw Setup (native)
-        MigrateEmailSourceTemplateRelationTable(); // Email Source Template Relation -> DXR_Email Source Tmpl Rel (native)
-        MigrateEPagosSetupTable(); // EPagos Setup -> DXR_EPagos Setup (native)
-        MigrateExcludeFilterJournalTable(); // Exclude Filter Journal -> DXR_Exclude Filter Journal (native)
-        MigrateExcluirTerminosItemSearchTable(); // Excluir Terminos  - ItemSearch -> DXR_Excluir Term - ItemSearch (native)
-        MigrateFileStructureTable(); // File Structure -> DXR_File Structure (native)
-        MigrateFormaDePagoTable(); // Forma de Pago -> DXR_Forma de Pago (native)
-        MigrateBEInventoryMasksTable(); // BE Inventory Masks -> DXR_Inventory Masks (native)
-        MigrateMarcasTable(); // Marcas -> DXR_Marcas (native)
-        MigrateMemberManagementSetupTable(); // Member Management Setup -> DXR_Member Management Setup (native)
-        MigrateMotivoCierreDiscrepanciasTable(); // Motivo Cierre - Discrepancias -> DXR_Motivo Cierre - Discr (native)
-        MigrateMotivoDiscrepanciaTable(); // Motivo Discrepancia -> DXR_Motivo Discrepancia (native)
-        MigrateProfesionTable(); // Profesion -> DXR_Profesion (native)
-        MigratePromotionSetupTable(); // Promotion Setup -> DXR_Promotion Setup (native)
-        MigrateProvinciaTable(); // Provincia -> DXR_Provincia (native)
-        MigrateSalesDeptTable(); // Sales Dept -> DXR_Sales Dept (native)
-        MigrateSalesGroupsTable(); // Sales Groups -> DXR_Sales Groups (native)
-        MigrateSalesSubGroupsTable(); // Sales SubGroups -> DXR_Sales SubGroups (native)
-        MigrateStandardPOSDASCOMPaymtEqvTable(); // Standard POS DASCOM Paymt Eqv -> DXR_Std POS DASCOM Paymt Eqv (native)
-        MigrateStandardPOSGenCommentsTable(); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments (native)
-        MigrateStandardPOSUsersTable(); // Standard POS Users -> DXR_Standard POS Users (native)
-        MigrateSummaryReconciliationSetupTable(); // Summary Reconciliation Setup -> DXR_Summary Recon Setup (native)
-        MigrateTasasBCTable(); // Tasas BC -> DXR_Tasas BC (native)
-        MigrateTipoDeContenedorTable(); // Tipo de Contenedor -> DXR_Tipo de Contenedor (native)
-        MigrateTipoGasTable(); // Tipo Gas -> DXR_Tipo Gas (native)
-        MigrateTiposOAgentesTable(); // Tipos o Agentes -> DXR_Tipos o Agentes (native)
-        MigrateTratadosArancelariosTable(); // Tratados Arancelarios -> DXR_Tratados Arancelarios (native)
-        MigrateUserApproverByBuyerGroupTable(); // UserApproverByBuyerGroup -> DXR_UserApproverByBuyerGroup (native)
-        MigrateUserByBuyerGroupTable(); // UserByBuyerGroup -> DXR_UserByBuyerGroup (native)
-        MigrateVATBusSettingsTable(); // VAT Bus. Settings -> DXR_VAT Bus. Settings (native)
-        MigrateOperacionesTipoComprobante2Table(); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2 (native)
-        MigrateTableExt_LSCBarcodesFields();
-        MigrateTableExt_CheckLedgerEntryFields();
-        MigrateTableExt_CompanyInformationFields();
-        MigrateTableExt_CountryRegionFields();
-        MigrateTableExt_GenJournalBatchFields();
-        MigrateTableExt_GenJournalLineFields();
-        MigrateTableExt_GenProductPostingGroupFields();
-        MigrateTableExt_GeneralLedgerSetupFields();
-        MigrateTableExt_DXVendorWithholdingLedgerEntryFields();
-        MigrateTableExt_DXNCFSetupFields();
-        MigrateTableExt_ReasonCodeFields();
-        MigrateTableExt_LSCReplenJournalLinesFields();
-        MigrateTableExt_LSCReplenTemplateFields();
-        MigrateTableExt_LSCRetailSetupFields();
-        MigrateTableExt_LSCRetailUserFields();
-        MigrateTableExt_SalesPriceFields();
-        MigrateTableExt_SalesPriceWorksheetFields();
-        MigrateTableExt_SalesReceivablesSetupFields();
-        MigrateTableExt_LSCSalesTypeFields();
-        MigrateTableExt_SalespersonPurchaserFields();
+        case StepCode of
+            // --- Master: whole-table native restores ---
+            'BANK':
+                MigrateBankTable();
+            'BANK-RELATION':
+                MigrateBankRelationTable();
+            'CILINDROS':
+                MigrateCilindrosTable();
+            'GRUPO-VENTA':
+                MigrateGrupoVentaTable();
+            'ITEMNO-DESLIQUIDACION':
+                MigrateItemNoDesliquidacionTable();
+            'ORDER-ITEM-STATUS':
+                MigrateOrderItemStatusTable();
+            'PROMOTION-TICKETS-REL':
+                MigratePromotionTicketsRelationTable();
+            'USERPROMO-APPS':
+                MigrateUserPromoAppsTable();
+            'AGR-EXTENDED-ITEM':
+                MigrateAGRExtendedItemTable();
+            'COMISION-GRUPO-VENDEDOR':
+                MigrateComisionGrupoVendedorTable();
+            // --- Master: tableextension field groups ---
+            'TE-ASSEMBLY-SETUP':
+                MigrateTableExt_AssemblySetupFields();
+            'TE-BANK-ACCOUNT':
+                MigrateTableExt_BankAccountFields();
+            'TE-CONTACT':
+                MigrateTableExt_ContactFields();
+            'TE-CURRENCY':
+                MigrateTableExt_CurrencyFields();
+            'TE-CURRENCY-EXCH-RATE':
+                MigrateTableExt_CurrencyExchangeRateFields();
+            'TE-CUSTOMER':
+                MigrateTableExt_CustomerFields();
+            'TE-CUSTOMER-PRICE-GROUP':
+                MigrateTableExt_CustomerPriceGroupFields();
+            'TE-ITEM':
+                MigrateTableExt_ItemFields();
+            'TE-ITEM-CATEGORY':
+                MigrateTableExt_ItemCategoryFields();
+            'TE-ITEM-JNL-BATCH':
+                MigrateTableExt_ItemJournalBatchFields();
+            'TE-LSC-ITEM-SPECIAL-GROUPS':
+                MigrateTableExt_LSCItemSpecialGroupsFields();
+            'TE-LOCATION':
+                MigrateTableExt_LocationFields();
+            'TE-LSC-MEMBER-CONTACT':
+                MigrateTableExt_LSCMemberContactFields();
+            'TE-LSC-MEMBER-POINT-OFFER':
+                MigrateTableExt_LSCMemberPointOfferFields();
+            'TE-LSC-MEMBER-PT-OFFER-LINE':
+                MigrateTableExt_LSCMemberPointOfferLineFields();
+            'TE-LSC-PERIODIC-DISCOUNT':
+                MigrateTableExt_LSCPeriodicDiscountFields();
+            'TE-LSC-RETAIL-PRODUCT-GROUP':
+                MigrateTableExt_LSCRetailProductGroupFields();
+            'TE-SHIPTO-ADDRESS':
+                MigrateTableExt_ShiptoAddressFields();
+            'TE-LSC-STORE':
+                MigrateTableExt_LSCSTOREFields();
+            'TE-TARIFF-NUMBER':
+                MigrateTableExt_TariffNumberFields();
+            'TE-LSC-TENDER-TYPE':
+                MigrateTableExt_LSCTenderTypeFields();
+            // --- Accounting: whole-table native restores ---
+            'ACC-BANCOS-EXTRACTO':
+                MigrateBancosExtractoBancarioTable();
+            'ACC-CARGA-MASIVA-BENEF-BPD':
+                MigrateCargaMasivaBeneficiariosBPDTable();
+            'ACC-CONVERSION-COSTO':
+                MigrateConversionCostoTable();
+            'ACC-DETALLE-EXTRACTO':
+                MigrateDetalleExtractoBancarioTable();
+            'ACC-ENTREGA-FACT-CXC-LINES':
+                MigrateEntregaFacturasCxCLinesTable();
+            'ACC-ENVIO-COMPRAS':
+                MigrateEnvioComprasTable();
+            'ACC-INT-CONSUMP-HEADER':
+                MigrateInternalConsumptionHeaderTable();
+            'ACC-INT-CONSUMP-LINE':
+                MigrateInternalConsumptionLineTable();
+            'ACC-JOURNAL-PROMO-TICKETS':
+                MigrateJournalPromotionTicketsTable();
+            'ACC-LIN-CARGA-MASIVA-BEN-BPD':
+                MigrateLineasCargaMasivaBenBPDTable();
+            'ACC-MOV-CILINDRO':
+                MigrateMovimientosDeCilindroTable();
+            'ACC-PRE-REQ-LINE-NO-STOCK-VAL':
+                MigratePreReqLineNoStockValidTable();
+            'ACC-PRE-REQ-NO-STOCK-VALID':
+                MigratePreReqNoStockValidTable();
+            'ACC-PRE-REQUISICION':
+                MigratePreRequisicionTable();
+            'ACC-PRE-REQUISICION-LINE':
+                MigratePreRequisicionLineTable();
+            'ACC-PRE-REQ-LINE-NO-STOCK':
+                MigratePreRequisicionLineNoStockTable();
+            'ACC-PRE-REQUISICION-NO-STOCK':
+                MigratePreRequisicionNoStockTable();
+            'ACC-REQUISICION':
+                MigrateRequisicionTable();
+            'ACC-REQUISICION-COMMENT-LINE':
+                MigrateRequisicionCommentLineTable();
+            'ACC-REQUISICION-LINE':
+                MigrateRequisicionLineTable();
+            'ACC-STORE-STATEMENT-POSTING':
+                MigrateStoreStatementPostingTable();
+            'ACC-TICKETS-BY-OFFER':
+                MigrateTicketsByOfferTable();
+            'ACC-TICKETS-ENTRY':
+                MigrateTicketsEntryTable();
+            'ACC-VALORACION-INVENTARIO':
+                MigrateValoracionDeInventarioTable();
+            // --- Accounting: tableextension field groups ---
+            'TE-APPROVAL-ENTRY':
+                MigrateTableExt_ApprovalEntryFields();
+            'TE-ASSEMBLY-HEADER':
+                MigrateTableExt_AssemblyHeaderFields();
+            'TE-VENDOR-LEDGER-ENTRY':
+                MigrateTableExt_VendorLedgerEntryFields();
+            'TE-BANK-ACC-RECONCILIATION':
+                MigrateTableExt_BankAccReconciliationFields();
+            'TE-BANK-ACC-RECON-LINE':
+                MigrateTableExt_BankAccReconciliationLineFields();
+            'TE-BANK-ACCOUNT-LEDGER-ENTRY':
+                MigrateTableExt_BankAccountLedgerEntryFields();
+            'TE-CUST-LEDGER-ENTRY':
+                MigrateTableExt_CustLedgerEntryFields();
+            'TE-ISSUED-REMINDER-HEADER':
+                MigrateTableExt_IssuedReminderHeaderFields();
+            'TE-ISSUED-REMINDER-LINE':
+                MigrateTableExt_IssuedReminderLineFields();
+            'TE-ITEM-CHARGE-ASSGT-PURCH':
+                MigrateTableExt_ItemChargeAssignmentPurchFields();
+            'TE-ITEM-JOURNAL-LINE':
+                MigrateTableExt_ItemJournalLineFields();
+            'TE-ITEM-LEDGER-ENTRY':
+                MigrateTableExt_ItemLedgerEntryFields();
+            'TE-DX-CASH-JNL-RECEIPT-LIST':
+                MigrateTableExt_DXCashJournalReceiptListFields();
+            'TE-POSTED-ASSEMBLY-HEADER':
+                MigrateTableExt_PostedAssemblyHeaderFields();
+            'TE-LSC-POSTED-STATEMENT':
+                MigrateTableExt_LSCPostedStatementFields();
+            'TE-PURCH-COMMENT-LINE':
+                MigrateTableExt_PurchCommentLineFields();
+            'TE-PURCH-COMMENT-LINE-ARCH':
+                MigrateTableExt_PurchCommentLineArchiveFields();
+            'TE-PURCH-INV-LINE':
+                MigrateTableExt_PurchInvLineFields();
+            'TE-LSC-STATEMENT':
+                MigrateTableExt_LSCStatementFields();
+            'TE-LSC-TRANS-SALES-ENTRY':
+                MigrateTableExt_LSCTransSalesEntryFields();
+            'TE-LSC-TRANSACTION-HEADER':
+                MigrateTableExt_LSCTransactionHeaderFields();
+            'TE-TRANSFER-HEADER':
+                MigrateTableExt_TransferHeaderFields();
+            'TE-TRANSFER-LINE':
+                MigrateTableExt_TransferLineFields();
+            'TE-TRANSFER-RECEIPT-HEADER':
+                MigrateTableExt_TransferReceiptHeaderFields();
+            'TE-TRANSFER-SHIPMENT-HEADER':
+                MigrateTableExt_TransferShipmentHeaderFields();
+            'TE-USER-SETUP':
+                MigrateTableExt_UserSetupFields();
+            'TE-VALUE-ENTRY':
+                MigrateTableExt_ValueEntryFields();
+            'TE-VENDOR':
+                MigrateTableExt_VendorFields();
+            'TE-WAREHOUSE-RECEIPT-LINE':
+                MigrateTableExt_WarehouseReceiptLineFields();
+            // --- Setup / Historic / Other: named steps ---
+            'SET-AGR-SETUP':
+                MigrateAGRSetupTable();
+            'SET-AJUSTE-INVENTARIO-CONFIG':
+                MigrateAjusteInventarioConfigTable();
+            'SET-AREA-DE-TRABAJO':
+                MigrateAreaDeTrabajoTable();
+            'SET-CATEGORIA-SERVICIOS':
+                MigrateCategoriaServiciosTable();
+            'SET-CILINDROS-SETUP':
+                MigrateCilindrosSetupTable();
+            'SET-CODIGOS-DE-AUDITORIA':
+                MigrateCodigosDeAuditoriaTable();
+            'SET-CONF-EXTRACTO-BANCARIO':
+                MigrateConfExtractoBancarioTable();
+            'SET-CONFIG-NCF-VENTAS':
+                MigrateConfigNCFVentasTable();
+            'SET-CONFIG-NCF-VENTAS-STD':
+                MigrateConfigNCFVentasSTDTable();
+            'SET-CONFIG-POLIZAS':
+                MigrateConfigPolizasTable();
+            'SET-CONFIGURACION-CB':
+                MigrateConfiguracionCBTable();
+            'SET-CONFIGURACION-DISCREPANCIAS':
+                MigrateConfiguracionDiscrepanciasTable();
+            'SET-CONFIGURACION-ENCUESTAS-POS':
+                MigrateConfiguracionEncuestasPOSTable();
+            'SET-CONFIGURACIONES-REQUISICION':
+                MigrateConfiguracionesRequisicionTable();
+            'SET-CONFIGURACION-MEDALLIA':
+                MigrateConfiguracionMedalliaTable();
+            'SET-CONF-PAGOS-ECOMMERCE-AZUL':
+                MigrateConfPagosEcommerceAzulTable();
+            'SET-CONTROL-PROCESOS-POR-ALMACEN':
+                MigrateControlProcesosPorAlmacenTable();
+            'SET-DRAW-SETUP':
+                MigrateDrawSetupTable();
+            'SET-EMAIL-SOURCE-TEMPLATE-RELATION':
+                MigrateEmailSourceTemplateRelationTable();
+            'SET-E-PAGOS-SETUP':
+                MigrateEPagosSetupTable();
+            'SET-EXCLUDE-FILTER-JOURNAL':
+                MigrateExcludeFilterJournalTable();
+            'SET-EXCLUIR-TERMINOS-ITEM-SEARCH':
+                MigrateExcluirTerminosItemSearchTable();
+            'SET-FILE-STRUCTURE':
+                MigrateFileStructureTable();
+            'SET-FORMA-DE-PAGO':
+                MigrateFormaDePagoTable();
+            'SET-BE-INVENTORY-MASKS':
+                MigrateBEInventoryMasksTable();
+            'SET-MARCAS':
+                MigrateMarcasTable();
+            'SET-MEMBER-MANAGEMENT-SETUP':
+                MigrateMemberManagementSetupTable();
+            'SET-MOTIVO-CIERRE-DISCREPANCIAS':
+                MigrateMotivoCierreDiscrepanciasTable();
+            'SET-MOTIVO-DISCREPANCIA':
+                MigrateMotivoDiscrepanciaTable();
+            'SET-PROFESION':
+                MigrateProfesionTable();
+            'SET-PROMOTION-SETUP':
+                MigratePromotionSetupTable();
+            'SET-PROVINCIA':
+                MigrateProvinciaTable();
+            'SET-SALES-DEPT':
+                MigrateSalesDeptTable();
+            'SET-SALES-GROUPS':
+                MigrateSalesGroupsTable();
+            'SET-SALES-SUB-GROUPS':
+                MigrateSalesSubGroupsTable();
+            'SET-STANDARD-POSDASCOM-PAYMT-EQV':
+                MigrateStandardPOSDASCOMPaymtEqvTable();
+            'SET-STANDARD-POS-GEN-COMMENTS':
+                MigrateStandardPOSGenCommentsTable();
+            'SET-STANDARD-POS-USERS':
+                MigrateStandardPOSUsersTable();
+            'SET-SUMMARY-RECONCILIATION-SETUP':
+                MigrateSummaryReconciliationSetupTable();
+            'SET-TASAS-BC':
+                MigrateTasasBCTable();
+            'SET-TIPO-DE-CONTENEDOR':
+                MigrateTipoDeContenedorTable();
+            'SET-TIPO-GAS':
+                MigrateTipoGasTable();
+            'SET-TIPOS-O-AGENTES':
+                MigrateTiposOAgentesTable();
+            'SET-TRATADOS-ARANCELARIOS':
+                MigrateTratadosArancelariosTable();
+            'SET-USER-APPROVER-BY-BUYER-GROUP':
+                MigrateUserApproverByBuyerGroupTable();
+            'SET-USER-BY-BUYER-GROUP':
+                MigrateUserByBuyerGroupTable();
+            'SET-VAT-BUS-SETTINGS':
+                MigrateVATBusSettingsTable();
+            'SET-OPERACIONES-TIPO-COMPROBANTE2':
+                MigrateOperacionesTipoComprobante2Table();
+            'TE-LSC-BARCODES':
+                MigrateTableExt_LSCBarcodesFields();
+            'TE-CHECK-LEDGER-ENTRY':
+                MigrateTableExt_CheckLedgerEntryFields();
+            'TE-COMPANY-INFORMATION':
+                MigrateTableExt_CompanyInformationFields();
+            'TE-COUNTRY-REGION':
+                MigrateTableExt_CountryRegionFields();
+            'TE-GEN-JOURNAL-BATCH':
+                MigrateTableExt_GenJournalBatchFields();
+            'TE-GEN-JOURNAL-LINE':
+                MigrateTableExt_GenJournalLineFields();
+            'TE-GEN-PRODUCT-POSTING-GROUP':
+                MigrateTableExt_GenProductPostingGroupFields();
+            'TE-GENERAL-LEDGER-SETUP':
+                MigrateTableExt_GeneralLedgerSetupFields();
+            'TE-DX-VENDOR-WITHHOLDING-LEDGER-ENTRY':
+                MigrateTableExt_DXVendorWithholdingLedgerEntryFields();
+            'TE-DXNCF-SETUP':
+                MigrateTableExt_DXNCFSetupFields();
+            'TE-REASON-CODE':
+                MigrateTableExt_ReasonCodeFields();
+            'TE-LSC-REPLEN-JOURNAL-LINES':
+                MigrateTableExt_LSCReplenJournalLinesFields();
+            'TE-LSC-REPLEN-TEMPLATE':
+                MigrateTableExt_LSCReplenTemplateFields();
+            'TE-LSC-RETAIL-SETUP':
+                MigrateTableExt_LSCRetailSetupFields();
+            'TE-LSC-RETAIL-USER':
+                MigrateTableExt_LSCRetailUserFields();
+            'TE-SALES-PRICE':
+                MigrateTableExt_SalesPriceFields();
+            'TE-SALES-PRICE-WORKSHEET':
+                MigrateTableExt_SalesPriceWorksheetFields();
+            'TE-SALES-RECEIVABLES-SETUP':
+                MigrateTableExt_SalesReceivablesSetupFields();
+            'TE-LSC-SALES-TYPE':
+                MigrateTableExt_LSCSalesTypeFields();
+            'TE-SALESPERSON-PURCHASER':
+                MigrateTableExt_SalespersonPurchaserFields();
+            'TE-LSCPOS-TRANS-LINE':
+                MigrateTableExt_LSCPOSTransLineFields();
+            'TE-LSCPOS-TRANSACTION':
+                MigrateTableExt_LSCPOSTransactionFields();
+            'TE-PAYMENT-METHOD':
+                MigrateTableExt_PaymentMethodFields();
+            else
+                Error('Paso de migración desconocido en "DXR MCC Bellon Migr Phase2": %1.', StepCode);
+        end;
+    end;
+
+    /// <summary>
+    /// Runs one step in its own transaction. Never raises: a failed step is appended to FailedSteps
+    /// and the caller keeps going, so no single table can take the rest of the category down with
+    /// it. Already-tagged steps are skipped, which is what makes a re-run resume instead of restart.
+    /// </summary>
+    local procedure RunIsolatedStep(StepCode: Text; var FailedSteps: Text)
+    var
+        StepRunner: Codeunit "DXR MCC Bellon P2 Step";
+        UpgradeTag: Codeunit "Upgrade Tag";
+        StepTag: Code[250];
+        FailureText: Text;
+    begin
+        StepTag := GetStepTag(StepCode);
+        if UpgradeTag.HasUpgradeTag(StepTag) then
+            exit;
+
+        // Required by Codeunit.Run's documented transaction semantics, and it is also what turns the
+        // previous step's work into a committed checkpoint that this step's failure cannot undo.
+        Commit();
+
+        StepRunner.SetStep(StepCode);
+        if StepRunner.Run() then begin
+            UpgradeTag.SetUpgradeTag(StepTag);
+            Commit();
+            exit;
+        end;
+
+        FailureText := GetLastErrorText();
+        ClearLastError();
+        if FailureText = '' then
+            FailureText := 'error desconocido (sin texto)';
+        if FailedSteps <> '' then
+            FailedSteps += ' | ';
+        FailedSteps += StrSubstNo('%1: %2', StepCode, FailureText);
+    end;
+
+    /// <summary>
+    /// Table-pair counterpart of ExecuteStep, for the Historic/Other categories whose migrations are
+    /// plain MigrateLegacyTableData(OldId, NewId) calls. Same "public only for the step runner"
+    /// caveat - go through RunIsolatedTablePair.
+    /// </summary>
+    internal procedure ExecuteTablePair(OldTableId: Integer; NewTableId: Integer)
+    begin
+        MigrateLegacyTableData(OldTableId, NewTableId);
+    end;
+
+    /// <summary>
+    /// Same isolation contract as RunIsolatedStep, keyed by the table pair instead of a step name so
+    /// the ~34 generic legacy restores do not each need a branch in ExecuteStep.
+    /// </summary>
+    local procedure RunIsolatedTablePair(OldTableId: Integer; NewTableId: Integer; var FailedSteps: Text)
+    var
+        StepRunner: Codeunit "DXR MCC Bellon P2 Step";
+        UpgradeTag: Codeunit "Upgrade Tag";
+        StepTag: Code[250];
+        FailureText: Text;
+    begin
+        StepTag := GetStepTag(StrSubstNo('TBL-%1-%2', OldTableId, NewTableId));
+        if UpgradeTag.HasUpgradeTag(StepTag) then
+            exit;
+
+        Commit();
+
+        StepRunner.SetTablePair(OldTableId, NewTableId);
+        if StepRunner.Run() then begin
+            UpgradeTag.SetUpgradeTag(StepTag);
+            Commit();
+            exit;
+        end;
+
+        FailureText := GetLastErrorText();
+        ClearLastError();
+        if FailureText = '' then
+            FailureText := 'error desconocido (sin texto)';
+        if FailedSteps <> '' then
+            FailedSteps += ' | ';
+        FailedSteps += StrSubstNo('tabla %1->%2: %3', OldTableId, NewTableId, FailureText);
+    end;
+
+    local procedure GetStepTag(StepCode: Text): Code[250]
+    begin
+        exit(CopyStr(StrSubstNo('DXR-MCC-BELLON-P2-STEP-%1-20260827', StepCode), 1, 250));
+    end;
+
+    local procedure ThrowIfStepsFailed(CategoryName: Text; FailedSteps: Text)
+    begin
+        if FailedSteps = '' then
+            exit;
+        // Everything that succeeded is already committed and tagged; this only marks the run Failed
+        // so the operator sees exactly which steps still owe work, and stops the category dispatcher
+        // from setting its own "whole category done" tag.
+        Error(
+            'BELLON Phase 2 / %1: los pasos listados fallaron y NO quedaron migrados; todos los demás pasos sí se migraron y ya están confirmados. Vuelva a ejecutar esta categoría y sólo se reintentarán estos: %2',
+            CategoryName, FailedSteps);
+    end;
+
+    procedure RunSetup()
+    var
+        FailedSteps: Text;
+    begin
+        RunIsolatedStep('SET-AGR-SETUP', FailedSteps); // AGR Setup -> DXR_AGR Setup (native - fixes NewRecRef.Open-inside-loop leak, see MigrateLegacyTableData)
+        RunIsolatedStep('SET-AJUSTE-INVENTARIO-CONFIG', FailedSteps); // Ajuste Inventario Config -> DXR_Ajuste Inventario Config (native)
+        RunIsolatedStep('SET-AREA-DE-TRABAJO', FailedSteps); // Area de Trabajo -> DXR_Area de Trabajo (native)
+        RunIsolatedStep('SET-CATEGORIA-SERVICIOS', FailedSteps); // Categoria Servicios -> DXR_Categoria Servicios (native)
+        RunIsolatedStep('SET-CILINDROS-SETUP', FailedSteps); // Cilindros - Setup -> DXR_Cilindros - Setup (native)
+        RunIsolatedStep('SET-CODIGOS-DE-AUDITORIA', FailedSteps); // Codigos de Auditoria -> DXR_Codigos de Auditoria. (native)
+        RunIsolatedStep('SET-CONF-EXTRACTO-BANCARIO', FailedSteps); // Conf. Extracto Bancario -> DXR_Conf. Extracto Bancario (native)
+        RunIsolatedStep('SET-CONFIG-NCF-VENTAS', FailedSteps); // Config. NCF Ventas -> DXR_Config. NCF Ventas (native)
+        RunIsolatedStep('SET-CONFIG-NCF-VENTAS-STD', FailedSteps); // Config. NCF Ventas STD -> DXR_Config. NCF Ventas STD (native)
+        RunIsolatedStep('SET-CONFIG-POLIZAS', FailedSteps); // Config. Polizas -> DXR_Config. Polizas (native)
+        RunIsolatedStep('SET-CONFIGURACION-CB', FailedSteps); // Configuracion CB -> DXR_Configuracion CB (native)
+        RunIsolatedStep('SET-CONFIGURACION-DISCREPANCIAS', FailedSteps); // Configuracion - Discrepancias -> DXR_Config - Discr (native)
+        RunIsolatedStep('SET-CONFIGURACION-ENCUESTAS-POS', FailedSteps); // Configuracion Encuestas - POS -> DXR_Config Encuestas - POS (native)
+        RunIsolatedStep('SET-CONFIGURACIONES-REQUISICION', FailedSteps); // Configuraciones Requisicion -> DXR_Config Req (native)
+        RunIsolatedStep('SET-CONFIGURACION-MEDALLIA', FailedSteps); // Configuracion - MEDALLIA -> DXR_Configuracion - MEDALLIA (native)
+        RunIsolatedStep('SET-CONF-PAGOS-ECOMMERCE-AZUL', FailedSteps); // Conf. Pagos Ecommerce Azul -> DXR_Conf. Pagos Ecommerce Azul (native)
+        RunIsolatedStep('SET-CONTROL-PROCESOS-POR-ALMACEN', FailedSteps); // Control Procesos por Almacen -> DXR_Control Proc por Almacen (native)
+        RunIsolatedStep('SET-DRAW-SETUP', FailedSteps); // Draw Setup -> DXR_Draw Setup (native)
+        RunIsolatedStep('SET-EMAIL-SOURCE-TEMPLATE-RELATION', FailedSteps); // Email Source Template Relation -> DXR_Email Source Tmpl Rel (native)
+        RunIsolatedStep('SET-E-PAGOS-SETUP', FailedSteps); // EPagos Setup -> DXR_EPagos Setup (native)
+        RunIsolatedStep('SET-EXCLUDE-FILTER-JOURNAL', FailedSteps); // Exclude Filter Journal -> DXR_Exclude Filter Journal (native)
+        RunIsolatedStep('SET-EXCLUIR-TERMINOS-ITEM-SEARCH', FailedSteps); // Excluir Terminos  - ItemSearch -> DXR_Excluir Term - ItemSearch (native)
+        RunIsolatedStep('SET-FILE-STRUCTURE', FailedSteps); // File Structure -> DXR_File Structure (native)
+        RunIsolatedStep('SET-FORMA-DE-PAGO', FailedSteps); // Forma de Pago -> DXR_Forma de Pago (native)
+        RunIsolatedStep('SET-BE-INVENTORY-MASKS', FailedSteps); // BE Inventory Masks -> DXR_Inventory Masks (native)
+        RunIsolatedStep('SET-MARCAS', FailedSteps); // Marcas -> DXR_Marcas (native)
+        RunIsolatedStep('SET-MEMBER-MANAGEMENT-SETUP', FailedSteps); // Member Management Setup -> DXR_Member Management Setup (native)
+        RunIsolatedStep('SET-MOTIVO-CIERRE-DISCREPANCIAS', FailedSteps); // Motivo Cierre - Discrepancias -> DXR_Motivo Cierre - Discr (native)
+        RunIsolatedStep('SET-MOTIVO-DISCREPANCIA', FailedSteps); // Motivo Discrepancia -> DXR_Motivo Discrepancia (native)
+        RunIsolatedStep('SET-PROFESION', FailedSteps); // Profesion -> DXR_Profesion (native)
+        RunIsolatedStep('SET-PROMOTION-SETUP', FailedSteps); // Promotion Setup -> DXR_Promotion Setup (native)
+        RunIsolatedStep('SET-PROVINCIA', FailedSteps); // Provincia -> DXR_Provincia (native)
+        RunIsolatedStep('SET-SALES-DEPT', FailedSteps); // Sales Dept -> DXR_Sales Dept (native)
+        RunIsolatedStep('SET-SALES-GROUPS', FailedSteps); // Sales Groups -> DXR_Sales Groups (native)
+        RunIsolatedStep('SET-SALES-SUB-GROUPS', FailedSteps); // Sales SubGroups -> DXR_Sales SubGroups (native)
+        RunIsolatedStep('SET-STANDARD-POSDASCOM-PAYMT-EQV', FailedSteps); // Standard POS DASCOM Paymt Eqv -> DXR_Std POS DASCOM Paymt Eqv (native)
+        RunIsolatedStep('SET-STANDARD-POS-GEN-COMMENTS', FailedSteps); // Standard POS Gen. Comments -> DXR_Standard POS Gen. Comments (native)
+        RunIsolatedStep('SET-STANDARD-POS-USERS', FailedSteps); // Standard POS Users -> DXR_Standard POS Users (native)
+        RunIsolatedStep('SET-SUMMARY-RECONCILIATION-SETUP', FailedSteps); // Summary Reconciliation Setup -> DXR_Summary Recon Setup (native)
+        RunIsolatedStep('SET-TASAS-BC', FailedSteps); // Tasas BC -> DXR_Tasas BC (native)
+        RunIsolatedStep('SET-TIPO-DE-CONTENEDOR', FailedSteps); // Tipo de Contenedor -> DXR_Tipo de Contenedor (native)
+        RunIsolatedStep('SET-TIPO-GAS', FailedSteps); // Tipo Gas -> DXR_Tipo Gas (native)
+        RunIsolatedStep('SET-TIPOS-O-AGENTES', FailedSteps); // Tipos o Agentes -> DXR_Tipos o Agentes (native)
+        RunIsolatedStep('SET-TRATADOS-ARANCELARIOS', FailedSteps); // Tratados Arancelarios -> DXR_Tratados Arancelarios (native)
+        RunIsolatedStep('SET-USER-APPROVER-BY-BUYER-GROUP', FailedSteps); // UserApproverByBuyerGroup -> DXR_UserApproverByBuyerGroup (native)
+        RunIsolatedStep('SET-USER-BY-BUYER-GROUP', FailedSteps); // UserByBuyerGroup -> DXR_UserByBuyerGroup (native)
+        RunIsolatedStep('SET-VAT-BUS-SETTINGS', FailedSteps); // VAT Bus. Settings -> DXR_VAT Bus. Settings (native)
+        RunIsolatedStep('SET-OPERACIONES-TIPO-COMPROBANTE2', FailedSteps); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2 (native)
+        RunIsolatedStep('TE-LSC-BARCODES', FailedSteps);
+        RunIsolatedStep('TE-CHECK-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-COMPANY-INFORMATION', FailedSteps);
+        RunIsolatedStep('TE-COUNTRY-REGION', FailedSteps);
+        RunIsolatedStep('TE-GEN-JOURNAL-BATCH', FailedSteps);
+        RunIsolatedStep('TE-GEN-JOURNAL-LINE', FailedSteps);
+        RunIsolatedStep('TE-GEN-PRODUCT-POSTING-GROUP', FailedSteps);
+        RunIsolatedStep('TE-GENERAL-LEDGER-SETUP', FailedSteps);
+        RunIsolatedStep('TE-DX-VENDOR-WITHHOLDING-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-DXNCF-SETUP', FailedSteps);
+        RunIsolatedStep('TE-REASON-CODE', FailedSteps);
+        RunIsolatedStep('TE-LSC-REPLEN-JOURNAL-LINES', FailedSteps);
+        RunIsolatedStep('TE-LSC-REPLEN-TEMPLATE', FailedSteps);
+        RunIsolatedStep('TE-LSC-RETAIL-SETUP', FailedSteps);
+        RunIsolatedStep('TE-LSC-RETAIL-USER', FailedSteps);
+        RunIsolatedStep('TE-SALES-PRICE', FailedSteps);
+        RunIsolatedStep('TE-SALES-PRICE-WORKSHEET', FailedSteps);
+        RunIsolatedStep('TE-SALES-RECEIVABLES-SETUP', FailedSteps);
+        RunIsolatedStep('TE-LSC-SALES-TYPE', FailedSteps);
+        RunIsolatedStep('TE-SALESPERSON-PURCHASER', FailedSteps);
+        ThrowIfStepsFailed('Setup', FailedSteps);
     end;
 
     procedure RunMaster()
+    var
+        FailedSteps: Text;
     begin
-        MigrateBankTable(); // Bank -> DXR_Bank (native)
-        MigrateBankRelationTable(); // Bank Relation -> DXR_Bank Relation (native)
-        MigrateCilindrosTable(); // Cilindros -> DXR_Cilindros (native)
-        MigrateGrupoVentaTable(); // Grupo Venta -> DXR_Grupo Venta (native)
-        MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
-        MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
-        MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
-        MigrateOrderItemStatusTable(); // Order Item Status -> DXR_Order Item Status (native)
-        MigratePromotionTicketsRelationTable(); // Promotion Tickets Relation -> DXR_Promotion Tickets Relation (native)
-        MigrateUserPromoAppsTable(); // UserPromo Apps -> DXR_UserPromo Apps (native)
-        MigrateAGRExtendedItemTable(); // AGR Extended Item -> DXR_AGR Extended Item (native)
-        MigrateComisionGrupoVendedorTable(); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor (native)
-        MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
-        MigrateTableExt_AssemblySetupFields();
-        MigrateTableExt_BankAccountFields();
-        MigrateTableExt_ContactFields();
-        MigrateTableExt_CurrencyFields();
-        MigrateTableExt_CurrencyExchangeRateFields();
-        MigrateTableExt_CustomerFields();
-        MigrateTableExt_CustomerPriceGroupFields();
-        MigrateTableExt_ItemFields();
-        MigrateTableExt_ItemCategoryFields();
-        MigrateTableExt_ItemJournalBatchFields();
-        MigrateTableExt_LSCItemSpecialGroupsFields();
-        MigrateTableExt_LocationFields();
-        MigrateTableExt_LSCMemberContactFields();
-        MigrateTableExt_LSCMemberPointOfferFields();
-        MigrateTableExt_LSCMemberPointOfferLineFields();
-        MigrateTableExt_LSCPeriodicDiscountFields();
-        MigrateTableExt_LSCRetailProductGroupFields();
-        MigrateTableExt_ShiptoAddressFields();
-        MigrateTableExt_LSCSTOREFields();
-        MigrateTableExt_TariffNumberFields();
-        MigrateTableExt_LSCTenderTypeFields();
+        RunIsolatedStep('BANK', FailedSteps); // Bank -> DXR_Bank (native)
+        RunIsolatedStep('BANK-RELATION', FailedSteps); // Bank Relation -> DXR_Bank Relation (native)
+        RunIsolatedStep('CILINDROS', FailedSteps); // Cilindros -> DXR_Cilindros (native)
+        RunIsolatedStep('GRUPO-VENTA', FailedSteps); // Grupo Venta -> DXR_Grupo Venta (native)
+        // Removed 2026-08-27 (Master category stall, root cause): "Item HTML" and "Item Image View"
+        // used to run here, between Grupo Venta and ItemNo Desliquidacion, and they are where a real
+        // BELLON run stopped - so NOTHING below them in this procedure (Contact, Customer, Item,
+        // Location, LSC STORE, Ship-to Address, Tariff Number, LSC Tender Type...) ever executed.
+        //   * MigrateItemImageViewTable(): "Item Image View" (50099) AND "DXR_Item Image View"
+        //     (53360) both declare LinkedObject = true in Bellon Customization's own source
+        //     (Dextra_Bellon Customization_28.3.4.20.app, Base\Tables.old\ItemImageView.Table.al and
+        //     Base\Tables\ItemImageView.Table.al). A LinkedObject table is a link to a SQL Server
+        //     object, not BC-managed storage, and per Learn ("LinkedInTransaction Property") such
+        //     access "is not under Business Central transaction control". Source and destination
+        //     therefore resolve to the SAME external view: there is no tenant row to move, and the
+        //     Insert is issued against a SQL view. Migrating it is not slow, it is meaningless.
+        //   * MigrateItemHTMLTable(): "Item HTML" carries three BLOB fields (Html, "Descripcion
+        //     Extendida", Caracteristicas) copied per row via CalcFields + CopyStream, and this
+        //     whole procedure holds ONE uncommitted transaction, so the cost grew without bound.
+        //     Omitted by explicit decision - this content is presentation data, not master data.
+        // Both concepts are also Retired in DXR MCC Registry Loader (BELLON-P2 seq 74/75) so MCC's
+        // generic fallback stops re-attempting them on every run - the exact remediation already
+        // applied to DESB-P1 seq 29 for the same "looked like a frozen phase" symptom.
+        // MigrateItemNoDesliquidacionTable() below is NOT one of these: plain scalar table, kept.
+        RunIsolatedStep('ITEMNO-DESLIQUIDACION', FailedSteps); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
+        RunIsolatedStep('ORDER-ITEM-STATUS', FailedSteps); // Order Item Status -> DXR_Order Item Status (native)
+        RunIsolatedStep('PROMOTION-TICKETS-REL', FailedSteps); // Promotion Tickets Relation -> DXR_Promotion Tickets Relation (native)
+        RunIsolatedStep('USERPROMO-APPS', FailedSteps); // UserPromo Apps -> DXR_UserPromo Apps (native)
+        RunIsolatedStep('AGR-EXTENDED-ITEM', FailedSteps); // AGR Extended Item -> DXR_AGR Extended Item (native)
+        RunIsolatedStep('COMISION-GRUPO-VENDEDOR', FailedSteps); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor (native)
+        // Removed 2026-08-27: same LinkedObject reason as "Item Image View" above. "Inventory View"
+        // (50097) and "DXR_Inventory View." (55004) BOTH declare LinkedObject = true (verified in
+        // Dextra_Bellon Customization_28.3.4.20.app: Base\Tables.old\InventoryView.Table.al,
+        // Base\Tables\InventoryView.Table.al) - a SQL Server view computed from live inventory, not
+        // BC storage. There is nothing to copy, and the old call sat directly in front of the whole
+        // master-data tableextension block below. Concept BELLON-P2 seq 133 retired to match.
+        // MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
+        RunIsolatedStep('TE-ASSEMBLY-SETUP', FailedSteps);
+        RunIsolatedStep('TE-BANK-ACCOUNT', FailedSteps);
+        RunIsolatedStep('TE-CONTACT', FailedSteps);
+        RunIsolatedStep('TE-CURRENCY', FailedSteps);
+        RunIsolatedStep('TE-CURRENCY-EXCH-RATE', FailedSteps);
+        RunIsolatedStep('TE-CUSTOMER', FailedSteps);
+        RunIsolatedStep('TE-CUSTOMER-PRICE-GROUP', FailedSteps);
+        RunIsolatedStep('TE-ITEM', FailedSteps);
+        RunIsolatedStep('TE-ITEM-CATEGORY', FailedSteps);
+        RunIsolatedStep('TE-ITEM-JNL-BATCH', FailedSteps);
+        RunIsolatedStep('TE-LSC-ITEM-SPECIAL-GROUPS', FailedSteps);
+        RunIsolatedStep('TE-LOCATION', FailedSteps);
+        RunIsolatedStep('TE-LSC-MEMBER-CONTACT', FailedSteps);
+        RunIsolatedStep('TE-LSC-MEMBER-POINT-OFFER', FailedSteps);
+        RunIsolatedStep('TE-LSC-MEMBER-PT-OFFER-LINE', FailedSteps);
+        RunIsolatedStep('TE-LSC-PERIODIC-DISCOUNT', FailedSteps);
+        RunIsolatedStep('TE-LSC-RETAIL-PRODUCT-GROUP', FailedSteps);
+        RunIsolatedStep('TE-SHIPTO-ADDRESS', FailedSteps);
+        RunIsolatedStep('TE-LSC-STORE', FailedSteps);
+        RunIsolatedStep('TE-TARIFF-NUMBER', FailedSteps);
+        RunIsolatedStep('TE-LSC-TENDER-TYPE', FailedSteps);
+        ThrowIfStepsFailed('Master', FailedSteps);
     end;
 
     procedure RunAccounting()
+    var
+        FailedSteps: Text;
     begin
-        MigrateBancosExtractoBancarioTable();
-        MigrateCargaMasivaBeneficiariosBPDTable();
-        MigrateConversionCostoTable();
-        MigrateDetalleExtractoBancarioTable();
-        MigrateEntregaFacturasCxCLinesTable();
-        MigrateEnvioComprasTable();
-        MigrateInternalConsumptionHeaderTable();
-        MigrateInternalConsumptionLineTable();
-        MigrateJournalPromotionTicketsTable();
-        MigrateLineasCargaMasivaBenBPDTable();
-        MigrateMovimientosDeCilindroTable();
-        MigratePreReqLineNoStockValidTable();
-        MigratePreReqNoStockValidTable();
-        MigratePreRequisicionTable();
-        MigratePreRequisicionLineTable();
-        MigratePreRequisicionLineNoStockTable();
-        MigratePreRequisicionNoStockTable();
-        MigrateRequisicionTable();
-        MigrateRequisicionCommentLineTable();
-        MigrateRequisicionLineTable();
-        MigrateStoreStatementPostingTable();
-        MigrateTicketsByOfferTable();
-        MigrateTicketsEntryTable();
-        MigrateValoracionDeInventarioTable();
-        MigrateTableExt_ApprovalEntryFields();
-        MigrateTableExt_AssemblyHeaderFields();
-        MigrateTableExt_VendorLedgerEntryFields();
-        MigrateTableExt_BankAccReconciliationFields();
-        MigrateTableExt_BankAccReconciliationLineFields();
-        MigrateTableExt_BankAccountLedgerEntryFields();
-        MigrateTableExt_CustLedgerEntryFields();
-        MigrateTableExt_IssuedReminderHeaderFields();
-        MigrateTableExt_IssuedReminderLineFields();
-        MigrateTableExt_ItemChargeAssignmentPurchFields();
-        MigrateTableExt_ItemJournalLineFields();
-        MigrateTableExt_ItemLedgerEntryFields();
-        MigrateTableExt_DXCashJournalReceiptListFields();
-        MigrateTableExt_PostedAssemblyHeaderFields();
-        MigrateTableExt_LSCPostedStatementFields();
-        MigrateTableExt_PurchCommentLineFields();
-        MigrateTableExt_PurchCommentLineArchiveFields();
-        MigrateTableExt_PurchInvLineFields();
-        MigrateTableExt_LSCStatementFields();
-        MigrateTableExt_LSCTransSalesEntryFields();
-        MigrateTableExt_LSCTransactionHeaderFields();
-        MigrateTableExt_TransferHeaderFields();
-        MigrateTableExt_TransferLineFields();
-        MigrateTableExt_TransferReceiptHeaderFields();
-        MigrateTableExt_TransferShipmentHeaderFields();
-        MigrateTableExt_UserSetupFields();
-        MigrateTableExt_ValueEntryFields();
-        MigrateTableExt_VendorFields();
-        MigrateTableExt_WarehouseReceiptLineFields();
+        RunIsolatedStep('ACC-BANCOS-EXTRACTO', FailedSteps);
+        RunIsolatedStep('ACC-CARGA-MASIVA-BENEF-BPD', FailedSteps);
+        RunIsolatedStep('ACC-CONVERSION-COSTO', FailedSteps);
+        RunIsolatedStep('ACC-DETALLE-EXTRACTO', FailedSteps);
+        RunIsolatedStep('ACC-ENTREGA-FACT-CXC-LINES', FailedSteps);
+        RunIsolatedStep('ACC-ENVIO-COMPRAS', FailedSteps);
+        RunIsolatedStep('ACC-INT-CONSUMP-HEADER', FailedSteps);
+        RunIsolatedStep('ACC-INT-CONSUMP-LINE', FailedSteps);
+        RunIsolatedStep('ACC-JOURNAL-PROMO-TICKETS', FailedSteps);
+        RunIsolatedStep('ACC-LIN-CARGA-MASIVA-BEN-BPD', FailedSteps);
+        RunIsolatedStep('ACC-MOV-CILINDRO', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQ-LINE-NO-STOCK-VAL', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQ-NO-STOCK-VALID', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQUISICION', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQUISICION-LINE', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQ-LINE-NO-STOCK', FailedSteps);
+        RunIsolatedStep('ACC-PRE-REQUISICION-NO-STOCK', FailedSteps);
+        RunIsolatedStep('ACC-REQUISICION', FailedSteps);
+        RunIsolatedStep('ACC-REQUISICION-COMMENT-LINE', FailedSteps);
+        RunIsolatedStep('ACC-REQUISICION-LINE', FailedSteps);
+        RunIsolatedStep('ACC-STORE-STATEMENT-POSTING', FailedSteps);
+        RunIsolatedStep('ACC-TICKETS-BY-OFFER', FailedSteps);
+        RunIsolatedStep('ACC-TICKETS-ENTRY', FailedSteps);
+        RunIsolatedStep('ACC-VALORACION-INVENTARIO', FailedSteps);
+        RunIsolatedStep('TE-APPROVAL-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-ASSEMBLY-HEADER', FailedSteps);
+        RunIsolatedStep('TE-VENDOR-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-BANK-ACC-RECONCILIATION', FailedSteps);
+        RunIsolatedStep('TE-BANK-ACC-RECON-LINE', FailedSteps);
+        RunIsolatedStep('TE-BANK-ACCOUNT-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-CUST-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-ISSUED-REMINDER-HEADER', FailedSteps);
+        RunIsolatedStep('TE-ISSUED-REMINDER-LINE', FailedSteps);
+        RunIsolatedStep('TE-ITEM-CHARGE-ASSGT-PURCH', FailedSteps);
+        RunIsolatedStep('TE-ITEM-JOURNAL-LINE', FailedSteps);
+        RunIsolatedStep('TE-ITEM-LEDGER-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-DX-CASH-JNL-RECEIPT-LIST', FailedSteps);
+        RunIsolatedStep('TE-POSTED-ASSEMBLY-HEADER', FailedSteps);
+        RunIsolatedStep('TE-LSC-POSTED-STATEMENT', FailedSteps);
+        RunIsolatedStep('TE-PURCH-COMMENT-LINE', FailedSteps);
+        RunIsolatedStep('TE-PURCH-COMMENT-LINE-ARCH', FailedSteps);
+        RunIsolatedStep('TE-PURCH-INV-LINE', FailedSteps);
+        RunIsolatedStep('TE-LSC-STATEMENT', FailedSteps);
+        RunIsolatedStep('TE-LSC-TRANS-SALES-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-LSC-TRANSACTION-HEADER', FailedSteps);
+        RunIsolatedStep('TE-TRANSFER-HEADER', FailedSteps);
+        RunIsolatedStep('TE-TRANSFER-LINE', FailedSteps);
+        RunIsolatedStep('TE-TRANSFER-RECEIPT-HEADER', FailedSteps);
+        RunIsolatedStep('TE-TRANSFER-SHIPMENT-HEADER', FailedSteps);
+        RunIsolatedStep('TE-USER-SETUP', FailedSteps);
+        RunIsolatedStep('TE-VALUE-ENTRY', FailedSteps);
+        RunIsolatedStep('TE-VENDOR', FailedSteps);
+        RunIsolatedStep('TE-WAREHOUSE-RECEIPT-LINE', FailedSteps);
+        ThrowIfStepsFailed('Accounting', FailedSteps);
     end;
 
     procedure RunHistoric()
+    var
+        FailedSteps: Text;
     begin
-        MigrateLegacyTableData(50004, 53302); // AGR Log -> DXR_AGR Log
-        MigrateLegacyTableData(50071, 53341); // HisCargaMasivaBeneficiariosBPD -> DXR_HisCargaMasivaBenefBPD
-        MigrateLegacyTableData(50073, 53343); // HisLineasCargaMasivaBenefBPD -> DXR_HisLinCargaMasivaBenefBPD
-        MigrateLegacyTableData(50074, 53344); // Hist. Beneficiarios BPD -> DXR_Hist. Beneficiarios BPD
-        MigrateLegacyTableData(50075, 53345); // Hist. Cabecera Discrepancia -> DXR_Hist. Cabecera Discr
-        MigrateLegacyTableData(50076, 53346); // Hist. de Ganadores -> DXR_Hist. de Ganadores
-        MigrateLegacyTableData(50077, 53347); // Hist. Internal Consump. Header -> DXR_Hist. Int Consump. Header
-        MigrateLegacyTableData(50078, 53348); // Hist. Internal Consump. Line -> DXR_Hist. Int Consump. Line
-        MigrateLegacyTableData(50079, 53349); // Hist. Linea Discrepancia -> DXR_Hist. Linea Discrepancia
-        MigrateLegacyTableData(50081, 53350); // Historico Enc Requisicion -> DXR_Historico Enc Requisicion
-        MigrateLegacyTableData(50082, 53351); // Historico - Extracto Bancario -> DXR_Historico - Extr Bancario
-        MigrateLegacyTableData(50084, 53352); // Historico Requisicion Line -> DXR_Historico Requisicion Line
-        MigrateLegacyTableData(50085, 53353); // Hist Pre-Requisicion -> DXR_Hist Pre-Requisicion
-        MigrateLegacyTableData(50086, 53354); // Hist Pre-Requisicion Line -> DXR_Hist Pre-Requisicion Line
-        MigrateLegacyTableData(50095, 53357); // Internal Consumption Log -> DXR_Internal Consumption Log
-        MigrateLegacyTableData(50111, 53366); // Log - Bank Statement -> DXR_Log - Bank Statement
-        MigrateLegacyTableData(50112, 53367); // Log Email -> DXR_Log Email
-        MigrateLegacyTableData(50115, 53368); // Log Transaccion Azul -> DXR_Log Transaccion Azul
-        MigrateLegacyTableData(50116, 53369); // Log Transaccion Medallia -> DXR_Log Transaccion Medallia
-        MigrateLegacyTableData(50117, 53370); // Log Transfer error -> DXR_Log Transfer error
-        MigrateLegacyTableData(50132, 53377); // Posted Jnl Promotion Tickets -> DXR_Posted Jnl Promo Tickets
-        MigrateLegacyTableData(50141, 53384); // Printing Invoice Log -> DXR_Printing Invoice Log
-        MigrateLegacyTableData(50160, 53395); // Send Email Log -> DXR_Send Email Log
-        MigrateLegacyTableData(50186, 53407); // Trans. Archive Line -> DXR_Trans. Archive Line
-        MigrateLegacyTableData(50199, 53411); // UserLogs -> DXR_UserLogs
-        MigrateLegacyTableData(50206, 53415); // Printing Invoice Log BO -> DXR_Printing Invoice Log BO
+        RunIsolatedTablePair(50004, 53302, FailedSteps); // AGR Log -> DXR_AGR Log
+        RunIsolatedTablePair(50071, 53341, FailedSteps); // HisCargaMasivaBeneficiariosBPD -> DXR_HisCargaMasivaBenefBPD
+        RunIsolatedTablePair(50073, 53343, FailedSteps); // HisLineasCargaMasivaBenefBPD -> DXR_HisLinCargaMasivaBenefBPD
+        RunIsolatedTablePair(50074, 53344, FailedSteps); // Hist. Beneficiarios BPD -> DXR_Hist. Beneficiarios BPD
+        RunIsolatedTablePair(50075, 53345, FailedSteps); // Hist. Cabecera Discrepancia -> DXR_Hist. Cabecera Discr
+        RunIsolatedTablePair(50076, 53346, FailedSteps); // Hist. de Ganadores -> DXR_Hist. de Ganadores
+        RunIsolatedTablePair(50077, 53347, FailedSteps); // Hist. Internal Consump. Header -> DXR_Hist. Int Consump. Header
+        RunIsolatedTablePair(50078, 53348, FailedSteps); // Hist. Internal Consump. Line -> DXR_Hist. Int Consump. Line
+        RunIsolatedTablePair(50079, 53349, FailedSteps); // Hist. Linea Discrepancia -> DXR_Hist. Linea Discrepancia
+        RunIsolatedTablePair(50081, 53350, FailedSteps); // Historico Enc Requisicion -> DXR_Historico Enc Requisicion
+        RunIsolatedTablePair(50082, 53351, FailedSteps); // Historico - Extracto Bancario -> DXR_Historico - Extr Bancario
+        RunIsolatedTablePair(50084, 53352, FailedSteps); // Historico Requisicion Line -> DXR_Historico Requisicion Line
+        RunIsolatedTablePair(50085, 53353, FailedSteps); // Hist Pre-Requisicion -> DXR_Hist Pre-Requisicion
+        RunIsolatedTablePair(50086, 53354, FailedSteps); // Hist Pre-Requisicion Line -> DXR_Hist Pre-Requisicion Line
+        RunIsolatedTablePair(50095, 53357, FailedSteps); // Internal Consumption Log -> DXR_Internal Consumption Log
+        RunIsolatedTablePair(50111, 53366, FailedSteps); // Log - Bank Statement -> DXR_Log - Bank Statement
+        RunIsolatedTablePair(50112, 53367, FailedSteps); // Log Email -> DXR_Log Email
+        RunIsolatedTablePair(50115, 53368, FailedSteps); // Log Transaccion Azul -> DXR_Log Transaccion Azul
+        RunIsolatedTablePair(50116, 53369, FailedSteps); // Log Transaccion Medallia -> DXR_Log Transaccion Medallia
+        RunIsolatedTablePair(50117, 53370, FailedSteps); // Log Transfer error -> DXR_Log Transfer error
+        RunIsolatedTablePair(50132, 53377, FailedSteps); // Posted Jnl Promotion Tickets -> DXR_Posted Jnl Promo Tickets
+        RunIsolatedTablePair(50141, 53384, FailedSteps); // Printing Invoice Log -> DXR_Printing Invoice Log
+        RunIsolatedTablePair(50160, 53395, FailedSteps); // Send Email Log -> DXR_Send Email Log
+        RunIsolatedTablePair(50186, 53407, FailedSteps); // Trans. Archive Line -> DXR_Trans. Archive Line
+        RunIsolatedTablePair(50199, 53411, FailedSteps); // UserLogs -> DXR_UserLogs
+        RunIsolatedTablePair(50206, 53415, FailedSteps); // Printing Invoice Log BO -> DXR_Printing Invoice Log BO
+        ThrowIfStepsFailed('Historic', FailedSteps);
     end;
 
     procedure RunOther()
+    var
+        FailedSteps: Text;
     begin
-        MigrateLegacyTableData(50001, 53301); // Agente -> DXR_Agente
-        MigrateLegacyTableData(50007, 53305); // Archivo - Discrepancias -> DXR_Archivo - Discrepancias
-        MigrateLegacyTableData(50012, 53310); // Black List Promotion -> DXR_Black List Promotion
-        MigrateLegacyTableData(50013, 53311); // Cabecera Discrepancia -> DXR_Cabecera Discrepancia
-        MigrateLegacyTableData(50025, 53317); // Comentario - Discrepancias -> DXR_Comentario - Discrepancias
-        MigrateLegacyTableData(50048, 53330); // Departamento - Discrepancias -> DXR_Departamento - Discr
-        MigrateLegacyTableData(50103, 53363); // Linea Discrepancia -> DXR_Linea Discrepancia
-        MigrateLegacyTableData(50109, 53365); // LineRQBuffer -> DXR_LineRQBuffer
-        MigrateTableExt_LSCPOSTransLineFields();
-        MigrateTableExt_LSCPOSTransactionFields();
-        MigrateTableExt_PaymentMethodFields();
+        RunIsolatedTablePair(50001, 53301, FailedSteps); // Agente -> DXR_Agente
+        RunIsolatedTablePair(50007, 53305, FailedSteps); // Archivo - Discrepancias -> DXR_Archivo - Discrepancias
+        RunIsolatedTablePair(50012, 53310, FailedSteps); // Black List Promotion -> DXR_Black List Promotion
+        RunIsolatedTablePair(50013, 53311, FailedSteps); // Cabecera Discrepancia -> DXR_Cabecera Discrepancia
+        RunIsolatedTablePair(50025, 53317, FailedSteps); // Comentario - Discrepancias -> DXR_Comentario - Discrepancias
+        RunIsolatedTablePair(50048, 53330, FailedSteps); // Departamento - Discrepancias -> DXR_Departamento - Discr
+        RunIsolatedTablePair(50103, 53363, FailedSteps); // Linea Discrepancia -> DXR_Linea Discrepancia
+        RunIsolatedTablePair(50109, 53365, FailedSteps); // LineRQBuffer -> DXR_LineRQBuffer
+        RunIsolatedStep('TE-LSCPOS-TRANS-LINE', FailedSteps);
+        RunIsolatedStep('TE-LSCPOS-TRANSACTION', FailedSteps);
+        RunIsolatedStep('TE-PAYMENT-METHOD', FailedSteps);
+        ThrowIfStepsFailed('Other', FailedSteps);
     end;
 
     // ===== Generic copy engines (ported verbatim from "Bellon Upgrade Process") =====
@@ -567,10 +1097,18 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateInternalConsumptionLineTable(); // Internal Consumption Line -> DXR_Internal Consumption Line (native)
         MigrateLegacyTableData(50095, 53357); // Internal Consumption Log -> DXR_Internal Consumption Log
         MigrateBEInventoryMasksTable(); // BE Inventory Masks -> DXR_Inventory Masks (native)
-       // MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
-       // MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
-      //  MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
-        MigrateJournalPromotionTicketsTable(); // Journal Promotion Tickets -> DXR_Journal Promotion Tickets (native)
+        // Removed 2026-08-27, same two tables and same reasons as in RunMaster() above - "Item HTML"
+        // (three BLOB fields) and "Item Image View" (LinkedObject = true on BOTH sides, i.e. a SQL
+        // Server view rather than BC storage). Kept as comments rather than deleted so the omission
+        // stays visible against the real source's original 137-table list.
+        // MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
+        // MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
+        // RESTORED 2026-08-27: "ItemNo Desliquidacion" (50100 -> 53361) had been dropped from this
+        // list together with the two tables above while triaging the stall, but it is neither a BLOB
+        // nor a LinkedObject table - it is a plain scalar table (Item No./Procesado/Fecha Desde/
+        // Fecha Hasta/Almacen) and concept BELLON-P2 seq 76 is NOT retired, so leaving it out
+        // silently dropped real master data and left that concept permanently gapped.
+        MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
         MigrateLegacyTableData(50103, 53363); // Linea Discrepancia -> DXR_Linea Discrepancia
         MigrateLineasCargaMasivaBenBPDTable(); // Lineas Carga Masiva Ben. BPD -> DXR_Lin Carga Masiva Ben. BPD (native)
         MigrateLegacyTableData(50109, 53365); // LineRQBuffer -> DXR_LineRQBuffer
@@ -632,7 +1170,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     begin
         MigrateAGRExtendedItemTable(); // AGR Extended Item -> DXR_AGR Extended Item (native)
         MigrateComisionGrupoVendedorTable(); // Comision_Grupo_Vendedor -> DXR_Comision_Grupo_Vendedor (native)
-        MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
+        // Removed 2026-08-27: "Inventory View" (50097) and "DXR_Inventory View." (55004) BOTH
+        // declare LinkedObject = true - a SQL Server view, not BC storage. See RunMaster().
+        // MigrateInventoryViewTable(); // Inventory View -> DXR_Inventory View. (native)
         MigrateOperacionesTipoComprobante2Table(); // Operaciones Tipo Comprobante2 -> DXR_Operaciones Tipo Comprob2 (native)
     end;
 
@@ -2889,6 +3429,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_BankAccountFields()
     var
         BankAccount: Record "Bank Account";
+        Blank: Record "Bank Account";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
         // shadow fields (50003-50005) - BankAccount.TableExt.al's real active targets, confirmed
@@ -2902,9 +3443,12 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (BankAccount."Account No._DXR" <> BankAccount."Account No.") or
                    (BankAccount."Amount In Payload_DXR" <> BankAccount."Amount In Payload")
                 then begin
-                    BankAccount."Cod. Proveedor Bco._BE_DXR" := BankAccount."Cod. Proveedor Bco.";
-                    BankAccount."Account No._DXR" := BankAccount."Account No.";
-                    BankAccount."Amount In Payload_DXR" := BankAccount."Amount In Payload";
+                    if BankAccount."Cod. Proveedor Bco._BE_DXR" = Blank."Cod. Proveedor Bco._BE_DXR" then
+                        BankAccount."Cod. Proveedor Bco._BE_DXR" := BankAccount."Cod. Proveedor Bco.";
+                    if BankAccount."Account No._DXR" = Blank."Account No._DXR" then
+                        BankAccount."Account No._DXR" := BankAccount."Account No.";
+                    if BankAccount."Amount In Payload_DXR" = Blank."Amount In Payload_DXR" then
+                        BankAccount."Amount In Payload_DXR" := BankAccount."Amount In Payload";
                     BankAccount.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3060,6 +3604,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CurrencyFields()
     var
         Currency: Record "Currency";
+        Blank: Record "Currency";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // copied "Accepted bpd" into "Accepted bpd_Old" (field 50001), a dead shadow field -
@@ -3069,7 +3614,8 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         if Currency.FindSet(true) then
             repeat
                 if Currency."Accepted bpd_DXR" <> Currency."Accepted bpd" then begin
-                    Currency."Accepted bpd_DXR" := Currency."Accepted bpd";
+                    if Currency."Accepted bpd_DXR" = Blank."Accepted bpd_DXR" then
+                        Currency."Accepted bpd_DXR" := Currency."Accepted bpd";
                     Currency.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3137,6 +3683,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CustomerFields()
     var
         Customer: Record Customer;
+        Blank: Record Customer;
     begin
         if Customer.FindSet(true) then
             repeat
@@ -3187,52 +3734,98 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Customer."Last Date/Time Modified_DXR" <> Customer."Last Date/Time Modified") or
                    (Customer."Req Fecha Reg Merc_DXR" <> Customer."Requiere Fecha Reg. Mercantil")
                 then begin
-                    Customer."Dirección Representante_DXR" := Customer."Dirección Representante";
-                    Customer."Sector Representante_DXR" := Customer."Sector Representante";
-                    Customer."Cédula Representante_DXR" := Customer."Cédula Representante";
-                    Customer."Cumpl Representante_DXR" := Customer."Cumpleaños Representante";
-                    Customer."Celular Representante_DXR" := Customer."Celular Representante";
-                    Customer."E-Mail Representante_DXR." := Customer."E-Mail Representante";
-                    Customer."Código Cobrador_DXR" := Customer."Código Cobrador";
-                    Customer."Requiere OC_DXR" := Customer."Requiere OC";
-                    Customer."Tipo de Cliente_DXR" := Customer."Tipo de Cliente";
-                    Customer."Frecuencia Visita_DXR" := Customer."Frecuencia Visita";
-                    Customer."Secuencia Visita_DXR" := Customer."Secuencia Visita";
-                    Customer."Días Visita_DXR" := Customer."Días Visita";
-                    Customer."Carnet DGII_DXR" := Customer."Carnet DGII";
-                    Customer."Cobrar Interés_DXR" := Customer."Cobrar Interés";
-                    Customer."% Interés_DXR" := Customer."% Interés";
-                    Customer."Carnet Exención ITBIS_DXR" := Customer."Carnet Exención ITBIS";
-                    Customer."Vencimiento Carnet_DXR" := Customer."Vencimiento Carnet";
-                    Customer."Enc. Compras Nombre_DXR" := Customer."Enc. Compras Nombre";
-                    Customer."Enc. Compras Email_DXR." := Customer."Enc. Compras email";
-                    Customer."Enc. Compras celular_DXR" := Customer."Enc. Compras celular";
-                    Customer."Enc. Compras Cumpleaños_DXR" := Customer."Enc. Compras Cumpleaños";
-                    Customer."Enc. Pagos Nombre_DXR" := Customer."Enc. Pagos Nombre";
-                    Customer."Enc. Pagos Email_DXR." := Customer."Enc. Pagos email";
-                    Customer."Enc. Pagos celular_DXR" := Customer."Enc. Pagos celular";
-                    Customer."Enc. Pagos Cumpleaños_DXR" := Customer."Enc. Pagos Cumpleaños";
-                    Customer."Frecuencia de Pago_DXR" := Customer."Frecuencia de Pago";
-                    Customer."Apartado Postal_DXR" := Customer."Apartado Postal";
-                    Customer."Sector_DXR" := Customer.Sector;
-                    Customer."Municipio_DXR" := Customer.Municipio;
-                    Customer."Provincia_DXR" := Customer.Provincia;
-                    Customer."Comision_Tipo_ID_DXR." := Customer.Comision_Tipo_ID;
-                    Customer."Deuda Pico_DXR" := Customer."Deuda Pico";
-                    Customer."Fecha Deuda Pico_DXR" := Customer."Fecha Deuda Pico";
-                    Customer."Gestor_ID_DXR." := Customer.Gestor_ID;
-                    Customer."Fecha envio edo cuenta_DXR" := Customer."Fecha envio estado cuenta";
-                    Customer."Invoice Expiration Days_DXR" := Customer."Invoice Expiration Days";
-                    Customer."Enc. Recepcion Email_DXR." := Customer."Enc. Recepcion Email";
-                    Customer."StoreID_DXR." := Customer.StoreId;
-                    Customer."Tipo Segmento_DXR" := Customer."Tipo Segmento";
-                    Customer."Monto Deposito Cilindr_DXR" := Customer."Monto Deposito - Cilindros";
-                    Customer."Cant asig - Cilindros_DXR" := Customer."Cantidad asignar - Cilindros";
-                    Customer."Cliente Cilindros_DXR" := Customer."Cliente Cilindros";
-                    Customer."Fecha Exp Reg Merc_DXR" := Customer."Fecha Expiracion Reg Mercantil";
-                    Customer."B2C Customer_DXR" := Customer."B2C Customer";
-                    Customer."Last Date/Time Modified_DXR" := Customer."Last Date/Time Modified";
-                    Customer."Req Fecha Reg Merc_DXR" := Customer."Requiere Fecha Reg. Mercantil";
+                    if Customer."Dirección Representante_DXR" = Blank."Dirección Representante_DXR" then
+                        Customer."Dirección Representante_DXR" := Customer."Dirección Representante";
+                    if Customer."Sector Representante_DXR" = Blank."Sector Representante_DXR" then
+                        Customer."Sector Representante_DXR" := Customer."Sector Representante";
+                    if Customer."Cédula Representante_DXR" = Blank."Cédula Representante_DXR" then
+                        Customer."Cédula Representante_DXR" := Customer."Cédula Representante";
+                    if Customer."Cumpl Representante_DXR" = Blank."Cumpl Representante_DXR" then
+                        Customer."Cumpl Representante_DXR" := Customer."Cumpleaños Representante";
+                    if Customer."Celular Representante_DXR" = Blank."Celular Representante_DXR" then
+                        Customer."Celular Representante_DXR" := Customer."Celular Representante";
+                    if Customer."E-Mail Representante_DXR." = Blank."E-Mail Representante_DXR." then
+                        Customer."E-Mail Representante_DXR." := Customer."E-Mail Representante";
+                    if Customer."Código Cobrador_DXR" = Blank."Código Cobrador_DXR" then
+                        Customer."Código Cobrador_DXR" := Customer."Código Cobrador";
+                    if Customer."Requiere OC_DXR" = Blank."Requiere OC_DXR" then
+                        Customer."Requiere OC_DXR" := Customer."Requiere OC";
+                    if Customer."Tipo de Cliente_DXR" = Blank."Tipo de Cliente_DXR" then
+                        Customer."Tipo de Cliente_DXR" := Customer."Tipo de Cliente";
+                    if Customer."Frecuencia Visita_DXR" = Blank."Frecuencia Visita_DXR" then
+                        Customer."Frecuencia Visita_DXR" := Customer."Frecuencia Visita";
+                    if Customer."Secuencia Visita_DXR" = Blank."Secuencia Visita_DXR" then
+                        Customer."Secuencia Visita_DXR" := Customer."Secuencia Visita";
+                    if Customer."Días Visita_DXR" = Blank."Días Visita_DXR" then
+                        Customer."Días Visita_DXR" := Customer."Días Visita";
+                    if Customer."Carnet DGII_DXR" = Blank."Carnet DGII_DXR" then
+                        Customer."Carnet DGII_DXR" := Customer."Carnet DGII";
+                    if Customer."Cobrar Interés_DXR" = Blank."Cobrar Interés_DXR" then
+                        Customer."Cobrar Interés_DXR" := Customer."Cobrar Interés";
+                    if Customer."% Interés_DXR" = Blank."% Interés_DXR" then
+                        Customer."% Interés_DXR" := Customer."% Interés";
+                    if Customer."Carnet Exención ITBIS_DXR" = Blank."Carnet Exención ITBIS_DXR" then
+                        Customer."Carnet Exención ITBIS_DXR" := Customer."Carnet Exención ITBIS";
+                    if Customer."Vencimiento Carnet_DXR" = Blank."Vencimiento Carnet_DXR" then
+                        Customer."Vencimiento Carnet_DXR" := Customer."Vencimiento Carnet";
+                    if Customer."Enc. Compras Nombre_DXR" = Blank."Enc. Compras Nombre_DXR" then
+                        Customer."Enc. Compras Nombre_DXR" := Customer."Enc. Compras Nombre";
+                    if Customer."Enc. Compras Email_DXR." = Blank."Enc. Compras Email_DXR." then
+                        Customer."Enc. Compras Email_DXR." := Customer."Enc. Compras email";
+                    if Customer."Enc. Compras celular_DXR" = Blank."Enc. Compras celular_DXR" then
+                        Customer."Enc. Compras celular_DXR" := Customer."Enc. Compras celular";
+                    if Customer."Enc. Compras Cumpleaños_DXR" = Blank."Enc. Compras Cumpleaños_DXR" then
+                        Customer."Enc. Compras Cumpleaños_DXR" := Customer."Enc. Compras Cumpleaños";
+                    if Customer."Enc. Pagos Nombre_DXR" = Blank."Enc. Pagos Nombre_DXR" then
+                        Customer."Enc. Pagos Nombre_DXR" := Customer."Enc. Pagos Nombre";
+                    if Customer."Enc. Pagos Email_DXR." = Blank."Enc. Pagos Email_DXR." then
+                        Customer."Enc. Pagos Email_DXR." := Customer."Enc. Pagos email";
+                    if Customer."Enc. Pagos celular_DXR" = Blank."Enc. Pagos celular_DXR" then
+                        Customer."Enc. Pagos celular_DXR" := Customer."Enc. Pagos celular";
+                    if Customer."Enc. Pagos Cumpleaños_DXR" = Blank."Enc. Pagos Cumpleaños_DXR" then
+                        Customer."Enc. Pagos Cumpleaños_DXR" := Customer."Enc. Pagos Cumpleaños";
+                    if Customer."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
+                        Customer."Frecuencia de Pago_DXR" := Customer."Frecuencia de Pago";
+                    if Customer."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
+                        Customer."Apartado Postal_DXR" := Customer."Apartado Postal";
+                    if Customer."Sector_DXR" = Blank."Sector_DXR" then
+                        Customer."Sector_DXR" := Customer.Sector;
+                    if Customer."Municipio_DXR" = Blank."Municipio_DXR" then
+                        Customer."Municipio_DXR" := Customer.Municipio;
+                    if Customer."Provincia_DXR" = Blank."Provincia_DXR" then
+                        Customer."Provincia_DXR" := Customer.Provincia;
+                    if Customer."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
+                        Customer."Comision_Tipo_ID_DXR." := Customer.Comision_Tipo_ID;
+                    if Customer."Deuda Pico_DXR" = Blank."Deuda Pico_DXR" then
+                        Customer."Deuda Pico_DXR" := Customer."Deuda Pico";
+                    if Customer."Fecha Deuda Pico_DXR" = Blank."Fecha Deuda Pico_DXR" then
+                        Customer."Fecha Deuda Pico_DXR" := Customer."Fecha Deuda Pico";
+                    if Customer."Gestor_ID_DXR." = Blank."Gestor_ID_DXR." then
+                        Customer."Gestor_ID_DXR." := Customer.Gestor_ID;
+                    if Customer."Fecha envio edo cuenta_DXR" = Blank."Fecha envio edo cuenta_DXR" then
+                        Customer."Fecha envio edo cuenta_DXR" := Customer."Fecha envio estado cuenta";
+                    if Customer."Invoice Expiration Days_DXR" = Blank."Invoice Expiration Days_DXR" then
+                        Customer."Invoice Expiration Days_DXR" := Customer."Invoice Expiration Days";
+                    if Customer."Enc. Recepcion Email_DXR." = Blank."Enc. Recepcion Email_DXR." then
+                        Customer."Enc. Recepcion Email_DXR." := Customer."Enc. Recepcion Email";
+                    if Customer."StoreID_DXR." = Blank."StoreID_DXR." then
+                        Customer."StoreID_DXR." := Customer.StoreId;
+                    if Customer."Tipo Segmento_DXR" = Blank."Tipo Segmento_DXR" then
+                        Customer."Tipo Segmento_DXR" := Customer."Tipo Segmento";
+                    if Customer."Monto Deposito Cilindr_DXR" = Blank."Monto Deposito Cilindr_DXR" then
+                        Customer."Monto Deposito Cilindr_DXR" := Customer."Monto Deposito - Cilindros";
+                    if Customer."Cant asig - Cilindros_DXR" = Blank."Cant asig - Cilindros_DXR" then
+                        Customer."Cant asig - Cilindros_DXR" := Customer."Cantidad asignar - Cilindros";
+                    if Customer."Cliente Cilindros_DXR" = Blank."Cliente Cilindros_DXR" then
+                        Customer."Cliente Cilindros_DXR" := Customer."Cliente Cilindros";
+                    if Customer."Fecha Exp Reg Merc_DXR" = Blank."Fecha Exp Reg Merc_DXR" then
+                        Customer."Fecha Exp Reg Merc_DXR" := Customer."Fecha Expiracion Reg Mercantil";
+                    if Customer."B2C Customer_DXR" = Blank."B2C Customer_DXR" then
+                        Customer."B2C Customer_DXR" := Customer."B2C Customer";
+                    if Customer."Last Date/Time Modified_DXR" = Blank."Last Date/Time Modified_DXR" then
+                        Customer."Last Date/Time Modified_DXR" := Customer."Last Date/Time Modified";
+                    if Customer."Req Fecha Reg Merc_DXR" = Blank."Req Fecha Reg Merc_DXR" then
+                        Customer."Req Fecha Reg Merc_DXR" := Customer."Requiere Fecha Reg. Mercantil";
                     Customer.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3243,6 +3836,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CustomerPriceGroupFields()
     var
         CustomerPriceGroup: Record "Customer Price Group";
+        Blank: Record "Customer Price Group";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // targeted field 50001, which in CustomerPriceGroup.TableExt.al is a completely unrelated,
@@ -3253,7 +3847,8 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         if CustomerPriceGroup.FindSet(true) then
             repeat
                 if CustomerPriceGroup."Global Sales Code_DXR" <> CustomerPriceGroup."Global Sales Code" then begin
-                    CustomerPriceGroup."Global Sales Code_DXR" := CustomerPriceGroup."Global Sales Code";
+                    if CustomerPriceGroup."Global Sales Code_DXR" = Blank."Global Sales Code_DXR" then
+                        CustomerPriceGroup."Global Sales Code_DXR" := CustomerPriceGroup."Global Sales Code";
                     CustomerPriceGroup.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3410,6 +4005,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemFields()
     var
         Item: Record Item;
+        Blank: Record Item;
     begin
         if Item.FindSet(true) then
             repeat
@@ -3447,39 +4043,72 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Item."Item Status_DXR" <> Item."Item Status") or
                    (Item."Control Existencia_DXR" <> Item."Control Existencia")
                 then begin
-                    Item."Modelo_DXR" := Item.Modelo;
-                    Item."Marca_DXR" := Item.Marca;
-                    Item."Se Detalla_DXR" := Item."Se Detalla";
-                    Item."Producido_DXR" := Item.Producido;
-                    Item."Carga % Tarjeta_DXR" := Item."Carga % Tarjeta";
-                    Item."Consignación_DXR" := Item."Consignación";
-                    Item."Internal Use_DXR" := Item."Internal Use";
-                    Item."Acepta Decimales_DXR" := Item."Acepta Decimales";
-                    Item."Exhibición_DXR" := Item."Exhibición";
-                    Item."Precio Sugerido_DXR" := Item."Precio Sugerido";
-                    Item."Kit_DXR" := Item.Kit;
-                    Item."Empaque_DXR" := Item.Empaque;
-                    Item."Empaque Maestro_DXR" := Item."Empaque Maestro";
-                    Item."Venta por Mayor_DXR" := Item."Venta por Mayor";
-                    Item."% Comisión Venta_DXR" := Item."% Comisión Venta";
-                    Item."% Comisión Cobro_DXR" := Item."% Comisión Cobro";
-                    Item."Márgen Plaza_DXR" := Item."Márgen Plaza";
-                    Item."Márgen Importación_DXR" := Item."Márgen Importación";
-                    Item."Descripcion_Bellon_DXR" := Item."Descripcion Bellon";
-                    Item."Costo Liquidacion_DXR" := Item."Costo Liquidacion";
-                    Item."Comision_Tipo_ID_DXR." := Item.Comision_Tipo_ID;
-                    Item."Ultimo Costo Bellon_DXR" := Item."Ultimo Costo Bellon";
-                    Item."Costo Unitario Bellon_DXR" := Item."Costo Unitario Bellon";
-                    Item."SANA Info Adicionales_DXR" := Item."SANA - Info. Adicionales";
-                    Item."Sales Group_DXR" := Item."Sales Group";
-                    Item."Sales SubGroup_DXR" := Item."Sales SubGroup";
-                    Item."Sales Dept Code_DXR" := Item."Sales Dept Code";
-                    Item."Codigo Producto Aduana_DXR" := Item."Codigo Producto Aduana";
-                    Item."ExclFromDiscountCoupons_DXR" := Item.ExcludedFromDiscountCoupons;
-                    Item."ExclFromFreeShipCoupons_DXR" := Item.ExcludedFromFreeShipCoupons;
-                    Item."Disponible para Ventas_DXR" := Item."Disponible para Ventas";
-                    Item."Item Status_DXR" := Item."Item Status";
-                    Item."Control Existencia_DXR" := Item."Control Existencia";
+                    if Item."Modelo_DXR" = Blank."Modelo_DXR" then
+                        Item."Modelo_DXR" := Item.Modelo;
+                    if Item."Marca_DXR" = Blank."Marca_DXR" then
+                        Item."Marca_DXR" := Item.Marca;
+                    if Item."Se Detalla_DXR" = Blank."Se Detalla_DXR" then
+                        Item."Se Detalla_DXR" := Item."Se Detalla";
+                    if Item."Producido_DXR" = Blank."Producido_DXR" then
+                        Item."Producido_DXR" := Item.Producido;
+                    if Item."Carga % Tarjeta_DXR" = Blank."Carga % Tarjeta_DXR" then
+                        Item."Carga % Tarjeta_DXR" := Item."Carga % Tarjeta";
+                    if Item."Consignación_DXR" = Blank."Consignación_DXR" then
+                        Item."Consignación_DXR" := Item."Consignación";
+                    if Item."Internal Use_DXR" = Blank."Internal Use_DXR" then
+                        Item."Internal Use_DXR" := Item."Internal Use";
+                    if Item."Acepta Decimales_DXR" = Blank."Acepta Decimales_DXR" then
+                        Item."Acepta Decimales_DXR" := Item."Acepta Decimales";
+                    if Item."Exhibición_DXR" = Blank."Exhibición_DXR" then
+                        Item."Exhibición_DXR" := Item."Exhibición";
+                    if Item."Precio Sugerido_DXR" = Blank."Precio Sugerido_DXR" then
+                        Item."Precio Sugerido_DXR" := Item."Precio Sugerido";
+                    if Item."Kit_DXR" = Blank."Kit_DXR" then
+                        Item."Kit_DXR" := Item.Kit;
+                    if Item."Empaque_DXR" = Blank."Empaque_DXR" then
+                        Item."Empaque_DXR" := Item.Empaque;
+                    if Item."Empaque Maestro_DXR" = Blank."Empaque Maestro_DXR" then
+                        Item."Empaque Maestro_DXR" := Item."Empaque Maestro";
+                    if Item."Venta por Mayor_DXR" = Blank."Venta por Mayor_DXR" then
+                        Item."Venta por Mayor_DXR" := Item."Venta por Mayor";
+                    if Item."% Comisión Venta_DXR" = Blank."% Comisión Venta_DXR" then
+                        Item."% Comisión Venta_DXR" := Item."% Comisión Venta";
+                    if Item."% Comisión Cobro_DXR" = Blank."% Comisión Cobro_DXR" then
+                        Item."% Comisión Cobro_DXR" := Item."% Comisión Cobro";
+                    if Item."Márgen Plaza_DXR" = Blank."Márgen Plaza_DXR" then
+                        Item."Márgen Plaza_DXR" := Item."Márgen Plaza";
+                    if Item."Márgen Importación_DXR" = Blank."Márgen Importación_DXR" then
+                        Item."Márgen Importación_DXR" := Item."Márgen Importación";
+                    if Item."Descripcion_Bellon_DXR" = Blank."Descripcion_Bellon_DXR" then
+                        Item."Descripcion_Bellon_DXR" := Item."Descripcion Bellon";
+                    if Item."Costo Liquidacion_DXR" = Blank."Costo Liquidacion_DXR" then
+                        Item."Costo Liquidacion_DXR" := Item."Costo Liquidacion";
+                    if Item."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
+                        Item."Comision_Tipo_ID_DXR." := Item.Comision_Tipo_ID;
+                    if Item."Ultimo Costo Bellon_DXR" = Blank."Ultimo Costo Bellon_DXR" then
+                        Item."Ultimo Costo Bellon_DXR" := Item."Ultimo Costo Bellon";
+                    if Item."Costo Unitario Bellon_DXR" = Blank."Costo Unitario Bellon_DXR" then
+                        Item."Costo Unitario Bellon_DXR" := Item."Costo Unitario Bellon";
+                    if Item."SANA Info Adicionales_DXR" = Blank."SANA Info Adicionales_DXR" then
+                        Item."SANA Info Adicionales_DXR" := Item."SANA - Info. Adicionales";
+                    if Item."Sales Group_DXR" = Blank."Sales Group_DXR" then
+                        Item."Sales Group_DXR" := Item."Sales Group";
+                    if Item."Sales SubGroup_DXR" = Blank."Sales SubGroup_DXR" then
+                        Item."Sales SubGroup_DXR" := Item."Sales SubGroup";
+                    if Item."Sales Dept Code_DXR" = Blank."Sales Dept Code_DXR" then
+                        Item."Sales Dept Code_DXR" := Item."Sales Dept Code";
+                    if Item."Codigo Producto Aduana_DXR" = Blank."Codigo Producto Aduana_DXR" then
+                        Item."Codigo Producto Aduana_DXR" := Item."Codigo Producto Aduana";
+                    if Item."ExclFromDiscountCoupons_DXR" = Blank."ExclFromDiscountCoupons_DXR" then
+                        Item."ExclFromDiscountCoupons_DXR" := Item.ExcludedFromDiscountCoupons;
+                    if Item."ExclFromFreeShipCoupons_DXR" = Blank."ExclFromFreeShipCoupons_DXR" then
+                        Item."ExclFromFreeShipCoupons_DXR" := Item.ExcludedFromFreeShipCoupons;
+                    if Item."Disponible para Ventas_DXR" = Blank."Disponible para Ventas_DXR" then
+                        Item."Disponible para Ventas_DXR" := Item."Disponible para Ventas";
+                    if Item."Item Status_DXR" = Blank."Item Status_DXR" then
+                        Item."Item Status_DXR" := Item."Item Status";
+                    if Item."Control Existencia_DXR" = Blank."Control Existencia_DXR" then
+                        Item."Control Existencia_DXR" := Item."Control Existencia";
                     Item.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3490,6 +4119,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemCategoryFields()
     var
         ItemCategory: Record "Item Category";
+        Blank: Record "Item Category";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // copied "% Comision" into "% Comision_Old" (field 50001), a dead shadow field -
@@ -3499,7 +4129,8 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         if ItemCategory.FindSet(true) then
             repeat
                 if ItemCategory."% Comision_DXR" <> ItemCategory."% Comision" then begin
-                    ItemCategory."% Comision_DXR" := ItemCategory."% Comision";
+                    if ItemCategory."% Comision_DXR" = Blank."% Comision_DXR" then
+                        ItemCategory."% Comision_DXR" := ItemCategory."% Comision";
                     ItemCategory.Modify(false);
                 end;
                 CheckpointCommit();
@@ -3629,6 +4260,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LocationFields()
     var
         Location: Record Location;
+        Blank: Record Location;
     begin
         // Fixed 2026-08-24: Location.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (none of the _DXR replacements are themselves
@@ -3643,12 +4275,18 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Location."Visible in Trafico_DXR" <> Location."Visible in Trafico") or
                    (Location."Req. Cod. Pos. & Neg._DXR" <> Location."Req. Cod. Pos. & Neg.")
                 then begin
-                    Location."Req._Transport_DXR" := Location."Req. Transport";
-                    Location."Existencia Ventas_DXR" := Location."Existencia Ventas";
-                    Location."Transito Internacional_DXR" := Location."Transito Internacional";
-                    Location."Req. Cod. Audit Transf_DXR" := Location."Req. Cod. Auditoria Transf.";
-                    Location."Visible in Trafico_DXR" := Location."Visible in Trafico";
-                    Location."Req. Cod. Pos. & Neg._DXR" := Location."Req. Cod. Pos. & Neg.";
+                    if Location."Req._Transport_DXR" = Blank."Req._Transport_DXR" then
+                        Location."Req._Transport_DXR" := Location."Req. Transport";
+                    if Location."Existencia Ventas_DXR" = Blank."Existencia Ventas_DXR" then
+                        Location."Existencia Ventas_DXR" := Location."Existencia Ventas";
+                    if Location."Transito Internacional_DXR" = Blank."Transito Internacional_DXR" then
+                        Location."Transito Internacional_DXR" := Location."Transito Internacional";
+                    if Location."Req. Cod. Audit Transf_DXR" = Blank."Req. Cod. Audit Transf_DXR" then
+                        Location."Req. Cod. Audit Transf_DXR" := Location."Req. Cod. Auditoria Transf.";
+                    if Location."Visible in Trafico_DXR" = Blank."Visible in Trafico_DXR" then
+                        Location."Visible in Trafico_DXR" := Location."Visible in Trafico";
+                    if Location."Req. Cod. Pos. & Neg._DXR" = Blank."Req. Cod. Pos. & Neg._DXR" then
+                        Location."Req. Cod. Pos. & Neg._DXR" := Location."Req. Cod. Pos. & Neg.";
                     Location.Modify(false);
                 end;
                 CheckpointCommit();
@@ -4268,14 +4906,17 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ShiptoAddressFields()
     var
         ShiptoAddress: Record "Ship-to Address";
+        Blank: Record "Ship-to Address";
     begin
         if ShiptoAddress.FindSet(true) then
             repeat
                 if (ShiptoAddress."Latitud_DXR." <> ShiptoAddress.Latitud) or
                    (ShiptoAddress."Longitud_DXR." <> ShiptoAddress.Longitud)
                 then begin
-                    ShiptoAddress."Latitud_DXR." := ShiptoAddress.Latitud;
-                    ShiptoAddress."Longitud_DXR." := ShiptoAddress.Longitud;
+                    if ShiptoAddress."Latitud_DXR." = Blank."Latitud_DXR." then
+                        ShiptoAddress."Latitud_DXR." := ShiptoAddress.Latitud;
+                    if ShiptoAddress."Longitud_DXR." = Blank."Longitud_DXR." then
+                        ShiptoAddress."Longitud_DXR." := ShiptoAddress.Longitud;
                     ShiptoAddress.Modify(false);
                 end;
                 CheckpointCommit();
@@ -4312,6 +4953,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCSTOREFields()
     var
         LSCStore: Record "LSC STORE";
+        Blank: Record "LSC STORE";
     begin
         if LSCStore.FindSet(true) then
             repeat
@@ -4321,11 +4963,16 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (LSCStore."Utiliza NCF Unico_BE_DXR" <> LSCStore."Utiliza NCF Unico") or
                    (LSCStore."Print Header Doc._DXR." <> LSCStore."Print Header Doc.")
                 then begin
-                    LSCStore."Cod. Cliente Contado_BE_DXR" := LSCStore."Cod. Cliente Contado";
-                    LSCStore."No Serie 3er Party Item_DXR" := LSCStore."No. Serie 3er. Party Item";
-                    LSCStore."Address 3_BE_DXR" := LSCStore."Address 3";
-                    LSCStore."Utiliza NCF Unico_BE_DXR" := LSCStore."Utiliza NCF Unico";
-                    LSCStore."Print Header Doc._DXR." := LSCStore."Print Header Doc.";
+                    if LSCStore."Cod. Cliente Contado_BE_DXR" = Blank."Cod. Cliente Contado_BE_DXR" then
+                        LSCStore."Cod. Cliente Contado_BE_DXR" := LSCStore."Cod. Cliente Contado";
+                    if LSCStore."No Serie 3er Party Item_DXR" = Blank."No Serie 3er Party Item_DXR" then
+                        LSCStore."No Serie 3er Party Item_DXR" := LSCStore."No. Serie 3er. Party Item";
+                    if LSCStore."Address 3_BE_DXR" = Blank."Address 3_BE_DXR" then
+                        LSCStore."Address 3_BE_DXR" := LSCStore."Address 3";
+                    if LSCStore."Utiliza NCF Unico_BE_DXR" = Blank."Utiliza NCF Unico_BE_DXR" then
+                        LSCStore."Utiliza NCF Unico_BE_DXR" := LSCStore."Utiliza NCF Unico";
+                    if LSCStore."Print Header Doc._DXR." = Blank."Print Header Doc._DXR." then
+                        LSCStore."Print Header Doc._DXR." := LSCStore."Print Header Doc.";
                     LSCStore.Modify(false);
                 end;
                 CheckpointCommit();
@@ -4633,6 +5280,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_VendorFields()
     var
         Vendor: Record Vendor;
+        Blank: Record Vendor;
     begin
         if Vendor.FindSet(true) then
             repeat
@@ -4657,26 +5305,46 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Vendor."Gestor_CXP_ID_DXR." <> Vendor."BE Gestor_CXP_ID") or
                    (Vendor."FechaCreacion_DXR" <> Vendor."BE FechaCreacion")
                 then begin
-                    Vendor."Teléfono 2_DXR" := Vendor."BE Teléfono 2";
-                    Vendor."Vendedor_DXR" := Vendor."BE Vendedor";
-                    Vendor."Vendedor Email_DXR." := Vendor."BE Vendedor email";
-                    Vendor."Vendedor Celular_DXR" := Vendor."BE Vendedor Celular";
-                    Vendor."Tipo Servicio_DXR" := Vendor."BE Tipo Servicio";
-                    Vendor."Clasificación ABC_DXR" := Vendor."BE Clasificación ABC";
-                    Vendor."Enc. Cobros Nombre_DXR" := Vendor."BE Enc. Cobros Nombre";
-                    Vendor."Enc. Cobros Email_DXR." := Vendor."BE Enc. Cobros email";
-                    Vendor."Enc. Cobros celular_DXR" := Vendor."BE Enc. Cobros celular";
-                    Vendor."Enc. Cobros Cumpleaños_DXR" := Vendor."BE Enc. Cobros Cumpleaños";
-                    Vendor."Frecuencia de Pago_DXR" := Vendor."BE Frecuencia de Pago";
-                    Vendor."Límite de Crédito_DXR" := Vendor."BE Límite de Crédito";
-                    Vendor."Apartado Postal_DXR" := Vendor."BE Apartado Postal";
-                    Vendor."Sector_DXR" := Vendor."BE Sector";
-                    Vendor."Municipio_DXR" := Vendor."BE Municipio";
-                    Vendor."Provincia_DXR" := Vendor."BE Provincia";
-                    Vendor."Despachador Email_DX.R" := Vendor."BE Despachador Email";
-                    Vendor."Proveedor Cilindros_DXR" := Vendor."BE Proveedor Cilindros";
-                    Vendor."Gestor_CXP_ID_DXR." := Vendor."BE Gestor_CXP_ID";
-                    Vendor."FechaCreacion_DXR" := Vendor."BE FechaCreacion";
+                    if Vendor."Teléfono 2_DXR" = Blank."Teléfono 2_DXR" then
+                        Vendor."Teléfono 2_DXR" := Vendor."BE Teléfono 2";
+                    if Vendor."Vendedor_DXR" = Blank."Vendedor_DXR" then
+                        Vendor."Vendedor_DXR" := Vendor."BE Vendedor";
+                    if Vendor."Vendedor Email_DXR." = Blank."Vendedor Email_DXR." then
+                        Vendor."Vendedor Email_DXR." := Vendor."BE Vendedor email";
+                    if Vendor."Vendedor Celular_DXR" = Blank."Vendedor Celular_DXR" then
+                        Vendor."Vendedor Celular_DXR" := Vendor."BE Vendedor Celular";
+                    if Vendor."Tipo Servicio_DXR" = Blank."Tipo Servicio_DXR" then
+                        Vendor."Tipo Servicio_DXR" := Vendor."BE Tipo Servicio";
+                    if Vendor."Clasificación ABC_DXR" = Blank."Clasificación ABC_DXR" then
+                        Vendor."Clasificación ABC_DXR" := Vendor."BE Clasificación ABC";
+                    if Vendor."Enc. Cobros Nombre_DXR" = Blank."Enc. Cobros Nombre_DXR" then
+                        Vendor."Enc. Cobros Nombre_DXR" := Vendor."BE Enc. Cobros Nombre";
+                    if Vendor."Enc. Cobros Email_DXR." = Blank."Enc. Cobros Email_DXR." then
+                        Vendor."Enc. Cobros Email_DXR." := Vendor."BE Enc. Cobros email";
+                    if Vendor."Enc. Cobros celular_DXR" = Blank."Enc. Cobros celular_DXR" then
+                        Vendor."Enc. Cobros celular_DXR" := Vendor."BE Enc. Cobros celular";
+                    if Vendor."Enc. Cobros Cumpleaños_DXR" = Blank."Enc. Cobros Cumpleaños_DXR" then
+                        Vendor."Enc. Cobros Cumpleaños_DXR" := Vendor."BE Enc. Cobros Cumpleaños";
+                    if Vendor."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
+                        Vendor."Frecuencia de Pago_DXR" := Vendor."BE Frecuencia de Pago";
+                    if Vendor."Límite de Crédito_DXR" = Blank."Límite de Crédito_DXR" then
+                        Vendor."Límite de Crédito_DXR" := Vendor."BE Límite de Crédito";
+                    if Vendor."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
+                        Vendor."Apartado Postal_DXR" := Vendor."BE Apartado Postal";
+                    if Vendor."Sector_DXR" = Blank."Sector_DXR" then
+                        Vendor."Sector_DXR" := Vendor."BE Sector";
+                    if Vendor."Municipio_DXR" = Blank."Municipio_DXR" then
+                        Vendor."Municipio_DXR" := Vendor."BE Municipio";
+                    if Vendor."Provincia_DXR" = Blank."Provincia_DXR" then
+                        Vendor."Provincia_DXR" := Vendor."BE Provincia";
+                    if Vendor."Despachador Email_DX.R" = Blank."Despachador Email_DX.R" then
+                        Vendor."Despachador Email_DX.R" := Vendor."BE Despachador Email";
+                    if Vendor."Proveedor Cilindros_DXR" = Blank."Proveedor Cilindros_DXR" then
+                        Vendor."Proveedor Cilindros_DXR" := Vendor."BE Proveedor Cilindros";
+                    if Vendor."Gestor_CXP_ID_DXR." = Blank."Gestor_CXP_ID_DXR." then
+                        Vendor."Gestor_CXP_ID_DXR." := Vendor."BE Gestor_CXP_ID";
+                    if Vendor."FechaCreacion_DXR" = Blank."FechaCreacion_DXR" then
+                        Vendor."FechaCreacion_DXR" := Vendor."BE FechaCreacion";
                     Vendor.Modify(false);
                 end;
                 CheckpointCommit();

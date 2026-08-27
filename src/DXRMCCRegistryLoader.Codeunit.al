@@ -578,8 +578,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P6', 210, 'DXR_Internal Consumption Line Old2 legacy table restore (59286 -> 53356)', 60150, 59286, 53356, 'MA');
         InsConcept('BELLON', 'BELLON-P6', 211, 'DXR_Internal Consumption Log Old2 legacy table restore (59287 -> 53357)', 60150, 59287, 53357, 'HIST');
         InsConcept('BELLON', 'BELLON-P6', 212, 'DXR_Inventory Masks Old2 legacy table restore (59288 -> 53358)', 60150, 59288, 53358, 'SETUP');
-        InsConcept('BELLON', 'BELLON-P6', 213, 'DXR_Item HTML Old2 legacy table restore (59289 -> 53359)', 60150, 59289, 53359, 'MA');
-        InsConcept('BELLON', 'BELLON-P6', 214, 'DXR_Item Image View Old2 legacy table restore (59290 -> 53360)', 60150, 59290, 53360, 'MA');
+        InsConcept('BELLON', 'BELLON-P6', 213, 'DXR_Item HTML Old2 legacy table restore (59289 -> 53359) - RETIRED 2026-08-27: 3 BLOB fields, no generic restore path can copy them (FieldRef.Value without CalcFields writes empty), gap never closes', 60150, 59289, 53359, 'MA');
+        InsConcept('BELLON', 'BELLON-P6', 214, 'DXR_Item Image View Old2 legacy table restore (59290 -> 53360) - RETIRED 2026-08-27: both sides are LinkedObject = true (a SQL Server view, not BC storage), nothing to migrate', 60150, 59290, 53360, 'MA');
         InsConcept('BELLON', 'BELLON-P6', 215, 'DXR_ItemNo Desliquidacion Old2 legacy table restore (59291 -> 53361)', 60150, 59291, 53361, 'MA');
         InsConcept('BELLON', 'BELLON-P6', 216, 'DXR_Journal Promotion Tickets Old2 legacy table restore (59292 -> 53362)', 60150, 59292, 53362, 'MA');
         InsConcept('BELLON', 'BELLON-P6', 217, 'DXR_Linea Discrepancia Old2 legacy table restore (59293 -> 53363)', 60150, 59293, 53363, 'OTHER');
@@ -725,8 +725,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P2', 71, 'Internal Consumption Line legacy table restore', 60146, 50094, 53356, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 72, 'Internal Consumption Log legacy table restore', 60146, 50095, 53357, 'HIST');
         InsConcept('BELLON', 'BELLON-P2', 73, 'BE Inventory Masks legacy table restore', 60146, 50096, 53358, 'SETUP');
-        InsConcept('BELLON', 'BELLON-P2', 74, 'Item HTML legacy table restore', 60146, 50098, 53359, 'MA');
-        InsConcept('BELLON', 'BELLON-P2', 75, 'Item Image View legacy table restore', 60146, 50099, 53360, 'MA');
+        InsConcept('BELLON', 'BELLON-P2', 74, 'Item HTML legacy table restore - RETIRED 2026-08-27: 3 BLOB fields, no generic restore path can copy them (FieldRef.Value without CalcFields writes empty), gap never closes', 60146, 50098, 53359, 'MA');
+        InsConcept('BELLON', 'BELLON-P2', 75, 'Item Image View legacy table restore - RETIRED 2026-08-27: both sides are LinkedObject = true (a SQL Server view, not BC storage), nothing to migrate', 60146, 50099, 53360, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 76, 'ItemNo Desliquidacion legacy table restore', 60146, 50100, 53361, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 77, 'Journal Promotion Tickets legacy table restore', 60146, 50102, 53362, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 78, 'Linea Discrepancia legacy table restore', 60146, 50103, 53363, 'OTHER');
@@ -784,7 +784,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('BELLON', 'BELLON-P2', 130, 'Printing Invoice Log BO legacy table restore', 60146, 50206, 53415, 'HIST');
         InsConcept('BELLON', 'BELLON-P2', 131, 'AGR Extended Item legacy table restore (batch 2)', 60146, 50002, 55006, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 132, 'Comision_Grupo_Vendedor legacy table restore (batch 2)', 60146, 50027, 55005, 'MA');
-        InsConcept('BELLON', 'BELLON-P2', 133, 'Inventory View legacy table restore (batch 2)', 60146, 50097, 55004, 'MA');
+        InsConcept('BELLON', 'BELLON-P2', 133, 'Inventory View legacy table restore (batch 2) - RETIRED 2026-08-27: both sides are LinkedObject = true (a SQL Server view, not BC storage), nothing to migrate', 60146, 50097, 55004, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 134, 'Operaciones Tipo Comprobante2 legacy table restore (batch 2)', 60146, 50126, 55007, 'SETUP');
         InsConcept('BELLON', 'BELLON-P2', 135, 'Sales/Purchase old-generation bridge copy (MigrateAllSalesPurchOldGenBridge - confirmed no-op: both source _BE_DXR and destination _Old fields across all 14 tables are ObsoleteState = Removed, no live tenant data ever existed; see codeunit 60166 header comment)', 60166, 0, 0, 'MA');
         InsConcept('BELLON', 'BELLON-P2', 136, 'Tableextension field-group restore: ApprovalEntry/AssemblyHeader/AssemblySetup/VendorLedgerEntry (Leg-Norm pass)', 60146, 0, 0, 'MA');
@@ -1081,6 +1081,37 @@ codeunit 60012 "DXR MCC Registry Loader"
         // frozen Despacho Base phase. Retire the concept explicitly so it is neither dispatched
         // nor reconciled until the owner provides a supported migration implementation.
         if (ExtCode = 'DESB') and (PhaseCode = 'DESB-P1') and (SeqNo = 29) then
+            exit(true);
+
+        // 2026-08-27: same failure shape as the DESB Sales Price View concept above, root-caused
+        // from a real BELLON run that stalled on "Item HTML"/"Item Image View" and therefore never
+        // reached Vendor/Contact/Customer at all. Two distinct reasons, both making a row-by-row
+        // restore impossible rather than merely slow:
+        //   * "Item Image View" (50099 -> 53360, Old2 59290) and "Inventory View" (50097 -> 55004)
+        //     declare LinkedObject = true in Bellon Customization's OWN source - verified directly
+        //     in Dextra_Bellon Customization_28.3.4.20.app (the exact dependency symbol package
+        //     this project compiles against): Base\Tables.old\ItemImageView.Table.al,
+        //     Base\Tables\ItemImageView.Table.al, Base\Tables.old2\ItemImageView.Table.al,
+        //     Base\Tables.old\InventoryView.Table.al, Base\Tables\InventoryView.Table.al.
+        //     A LinkedObject table is not BC-managed storage: it is a link to a SQL Server object
+        //     (Learn, "LinkedObject Property": "Specifies a link to SQL Server objects"; and
+        //     "LinkedInTransaction Property": access to linked data sources "is not under Business
+        //     Central transaction control"). Legacy and new therefore resolve to the SAME external
+        //     view - there is no tenant row to move. MCC's counter reports a gap it can never
+        //     close, so DXR MCC Fallback Migrator re-attempts an Insert into a SQL view on every
+        //     single run, outside transaction control and with no way to converge.
+        //   * "Item HTML" (50098 -> 53359, Old2 59289) stores three BLOB fields (Html, "Descripcion
+        //     Extendida", Caracteristicas). Every generic restore path in MCC copies through
+        //     FieldRef.Value WITHOUT a preceding CalcFields, which for a BLOB can only ever write
+        //     an empty value - the gap never closes and the whole table is re-walked forever.
+        // Retiring these five concepts is what stops a defect in one table from stalling the entire
+        // BELLON Master category, exactly as the DESB precedent above. The dispatcher itself still
+        // runs for its other concepts; the matching calls were removed from the adapter bodies in
+        // the same change (see DXRMCCBellonMigrPhase2/Phase6 "Removed 2026-08-27").
+        if (ExtCode = 'BELLON') and
+           (((PhaseCode = 'BELLON-P2') and (SeqNo in [74, 75, 133])) or
+            ((PhaseCode = 'BELLON-P6') and (SeqNo in [213, 214])))
+        then
             exit(true);
 
         exit((ExtCode = 'BELLON') and
