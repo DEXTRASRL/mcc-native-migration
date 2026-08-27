@@ -6,10 +6,10 @@ codeunit 60174 "DXR MCC LSLOC Master Fields"
         Worker: Codeunit "DXR MCC LSLOC Migr ToDXRLS";
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-MCC-LSLOC-MASTERFIELDS-20260825.') then
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-LSLOC-MASTERFIELDS-NAME-FALLBACK-20260826.') then
             exit;
         Worker.RunMasterFields();
-        UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-MASTERFIELDS-20260825.');
+        UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-MASTERFIELDS-NAME-FALLBACK-20260826.');
     end;
 }
 

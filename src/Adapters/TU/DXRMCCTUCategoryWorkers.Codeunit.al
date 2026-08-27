@@ -33,7 +33,7 @@ codeunit 60235 "DXR MCC TU Master"
 
     local procedure Tag(): Code[250]
     begin
-        exit('DXR-MCC-TU-MASTER-ORIGINAL-FIELDS-20260826.');
+        exit('DXR-MCC-TU-MASTER-NAME-FALLBACK-20260826.');
     end;
 }
 

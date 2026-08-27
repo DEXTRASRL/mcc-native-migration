@@ -81,25 +81,29 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
 
     procedure RunMaster()
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         RecRef: RecordRef;
+        Modified: Boolean;
     begin
         RecRef.Open(Database::Vendor);
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50018, 57113);
-                CopyFieldIfExists(RecRef, 50019, 57114);
-                CopyFieldIfExists(RecRef, 50020, 57115);
-                CopyFieldIfExists(RecRef, 50021, 57116);
-                CopyFieldIfExists(RecRef, 50022, 57117);
-                CopyFieldIfExists(RecRef, 50023, 57118);
-                CopyFieldIfExists(RecRef, 50024, 57119);
-                CopyFieldIfExists(RecRef, 50025, 57120);
-                CopyFieldIfExists(RecRef, 50028, 57121);
-                CopyFieldIfExists(RecRef, 50029, 57122);
-                CopyFieldIfExists(RecRef, 50030, 57123);
-                CopyFieldIfExists(RecRef, 50031, 57124);
-                CopyFieldIfExists(RecRef, 50032, 57125);
-                RecRef.Modify(false);
+                Modified := false;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Tipo Servicio_DXR', 'BE Tipo Servicio') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Clasificación ABC_DXR', 'BE Clasificación ABC') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Nombre_DXR', 'BE Enc. Cobros Nombre') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Email_DXR.', 'BE Enc. Cobros email') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros celular_DXR', 'BE Enc. Cobros celular') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Cumpleaños_DXR', 'BE Enc. Cobros Cumpleaños') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Frecuencia de Pago_DXR', 'BE Frecuencia de Pago') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Límite de Crédito_DXR', 'BE Límite de Crédito') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Municipio_DXR', 'BE Municipio') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Provincia_DXR', 'BE Provincia') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Despachador Email_DX.R', 'BE Despachador Email') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Proveedor Cilindros_DXR', 'BE Proveedor Cilindros') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Gestor_CXP_ID_DXR.', 'BE Gestor_CXP_ID') or Modified;
+                if Modified then
+                    RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
     end;

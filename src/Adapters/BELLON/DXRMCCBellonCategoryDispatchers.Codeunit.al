@@ -14,8 +14,8 @@ codeunit 60310 "DXR MCC Bellon P2 Master"
     trigger OnRun()
     var Worker: Codeunit "DXR MCC Bellon Migr Phase2"; Tag: Codeunit "Upgrade Tag";
     begin
-        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P2-MASTER-20260825.') then exit;
-        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P2-MASTER-20260825.');
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P2-MASTER-NAME-FALLBACK-20260826.') then exit;
+        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P2-MASTER-NAME-FALLBACK-20260826.');
     end;
 }
 
@@ -114,8 +114,8 @@ codeunit 60320 "DXR MCC Bellon P13 Master"
     trigger OnRun()
     var Worker: Codeunit "DXR MCC Bellon Migr Phase13"; Tag: Codeunit "Upgrade Tag";
     begin
-        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P13-MASTER-20260825.') then exit;
-        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P13-MASTER-20260825.');
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P13-MASTER-NAME-FALLBACK-20260826.') then exit;
+        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P13-MASTER-NAME-FALLBACK-20260826.');
     end;
 }
 
@@ -164,8 +164,8 @@ codeunit 60387 "DXR MCC Bellon P14 Master"
     trigger OnRun()
     var Worker: Codeunit "DXR MCC Bellon Migr Phase14"; Tag: Codeunit "Upgrade Tag";
     begin
-        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P14-MASTER-20260825.') then exit;
-        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P14-MASTER-20260825.');
+        if Tag.HasUpgradeTag('DXR-MCC-BELLON-P14-MASTER-NAME-FALLBACK-20260826.') then exit;
+        Worker.RunMaster(); Tag.SetUpgradeTag('DXR-MCC-BELLON-P14-MASTER-NAME-FALLBACK-20260826.');
     end;
 }
 

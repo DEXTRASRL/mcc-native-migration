@@ -28,6 +28,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Fallback Migrator" = X,
         codeunit "DXR MCC Migration Lock Mgt." = X,
         codeunit "DXR MCC Completion Notify" = X,
+        codeunit "DXR MCC Master Field Resolver" = X,
         codeunit "DXR MCC Portfolio Perm. Mgt." = X,
         codeunit "DXR MCC Reporting Migration" = X,
         codeunit "DXR MCC Reporting Upgrade" = X,

@@ -35,53 +35,39 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283') or
-           UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283.')
-        then
+        if UpgradeTag.HasUpgradeTag('DXR-SalesPurchIdDedup283-NAME-FALLBACK-20260826') then
             exit;
 
         MigrateAllSalesPurchFieldIdDedup();
 
-        UpgradeTag.SetUpgradeTag('DXR-SalesPurchIdDedup283.');
+        UpgradeTag.SetUpgradeTag('DXR-SalesPurchIdDedup283-NAME-FALLBACK-20260826');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
+        // Field numbers remain in the published schema to keep BC's TransferFields compatibility,
+        // but migration lookup itself is entirely name based. The maintained name is preferred;
+        // old bridge aliases are only used when it is blank or unavailable.
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldCandidates(TargetFieldName)) then
+            RecordChanged := true;
+    end;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        if Format(TargetField) = Format(SourceField) then
-            exit;
+    local procedure SourceFieldCandidates(TargetFieldName: Text): Text
+    var
+        BaseFieldName: Text;
+        DxrSuffixPosition: Integer;
+    begin
+        DxrSuffixPosition := StrPos(TargetFieldName, '_DXR');
+        if DxrSuffixPosition = 0 then
+            exit(TargetFieldName);
 
-        TargetField.Value := SourceField.Value();
-        RecordChanged := true;
+        BaseFieldName := DelStr(TargetFieldName, DxrSuffixPosition, StrLen('_DXR'));
+        if CopyStr(BaseFieldName, StrLen(BaseFieldName), 1) = '.' then
+            BaseFieldName := CopyStr(BaseFieldName, 1, StrLen(BaseFieldName) - 1);
+
+        exit(BaseFieldName + '|' + BaseFieldName + '_Old2|' + BaseFieldName + '_Old|' + BaseFieldName + '_BE_DXR');
     end;
 
     local procedure PersistChangedRecord(var RecRef: RecordRef)
@@ -135,22 +121,22 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52788, 57200);
-                CopyFieldIfExists(RecRef, 52789, 57201);
-                CopyFieldIfExists(RecRef, 52790, 57202);
-                CopyFieldIfExists(RecRef, 52791, 57203);
-                CopyFieldIfExists(RecRef, 52792, 57204);
-                CopyFieldIfExists(RecRef, 52793, 57205);
-                CopyFieldIfExists(RecRef, 52794, 57206);
+                CopyFieldIfExists(RecRef, 'Discount_ByLS_DXR');
+                CopyFieldIfExists(RecRef, 'DiscountApplied_LS_DXR');
+                CopyFieldIfExists(RecRef, 'Offer No._DXR');
+                CopyFieldIfExists(RecRef, 'Shipment_DXR.');
+                CopyFieldIfExists(RecRef, 'Aprobacion Inmediata_DXR');
+                CopyFieldIfExists(RecRef, 'Tipo Venta_DXR');
+                CopyFieldIfExists(RecRef, 'CreatedBy_DXR');
                 // 57207 (Tipo Segmento_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52796, 57208);
-                CopyFieldIfExists(RecRef, 52797, 57209);
-                CopyFieldIfExists(RecRef, 52798, 57210);
-                CopyFieldIfExists(RecRef, 52799, 57211);
-                CopyFieldIfExists(RecRef, 52800, 57212);
-                CopyFieldIfExists(RecRef, 52801, 57213);
+                CopyFieldIfExists(RecRef, 'AzulOrderID_DXR.');
+                CopyFieldIfExists(RecRef, 'ExternalPaymentStatus_DXR');
+                CopyFieldIfExists(RecRef, 'MontoPreaprobadoAZUL_DXR');
+                CopyFieldIfExists(RecRef, 'Email Enviado Gerentes_DXR');
+                CopyFieldIfExists(RecRef, 'Sent Pickup_DXR.');
+                CopyFieldIfExists(RecRef, 'PriceReleaseControlFlag_DXR');
                 // 57214 (Gestor_ID_DXR.) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52803, 57215);
+                CopyFieldIfExists(RecRef, 'Reference Address BE_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -164,19 +150,19 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         if RecRef.FindSet(true) then
             repeat
                 // 57230 (PaID_DXR.) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52788, 57231);
-                CopyFieldIfExists(RecRef, 52789, 57232);
-                CopyFieldIfExists(RecRef, 52790, 57233);
-                CopyFieldIfExists(RecRef, 52791, 57234);
-                CopyFieldIfExists(RecRef, 52792, 57235);
-                CopyFieldIfExists(RecRef, 52793, 57236);
-                CopyFieldIfExists(RecRef, 52794, 57237);
+                CopyFieldIfExists(RecRef, 'Tipo_DXR');
+                CopyFieldIfExists(RecRef, 'Discount_ByLS_DXR');
+                CopyFieldIfExists(RecRef, 'DiscountApplied_LS_DXR');
+                CopyFieldIfExists(RecRef, 'Offer No._DXR');
+                CopyFieldIfExists(RecRef, 'Comision_Tipo_ID_DXR.');
+                CopyFieldIfExists(RecRef, 'Shipment_DXR.');
+                CopyFieldIfExists(RecRef, 'Tipo Venta_DXR');
                 // 57238 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52796, 57239);
-                CopyFieldIfExists(RecRef, 52797, 57240);
-                CopyFieldIfExists(RecRef, 52798, 57241);
-                CopyFieldIfExists(RecRef, 52799, 57242);
-                CopyFieldIfExists(RecRef, 52800, 57243);
+                CopyFieldIfExists(RecRef, 'Addl Currency Code_DXR');
+                CopyFieldIfExists(RecRef, 'Banco Central Cur Fctr_DXR');
+                CopyFieldIfExists(RecRef, 'Date Created_DXR');
+                CopyFieldIfExists(RecRef, 'SetAplicarFechaPago_DXR');
+                CopyFieldIfExists(RecRef, 'PaymentDate_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -189,10 +175,10 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Cr.Memo Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57260);
-                CopyFieldIfExists(RecRef, 52788, 57261);
-                CopyFieldIfExists(RecRef, 52789, 57262);
-                CopyFieldIfExists(RecRef, 52790, 57263);
+                CopyFieldIfExists(RecRef, 'Discount_ByLS_DXR');
+                CopyFieldIfExists(RecRef, 'DiscountApplied_LS_DXR');
+                CopyFieldIfExists(RecRef, 'Offer No._DXR');
+                CopyFieldIfExists(RecRef, 'Shipment_DXR.');
                 // 57264 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
@@ -206,11 +192,11 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Shipment Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57280);
-                CopyFieldIfExists(RecRef, 52788, 57281);
-                CopyFieldIfExists(RecRef, 52789, 57282);
-                CopyFieldIfExists(RecRef, 52790, 57283);
-                CopyFieldIfExists(RecRef, 52791, 57284);
+                CopyFieldIfExists(RecRef, 'Tipo NCF Cliente_DXR');
+                CopyFieldIfExists(RecRef, 'No. Series NCF Fact._DXR');
+                CopyFieldIfExists(RecRef, 'No. Series NCF Cr._DXR');
+                CopyFieldIfExists(RecRef, 'NCF_DXR');
+                CopyFieldIfExists(RecRef, 'Shipment_DXR.');
                 // 57285 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
@@ -224,18 +210,18 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57300);
-                CopyFieldIfExists(RecRef, 52788, 57301);
-                CopyFieldIfExists(RecRef, 52789, 57302);
-                CopyFieldIfExists(RecRef, 52790, 57303);
-                CopyFieldIfExists(RecRef, 52791, 57304);
-                CopyFieldIfExists(RecRef, 52792, 57305);
+                CopyFieldIfExists(RecRef, 'Autorizador_DXR');
+                CopyFieldIfExists(RecRef, 'Barcode_DXR');
+                CopyFieldIfExists(RecRef, 'Procesada POS_DXR');
+                CopyFieldIfExists(RecRef, 'Discount_ByLS_DXR');
+                CopyFieldIfExists(RecRef, 'Periodic Discount%_DXR.');
+                CopyFieldIfExists(RecRef, 'Line Copied From Inv_DXR');
                 // 57306 (StoreNoHeader_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52794, 57307);
-                CopyFieldIfExists(RecRef, 52795, 57308);
-                CopyFieldIfExists(RecRef, 52796, 57309);
-                CopyFieldIfExists(RecRef, 52797, 57310);
-                CopyFieldIfExists(RecRef, 52798, 57311);
+                CopyFieldIfExists(RecRef, 'Precio Referencia_DXR');
+                CopyFieldIfExists(RecRef, 'Empaque_DXR');
+                CopyFieldIfExists(RecRef, 'Empaque Maestro_DXR');
+                CopyFieldIfExists(RecRef, 'Referencias_DXR');
+                CopyFieldIfExists(RecRef, 'Referencia_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -248,7 +234,7 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Invoice Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57330);
+                CopyFieldIfExists(RecRef, 'Item Tracking No._DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -261,7 +247,7 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Header Archive");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57340);
+                CopyFieldIfExists(RecRef, 'Store No._DXR');
                 // 57341 (Cust Salesperson Code_DXR.) is a FlowField - no physical data to copy.
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
@@ -275,14 +261,14 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Sales Line Archive");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57350);
-                CopyFieldIfExists(RecRef, 52788, 57351);
-                CopyFieldIfExists(RecRef, 52789, 57352);
-                CopyFieldIfExists(RecRef, 52790, 57353);
-                CopyFieldIfExists(RecRef, 52791, 57354);
-                CopyFieldIfExists(RecRef, 52792, 57355);
-                CopyFieldIfExists(RecRef, 52793, 57356);
-                CopyFieldIfExists(RecRef, 52794, 57357);
+                CopyFieldIfExists(RecRef, 'Autorizador_DXR');
+                CopyFieldIfExists(RecRef, 'Barcode_DXR');
+                CopyFieldIfExists(RecRef, 'Procesada POS_DXR');
+                CopyFieldIfExists(RecRef, 'Discount_ByLS_DXR');
+                CopyFieldIfExists(RecRef, 'Periodic Discount%_DXR.');
+                CopyFieldIfExists(RecRef, 'Line Copied From Inv_DXR');
+                CopyFieldIfExists(RecRef, 'StoreNoHeader_DXR');
+                CopyFieldIfExists(RecRef, 'Precio Referencia_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -295,17 +281,17 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Purchase Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57370);
-                CopyFieldIfExists(RecRef, 52788, 57371);
-                CopyFieldIfExists(RecRef, 52789, 57372);
-                CopyFieldIfExists(RecRef, 52790, 57373);
-                CopyFieldIfExists(RecRef, 52791, 57374);
-                CopyFieldIfExists(RecRef, 52792, 57375);
+                CopyFieldIfExists(RecRef, 'Fecha Est Lleg Bln_DXR');
+                CopyFieldIfExists(RecRef, 'Factor %_DXR');
+                CopyFieldIfExists(RecRef, 'Markup %_DXR');
+                CopyFieldIfExists(RecRef, 'Priority_DXR');
+                CopyFieldIfExists(RecRef, 'FechaEstEntregaSuplidor_DXR');
+                CopyFieldIfExists(RecRef, 'Envio Compras ID_DXR.');
                 // 57376 (Envio Compras_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52794, 57377);
+                CopyFieldIfExists(RecRef, 'Fecha Registro 2_DXR');
                 // 57378 (Transito Internacional_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52796, 57379);
-                CopyFieldIfExists(RecRef, 52797, 57380);
+                CopyFieldIfExists(RecRef, 'Batch No. Repl._DXR');
+                CopyFieldIfExists(RecRef, 'Templeate No Repl._DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -318,9 +304,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Purch. Inv. Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57400);
+                CopyFieldIfExists(RecRef, 'Priority_DXR');
                 // 57401 (Envio Compras_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52789, 57402);
+                CopyFieldIfExists(RecRef, 'Fecha Registro 2_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -333,16 +319,16 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Purch. Rcpt. Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57410);
-                CopyFieldIfExists(RecRef, 52788, 57411);
-                CopyFieldIfExists(RecRef, 52789, 57412);
-                CopyFieldIfExists(RecRef, 52790, 57413);
-                CopyFieldIfExists(RecRef, 52791, 57414);
-                CopyFieldIfExists(RecRef, 52792, 57415);
-                CopyFieldIfExists(RecRef, 52793, 57416);
-                CopyFieldIfExists(RecRef, 52794, 57417);
-                CopyFieldIfExists(RecRef, 52795, 57418);
-                CopyFieldIfExists(RecRef, 52796, 57419);
+                CopyFieldIfExists(RecRef, 'No. Series NCF Fact._DXR');
+                CopyFieldIfExists(RecRef, 'No. Series NCF Ab._DXR');
+                CopyFieldIfExists(RecRef, 'NCF_DXR');
+                CopyFieldIfExists(RecRef, 'Utiliza NCF Externo_DXR');
+                CopyFieldIfExists(RecRef, 'Cod. Retencion ITBIS_DXR');
+                CopyFieldIfExists(RecRef, 'Cod. Retencion ISR_DXR');
+                CopyFieldIfExists(RecRef, 'Cod. Categoria NCF_DXR');
+                CopyFieldIfExists(RecRef, 'Multiples Cat. NCF_DXR');
+                CopyFieldIfExists(RecRef, 'Correccion Int._DXR');
+                CopyFieldIfExists(RecRef, 'Tipo NCF Provedor_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -355,9 +341,9 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Purchase Header Archive");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57430);
-                CopyFieldIfExists(RecRef, 52788, 57431);
-                CopyFieldIfExists(RecRef, 52789, 57432);
+                CopyFieldIfExists(RecRef, 'Fecha Est Lleg Bln_DXR');
+                CopyFieldIfExists(RecRef, 'FechaEstEntregaSuplidor_DXR');
+                CopyFieldIfExists(RecRef, 'Envio Compras ID_DXR.');
                 // 57433 (Envio Compras_DXR) is a FlowField - no physical data to copy.
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
@@ -372,12 +358,12 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         if RecRef.FindSet(true) then
             repeat
                 // 57440 (Country/Region Org Code_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 52788, 57441);
-                CopyFieldIfExists(RecRef, 52789, 57442);
-                CopyFieldIfExists(RecRef, 52790, 57443);
-                CopyFieldIfExists(RecRef, 52791, 57444);
-                CopyFieldIfExists(RecRef, 52792, 57445);
-                CopyFieldIfExists(RecRef, 52793, 57446);
+                CopyFieldIfExists(RecRef, 'Almacen Destino_DXR');
+                CopyFieldIfExists(RecRef, 'Transito_DXR');
+                CopyFieldIfExists(RecRef, 'Unit Cost has Changed_DXR');
+                CopyFieldIfExists(RecRef, 'Batch No. Repl._DXR');
+                CopyFieldIfExists(RecRef, 'Templeate No Repl._DXR');
+                CopyFieldIfExists(RecRef, 'Line No. Repl._DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);
@@ -390,7 +376,7 @@ codeunit 60147 "DXR MCC Bellon Migr Phase3"
         RecRef.Open(Database::"Purch. Rcpt. Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52787, 57460);
+                CopyFieldIfExists(RecRef, 'Almacen Destino_DXR');
                 PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
         FinishTable(RecRef);

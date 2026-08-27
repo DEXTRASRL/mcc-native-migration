@@ -32,12 +32,12 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-BellonP14XCollFixMasterCompleted') then
+        if UpgradeTag.HasUpgradeTag('DXR-BellonP14MasterNameFallbackCompleted-20260826') then
             exit;
 
         MigrateContactCollisionBridge();
 
-        UpgradeTag.SetUpgradeTag('DXR-BellonP14XCollFixMasterCompleted');
+        UpgradeTag.SetUpgradeTag('DXR-BellonP14MasterNameFallbackCompleted-20260826');
     end;
 
     procedure RunAccounting()
@@ -95,25 +95,29 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
     // FlowFilters in the same collision set are excluded - no physical column to bridge.
     local procedure MigrateContactCollisionBridge()
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         RecRef: RecordRef;
+        Modified: Boolean;
     begin
         RecRef.Open(Database::Contact);
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50064, 58004); // Next Order Selection -> _DXR. (the reported crash field)
-                CopyFieldIfExists(RecRef, 50065, 58005); // Next Order Restaurant -> _DXR.
-                CopyFieldIfExists(RecRef, 50066, 58006); // Next Order Date -> _DXR.
-                CopyFieldIfExists(RecRef, 50067, 58007); // Next Order Time -> _DXR.
-                CopyFieldIfExists(RecRef, 50068, 58008); // Next Delivery Tender -> _DXR.
-                CopyFieldIfExists(RecRef, 50069, 58009); // Recall Order -> _DXR.
-                CopyFieldIfExists(RecRef, 50070, 58010); // Next Order Rest. Temporary -> _DXR.
-                CopyFieldIfExists(RecRef, 50071, 58011); // Date Created -> _DXR.
-                CopyFieldIfExists(RecRef, 50074, 58013); // Pre-Order Print DateTime -> _DXR.
-                CopyFieldIfExists(RecRef, 50075, 58014); // Next Estimated Prod. Time -> _DXR.
-                CopyFieldIfExists(RecRef, 50076, 58015); // External No. -> _DXR.
-                CopyFieldIfExists(RecRef, 50077, 58016); // Last Date/Time Modified -> _DXR.
-                CopyFieldIfExists(RecRef, 50078, 58017); // Customer Template Code -> _DXR.
-                RecRef.Modify(false);
+                Modified := false;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Selection_DXR.', 'Next Order Selection|Next Order Selection_Old|Next Order Selection_Old_DXR|Next Order Selection_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Restaurant_DXR.', 'Next Order Restaurant|Next Order Restaurant_Old|Next Order Rest_Old_DXR|Next Order Restaurant_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Date_DXR.', 'Next Order Date|Next Order Date_Old|Next Order Date_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Time_DXR.', 'Next Order Time|Next Order Time_Old|Next Order Time_Old_DXR|Next Order Time_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Delivery Tender_DXR.', 'Next Delivery Tender|Next Delivery Tender_Old|Next Delivery Tender_Old_DXR|Next Delivery Tender_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Recall Order_DXR.', 'Recall Order|Recall Order_Old|Recall Order_Old_DXR|Recall Order_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Ord Rest Temp_DXR.', 'Next Order Rest. Temporary|Next Ord Rest Temp_Old|Next Ord Rest Temp_Old_DXR|Next Ord Rest Temp_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Date Created_DXR.', 'Date Created|Date Created_Old|Date Created_Old_DXR|Date Created_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Pre-Order Print DT_DXR', 'Pre-Order Print DateTime|Pre-Ord Print DateTime_Old|Pre-Ord Print DT_Old_DXR|Pre-Ord Print DateTime_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Est Prod Time_DXR.', 'Next Estimated Prod. Time|Next Est Prod Time_Old|Next Est Prod Time_Old_DXR|Next Est Prod Time_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'External No._DXR.', 'External No.|External No._Old|External No._Old_DXR|External No._DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Last Date/Time Modified_DXR.', 'Last Date/Time Modified|Last Date/Time Modified_Old|Last Date/Time Mod_Old_DXR|Last Date/Time Modified_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cust Template Code_DXR', 'Customer Template Code|Customer Template Code_Old|Cust Template Code_Old_DXR|Customer Template Code_DXR') or Modified;
+                if Modified then
+                    RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
     end;

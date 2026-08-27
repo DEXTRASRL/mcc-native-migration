@@ -44,6 +44,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         tabledata "Warehouse Receipt Header" = RM,
         tabledata "Warehouse Shipment Header" = RM;
 
+    var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
+
     trigger OnRun()
     begin
         // --- Phase 2 (must run first - see header comment) ---
@@ -92,20 +95,31 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesHeaderRec: Record "Sales Header";
+        RecRef: RecordRef;
         BatchCount: Integer;
+        Modified: Boolean;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826') then
             exit;
 
         if SalesHeaderRec.FindSet(true) then
             repeat
-                SalesHeaderRec."DXR_DiscountAppliedLS_Old2" := SalesHeaderRec."DiscountAppliedLS_DXR";
-                SalesHeaderRec."DXR_DiscountByLS_Old2" := SalesHeaderRec."DiscountByLS_DXR";
-                SalesHeaderRec."DXR_Ruta_Old2" := SalesHeaderRec."Ruta_DXR";
-                SalesHeaderRec."DXR_Sent Pickup_Old2" := SalesHeaderRec."Sent Pickup_DXR";
-                SalesHeaderRec."DXR_Shipment_Old2" := SalesHeaderRec."Shipment_DXR";
-                SalesHeaderRec."DXR_Tipo_Old2" := SalesHeaderRec."Tipo_DXR";
-                SalesHeaderRec.Modify(false);
+                RecRef.GetTable(SalesHeaderRec);
+                Modified := false;
+                if CopyFirstPopulatedField(RecRef, 'DXR_DiscountAppliedLS_Old2', 'DiscountAppliedLS_DXR|DXR-DE DiscountAppliedLS') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_DiscountByLS_Old2', 'DiscountByLS_DXR|DXR-DE DiscountByLS') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Ruta_Old2', 'Ruta_DXR|DXR-DE Ruta') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Sent Pickup_Old2', 'Sent Pickup_DXR|DXR-DE Sent Pickup') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Shipment_Old2', 'Shipment_DXR|DXR-DE Shipment') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Tipo_Old2', 'Tipo_DXR|DXR-DE Tipo') then
+                    Modified := true;
+                if Modified then
+                    RecRef.Modify(false);
 
                 BatchCount += 1;
                 if BatchCount >= 100 then begin
@@ -114,42 +128,12 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                 end;
             until SalesHeaderRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
-    var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+    local procedure CopyFirstPopulatedField(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldNames: Text): Boolean
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
-
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+        exit(MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldNames));
     end;
 
     // Cannot be converted to typed Record access: independently verified against DESB's current
@@ -172,28 +156,45 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         UpgradeTag: Codeunit "Upgrade Tag";
         RecRef: RecordRef;
         BatchCount: Integer;
+        Modified: Boolean;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-NAME-FALLBACK-20260826') then
             exit;
 
         RecRef.Open(Database::"Transfer Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50801, 53885); // DXR-DE Codigo Auditoria -> DXR_Codigo Auditoria_Reloc
-                CopyFieldIfExists(RecRef, 53659, 53886); // Despachador Original_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 50800, 53887); // DXR-DE No. Despachador -> DXR_No. Despachador_Reloc
-                CopyFieldIfExists(RecRef, 50803, 53888); // DXR-DE Order Date Created -> DXR_Order Date Created_Reloc
-                CopyFieldIfExists(RecRef, 50802, 53889); // DXR-DE Order User Id -> DXR_Order User Id_Reloc
-                CopyFieldIfExists(RecRef, 50806, 53890); // DXR-DE Original Trans. Date -> DXR_Original Trans. Date_Reloc
-                CopyFieldIfExists(RecRef, 50805, 53891); // DXR-DE Original Transfer No. -> DXR_Orig Transfer No._Reloc
-                CopyFieldIfExists(RecRef, 50804, 53892); // DXR-DE Despachador Original -> DXR_Despachador Original_Reloc
-                CopyFieldIfExists(RecRef, 53666, 53893); // Codigo Auditoria_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53667, 53894); // No. Despachador_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53668, 53895); // Order Date Created_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53669, 53896); // Order User Id_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53670, 53897); // Original Trans. Date_DXR -> _Reloc
-                CopyFieldIfExists(RecRef, 53671, 53898); // Original Transfer No._DXR -> _Reloc
-                RecRef.Modify(false);
+                Modified := false;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Codigo Auditoria_Reloc', 'DXR-DE Codigo Auditoria') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Despachador Original_DXR_Reloc', 'Despachador Original_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_No. Despachador_Reloc', 'DXR-DE No. Despachador') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Order Date Created_Reloc', 'DXR-DE Order Date Created') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Order User Id_Reloc', 'DXR-DE Order User Id') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Original Trans. Date_Reloc', 'DXR-DE Original Trans. Date') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Orig Transfer No._Reloc', 'DXR-DE Original Transfer No.') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DXR_Despachador Original_Reloc', 'DXR-DE Despachador Original') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Codigo Auditoria_DXR_Reloc', 'Codigo Auditoria_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'No. Despachador_DXR_Reloc', 'No. Despachador_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Order Date Created_DXR_Reloc', 'Order Date Created_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Order User Id_DXR_Reloc', 'Order User Id_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Original Trans. Date_DXR_Reloc', 'Original Trans. Date_DXR') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Orig Transfer No._DXR_Reloc', 'Original Transfer No._DXR') then
+                    Modified := true;
+                if Modified then
+                    RecRef.Modify(false);
 
                 BatchCount += 1;
                 if BatchCount >= 100 then begin
@@ -203,7 +204,7 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             until RecRef.Next() = 0;
         RecRef.Close();
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-NAME-FALLBACK-20260826');
     end;
 
     // Cannot be converted to typed Record access: the only collision-source field, "DXR-DE
@@ -216,19 +217,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         RecRef: RecordRef;
+        BatchCount: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-NAME-FALLBACK-20260826') then
             exit;
 
         RecRef.Open(Database::"Sales Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50802, 53899); // DXR-DE DiscountByLS -> DXR_DiscountByLS_Old2
-                RecRef.Modify(false);
+                if CopyFirstPopulatedField(RecRef, 'DXR_DiscountByLS_Old2', 'DXR-DE DiscountByLS') then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-NAME-FALLBACK-20260826');
     end;
 
     // Cannot be converted to typed Record access: the only collision-source field, "DXR Package
@@ -241,19 +249,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         RecRef: RecordRef;
+        BatchCount: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESINVLINE_COLLISION-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESINVLINE-NAME-FALLBACK-20260826') then
             exit;
 
         RecRef.Open(Database::"Sales Invoice Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50800, 53900); // DXR Package Quantity -> _Old2
-                RecRef.Modify(false);
+                if CopyFirstPopulatedField(RecRef, 'DXR Package Quantity_Old2', 'DXR Package Quantity') then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESINVLINE_COLLISION-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESINVLINE-NAME-FALLBACK-20260826');
     end;
 
     // ===== Phase 1: DXR_-prefix -> _DXR-suffix field duplication (28 tables) =====
@@ -336,8 +351,10 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesInvoiceLineRec: Record "Sales Invoice Line";
+        RecRef: RecordRef;
+        BatchCount: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVLINE-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVLINE-NAME-FALLBACK-20260826') then
             exit;
 
         // Reads from "DXR Package Quantity_Old2" (53900), not the original "DXR Package Quantity"
@@ -345,11 +362,18 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         // TransferFields collision with Sales Line's "DXR_DiscountByLS_Old" at the same field ID.
         if SalesInvoiceLineRec.FindSet(true) then
             repeat
-                SalesInvoiceLineRec."Package Quantity_DXR" := SalesInvoiceLineRec."DXR Package Quantity_Old2";
-                SalesInvoiceLineRec.Modify(false);
+                RecRef.GetTable(SalesInvoiceLineRec);
+                if CopyFirstPopulatedField(RecRef, 'Package Quantity_DXR', 'DXR Package Quantity_Old2') then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SalesInvoiceLineRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVLINE-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVLINE-NAME-FALLBACK-20260826');
     end;
 
     local procedure MigrateTable_SalesShipmentHeader()
@@ -590,22 +614,40 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesHeaderRec: Record "Sales Header";
+        RecRef: RecordRef;
+        BatchCount: Integer;
+        Modified: Boolean;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-NAME-FALLBACK-20260826') then
             exit;
 
         if SalesHeaderRec.FindSet(true) then
             repeat
-                SalesHeaderRec."Tipo_DXR" := SalesHeaderRec."DXR_Tipo_Old2";
-                SalesHeaderRec."DiscountByLS_DXR" := SalesHeaderRec."DXR_DiscountByLS_Old2";
-                SalesHeaderRec."DiscountAppliedLS_DXR" := SalesHeaderRec."DXR_DiscountAppliedLS_Old2";
-                SalesHeaderRec."Shipment_DXR" := SalesHeaderRec."DXR_Shipment_Old2";
-                SalesHeaderRec."Sent Pickup_DXR" := SalesHeaderRec."DXR_Sent Pickup_Old2";
-                SalesHeaderRec."Ruta_DXR" := SalesHeaderRec."DXR_Ruta_Old2";
-                SalesHeaderRec.Modify(false);
+                RecRef.GetTable(SalesHeaderRec);
+                Modified := false;
+                if CopyFirstPopulatedField(RecRef, 'Tipo_DXR', 'DXR_Tipo_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DiscountByLS_DXR', 'DXR_DiscountByLS_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DiscountAppliedLS_DXR', 'DXR_DiscountAppliedLS_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Shipment_DXR', 'DXR_Shipment_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Sent Pickup_DXR', 'DXR_Sent Pickup_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Ruta_DXR', 'DXR_Ruta_Old2') then
+                    Modified := true;
+                if Modified then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SalesHeaderRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-NAME-FALLBACK-20260826');
     end;
 
     // "DXR_DiscountByLS" (53658) and "DXR_Periodic Discount%" (53659) were renamed (not removed) -
@@ -615,8 +657,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesLineRec: Record "Sales Line";
+        RecRef: RecordRef;
+        BatchCount: Integer;
+        Modified: Boolean;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESLINE-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESLINE-NAME-FALLBACK-20260826') then
             exit;
 
         // "DiscountByLS_DXR" reads from "DXR_DiscountByLS_Old2" (53899), not the original
@@ -625,14 +670,27 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         // at the same field ID.
         if SalesLineRec.FindSet(true) then
             repeat
-                SalesLineRec."Total Weight_DXR" := SalesLineRec."DXR-DE Total Weight";
-                SalesLineRec."Total Volume_DXR" := SalesLineRec."DXR-DE Total Volume";
-                SalesLineRec."DiscountByLS_DXR" := SalesLineRec."DXR_DiscountByLS_Old2";
-                SalesLineRec."Periodic Discount%_DXR" := SalesLineRec."DXR-DE Periodic Discount%";
-                SalesLineRec.Modify(false);
+                RecRef.GetTable(SalesLineRec);
+                Modified := false;
+                if CopyFirstPopulatedField(RecRef, 'Total Weight_DXR', 'DXR-DE Total Weight') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Total Volume_DXR', 'DXR-DE Total Volume') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'DiscountByLS_DXR', 'DXR_DiscountByLS_Old2') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Periodic Discount%_DXR', 'DXR-DE Periodic Discount%') then
+                    Modified := true;
+                if Modified then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SalesLineRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESLINE-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESLINE-NAME-FALLBACK-20260826');
     end;
 
     local procedure MigrateTable_ShipToAddress()
@@ -674,23 +732,42 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransferHeaderRec: Record "Transfer Header";
+        RecRef: RecordRef;
+        BatchCount: Integer;
+        Modified: Boolean;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-NAME-FALLBACK-20260826') then
             exit;
 
         if TransferHeaderRec.FindSet(true) then
             repeat
-                TransferHeaderRec."No. Despachador_DXR_Reloc" := TransferHeaderRec."DXR_No. Despachador_Reloc";
-                TransferHeaderRec."Codigo Auditoria_DXR_Reloc" := TransferHeaderRec."DXR_Codigo Auditoria_Reloc";
-                TransferHeaderRec."Order User Id_DXR_Reloc" := TransferHeaderRec."DXR_Order User Id_Reloc";
-                TransferHeaderRec."Order Date Created_DXR_Reloc" := TransferHeaderRec."DXR_Order Date Created_Reloc";
-                TransferHeaderRec."Despachador Original_DXR_Reloc" := TransferHeaderRec."DXR_Despachador Original_Reloc";
-                TransferHeaderRec."Orig Transfer No._DXR_Reloc" := TransferHeaderRec."DXR_Orig Transfer No._Reloc";
-                TransferHeaderRec."Original Trans. Date_DXR_Reloc" := TransferHeaderRec."DXR_Original Trans. Date_Reloc";
-                TransferHeaderRec.Modify(false);
+                RecRef.GetTable(TransferHeaderRec);
+                Modified := false;
+                if CopyFirstPopulatedField(RecRef, 'No. Despachador_DXR_Reloc', 'DXR_No. Despachador_Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Codigo Auditoria_DXR_Reloc', 'DXR_Codigo Auditoria_Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Order User Id_DXR_Reloc', 'DXR_Order User Id_Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Order Date Created_DXR_Reloc', 'DXR_Order Date Created_Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Despachador Original_DXR_Reloc', 'DXR_Despachador Original_Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Orig Transfer No._DXR_Reloc', 'DXR_Orig Transfer No._Reloc') then
+                    Modified := true;
+                if CopyFirstPopulatedField(RecRef, 'Original Trans. Date_DXR_Reloc', 'DXR_Original Trans. Date_Reloc') then
+                    Modified := true;
+                if Modified then
+                    RecRef.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until TransferHeaderRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-NAME-FALLBACK-20260826');
     end;
 
     local procedure MigrateTable_TransferReceiptHeader()

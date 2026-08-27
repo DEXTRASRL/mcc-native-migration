@@ -1075,6 +1075,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         // These Bellon bridges are deliberate no-op tag setters. Their source and destination
         // fields never existed as live tenant data, so invoking/logging them adds noise without
         // performing migration work. Keep their registry identity only for historical log links.
+        // DESB Sales Price View is intentionally omitted: the owning migration body is disabled
+        // in source, so scheduling its wrapper only set a completion tag without migrating data
+        // and then pushed the entire large table into MCC's generic fallback. That looked like a
+        // frozen Despacho Base phase. Retire the concept explicitly so it is neither dispatched
+        // nor reconciled until the owner provides a supported migration implementation.
+        if (ExtCode = 'DESB') and (PhaseCode = 'DESB-P1') and (SeqNo = 29) then
+            exit(true);
+
         exit((ExtCode = 'BELLON') and
             (((PhaseCode = 'BELLON-P10') and (SeqNo = 7)) or
              ((PhaseCode = 'BELLON-P2') and (SeqNo = 135))));

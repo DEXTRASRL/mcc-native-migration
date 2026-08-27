@@ -69,45 +69,61 @@ codeunit 60011 "DXR MCC Executor"
     procedure RunExtension(ExtensionCode: Code[20]; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer)
     var
         Concept: Record "DXR MCC Concept";
-        SeenDispatchers: Dictionary of [Integer, Boolean];
-        DispatcherIds: List of [Integer];
-        ConceptEntryNos: List of [Integer];
-        DispatcherId: Integer;
+        CategoryOrdinal: Integer;
+        BandOrdinal: Integer;
+        TotalConcepts: Integer;
     begin
         Concept.SetRange("Extension Code", ExtensionCode);
         Concept.SetRange(Retired, false);
         Concept.SetRange(Blocked, false);
-        Concept.SetCurrentKey("Extension Code", "Sequence No.");
-        if not Concept.FindSet() then
+        TotalConcepts := Concept.Count();
+        if TotalConcepts = 0 then
             exit;
 
         if RunRequestEntryNo = 0 then
-            OpenProgress(StrSubstNo('Extensión: %1', ExtensionCode), Concept.Count());
+            OpenProgress(StrSubstNo('Extensión: %1', ExtensionCode), TotalConcepts);
 
-        // Execute each effective dispatcher exactly once. Registry rows are verification/logging
-        // units, not independent calls: many rows intentionally describe tables handled by the
-        // same category worker. Re-running that worker once per row made the first row execute the
-        // whole transaction and every later row become an Upgrade-Tag no-op.
-        repeat
-            if not SeenDispatchers.ContainsKey(Concept."Dispatcher Codeunit ID") then begin
-                SeenDispatchers.Add(Concept."Dispatcher Codeunit ID", true);
-                DispatcherIds.Add(Concept."Dispatcher Codeunit ID");
-            end;
-        until Concept.Next() = 0;
-
-        foreach DispatcherId in DispatcherIds do begin
-            Clear(ConceptEntryNos);
-            CollectDispatcherConcepts(ExtensionCode, DispatcherId, false, Concept.Category::Setup, false, 0, ConceptEntryNos);
-            if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0) then begin
+        // Keep the same dependency-safe lifecycle as RunPortfolio even for a single extension.
+        // The former implementation used the first Sequence No. where a dispatcher appeared,
+        // which could mix Setup, Master, Accounting and Historic work in one pass. Category-owned
+        // dispatchers and their upgrade tags are now always invoked in the explicit lifecycle
+        // order, with normal work before deferred/bulk work inside every phase.
+        for CategoryOrdinal := 0 to 5 do
+            for BandOrdinal := 0 to 1 do
+                if not RunExtensionCategory(
+                    ExtensionCode, CategoryFromPortfolioOrdinal(CategoryOrdinal), BandOrdinal,
+                    CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0)
+                then begin
                 if RunRequestEntryNo = 0 then
                     CloseProgress();
                 exit;
             end;
-        end;
+
         AssignPortfolioPermissions(RunRequestEntryNo);
         if RunRequestEntryNo = 0 then
             CloseProgress();
         Commit();
+    end;
+
+    local procedure CategoryFromPortfolioOrdinal(CategoryOrdinal: Integer): Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting
+    var
+        Concept: Record "DXR MCC Concept";
+    begin
+        case CategoryOrdinal of
+            0:
+                exit(Concept.Category::Setup);
+            1:
+                exit(Concept.Category::Master);
+            2:
+                exit(Concept.Category::Accounting);
+            3:
+                exit(Concept.Category::Historic);
+            4:
+                exit(Concept.Category::Other);
+            5:
+                exit(Concept.Category::Reporting);
+        end;
+        exit(Concept.Category::Other);
     end;
 
     procedure RunConcept(var Concept: Record "DXR MCC Concept")
@@ -478,7 +494,7 @@ codeunit 60011 "DXR MCC Executor"
                         MarkRunRequestCancelled(RunRequestEntryNo);
                         exit;
                     end;
-                    if not RunExtensionCategory(Extension.Code, Category, BandOrdinal, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo) then
+                    if not RunExtensionCategory(Extension.Code, Category, BandOrdinal, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
                         exit;
                     ProcessedNo += 1;
                     SaveCategoryCheckpoint(RunRequestEntryNo, BandOrdinal, Extension.Code, ProcessedNo);
@@ -587,7 +603,7 @@ codeunit 60011 "DXR MCC Executor"
         exit(-1);
     end;
 
-    local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; BandOrdinal: Integer; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer): Boolean
+    local procedure RunExtensionCategory(ExtensionCode: Code[20]; Category: Option Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting; BandOrdinal: Integer; var CompletedCount: Integer; var GapCount: Integer; var ErrorCount: Integer; var BlockedCount: Integer; RunRequestEntryNo: Integer; ShowProgress: Boolean): Boolean
     var
         Concept: Record "DXR MCC Concept";
         SeenDispatchers: Dictionary of [Integer, Boolean];
@@ -626,7 +642,7 @@ codeunit 60011 "DXR MCC Executor"
         foreach DispatcherId in DispatcherIds do begin
             Clear(ConceptEntryNos);
             CollectDispatcherConcepts(ExtensionCode, DispatcherId, true, Category, true, BandOrdinal, ConceptEntryNos);
-            if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
+            if not RunDispatcherGroup(ExtensionCode, DispatcherId, ConceptEntryNos, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, ShowProgress) then
                 exit(false);
         end;
         Commit();
@@ -1052,10 +1068,10 @@ codeunit 60011 "DXR MCC Executor"
     var
         Counter: Codeunit "DXR MCC Counter";
         RunLog: Record "DXR MCC Run Log";
-        FallbackMigrator: Codeunit "DXR MCC Fallback Migrator";
         FallbackRowsCopied: Integer;
         FallbackResultText: Text;
         UsedFallback: Boolean;
+        FallbackApplied: Boolean;
         TableOpenFailed: Boolean;
         NotRowBased: Boolean;
         InformationalSkipped: Boolean;
@@ -1115,13 +1131,27 @@ codeunit 60011 "DXR MCC Executor"
            (HasGap or (ErrorText <> '') or (Concept."Dispatcher Codeunit ID" = 0)) and
            (Concept."Legacy Table ID" <> 0) and (Concept."New Table ID" <> 0)
         then
-            if FallbackMigrator.TryRestoreConcept(Concept, RunRequestEntryNo, FallbackRowsCopied, FallbackResultText) then begin
-                UsedFallback := true;
-                ErrorText := '';
-                Counter.CountConcept(Concept); // refresh Old/Migrated/Gap - fallback may have closed some/all of it
-                HasGap := (Concept."Legacy Table ID" <> Concept."New Table ID") and (Concept."Legacy Table ID" <> 0) and
-                    (Concept."Migrated Record Count" < Concept."Old Record Count");
-            end;
+            if TryRestoreConceptSafely(Concept, RunRequestEntryNo, FallbackRowsCopied, FallbackResultText, FallbackApplied) then begin
+                if FallbackApplied then begin
+                    UsedFallback := true;
+                    ErrorText := '';
+                    Counter.CountConcept(Concept); // refresh Old/Migrated/Gap - fallback may have closed some/all of it
+                    HasGap := (Concept."Legacy Table ID" <> Concept."New Table ID") and (Concept."Legacy Table ID" <> 0) and
+                        (Concept."Migrated Record Count" < Concept."Old Record Count");
+                end;
+            end else
+                if GetLastErrorText() <> '' then begin
+                    // A generic fallback is remediation for one concept, never a reason to abort
+                    // the complete extension/category/portfolio. Preserve the dispatcher error
+                    // when one already exists; otherwise surface the fallback failure on this
+                    // concept and continue with the next dispatcher group.
+                    FallbackResultText := GetLastErrorText();
+                    if ErrorText = '' then
+                        ErrorText := StrSubstNo('Fallback aislado falló: %1', FallbackResultText)
+                    else
+                        ErrorText := StrSubstNo('%1 Fallback aislado también falló: %2', ErrorText, FallbackResultText);
+                    ClearLastError();
+                end;
 
         if not RunLog.Get(RunningLogEntryNo) then
             RunLog.Init();
@@ -1212,6 +1242,21 @@ codeunit 60011 "DXR MCC Executor"
             RunLog.Insert(true)
         else
             RunLog.Modify(true);
+    end;
+
+    /// <summary>
+    /// Cloud-safe error boundary around the generic RecordRef fallback. Business Central online
+    /// permits writes inside TryFunctions but does not roll them back. The fallback is therefore
+    /// required to remain idempotent and checkpointed: rows already inserted are skipped and the
+    /// next execution resumes without overwriting them. Any schema/key/permission exception is
+    /// converted into the current concept's Error instead of crashing the portfolio request.
+    /// </summary>
+    [TryFunction]
+    local procedure TryRestoreConceptSafely(var Concept: Record "DXR MCC Concept"; RunRequestEntryNo: Integer; var RowsCopied: Integer; var ResultText: Text; var FallbackApplied: Boolean)
+    var
+        FallbackMigrator: Codeunit "DXR MCC Fallback Migrator";
+    begin
+        FallbackApplied := FallbackMigrator.TryRestoreConcept(Concept, RunRequestEntryNo, RowsCopied, ResultText);
     end;
 
     local procedure IsSkippableMissingRecordError(ErrorText: Text): Boolean

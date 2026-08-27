@@ -52,7 +52,7 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-BELLONPOS-TABLEEXT-FIELDS-NORM-28.3') then
+        if UpgradeTag.HasUpgradeTag('DXR-BELLONPOS-TABLEEXT-FIELDS-NAME-FALLBACK-20260826') then
             exit;
 
         MigrateTableExt_LSCMembershipCardFields();
@@ -65,7 +65,7 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         MigrateTableExt_LSCTransSalesEntryFields();
         MigrateTableExt_LSCTransServerTableLogFields();
 
-        UpgradeTag.SetUpgradeTag('DXR-BELLONPOS-TABLEEXT-FIELDS-NORM-28.3');
+        UpgradeTag.SetUpgradeTag('DXR-BELLONPOS-TABLEEXT-FIELDS-NAME-FALLBACK-20260826');
     end;
 
     // "LSC Membership Card": both the legacy field (50000, "Cardholder Name") and the new one
@@ -78,148 +78,167 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     local procedure MigrateTableExt_BEDXSetupFields()
     var
         Setup: Record "BE DX Setup";
+        Modified: Boolean;
     begin
         if Setup.FindSet(true) then
             repeat
-                if (Setup."POS Venta Exonerada ITBIS" <> Setup."POS Venta Exonerada ITBIS_DXR") then
+                Modified := false;
+                if (Setup."POS Venta Exonerada ITBIS_DXR" = false) and Setup."POS Venta Exonerada ITBIS" then begin
                     Setup."POS Venta Exonerada ITBIS_DXR" := Setup."POS Venta Exonerada ITBIS";
-                if (Setup."Filtro Pos Devolucion" <> Setup."Filtro Pos Devolucion_DXR") then
+                    Modified := true;
+                end;
+                if (Setup."Filtro Pos Devolucion_DXR" = false) and Setup."Filtro Pos Devolucion" then begin
                     Setup."Filtro Pos Devolucion_DXR" := Setup."Filtro Pos Devolucion";
-                if (Setup."POS Devolucion Exonerada ITBIS" <> Setup."POS Devolucion Exonerada ITBIS_DXR") then
+                    Modified := true;
+                end;
+                if (Setup."POS Devolucion Exonerada ITBIS_DXR" = false) and Setup."POS Devolucion Exonerada ITBIS" then begin
                     Setup."POS Devolucion Exonerada ITBIS_DXR" := Setup."POS Devolucion Exonerada ITBIS";
-                if (Setup."Show SalesPerson on Receipt" <> Setup."Show SalesPerson on Receipt_DXR") then
+                    Modified := true;
+                end;
+                if (Setup."Show SalesPerson on Receipt_DXR" = false) and Setup."Show SalesPerson on Receipt" then begin
                     Setup."Show SalesPerson on Receipt_DXR" := Setup."Show SalesPerson on Receipt";
-                Setup.Modify(false);
+                    Modified := true;
+                end;
+                if Modified then
+                    Setup.Modify(false);
             until Setup.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCCouponHeaderFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC Coupon Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'Discount % of Total_DXR', 'Discount % of Total');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LSCPOSTransLineFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC POS Trans. Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50015, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'Order No._DXR', 'Order No.');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LSCPOSCommandFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC POS Command");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'ModificarLineasBackOffice_DXR', 'ModificarLineasBackOffice');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LSCPOSTerminalFields()
     var
         Terminal: Record "LSC POS Terminal";
+        Modified: Boolean;
     begin
         if Terminal.FindSet(true) then
             repeat
-                if (Terminal."External Cmd. Print Z by Range" <> Terminal."External Cmd. Print Z by Range_DXR") then
+                Modified := false;
+                if (Terminal."External Cmd. Print Z by Range_DXR" = '') and (Terminal."External Cmd. Print Z by Range" <> '') then begin
                     Terminal."External Cmd. Print Z by Range_DXR" := Terminal."External Cmd. Print Z by Range";
-                if (Terminal."External Cmd. Imp. Factura" <> Terminal."External Cmd. Imp. Factura_DXR") then
+                    Modified := true;
+                end;
+                if (Terminal."External Cmd. Imp. Factura_DXR" = '') and (Terminal."External Cmd. Imp. Factura" <> '') then begin
                     Terminal."External Cmd. Imp. Factura_DXR" := Terminal."External Cmd. Imp. Factura";
-                if (Terminal."External Cmd. Cliente Suspe." <> Terminal."External Cmd. Cliente Suspe._DXR") then
+                    Modified := true;
+                end;
+                if (Terminal."External Cmd. Cliente Suspe._DXR" = '') and (Terminal."External Cmd. Cliente Suspe." <> '') then begin
                     Terminal."External Cmd. Cliente Suspe._DXR" := Terminal."External Cmd. Cliente Suspe.";
-                Terminal.Modify(false);
+                    Modified := true;
+                end;
+                if Modified then
+                    Terminal.Modify(false);
             until Terminal.Next() = 0;
     end;
 
     local procedure MigrateTableExt_LSCPOSTransactionFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC POS Transaction");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50005, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'Order No._DXR', 'Order No.');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LSCTransSalesEntryFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC Trans. Sales Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'Qty Refunded_DXR', 'Qty Refunded');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LSCTransServerTableLogFields()
     var
+        Modified: Boolean;
         RecRef: RecordRef;
     begin
         RecRef.Open(Database::"LSC Trans. Server Table Log");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 53526);
-                RecRef.Modify(false);
+                Modified := CopyFieldIfExists(RecRef, 'Last Lookup_DXR', 'Last Lookup');
+                PersistChangedRecord(RecRef, Modified);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldNames: Text): Boolean
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
+        exit(MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldNames));
+    end;
+
+    local procedure PersistChangedRecord(var RecRef: RecordRef; Modified: Boolean)
+    begin
+        if not Modified then
             exit;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+        RecRef.Modify(false);
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= 500 then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        if RowsSinceCommit > 0 then
+            Commit();
+        RowsSinceCommit := 0;
     end;
 
     local procedure MigrateAllNormalizedTables()
@@ -302,6 +321,9 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     begin
         TargetRecRef.Insert(false);
     end;
+
+    var
+        RowsSinceCommit: Integer;
 }
 
 #endif

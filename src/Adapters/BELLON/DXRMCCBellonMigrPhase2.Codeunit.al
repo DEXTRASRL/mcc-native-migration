@@ -2969,31 +2969,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
 
     local procedure MigrateTableExt_ContactFields()
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         RecRef: RecordRef;
+        Modified: Boolean;
     begin
         RecRef.Open(Database::"Contact");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50060, 50079);
-                CopyFieldIfExists(RecRef, 50061, 50080);
-                CopyFieldIfExists(RecRef, 50062, 50081);
-                CopyFieldIfExists(RecRef, 50063, 50082);
-                CopyFieldIfExists(RecRef, 50064, 50083);
-                CopyFieldIfExists(RecRef, 50065, 50084);
-                CopyFieldIfExists(RecRef, 50066, 50085);
-                CopyFieldIfExists(RecRef, 50067, 50086);
-                CopyFieldIfExists(RecRef, 50068, 50087);
-                CopyFieldIfExists(RecRef, 50069, 50088);
-                CopyFieldIfExists(RecRef, 50070, 50089);
-                CopyFieldIfExists(RecRef, 50071, 50090);
-                CopyFieldIfExists(RecRef, 50072, 50091);
-                CopyFieldIfExists(RecRef, 50073, 50092);
-                CopyFieldIfExists(RecRef, 50074, 50093);
-                CopyFieldIfExists(RecRef, 50075, 50094);
-                CopyFieldIfExists(RecRef, 50076, 50095);
-                CopyFieldIfExists(RecRef, 50077, 50096);
-                CopyFieldIfExists(RecRef, 50078, 50097);
-                RecRef.Modify(false);
+                Modified := false;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Selection_DXR.', 'Next Order Selection|Next Order Selection_Old|Next Order Selection_Old_DXR|Next Order Selection_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Restaurant_DXR.', 'Next Order Restaurant|Next Order Restaurant_Old|Next Order Rest_Old_DXR|Next Order Restaurant_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Date_DXR.', 'Next Order Date|Next Order Date_Old|Next Order Date_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Order Time_DXR.', 'Next Order Time|Next Order Time_Old|Next Order Time_Old_DXR|Next Order Time_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Delivery Tender_DXR.', 'Next Delivery Tender|Next Delivery Tender_Old|Next Delivery Tender_Old_DXR|Next Delivery Tender_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Recall Order_DXR.', 'Recall Order|Recall Order_Old|Recall Order_Old_DXR|Recall Order_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Ord Rest Temp_DXR.', 'Next Order Rest. Temporary|Next Ord Rest Temp_Old|Next Ord Rest Temp_Old_DXR|Next Ord Rest Temp_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Date Created_DXR.', 'Date Created|Date Created_Old|Date Created_Old_DXR|Date Created_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Pre-Order Print DT_DXR', 'Pre-Order Print DateTime|Pre-Ord Print DateTime_Old|Pre-Ord Print DT_Old_DXR|Pre-Ord Print DateTime_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Next Est Prod Time_DXR.', 'Next Estimated Prod. Time|Next Est Prod Time_Old|Next Est Prod Time_Old_DXR|Next Est Prod Time_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'External No._DXR.', 'External No.|External No._Old|External No._Old_DXR|External No._DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Last Date/Time Modified_DXR.', 'Last Date/Time Modified|Last Date/Time Modified_Old|Last Date/Time Mod_Old_DXR|Last Date/Time Modified_DXR') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cust Template Code_DXR', 'Customer Template Code|Customer Template Code_Old|Cust Template Code_Old_DXR|Customer Template Code_DXR') or Modified;
+                if Modified then
+                    RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
     end;

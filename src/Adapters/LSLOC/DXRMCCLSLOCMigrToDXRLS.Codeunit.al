@@ -266,12 +266,15 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     local procedure CopyItemFields()
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         Rec: Record Item;
+        RecRef: RecordRef;
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."Factor_DXR" := Rec.Factor;
-                Rec.Modify(false);
+                RecRef.GetTable(Rec);
+                if MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Factor_DXR', 'Factor') then
+                    RecRef.Modify(false);
             until Rec.Next() = 0;
     end;
 

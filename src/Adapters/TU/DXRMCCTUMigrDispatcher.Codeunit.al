@@ -152,18 +152,23 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
 
     local procedure MigrateOriginalCustomerFields()
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         Customer: Record Customer;
+        RecRef: RecordRef;
+        Modified: Boolean;
     begin
         if Customer.FindSet(true) then
             repeat
-                Customer."Data Crédito VIP_DXR" := Customer."TU - Data Crédito VIP";
-                Customer."Forma Crédito_DXR" := Customer."TU - Forma Crédito";
-                Customer."Cuenta Abogado_DXR" := Customer."TU - Cuenta Abogado";
-                Customer."Incobrable_DXR" := Customer."TU - Incobrable";
-                Customer."Teléfono 2_DXR" := Customer."TU - Teléfono 2";
-                Customer.Modify(false);
+                RecRef.GetTable(Customer);
+                Modified := false;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Data Crédito VIP_DXR', 'TU - Data Crédito VIP|Data Crédito VIP_Old') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Forma Crédito_DXR', 'TU - Forma Crédito|Forma Crédito_Old') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cuenta Abogado_DXR', 'TU - Cuenta Abogado|Cuenta Abogado_Old') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Incobrable_DXR', 'TU - Incobrable|Incobrable_Old') or Modified;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Teléfono 2_DXR', 'TU - Teléfono 2|Teléfono 2_Old') or Modified;
+                if Modified then
+                    RecRef.Modify(false);
             until Customer.Next() = 0;
-
     end;
 
     local procedure MigrateLegacyCustLedgerEntryFields()
@@ -327,7 +332,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
 
     local procedure MasterOriginalFieldsMigrationTag(): Code[250]
     begin
-        exit('DXR-MCC-TU-MASTER-ORIGINAL-FIELDS-20260826.');
+        exit('DXR-MCC-TU-MASTER-NAME-FALLBACK-20260826.');
     end;
 
     local procedure LedgerFieldMigrationTag(): Code[250]
