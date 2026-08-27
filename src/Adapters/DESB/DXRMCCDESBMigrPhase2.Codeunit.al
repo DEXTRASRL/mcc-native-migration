@@ -317,45 +317,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
 
     // ===== Phase 1: DXR_-prefix -> _DXR-suffix field duplication (28 tables) =====
 
+    // Fixed 2026-08-27 (Task 3, motor por tabla): el cuerpo de este procedimiento se movio a
+    // "DXR MCC Master Customer" (60450).ApplyDESB() - ese codeunit hace un solo recorrido de
+    // Customer para los 6 bloques que si migraron (BELLON, BC, DESB, DRLOC, PCM, SD) en vez de
+    // uno por extension, bajo su propio upgrade tag (DXR-MCC-MASTER-CUSTOMER-20260827). No-op
+    // deliberado, no se borra: RunAll de este codeunit lo sigue invocando.
     local procedure MigrateTable_Customer()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
-        CustomerRec: Record Customer;
-        CustomerToUpdate: Record Customer;
-        Blank: Record Customer;
-        RowsSinceCommit: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-CUSTOMER-28.3') then
-            exit;
-
-        // Fixed 2026-08-27: SetLoadFields + FindSet(false) + Get-on-second-record so the run no
-        // longer holds a table-wide UPDLOCK on Customer, and commits every 500 modified rows.
-        CustomerRec.SetLoadFields(
-            "No.",
-            "Clasific. Cliente ABC_DXR", "DXR-DE Clasific. Cliente ABC",
-            "Ruta_DXR", "DXR-DE Ruta");
-        if CustomerRec.FindSet(false) then
-            repeat
-                if (CustomerRec."Clasific. Cliente ABC_DXR" <> CustomerRec."DXR-DE Clasific. Cliente ABC") or
-                   (CustomerRec."Ruta_DXR" <> CustomerRec."DXR-DE Ruta")
-                then
-                    if CustomerToUpdate.Get(CustomerRec."No.") then begin
-                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
-                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
-                        // would blindly overwrite an already-populated _DXR value.
-                        if CustomerToUpdate."Clasific. Cliente ABC_DXR" = Blank."Clasific. Cliente ABC_DXR" then
-                            CustomerToUpdate."Clasific. Cliente ABC_DXR" := CustomerToUpdate."DXR-DE Clasific. Cliente ABC";
-                        if CustomerToUpdate."Ruta_DXR" = Blank."Ruta_DXR" then
-                            CustomerToUpdate."Ruta_DXR" := CustomerToUpdate."DXR-DE Ruta";
-                        CustomerToUpdate.Modify(false);
-                        CommitEvery500(RowsSinceCommit);
-                    end;
-            until CustomerRec.Next() = 0;
-
-        if RowsSinceCommit > 0 then
-            Commit();
-
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-CUSTOMER-28.3');
     end;
 
     local procedure MigrateTable_ApprovalEntry()

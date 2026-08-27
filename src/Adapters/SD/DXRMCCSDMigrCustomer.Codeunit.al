@@ -10,39 +10,13 @@ codeunit 60070 "DXR MCC SD Migr Customer"
     // visible here because Special Dispatch is a real app.json dependency of MCC.
     Permissions = tabledata Customer = RM;
 
-    // Fixed 2026-08-27: FindSet(true) over the WHOLE Customer table read every row under
-    // IsolationLevel::UpdLock (Learn "Record.FindSet") and, with no SetLoadFields, joined every
-    // tableextension companion table for every row; the commit counter also advanced per row READ
-    // instead of per row MODIFIED. Now reads partial + unlocked and locks only rows that change.
+    // Fixed 2026-08-27 (Task 3, motor por tabla): el cuerpo de este trigger se movio a
+    // "DXR MCC Master Customer" (60450).ApplySD() - ese codeunit hace un solo recorrido de
+    // Customer para los 6 bloques que si migraron (BELLON, BC, DESB, DRLOC, PCM, SD) en vez de
+    // uno por extension. No-op deliberado, no se borra: RunPortfolio/RunConcept siguen invocando
+    // este codeunit por su ID (60070) via Codeunit.Run.
     trigger OnRun()
-    var
-        Cust: Record Customer;
-        CustToUpdate: Record Customer;
-        Blank: Record Customer;
-        RowsSinceCommit: Integer;
     begin
-        Cust.SetLoadFields("No.", "Special Dispatch_DXR", "Special Dispatch DXR");
-        if not Cust.FindSet(false) then
-            exit;
-        repeat
-            if Cust."Special Dispatch_DXR" <> Cust."Special Dispatch DXR" then
-                if CustToUpdate.Get(Cust."No.") then begin
-                    // Fixed 2026-08-27 (never-overwrite): the dirty-check above only avoids a no-op
-                    // write - it does not stop a re-run from overwriting an already-populated _DXR
-                    // value with the legacy one.
-                    if CustToUpdate."Special Dispatch_DXR" = Blank."Special Dispatch_DXR" then
-                        CustToUpdate."Special Dispatch_DXR" := CustToUpdate."Special Dispatch DXR";
-                    CustToUpdate.Modify(false);
-                    RowsSinceCommit += 1;
-                    if RowsSinceCommit >= BatchSize() then begin
-                        Commit();
-                        RowsSinceCommit := 0;
-                    end;
-                end;
-        until Cust.Next() = 0;
-
-        if RowsSinceCommit > 0 then
-            Commit();
     end;
 
     local procedure BatchSize(): Integer

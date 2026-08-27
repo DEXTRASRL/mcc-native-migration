@@ -29,61 +29,17 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
         MigrateCustomerFields();
     end;
 
+    // Fixed 2026-08-27 (Task 3, motor por tabla): el cuerpo de este procedimiento se movio a
+    // "DXR MCC Master Customer" (60450).ApplyPCM() - ese codeunit hace un solo recorrido de
+    // Customer para los 6 bloques que si migraron (BELLON, BC, DESB, DRLOC, PCM, SD) en vez de
+    // uno por extension. No-op deliberado, no se borra: RunMaster() sigue invocandolo. Nota:
+    // "DXR MCC PCM Migr Phase5" tiene su propia MigrateCustomerFields() casi identica (mismo par
+    // de campos PRC Store/PRC Store_DXR, bajo Step4Tag() en vez de CustomerFieldsMigratedTag()) -
+    // ese archivo tenia cambios sin commitear ajenos a esta tarea al momento de implementarla, asi
+    // que se dejo intacto sin tocar (ver task-3-report.md); sigue corriendo por separado, de forma
+    // redundante pero inofensiva (ya estaba guardada con el mismo patron never-overwrite).
     local procedure MigrateCustomerFields()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
-        RetryMgt: Codeunit 54617;
-        Customer: Record Customer;
-        CustomerToUpdate: Record Customer;
-        AttemptNo: Integer;
-        RowCounter: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag(CustomerFieldsMigratedTag()) then
-            exit;
-
-        // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every customer with a "PRC Store" for the
-        // whole run, including the ones whose _DXR value is already filled (nothing to do). Same fix
-        // as "DXR MCC BC Migr P3 Customer": SetLoadFields limits the read to the 3 fields touched
-        // (Customer carries many tableextensions in this portfolio - without it every companion table
-        // was joined per row), FindSet(false) reads without the lock, and the row is re-read with
-        // Get() and locked only when it really needs the copy. Commit counter per MODIFIED row.
-        Customer.SetLoadFields("No.", "PRC Store", "PRC Store_DXR");
-        Customer.SetFilter("PRC Store", '<>%1', '');
-        if Customer.FindSet(false) then begin
-            repeat
-                if Customer."PRC Store_DXR" = '' then
-                    if CustomerToUpdate.Get(Customer."No.") then
-                        if CustomerToUpdate."PRC Store_DXR" = '' then begin
-                            CustomerToUpdate."PRC Store_DXR" := CustomerToUpdate."PRC Store";
-                            AttemptNo := 0;
-                            while not TryModifyCustomer(CustomerToUpdate) do begin
-                                AttemptNo += 1;
-                                if not RetryMgt.ShouldRetry(AttemptNo, GetLastErrorText()) then
-                                    Error(GetLastErrorText());
-                            end;
-
-                            // Batching commit only runs after the retry-on-lock loop above has fully
-                            // resolved (TryModifyCustomer succeeded, or ShouldRetry gave up and Error()
-                            // already aborted the whole procedure) - never mid-retry, so it cannot
-                            // mask/roll back a pending retry.
-                            RowCounter += 1;
-                            if RowCounter >= BatchSize() then begin
-                                Commit();
-                                RowCounter := 0;
-                            end;
-                        end;
-            until Customer.Next() = 0;
-            if RowCounter > 0 then
-                Commit();
-        end;
-
-        UpgradeTag.SetUpgradeTag(CustomerFieldsMigratedTag());
-    end;
-
-    [TryFunction]
-    local procedure TryModifyCustomer(var Customer: Record Customer)
-    begin
-        Customer.Modify(false);
     end;
 
     local procedure MigrateStorePriceGroupFields()

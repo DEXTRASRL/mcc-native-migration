@@ -446,118 +446,15 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     // MigrateFields_Customer() checks "Apply Cust Withhold_DXR" in its dirty-check condition but
     // never assigns it. Added the missing assignment here so the ported version is actually
     // correct.
+    // Fixed 2026-08-27 (Task 3, motor por tabla): el cuerpo de este procedimiento se movio a
+    // "DXR MCC Master Customer" (60450).ApplyDRLOC() - ese codeunit hace un solo recorrido de
+    // Customer para los 6 bloques que si migraron (BELLON, BC, DESB, DRLOC, PCM, SD) en vez de
+    // uno por extension. No-op deliberado, no se borra: BootstrapBankAccountCustomerVendorFields()
+    // sigue llamandolo bajo su propio upgrade tag ('DX-INTERNAL-CLOSURE-FIELDS-CUSTOMER-20260522-
+    // V2'), que ahora se marca como cumplido sin trabajo real - el trabajo real vive en el tag
+    // nuevo de Master Customer (DXR-MCC-MASTER-CUSTOMER-20260827).
     local procedure MigrateCustomerFields()
-    var
-        CustomerRec: Record Customer;
-        CustomerToUpdate: Record Customer;
-        Blank: Record Customer;
-        BatchCount: Integer;
     begin
-        // Fixed 2026-08-27: FindSet(true) over the whole Customer table held a SQL UPDLOCK on every
-        // customer for the entire run (Learn, "Record.FindSet") and, with no SetLoadFields, joined the
-        // companion table of every Customer tableextension in this portfolio once per row. Now the scan
-        // is a partial, unlocked read; the row is re-read with Get() and locked only when it really
-        // needs the copy, and a Commit every 500 MODIFIED rows bounds the transaction (there was none).
-        CustomerRec.SetLoadFields(
-            "No.",
-            "Tipo NCF_DXR", "DxTipo NCF", "Utiliza NCF_DXR", "DxUtiliza NCF",
-            "Tipo Identificacion_DXR", "DXTipo Identificacion", "Razon Social_DXR", "DxRazon Social",
-            "Nombre Comercial_DXR", "DxNombre Comercial", "Tipo Negocio_DXR", "DxTipo Negocio",
-            "Fecha Constitucion_DXR", "DxFecha Constitucion", "Estatus_DXR", "DxEstatus",
-            "Fecha Act. DGII_DXR", "DxFecha Act. DGII", "Tax Identification Type_DXR", "DxTax Identification Type",
-            "Proveedor Tarjeta Cr._DXR", "DxProveedor Tarjeta Cr.", "International Customer_DXR", "DX International Customer",
-            "Uses Withholding_DXR", "DX Uses Withholding", "Bank Commission_DXR", "DX Bank Commission",
-            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS", "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
-            "Bank Commission Account_DXR", "DX Bank Commission Account", "Def ITBIS Withhold_DXR", "DXDefault ITBIS Withholding",
-            "Default ISR Withholding_DXR", "DXDefault ISR Withholding", "Apply Cust Withhold_DXR", "DX Apply Customer Withholding");
-        if CustomerRec.FindSet(false) then
-            repeat
-                if (CustomerRec."Tipo NCF_DXR" <> CustomerRec."DxTipo NCF") or
-                   (CustomerRec."Utiliza NCF_DXR" <> CustomerRec."DxUtiliza NCF") or
-                   (CustomerRec."Tipo Identificacion_DXR" <> CustomerRec."DXTipo Identificacion") or
-                   (CustomerRec."Razon Social_DXR" <> CustomerRec."DxRazon Social") or
-                   (CustomerRec."Nombre Comercial_DXR" <> CustomerRec."DxNombre Comercial") or
-                   (CustomerRec."Tipo Negocio_DXR" <> CustomerRec."DxTipo Negocio") or
-                   (CustomerRec."Fecha Constitucion_DXR" <> CustomerRec."DxFecha Constitucion") or
-                   (CustomerRec."Estatus_DXR" <> CustomerRec."DxEstatus") or
-                   (CustomerRec."Fecha Act. DGII_DXR" <> CustomerRec."DxFecha Act. DGII") or
-                   (CustomerRec."Tax Identification Type_DXR" <> CustomerRec."DxTax Identification Type") or
-                   (CustomerRec."Proveedor Tarjeta Cr._DXR" <> CustomerRec."DxProveedor Tarjeta Cr.") or
-                   (CustomerRec."International Customer_DXR" <> CustomerRec."DX International Customer") or
-                   (CustomerRec."Uses Withholding_DXR" <> CustomerRec."DX Uses Withholding") or
-                   (CustomerRec."Bank Commission_DXR" <> CustomerRec."DX Bank Commission") or
-                   (CustomerRec."Cod. Retencion ITBIS_DXR" <> CustomerRec."DXCod. Retencion ITBIS") or
-                   (CustomerRec."Cod. Retencion ISR_DXR" <> CustomerRec."DXCod. Retencion ISR") or
-                   (CustomerRec."Bank Commission Account_DXR" <> CustomerRec."DX Bank Commission Account") or
-                   (CustomerRec."Def ITBIS Withhold_DXR" <> CustomerRec."DXDefault ITBIS Withholding") or
-                   (CustomerRec."Default ISR Withholding_DXR" <> CustomerRec."DXDefault ISR Withholding") or
-                   (CustomerRec."Apply Cust Withhold_DXR" <> CustomerRec."DX Apply Customer Withholding") then
-                    if CustomerToUpdate.Get(CustomerRec."No.") then begin
-                    // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
-                    // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
-                    // would blindly overwrite an already-populated _DXR value.
-                    if CustomerToUpdate."Tipo NCF_DXR" = Blank."Tipo NCF_DXR" then
-                        CustomerToUpdate."Tipo NCF_DXR" := CustomerToUpdate."DxTipo NCF";
-                    if CustomerToUpdate."Utiliza NCF_DXR" = Blank."Utiliza NCF_DXR" then
-                        CustomerToUpdate."Utiliza NCF_DXR" := CustomerToUpdate."DxUtiliza NCF";
-                    if CustomerToUpdate."Tipo Identificacion_DXR" = Blank."Tipo Identificacion_DXR" then
-                        CustomerToUpdate."Tipo Identificacion_DXR" := CustomerToUpdate."DXTipo Identificacion";
-                    if CustomerToUpdate."Razon Social_DXR" = Blank."Razon Social_DXR" then
-                        CustomerToUpdate."Razon Social_DXR" := CustomerToUpdate."DxRazon Social";
-                    if CustomerToUpdate."Nombre Comercial_DXR" = Blank."Nombre Comercial_DXR" then
-                        CustomerToUpdate."Nombre Comercial_DXR" := CustomerToUpdate."DxNombre Comercial";
-                    if CustomerToUpdate."Tipo Negocio_DXR" = Blank."Tipo Negocio_DXR" then
-                        CustomerToUpdate."Tipo Negocio_DXR" := CustomerToUpdate."DxTipo Negocio";
-                    if CustomerToUpdate."Fecha Constitucion_DXR" = Blank."Fecha Constitucion_DXR" then
-                        CustomerToUpdate."Fecha Constitucion_DXR" := CustomerToUpdate."DxFecha Constitucion";
-                    if CustomerToUpdate."Estatus_DXR" = Blank."Estatus_DXR" then
-                        CustomerToUpdate."Estatus_DXR" := CustomerToUpdate."DxEstatus";
-                    if CustomerToUpdate."Fecha Act. DGII_DXR" = Blank."Fecha Act. DGII_DXR" then
-                        CustomerToUpdate."Fecha Act. DGII_DXR" := CustomerToUpdate."DxFecha Act. DGII";
-                    if CustomerToUpdate."Tax Identification Type_DXR" = Blank."Tax Identification Type_DXR" then
-                        CustomerToUpdate."Tax Identification Type_DXR" := CustomerToUpdate."DxTax Identification Type";
-                    if CustomerToUpdate."Proveedor Tarjeta Cr._DXR" = Blank."Proveedor Tarjeta Cr._DXR" then
-                        CustomerToUpdate."Proveedor Tarjeta Cr._DXR" := CustomerToUpdate."DxProveedor Tarjeta Cr.";
-                    if CustomerToUpdate."International Customer_DXR" = Blank."International Customer_DXR" then
-                        CustomerToUpdate."International Customer_DXR" := CustomerToUpdate."DX International Customer";
-                    if CustomerToUpdate."Uses Withholding_DXR" = Blank."Uses Withholding_DXR" then
-                        CustomerToUpdate."Uses Withholding_DXR" := CustomerToUpdate."DX Uses Withholding";
-                    if CustomerToUpdate."Bank Commission_DXR" = Blank."Bank Commission_DXR" then
-                        CustomerToUpdate."Bank Commission_DXR" := CustomerToUpdate."DX Bank Commission";
-                    if CustomerToUpdate."Cod. Retencion ITBIS_DXR" = Blank."Cod. Retencion ITBIS_DXR" then
-                        CustomerToUpdate."Cod. Retencion ITBIS_DXR" := CustomerToUpdate."DXCod. Retencion ITBIS";
-                    if CustomerToUpdate."Cod. Retencion ISR_DXR" = Blank."Cod. Retencion ISR_DXR" then
-                        CustomerToUpdate."Cod. Retencion ISR_DXR" := CustomerToUpdate."DXCod. Retencion ISR";
-                    if CustomerToUpdate."Bank Commission Account_DXR" = Blank."Bank Commission Account_DXR" then
-                        CustomerToUpdate."Bank Commission Account_DXR" := CustomerToUpdate."DX Bank Commission Account";
-                    if CustomerToUpdate."Def ITBIS Withhold_DXR" = Blank."Def ITBIS Withhold_DXR" then
-                        CustomerToUpdate."Def ITBIS Withhold_DXR" := CustomerToUpdate."DXDefault ITBIS Withholding";
-                    if CustomerToUpdate."Default ISR Withholding_DXR" = Blank."Default ISR Withholding_DXR" then
-                        CustomerToUpdate."Default ISR Withholding_DXR" := CustomerToUpdate."DXDefault ISR Withholding";
-                    // Explicit conversion required - "Apply Cust Withhold_DXR" (52201) and
-                    // "DX Apply Customer Withholding" (54203) are two distinct Enum objects (the
-                    // latter Obsolete = Pending, replaced by the former), even though their value
-                    // sets are numerically identical (0=" ", 1="On Payment", 2="On Invoice" on both -
-                    // confirmed against DXR_ApplyCustomerWithholding.Enum.al and
-                    // DXApplyCustomerWithholding.Enum.al). AL does not implicitly convert between
-                    // different Enum types on assignment (AL0122), so FromInteger/AsInteger is used.
-                    // Fixed 2026-08-27 (never-overwrite): same unconditional-copy gap as the fields
-                    // above - guarded the same way.
-                    if CustomerToUpdate."Apply Cust Withhold_DXR" = Blank."Apply Cust Withhold_DXR" then
-                        CustomerToUpdate."Apply Cust Withhold_DXR" :=
-                            "Apply Cust Withhold_DXR".FromInteger(CustomerToUpdate."DX Apply Customer Withholding".AsInteger());
-                    CustomerToUpdate.Modify(false);
-
-                    BatchCount += 1;
-                    if BatchCount >= 500 then begin
-                        Commit();
-                        BatchCount := 0;
-                    end;
-                end;
-            until CustomerRec.Next() = 0;
-
-        if BatchCount > 0 then
-            Commit();
     end;
 
     local procedure MigrateCustomerTemplFields()

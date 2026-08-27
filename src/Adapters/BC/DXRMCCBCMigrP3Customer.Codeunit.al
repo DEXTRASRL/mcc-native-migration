@@ -26,43 +26,13 @@ codeunit 60099 "DXR MCC BC Migr P3 Customer"
     // No migration semantics change: same three fields, same fill-only-if-blank guards, same result.
     Permissions = tabledata Customer = RIMD;
 
+    // Fixed 2026-08-27 (Task 3, motor por tabla): el cuerpo de este trigger se movio a
+    // "DXR MCC Master Customer" (60450).ApplyBC() - ese codeunit hace un solo recorrido de
+    // Customer para los 6 bloques que si migraron (BELLON, BC, DESB, DRLOC, PCM, SD) en vez de
+    // uno por extension. No-op deliberado, no se borra: RunPortfolio/RunConcept siguen invocando
+    // este codeunit por su ID (60099) via Codeunit.Run.
     trigger OnRun()
-    var
-        CustomerRec: Record Customer;
-        CustomerToUpdate: Record Customer;
-        RowsSinceCommit: Integer;
     begin
-        CustomerRec.SetLoadFields(
-            "No.",
-            "Mandatory Order No._DXR", "Mandatory Order No._Old",
-            "Exp. Exemption Card_DXR", "Exp. Exemption Card_Old",
-            "Reference Address_DXR", "Reference Address_Old");
-        if not CustomerRec.FindSet(false) then
-            exit;
-        repeat
-            if RowNeedsMigration(CustomerRec) then
-                if CustomerToUpdate.Get(CustomerRec."No.") then begin
-                    if (not CustomerToUpdate."Mandatory Order No._DXR") and CustomerToUpdate."Mandatory Order No._Old" then
-                        CustomerToUpdate."Mandatory Order No._DXR" := true;
-
-                    if (CustomerToUpdate."Exp. Exemption Card_DXR" = 0D) and (CustomerToUpdate."Exp. Exemption Card_Old" <> 0D) then
-                        CustomerToUpdate."Exp. Exemption Card_DXR" := CustomerToUpdate."Exp. Exemption Card_Old";
-
-                    if (CustomerToUpdate."Reference Address_DXR" = '') and (CustomerToUpdate."Reference Address_Old" <> '') then
-                        CustomerToUpdate."Reference Address_DXR" := CustomerToUpdate."Reference Address_Old";
-
-                    CustomerToUpdate.Modify(false);
-
-                    RowsSinceCommit += 1;
-                    if RowsSinceCommit >= 500 then begin
-                        Commit();
-                        RowsSinceCommit := 0;
-                    end;
-                end;
-        until CustomerRec.Next() = 0;
-
-        if RowsSinceCommit > 0 then
-            Commit();
     end;
 
     local procedure RowNeedsMigration(var CustomerRec: Record Customer): Boolean

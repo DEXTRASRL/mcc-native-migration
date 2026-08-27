@@ -34,6 +34,7 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC Reporting Upgrade" = X,
         codeunit "DXR MCC Tenant Run Mgt." = X,
         codeunit "DXR MCC Upgrade Tag Seed" = X,
+        codeunit "DXR MCC Master Customer" = X,
 #if not ESCUDEA and not BCDX
         codeunit "DXR MCC SD Migr Customer" = X,
         codeunit "DXR MCC SD Migr DispModSetup" = X,
