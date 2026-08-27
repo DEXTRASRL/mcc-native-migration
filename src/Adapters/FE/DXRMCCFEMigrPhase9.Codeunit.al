@@ -68,6 +68,26 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields with exactly the non-Blob fields this loop
+        // reads/writes, so the scan stops joining the companion table of every "Purch. Cr. Memo Hdr."
+        // tableextension in this portfolio once per row. Blob fields are deliberately NOT listed:
+        // per Learn's partial-records FAQ, Blobs are never part of the initial load and keep being
+        // fetched by the CalcFields call below exactly as before.
+        PurchCrMemoHdr.SetLoadFields(
+            "No.",
+            "Already Sent_DXR", "EF Already Sent",
+            "Alternal NCF_DXR", "EF Alternal NCF",
+            "Alternal No. Series_DXR", "EF Alternal No. Series",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason",
+            "DGII Message_DXR", "EF DGII Message",
+            "Has Contingencies_DXR", "EF Has Contingencies",
+            "Indicator Override_DXR", "EF Indicator Override",
+            "Provider_DXR", "EF Provider",
+            "Requested DateTime_DXR", "EF Requested DateTime",
+            "Security Code_DXR", "EF Security Code",
+            "Stamped Date/Time_DXR", "EF Stamped Date/Time",
+            "Status_DXR", "EF Status");
         if PurchCrMemoHdr.FindSet(true) then
             repeat
                 PurchCrMemoHdr."Already Sent_DXR" := PurchCrMemoHdr."EF Already Sent";
@@ -96,6 +116,8 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
                     BatchCount := 0;
                 end;
             until PurchCrMemoHdr.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyPurchCrMemoLineFields()
@@ -103,6 +125,14 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         PurchCrMemoLine: Record "Purch. Cr. Memo Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 8 fields read/written) so the
+        // scan stops joining every "Purch. Cr. Memo Line" tableextension companion table per row.
+        PurchCrMemoLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "Tax Indicator_DXR", "EF Tax Indicator",
+            "Applies Withholding_DXR", "EF Applies for Withholding",
+            "UOM Type_DXR", "EF UOM Type");
         if PurchCrMemoLine.FindSet(true) then
             repeat
                 PurchCrMemoLine."Applies for ISC_DXR" := PurchCrMemoLine."EF Applies for ISC";
@@ -121,6 +151,8 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
                     BatchCount := 0;
                 end;
             until PurchCrMemoLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyPurchInvHeaderFields()
@@ -128,6 +160,26 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         PurchInvHeader: Record "Purch. Inv. Header";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields with exactly the non-Blob fields read/written (Blobs
+        // stay on the CalcFields path - they are never part of a partial load). Same reason as
+        // CopyPurchCrMemoHdrFields above.
+        PurchInvHeader.SetLoadFields(
+            "No.",
+            "Already Sent_DXR", "EF Already Sent",
+            "Alternal NCF_DXR", "EF Alternal NCF",
+            "Alternal No. Series_DXR", "EF Alternal No. Series",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason",
+            "DGII Message_DXR", "EF DGII Message",
+            "Has Contingencies_DXR", "EF Has Contingencies",
+            "Indicator Override_DXR", "EF Indicator Override",
+            "MultiCurrency Fact_DXR", "EF MultiCurrency Fact",
+            "MultiCurrency_DXR", "EF MultiCurrency",
+            "Provider_DXR", "EF Provider",
+            "Requested DateTime_DXR", "EF Requested DateTime",
+            "Security Code_DXR", "EF Security Code",
+            "Stamped Date/Time_DXR", "EF Stamped Date/Time",
+            "Status_DXR", "EF Status");
         if PurchInvHeader.FindSet(true) then
             repeat
                 PurchInvHeader."Already Sent_DXR" := PurchInvHeader."EF Already Sent";
@@ -158,6 +210,8 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
                     BatchCount := 0;
                 end;
             until PurchInvHeader.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyPurchInvLineFields()
@@ -165,6 +219,13 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         PurchInvLine: Record "Purch. Inv. Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 8 fields read/written).
+        PurchInvLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "Tax Indicator_DXR", "EF Tax Indicator",
+            "Applies Withholding_DXR", "EF Applies for Withholding",
+            "UOM Type_DXR", "EF UOM Type");
         if PurchInvLine.FindSet(true) then
             repeat
                 PurchInvLine."Applies for ISC_DXR" := PurchInvLine."EF Applies for ISC";
@@ -181,6 +242,8 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
                     BatchCount := 0;
                 end;
             until PurchInvLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Purchase Header only carries the legacy "EF NCF Modification Reason" (55503), replaced by
@@ -191,6 +254,10 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
         PurchaseHeader: Record "Purchase Header";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 2 fields read/written).
+        PurchaseHeader.SetLoadFields(
+            "Document Type", "No.",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason");
         if PurchaseHeader.FindSet(true) then
             repeat
                 PurchaseHeader."NCF Mod. Reason_DXR" := PurchaseHeader."EF NCF Modification Reason";
@@ -202,5 +269,7 @@ codeunit 60138 "DXR MCC FE Migr Phase9"
                     BatchCount := 0;
                 end;
             until PurchaseHeader.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 }

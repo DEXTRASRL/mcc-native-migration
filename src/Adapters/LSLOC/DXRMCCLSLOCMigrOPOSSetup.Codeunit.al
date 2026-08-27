@@ -51,6 +51,9 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
         // Hardcoded LS Central DR Localization's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        // Fixed 2026-08-27 (A1, partial records): el bucle solo usa "User Security ID"; sin
+        // SetLoadFields se traen todas las columnas de User y de sus tableextensions por fila.
+        UserRec.SetLoadFields("User Security ID");
         if not UserRec.FindSet() then
             exit;
         repeat

@@ -71,6 +71,26 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesCrMemoHeader: Record "Sales Cr.Memo Header";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields with exactly the non-Blob fields this loop
+        // reads/writes, so the scan stops joining the companion table of every "Sales Cr.Memo Header"
+        // tableextension in this portfolio once per row. Blob fields are deliberately NOT listed:
+        // per Learn's partial-records FAQ, Blobs are never part of the initial load and keep being
+        // fetched by the CalcFields call below exactly as before.
+        SalesCrMemoHeader.SetLoadFields(
+            "No.",
+            "Already Sent_DXR", "EF Already Sent",
+            "Alternal NCF_DXR", "EF Alternal NCF",
+            "Alternal No. Series_DXR", "EF Alternal No. Series",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason",
+            "DGII Message_DXR", "EF DGII Message",
+            "Has Contingencies_DXR", "EF Has Contingencies",
+            "Indicator Override_DXR", "EF Indicator Override",
+            "Provider_DXR", "EF Provider",
+            "Requested DateTime_DXR", "EF Requested DateTime",
+            "Security Code_DXR", "EF Security Code",
+            "Stamped Date/Time_DXR", "EF Stamped Date/Time",
+            "Status_DXR", "EF Status");
         if SalesCrMemoHeader.FindSet(true) then
             repeat
                 SalesCrMemoHeader."Already Sent_DXR" := SalesCrMemoHeader."EF Already Sent";
@@ -99,6 +119,8 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesCrMemoHeader.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesCrMemoLineFields()
@@ -106,6 +128,14 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesCrMemoLine: Record "Sales Cr.Memo Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 8 fields read/written) so the
+        // scan stops joining every "Sales Cr.Memo Line" tableextension companion table per row.
+        SalesCrMemoLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "Tax Indicator_DXR", "EF Tax Indicator",
+            "Applies Withholding_DXR", "EF Applies for Withholding",
+            "UOM Type_DXR", "EF UOM Type");
         if SalesCrMemoLine.FindSet(true) then
             repeat
                 SalesCrMemoLine."Applies for ISC_DXR" := SalesCrMemoLine."EF Applies for ISC";
@@ -123,6 +153,8 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesCrMemoLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Sales Header: NCF Mod. Reason_DXR lives at 52335 (moved from 52334 to resolve a
@@ -132,6 +164,11 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesHeader: Record "Sales Header";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 4 fields read/written).
+        SalesHeader.SetLoadFields(
+            "Document Type", "No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason");
         if SalesHeader.FindSet(true) then
             repeat
                 SalesHeader."Applies for ISC_DXR" := SalesHeader."EF Applies for ISC";
@@ -144,6 +181,8 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesHeader.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Sales Invoice Header has no "Indicator Override_DXR"/"EF Indicator Override" field pair
@@ -154,6 +193,25 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesInvoiceHeader: Record "Sales Invoice Header";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields with exactly the non-Blob fields read/written (Blobs
+        // stay on the CalcFields path - they are never part of a partial load). Same reason as
+        // CopySalesCrMemoHeaderFields above.
+        SalesInvoiceHeader.SetLoadFields(
+            "No.",
+            "Already Sent_DXR", "EF Already Sent",
+            "Alternal NCF_DXR", "EF Alternal NCF",
+            "Alternal No. Series_DXR", "EF Alternal No. Series",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "NCF Mod. Reason_DXR", "EF NCF Modification Reason",
+            "DGII Message_DXR", "EF DGII Message",
+            "Has Contingencies_DXR", "EF Has Contingencies",
+            "MultiCurrency Fact_DXR", "EF MultiCurrency Fact",
+            "MultiCurrency_DXR", "EF MultiCurrency",
+            "Provider_DXR", "EF Provider",
+            "Requested DateTime_DXR", "EF Requested DateTime",
+            "Security Code_DXR", "EF Security Code",
+            "Stamped Date/Time_DXR", "EF Stamped Date/Time",
+            "Status_DXR", "EF Status");
         if SalesInvoiceHeader.FindSet(true) then
             repeat
                 SalesInvoiceHeader."Already Sent_DXR" := SalesInvoiceHeader."EF Already Sent";
@@ -183,6 +241,8 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesInvoiceHeader.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesInvoiceLineFields()
@@ -190,6 +250,13 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesInvoiceLine: Record "Sales Invoice Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 8 fields read/written).
+        SalesInvoiceLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "Tax Indicator_DXR", "EF Tax Indicator",
+            "Applies Withholding_DXR", "EF Applies for Withholding",
+            "UOM Type_DXR", "EF UOM Type");
         if SalesInvoiceLine.FindSet(true) then
             repeat
                 SalesInvoiceLine."Applies for ISC_DXR" := SalesInvoiceLine."EF Applies for ISC";
@@ -206,6 +273,8 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesInvoiceLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesLineFields()
@@ -213,6 +282,13 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
         SalesLine: Record "Sales Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 8 fields read/written).
+        SalesLine.SetLoadFields(
+            "Document Type", "Document No.", "Line No.",
+            "Applies for ISC_DXR", "EF Applies for ISC",
+            "Tax Indicator_DXR", "EF Tax Indicator",
+            "Applies Withholding_DXR", "EF Applies for Withholding",
+            "UOM Type_DXR", "EF UOM Type");
         if SalesLine.FindSet(true) then
             repeat
                 SalesLine."Applies for ISC_DXR" := SalesLine."EF Applies for ISC";
@@ -229,5 +305,7 @@ codeunit 60139 "DXR MCC FE Migr Phase10"
                     BatchCount := 0;
                 end;
             until SalesLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 }

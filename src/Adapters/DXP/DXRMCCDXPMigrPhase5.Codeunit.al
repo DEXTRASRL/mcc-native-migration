@@ -119,8 +119,12 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     var
         Source: Record "DXR_Store Payments 54702";
         Dest: Record "DXR_Store Payments";
+        BatchCount: Integer;
     begin
-        if Source.FindSet() then
+        // Fixed 2026-08-27: this loop upserts every row of a transactional store-payments table (with
+        // a BLOB per row) and had no Commit at all, so the whole pass ran as one unbounded
+        // transaction. Batched via the same CommitBatch helper the log loops already use.
+        if Source.FindSet() then begin
             repeat
                 if Dest.Get(Source."DX Store No.", Source."DX Pos Terminal No.", Source."DX Receipt No.", Source."DX Approval") then begin
                     CopyStorePaymentsFields(Source, Dest, false);
@@ -133,7 +137,11 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
                     CopyStorePaymentsFields(Source, Dest, true);
                     Dest.Insert(true);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
+            if BatchCount > 0 then
+                Commit();
+        end;
     end;
 
     local procedure RepairPaymentProcessLogs()
@@ -142,7 +150,9 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest: Record "DXR_Payment Process Logs";
         BatchCount: Integer;
     begin
-        if Source.FindSet(false) then
+        // Fixed 2026-08-27: added the trailing Commit for the remainder - without it the last (up to)
+        // 499 upserted rows stayed inside the caller's still-open transaction.
+        if Source.FindSet(false) then begin
             repeat
                 if Dest.Get(Source."Entry No.") then begin
                     CopyPaymentProcessLogFields(Source, Dest, false);
@@ -154,6 +164,9 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
                 end;
                 CommitBatch(BatchCount);
             until Source.Next() = 0;
+            if BatchCount > 0 then
+                Commit();
+        end;
     end;
 
     local procedure RepairPromoBinHeader()
@@ -239,7 +252,8 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest: Record "DXR_Error Audit Log";
         BatchCount: Integer;
     begin
-        if Source.FindSet(false) then
+        // Fixed 2026-08-27: added the trailing Commit for the remainder (see RepairPaymentProcessLogs).
+        if Source.FindSet(false) then begin
             repeat
                 if Dest.Get(Source."Entry No.") then begin
                     CopyErrorAuditLogFields(Source, Dest, false);
@@ -251,6 +265,9 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
                 end;
                 CommitBatch(BatchCount);
             until Source.Next() = 0;
+            if BatchCount > 0 then
+                Commit();
+        end;
     end;
 
     local procedure CommitBatch(var BatchCount: Integer)

@@ -112,8 +112,8 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
     // DXRDespachoMigrWorker's EnsurePermissionSetsAssignedIfNeeded).
     local procedure SeedDespachoBaseOther(var SeededCount: Integer)
     begin
-        SeedIfBlank('DESB', 'DESB-P2', 40, 'DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822', SeededCount);
-        SeedIfBlank('DESB', 'DESB-P2', 41, 'DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3', SeededCount);
+        SeedIfBlank('DESB', 'DESB-P2', 40, 'DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826', SeededCount);
+        SeedIfBlank('DESB', 'DESB-P2', 41, 'DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-NAME-FALLBACK-20260826', SeededCount);
         SeedIfBlank('DESB', 'DESB-PERM', 42, 'DXR-DespachoBase-PermSetRepair-28.3-20260820', SeededCount);
     end;
 
@@ -566,7 +566,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
     var
         i: Integer;
     begin
-        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-SalesPurchIdDedup283;DXR-SalesPurchIdDedup283.', SeededCount);
+        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-SalesPurchIdDedup283-NAME-FALLBACK-20260826', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P5', 2, 'BELLON-MIGR-PHASE5-CUSTITEMDXR-COMPLETED-20260820', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P6', 3, 'DXR-BELLON-TABLEID-RENUMBER-RESTORE-28.3-1', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P7', 4, 'DXR-BELLON-TABLEEXT-ID-RESTORE-28.3-1', SeededCount);
@@ -598,7 +598,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         i: Integer;
     begin
         for i := 1 to 9 do
-            SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLEEXT-FIELDS-NORM-28.3', SeededCount);
+            SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLEEXT-FIELDS-NAME-FALLBACK-20260826', SeededCount);
         for i := 10 to 12 do
             SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLES-NORM-28.3', SeededCount);
     end;

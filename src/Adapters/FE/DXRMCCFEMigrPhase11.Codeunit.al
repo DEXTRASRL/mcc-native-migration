@@ -43,9 +43,39 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     // scope, left exactly as before (still generic RecordRef/FieldRef by numeric table ID),
     // matching this plan's established precedent (Phase7's "Applies Withholding_DXR" fill,
     // Phase8's Item fields) of leaving out-of-scope in-file code untouched.
+    // Fixed 2026-08-27 (A3): the "EF ..." source tables that CopyStandaloneTable()/
+    // MigrateArchivedSentRequest()/MigrateCodigosItem() open by numeric table ID through
+    // RecordRef.Open() were missing from this block entirely - only the 12 typed ones were listed.
+    // Permissionset 60000 "DXR MCC" grants no tabledata on foreign tables, so this property is the
+    // only runtime access this codeunit has, and these phases run in the background under
+    // TaskScheduler: every RecordRef.Open(555xx) read below would have failed with a missing-Read-
+    // permission error. Added at R only - all of them are read-only sources (the targets already had
+    // their RIMD entries).
     Permissions =
         tabledata "EF Administration Setup" = R,
+        tabledata "EF Archived E Documents" = R,
+        tabledata "EF Archived Sent Request" = R,
+        tabledata "EF Bulk Credit Memo Entry" = R,
+        tabledata "EF Bulk Credit Memo Log" = R,
+        tabledata "EF Bulk NCF Import Entry" = R,
+        tabledata "EF Codigos Item" = R,
         tabledata "EF Currency Type" = R,
+        tabledata "EF Descuentos O Recargos" = R,
+        tabledata "EF Detalle Bienes o Servicios" = R,
+        tabledata "EF Encabezado" = R,
+        tabledata "EF Imp. Adicionales - Encab." = R,
+        tabledata "EF Impuestos Adicionales - DBS" = R,
+        tabledata "EF Informacion Referencia" = R,
+        tabledata "EF Log Message" = R,
+        tabledata "EF Process Request" = R,
+        tabledata "EF Receipt Acknowledgement" = R,
+        tabledata "EF Resend Document Queue" = R,
+        tabledata "EF Resend Job Log" = R,
+        tabledata "EF Response Documents" = R,
+        tabledata "EF Subcantidad" = R,
+        tabledata "EF SubDescuento" = R,
+        tabledata "EF SubRecargo" = R,
+        tabledata "EF SubTotales Informativos" = R,
         tabledata "EF Formas de Pago" = R,
         tabledata "EF Form Type" = R,
         tabledata "EF Income Validation Type" = R,
@@ -312,7 +342,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Formas de Pago";
         New: Record "DXR_Formas de Pago";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): "EF Formas de Pago" holds one row per payment form per document, so
+        // this loop is of unbounded volume and used to run as one single uncommitted transaction.
+        // Bounded Commit every 100 upserted rows (plus the remainder), the same batch size
+        // CopyStandaloneTable() in this codeunit already uses for the same category of table.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago);
@@ -328,7 +363,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq281: EF Form Type (55529) -> DXR_Form Type (52484). PK = (DocumentNo, FormaPago, "Line No.").
@@ -337,7 +380,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Form Type";
         New: Record "DXR_Form Type";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per payment-form line per document - same unbounded-volume
+        // reason and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago, Legacy."Line No.");
@@ -353,7 +399,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq284: EF Income Validation Type (55512) -> DXR_Income Validation Type (52488). PK = Id.
@@ -404,7 +458,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Paginacion";
         New: Record "DXR_Paginacion";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per printed page per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.PaginaNo);
@@ -432,7 +489,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq289: EF Payment Type Form (55517) -> DXR_Payment Type Form (52493). PK = Id.
@@ -480,7 +545,11 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     var
         Legacy: Record "EF Telefono Emisor";
         New: Record "DXR_Telefono Emisor";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per emitter phone per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above. The counter advances per INSERTED
+        // row only, since rows that already exist on the target are left untouched.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.DocumentNo, Legacy.TelefonoEmisor) then begin
@@ -488,8 +557,16 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.DocumentNo := Legacy.DocumentNo;
                     New.TelefonoEmisor := Legacy.TelefonoEmisor;
                     New.Insert(false);
+
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq301: EF Township (55527) -> DXR_Township (52507). Field NAMES renamed on the target
@@ -652,8 +729,8 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55503); // EF Archived Sent Request
         if SourceRef.FindSet(false) then
             repeat
-                DocumentNoFld := SourceRef.Field(1);
-                DocumentSourceTypeFld := SourceRef.Field(2);
+                DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+                DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
 
                 if TargetArchivedSentRequest.Get(DocumentNoFld.Value(), DocumentSourceTypeFld.Value()) then begin
                     if ShouldReplaceArchivedSentRequest(SourceRef, TargetArchivedSentRequest) then begin
@@ -680,20 +757,20 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         EFCTrackIDFld, EFCTypeFld, SourceCodeTypeFld, RequestTypeFld, SecurityCodeFld : FieldRef;
         StampedDateFld, SignedDateFld, XMLFileFld, TargetXMLFileFld : FieldRef;
     begin
-        DocumentNoFld := SourceRef.Field(1);
-        DocumentSourceTypeFld := SourceRef.Field(2);
-        ENCFFld := SourceRef.Field(3);
-        PostingDateFld := SourceRef.Field(4);
-        DocumentStatusFld := SourceRef.Field(5);
-        CodeFld := SourceRef.Field(6);
-        EFCTrackIDFld := SourceRef.Field(7);
-        EFCTypeFld := SourceRef.Field(8);
-        SourceCodeTypeFld := SourceRef.Field(9);
-        RequestTypeFld := SourceRef.Field(10);
-        SecurityCodeFld := SourceRef.Field(11);
-        StampedDateFld := SourceRef.Field(12);
-        SignedDateFld := SourceRef.Field(13);
-        XMLFileFld := SourceRef.Field(14);
+        DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+        DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
+        ENCFFld := ResolveField(SourceRef, 'e-NCF');
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
+        DocumentStatusFld := ResolveField(SourceRef, 'Document Status');
+        CodeFld := ResolveField(SourceRef, 'Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        EFCTypeFld := ResolveField(SourceRef, 'EFC Type');
+        SourceCodeTypeFld := ResolveField(SourceRef, 'EF Source Code Type');
+        RequestTypeFld := ResolveField(SourceRef, 'EF Request Type');
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        XMLFileFld := ResolveField(SourceRef, 'XML File');
 
         TargetArchivedSentRequest.Init();
         TargetArchivedSentRequest."Document No." := DocumentNoFld.Value();
@@ -715,17 +792,32 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         // CopyStandaloneTable already uses for every field, BLOBs included) rather than explicit
         // stream APIs, which this AL/compiler version does not expose on FieldRef.
         TargetRef.GetTable(TargetArchivedSentRequest);
-        TargetXMLFileFld := TargetRef.Field(14);
+        TargetXMLFileFld := ResolveField(TargetRef, 'XML File');
         TargetXMLFileFld.Value := XMLFileFld.Value;
         TargetRef.Modify(false);
     end;
 
-    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldNo: Integer): Boolean
+    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldName: Text): Boolean
     var
         BlobFld: FieldRef;
     begin
-        BlobFld := SourceRef.Field(BlobFieldNo);
+        BlobFld := ResolveField(SourceRef, BlobFieldName);
         exit(BlobFld.Length() > 0);
+    end;
+
+    // Name-based FieldRef resolution (never bare numeric field IDs) via the shared
+    // "DXR MCC Master Field Resolver" codeunit's metadata loop - same mechanism
+    // CopyStandaloneTable() already uses through TargetRecordRef.FieldExist/.Field(Name).
+    // Errors loudly instead of silently binding to a differently-numbered field if the
+    // expected field name is missing (e.g. renamed/removed upstream).
+    local procedure ResolveField(var RecRef: RecordRef; FieldName: Text): FieldRef
+    var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
+        ResolvedField: FieldRef;
+    begin
+        if not MasterFieldResolver.TryResolveFieldByName(RecRef, FieldName, ResolvedField) then
+            Error('Field "%1" was not found on table %2 while migrating FE Phase 11 data.', FieldName, RecRef.Number());
+        exit(ResolvedField);
     end;
 
     local procedure GetVariantAsInteger(Value: Variant): Integer
@@ -749,12 +841,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         if SourceScore <> TargetScore then
             exit(SourceScore > TargetScore);
 
-        StampedDateFld := SourceRef.Field(12);
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
         SourceStampedDate := StampedDateFld.Value();
         if SourceStampedDate <> TargetArchivedSentRequest."Stamped Date" then
             exit(SourceStampedDate > TargetArchivedSentRequest."Stamped Date");
 
-        PostingDateFld := SourceRef.Field(4);
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
         SourcePostingDate := PostingDateFld.Value();
         exit(SourcePostingDate > TargetArchivedSentRequest."Posting Date");
     end;
@@ -769,10 +861,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         StampedDate: Date;
         Score: Integer;
     begin
-        SecurityCodeFld := SourceRef.Field(11);
-        EFCTrackIDFld := SourceRef.Field(7);
-        SignedDateFld := SourceRef.Field(13);
-        StampedDateFld := SourceRef.Field(12);
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
 
         SecurityCode := SecurityCodeFld.Value();
         EFCTrackID := EFCTrackIDFld.Value();
@@ -787,7 +879,7 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
             Score += 1;
         if StampedDate <> 0D then
             Score += 1;
-        if HasBlobValue(SourceRef, 14) then
+        if HasBlobValue(SourceRef, 'XML File') then
             Score += 1;
 
         exit(Score);
@@ -824,12 +916,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55504); // EF Codigos Item
         if SourceRef.FindSet() then
             repeat
-                DocumentNoFld := SourceRef.Field(300);
-                DocumentLineNoFld := SourceRef.Field(301);
+                DocumentNoFld := ResolveField(SourceRef, 'DocumentNo');
+                DocumentLineNoFld := ResolveField(SourceRef, 'DocumentLineNo');
 
                 if not TargetCodigosItem.Get(DocumentNoFld.Value(), DocumentLineNoFld.Value()) then begin
-                    TipoCodigoFld := SourceRef.Field(1);
-                    CodigoItemFld := SourceRef.Field(2);
+                    TipoCodigoFld := ResolveField(SourceRef, 'TipoCodigo');
+                    CodigoItemFld := ResolveField(SourceRef, 'CodigoItem');
 
                     TargetCodigosItem.Init();
                     TargetCodigosItem.DocumentNo := DocumentNoFld.Value();
