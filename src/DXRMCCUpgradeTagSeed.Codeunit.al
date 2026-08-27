@@ -93,7 +93,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         SeedIfBlank('DESB', 'DESB-P1', 26, 'DXR-DESPACHOBASE-TABLEMIGR-26-50816-28.3', SeededCount);
         SeedIfBlank('DESB', 'DESB-P1', 27, 'DXR-DESPACHOBASE-TABLEMIGR-27-50835-28.3', SeededCount);
         SeedIfBlank('DESB', 'DESB-P1', 28, 'DXR-DESPACHOBASE-TABLEMIGR-28-50825-28.3', SeededCount);
-        SeedIfBlank('DESB', 'DESB-P1', 29, 'DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3', SeededCount);
+        // SeedIfBlank('DESB', 'DESB-P1', 29, 'DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3', SeededCount);
         SeedIfBlank('DESB', 'DESB-P1', 30, 'DXR-DESPACHOBASE-TABLEMIGR-30-50813-28.3', SeededCount);
         SeedIfBlank('DESB', 'DESB-P1', 31, 'DXR-DESPACHOBASE-TABLEMIGR-31-50815-28.3', SeededCount);
         SeedIfBlank('DESB', 'DESB-P1', 32, 'DXR-DESPACHOBASE-TABLEMIGR-38-50803-28.3', SeededCount);

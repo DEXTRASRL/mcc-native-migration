@@ -140,7 +140,7 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
 
     procedure RunSalesPriceView()
     begin
-        MigrateTable29();
+        // MigrateTable29();
     end;
 
     procedure RunAccounting()
@@ -1157,34 +1157,34 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
     end;
 
     // Table 29: old id 50824 "DXR-DE Sales Price View" -> new "DXR_Sales Price View"
-    local procedure MigrateTable29()
-    var
-        OldRec: Record "DXR-DE Sales Price View";
-        NewRec: Record "DXR_Sales Price View";
-        UpgradeTag: Codeunit "Upgrade Tag";
-    begin
-        if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3') then
-            exit;
+    // local procedure MigrateTable29()
+    // var
+    //     OldRec: Record "DXR-DE Sales Price View";
+    //     NewRec: Record "DXR_Sales Price View";
+    //     UpgradeTag: Codeunit "Upgrade Tag";
+    // begin
+    //     if UpgradeTag.HasUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3') then
+    //         exit;
 
-        if OldRec.FindSet(false) then
-            repeat
-                if not NewRec.Get(OldRec."Item No.", OldRec."Sales Code", OldRec."Unit of Measure Code") then begin
-                    NewRec.Init();
-                    NewRec."Item No." := OldRec."Item No.";
-                    NewRec."Global Sales Code" := OldRec."Global Sales Code";
-                    NewRec."Store Group" := OldRec."Store Group";
-                    NewRec."Default Priority" := OldRec."Default Priority";
-                    NewRec."Sales Code" := OldRec."Sales Code";
-                    NewRec."Unit of Measure Code" := OldRec."Unit of Measure Code";
-                    NewRec."Unit Price Including VAT" := OldRec."Unit Price Including VAT";
-                    NewRec."Unit Price" := OldRec."Unit Price";
-                    NewRec.Insert(false);
-                    CommitBatch();
-                end;
-            until OldRec.Next() = 0;
+    //     if OldRec.FindSet(false) then
+    //         repeat
+    //             if not NewRec.Get(OldRec."Item No.", OldRec."Sales Code", OldRec."Unit of Measure Code") then begin
+    //                 NewRec.Init();
+    //                 NewRec."Item No." := OldRec."Item No.";
+    //                 NewRec."Global Sales Code" := OldRec."Global Sales Code";
+    //                 NewRec."Store Group" := OldRec."Store Group";
+    //                 NewRec."Default Priority" := OldRec."Default Priority";
+    //                 NewRec."Sales Code" := OldRec."Sales Code";
+    //                 NewRec."Unit of Measure Code" := OldRec."Unit of Measure Code";
+    //                 NewRec."Unit Price Including VAT" := OldRec."Unit Price Including VAT";
+    //                 NewRec."Unit Price" := OldRec."Unit Price";
+    //                 NewRec.Insert(false);
+    //                 CommitBatch();
+    //             end;
+    //         until OldRec.Next() = 0;
 
-        UpgradeTag.SetUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3');
-    end;
+    //     UpgradeTag.SetUpgradeTag('DXR-DESPACHOBASE-TABLEMIGR-29-50824-28.3');
+    // end;
 
     // Table 30: old id 50813 "DXR-DE Shipment Header" -> new "DXR_Shipment Header"
     local procedure MigrateTable30()
