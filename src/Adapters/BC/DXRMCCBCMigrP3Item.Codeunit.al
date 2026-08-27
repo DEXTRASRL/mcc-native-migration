@@ -11,39 +11,13 @@ codeunit 60100 "DXR MCC BC Migr P3 Item"
     // migrations were taking a full-table update lock on Item against each other.
     Permissions = tabledata Item = RIMD;
 
+    // Fixed 2026-08-27 (Task 4, motor por tabla): el cuerpo de este trigger se movio a
+    // "DXR MCC Master Item" (60451).ApplyBC() - ese codeunit hace un solo recorrido de Item para
+    // los 5 bloques que si migraron (BC, BELLON, DESB, DRLOC, FE) en vez de uno por extension.
+    // No-op deliberado, no se borra: RunPortfolio/RunConcept siguen invocando este codeunit por
+    // su ID (60100) via Codeunit.Run.
     trigger OnRun()
-    var
-        ItemRec: Record Item;
-        ItemToUpdate: Record Item;
-        RowsSinceCommit: Integer;
     begin
-        ItemRec.SetLoadFields(
-            "No.",
-            "Payment Terms Code_DXR", "Payment Terms Code_Old",
-            "Allow Decimals_DXR", "Allow Decimals_Old");
-        if not ItemRec.FindSet(false) then
-            exit;
-        repeat
-            if RowNeedsMigration(ItemRec) then
-                if ItemToUpdate.Get(ItemRec."No.") then begin
-                    if (ItemToUpdate."Payment Terms Code_DXR" = '') and (ItemToUpdate."Payment Terms Code_Old" <> '') then
-                        ItemToUpdate."Payment Terms Code_DXR" := ItemToUpdate."Payment Terms Code_Old";
-
-                    if (not ItemToUpdate."Allow Decimals_DXR") and ItemToUpdate."Allow Decimals_Old" then
-                        ItemToUpdate."Allow Decimals_DXR" := true;
-
-                    ItemToUpdate.Modify(false);
-
-                    RowsSinceCommit += 1;
-                    if RowsSinceCommit >= 500 then begin
-                        Commit();
-                        RowsSinceCommit := 0;
-                    end;
-                end;
-        until ItemRec.Next() = 0;
-
-        if RowsSinceCommit > 0 then
-            Commit();
     end;
 
     local procedure RowNeedsMigration(var ItemRec: Record Item): Boolean

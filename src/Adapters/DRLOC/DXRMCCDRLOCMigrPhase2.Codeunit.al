@@ -1071,72 +1071,15 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     end;
 
     local procedure MigrateItemNCFCategoryBackfill()
-    var
-        Item: Record Item;
-        ItemToUpdate: Record Item;
-        Blank: Record Item;
-        NCFCategory: Code[20];
-        BatchCount: Integer;
     begin
-        // Periodic Commit() every 100 rows (matching DR-Localization's own ProductBatchSize()) -
-        // see the codeunit-level comment above BootstrapItemNCFCategoryBackfill() for why this is
-        // required here even without the full checkpoint/resume machinery.
-        //
-        // Fixed 2026-08-27: FindSet(true) over the whole Item table took a SQL UPDLOCK on every item
-        // for the entire run and, with no SetLoadFields, joined the companion table of every Item
-        // tableextension in this portfolio once per row - on a table where only a small minority of
-        // rows actually change. Read partial/unlocked, take the lock via Get() only on rows that
-        // really need the backfill, and advance the Commit counter per MODIFIED row.
-        Item.SetLoadFields("No.", "Gen. Prod. Posting Group", "NCF Category_DXR");
-        if Item.FindSet(false) then
-            repeat
-                if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then
-                    if ItemToUpdate.Get(Item."No.") then begin
-                        // Fixed 2026-08-27 (never-overwrite): the inequality dirty-check above only
-                        // avoids a no-op write - it does not stop a re-run from overwriting a
-                        // previously-migrated (or manually corrected) _DXR value with a freshly
-                        // recomputed one. Added a fill-only-if-blank guard, same as this codeunit's
-                        // other master-data copies.
-                        if ItemToUpdate."NCF Category_DXR" = Blank."NCF Category_DXR" then
-                            ItemToUpdate."NCF Category_DXR" := NCFCategory;
-                        ItemToUpdate.Modify(false);
-
-                        BatchCount += 1;
-                        if BatchCount >= 100 then begin
-                            Commit();
-                            BatchCount := 0;
-                        end;
-                    end;
-            until Item.Next() = 0;
-
-        if BatchCount > 0 then
-            Commit();
-    end;
-
-    local procedure TryGetItemNcfCategoryLocal(Item: Record Item; var NCFCategory: Code[20]): Boolean
-    var
-        GeneralPostingSetup: Record "General Posting Setup";
-        GLAccount: Record "G/L Account";
-    begin
-        Clear(NCFCategory);
-        if Item."Gen. Prod. Posting Group" = '' then
-            exit(false);
-
-        // Fixed 2026-08-27: A1 - partial-record hint on the two lookup reads this helper performs once
-        // per Item row, so neither read drags in every tableextension companion table.
-        GeneralPostingSetup.SetLoadFields("Purch. Account");
-        GLAccount.SetLoadFields("NCFCategories_DXR");
-        GeneralPostingSetup.SetRange("Gen. Prod. Posting Group", Item."Gen. Prod. Posting Group");
-        GeneralPostingSetup.SetFilter("Purch. Account", '<>%1', '');
-        if GeneralPostingSetup.FindSet() then
-            repeat
-                if GLAccount.Get(GeneralPostingSetup."Purch. Account") and (GLAccount."NCFCategories_DXR" <> '') then begin
-                    NCFCategory := GLAccount."NCFCategories_DXR";
-                    exit(true);
-                end;
-            until GeneralPostingSetup.Next() = 0;
-
-        exit(false);
+        // Fixed 2026-08-27 (Task 4, motor por tabla): el cuerpo (incluido el helper
+        // TryGetItemNcfCategoryLocal que solo esta funcion usaba) se movio a "DXR MCC Master Item"
+        // (60451).ApplyDRLOC() - ese codeunit hace un solo recorrido de Item para los 5 bloques que
+        // si migraron (BC, BELLON, DESB, DRLOC, FE) en vez de uno por extension. No-op deliberado,
+        // no se borra: BootstrapItemNCFCategoryBackfill() sigue invocando este procedimiento y
+        // sigue fijando con normalidad su propio tag externo 'DXR-T20260716-
+        // BackfillItemNCFCategory' (guarda EXTERNA, vive en el llamador, no en este cuerpo - no
+        // queda huerfana).
     end;
 
     // ===== seq16: NAV POS Customer legacy table restore (54128 -> 52175) =====

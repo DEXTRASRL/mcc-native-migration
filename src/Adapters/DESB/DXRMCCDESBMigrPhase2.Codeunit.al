@@ -574,36 +574,15 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     end;
 
     local procedure MigrateTable_Item()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
-        ItemRec: Record Item;
-        ItemToUpdate: Record Item;
-        Blank: Record Item;
-        RowsSinceCommit: Integer;
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEM-28.3') then
-            exit;
-
-        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
-        ItemRec.SetLoadFields("No.", "Descripcion Bellon_DXR", "DXR-DE Descripcion Bellon");
-        if ItemRec.FindSet(false) then
-            repeat
-                if ItemRec."Descripcion Bellon_DXR" <> ItemRec."DXR-DE Descripcion Bellon" then
-                    if ItemToUpdate.Get(ItemRec."No.") then begin
-                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
-                        // upgrade tag (e.g. per-table upgrade tags with a company already migrated)
-                        // would blindly overwrite an already-populated _DXR value.
-                        if ItemToUpdate."Descripcion Bellon_DXR" = Blank."Descripcion Bellon_DXR" then
-                            ItemToUpdate."Descripcion Bellon_DXR" := ItemToUpdate."DXR-DE Descripcion Bellon";
-                        ItemToUpdate.Modify(false);
-                        CommitEvery500(RowsSinceCommit);
-                    end;
-            until ItemRec.Next() = 0;
-
-        if RowsSinceCommit > 0 then
-            Commit();
-
-        UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEM-28.3');
+        // Fixed 2026-08-27 (Task 4, motor por tabla): el cuerpo se movio a "DXR MCC Master Item"
+        // (60451).ApplyDESB() - ese codeunit hace un solo recorrido de Item para los 5 bloques que
+        // si migraron (BC, BELLON, DESB, DRLOC, FE) en vez de uno por extension. No-op
+        // deliberado, no se borra: el trigger OnRun sigue invocando este procedimiento.
+        // El upgrade tag INTERNO que este procedimiento fijaba ('DXR-DespachoBase-MigrPhase1-
+        // ITEM-28.3') se pierde con este vaciado, pero se verifico con grep que nunca estuvo
+        // seedeado en "DXR MCC Upgrade Tag Seed" (src/DXRMCCUpgradeTagSeed.Codeunit.al) - ninguna
+        // fila de dashboard queda huerfana.
     end;
 
     local procedure MigrateTable_ItemJournalLine()

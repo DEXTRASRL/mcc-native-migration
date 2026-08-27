@@ -152,44 +152,14 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     // (EFItem.TableExt.al:10,19,31,44). Batched in Commit-groups of ProductBatchSize() (100),
     // matching the source's own Item batch size (see class header comment).
     local procedure CopyItemFieldsInBatches()
-    var
-        Item: Record Item;
-        ItemToUpdate: Record Item;
-        Blank: Record Item;
-        BatchCount: Integer;
     begin
-        // Fixed 2026-08-27 (A1): this scanned the WHOLE Item table with FindSet(true), i.e. an UPDLOCK
-        // on every item held for the entire run, while only the minority of rows whose values differ
-        // actually change; and with no SetLoadFields every Item tableextension companion table in this
-        // portfolio was joined in per row. Now: SetLoadFields (PK + the 4 fields touched) +
-        // FindSet(false) (no UPDLOCK), and the row is re-read with Get() and locked only when it really
-        // needs the copy. The commit counter advances per MODIFIED row instead of per scanned row.
-        // Same fields, same guard condition, same result.
-        Item.SetLoadFields("No.", "Applies for ISC_DXR", "EF Applies for ISC", "Tax Type_DXR", "EF Tax Type");
-        if Item.FindSet(false) then
-            repeat
-                if (Item."Applies for ISC_DXR" <> Item."EF Applies for ISC") or
-                   (Item."Tax Type_DXR" <> Item."EF Tax Type")
-                then
-                    if ItemToUpdate.Get(Item."No.") then begin
-                        // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this
-                        // migration (e.g. per-table upgrade tags with a company already migrated)
-                        // would blindly overwrite an already-populated _DXR value.
-                        if ItemToUpdate."Applies for ISC_DXR" = Blank."Applies for ISC_DXR" then
-                            ItemToUpdate."Applies for ISC_DXR" := ItemToUpdate."EF Applies for ISC";
-                        if ItemToUpdate."Tax Type_DXR" = Blank."Tax Type_DXR" then
-                            ItemToUpdate."Tax Type_DXR" := ItemToUpdate."EF Tax Type";
-                        ItemToUpdate.Modify(false);
-
-                        BatchCount += 1;
-                        if BatchCount >= ProductBatchSize() then begin
-                            Commit();
-                            BatchCount := 0;
-                        end;
-                    end;
-            until Item.Next() = 0;
-        if BatchCount > 0 then
-            Commit();
+        // Fixed 2026-08-27 (Task 4, motor por tabla): el cuerpo se movio a "DXR MCC Master Item"
+        // (60451).ApplyFE() - ese codeunit hace un solo recorrido de Item para los 5 bloques que si
+        // migraron (BC, BELLON, DESB, DRLOC, FE) en vez de uno por extension. No-op deliberado, no
+        // se borra: RunMaster() y MigrateMasterTableExtensionFields() siguen invocando este
+        // procedimiento; el tag del trigger OnRun de este codeunit ('DXR-EF-TASKSCHEDULER-V5-
+        // PHASE2-MASTER-FIELDS-20260625') sigue vivo y sigue gobernando Currency/Post Code/Unit of
+        // Measure/VAT Posting Setup con normalidad - no era un tag interno de este procedimiento.
     end;
 
     local procedure ProductBatchSize(): Integer
