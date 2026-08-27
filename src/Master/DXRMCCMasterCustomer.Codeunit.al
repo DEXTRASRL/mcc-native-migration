@@ -14,6 +14,19 @@ codeunit 60450 "DXR MCC Master Customer"
     // sin commitear ajenos), no asignacion tipada campo a campo - no encaja en el contrato
     // ApplyXXX(var Customer: Record Customer): Boolean sin rediseñar esa llamada. El propio scan
     // de TU sobre Customer sigue corriendo por separado hasta una tarea de seguimiento.
+    //
+    // ADVERTENCIA para las 58 tablas restantes de este patron (fix 2026-08-27, ronda 1/5 de
+    // revision): al vaciar un procedimiento origen a no-op, revisa si ese procedimiento fijaba un
+    // upgrade tag INTERNO (UpgradeTag.SetUpgradeTag(...) dentro de su propio cuerpo, no el de un
+    // llamador externo) y si ese literal esta seedeado en "DXR MCC Upgrade Tag Seed"
+    // (src/DXRMCCUpgradeTagSeed.Codeunit.al) - un SeedIfBlank apuntando a un tag que ya nadie fija
+    // deja "Force Rerun" de esa fila del dashboard buscando un tag muerto: no rompe nada al
+    // ejecutarse, pero la entrada queda huerfana y engañosa para el operador. Si esta seedeado,
+    // reapunta el seed al tag nuevo del motor por tabla (p.ej. DXR-MCC-MASTER-<TABLA>-20260827) con
+    // un comentario que explique el porque; si no esta seedeado, basta con dejar constancia (no
+    // hay nada colgando en el dashboard). Verificalo con grep sobre el literal exacto en TODO el
+    // repo, no de memoria - un guard EXTERNO (en el llamador, no dentro del procedimiento vaciado)
+    // sigue corriendo igual y no necesita este tratamiento.
     Permissions = tabledata Customer = RM;
 
     trigger OnRun()

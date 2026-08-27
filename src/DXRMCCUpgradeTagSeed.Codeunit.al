@@ -461,7 +461,16 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         SeedIfBlank('PCM', 'PCM-P5', 8, 'DXR-Phase5Step6Workflow-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P5', 9, 'DXR-Phase5Step7SalesHeader-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P5', 10, 'DXR-Phase5Step8SalesLine-28.3.0.0', SeededCount);
-        SeedIfBlank('PCM', 'PCM-P2', 11, 'DXR-CustomerFieldsMigrated-28.3.0.0', SeededCount);
+        // Fixed 2026-08-27 (Tarea 3, ronda 1/5): el trabajo real de este concepto (PCM-P2 #11,
+        // Customer) se movio a "DXR MCC Master Customer" (60450).ApplyPCM() - el motor por tabla
+        // que reemplaza los 6 recorridos individuales de Customer. "DXR MCC PCM Migr Phase2"
+        // .MigrateCustomerFields() quedo como no-op y ya NO llama a SetUpgradeTag con el literal
+        // 'DXR-CustomerFieldsMigrated-28.3.0.0' (sigue existiendo como texto en
+        // CustomerFieldsMigratedTag(), pero nada lo fija) - ese literal quedaria huerfano para
+        // siempre si el seed lo siguiera apuntando. Se reapunta al tag que hoy gobierna de verdad
+        // si Customer se vuelve a migrar, para que "Force Rerun" sobre esta fila limpie el tag
+        // correcto y el motor por tabla vuelva a procesar Customer.
+        SeedIfBlank('PCM', 'PCM-P2', 11, 'DXR-MCC-MASTER-CUSTOMER-20260827', SeededCount);
         SeedIfBlank('PCM', 'PCM-P2', 12, 'DXR-StorePriceGroupFieldsMigrated-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P3', 13, 'DXR-ApprovalEntryFieldsMigrated-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P3', 14, 'DXR-WorkflowFieldsMigrated-28.3.0.0', SeededCount);
