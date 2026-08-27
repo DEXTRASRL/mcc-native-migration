@@ -157,32 +157,49 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         Commit();
     end;
 
+    /// <summary>
+    /// Fixed 2026-08-27 (concept TU-P1 "Customer duplicated field restore" observed taking minutes
+    /// on the Bellon company). The loop used to hold a typed Customer record AND call
+    /// RecRef.GetTable(Customer) once per row. That is verbatim the pattern Microsoft documents as
+    /// bad ("AL database methods and performance on SQL Server" -> Insert, Modify, Delete and
+    /// LockTable): "Cloning a record before a Modify or Delete operation issues an extra SQL
+    /// statement, since the SQL SELECT query is restarted every time the table is cloned. A record
+    /// is cloned [...] when using a RecordRef", and the article's own "bad code" sample is exactly
+    /// `RecRef.GetTable(MyTable)` inside a FindSet loop. On a retail-sized Customer table that is one
+    /// extra SQL round trip for every single customer, on top of the full-table UPDLOCK that
+    /// FindSet(true) already takes.
+    /// The replacement is the article's own prescribed form: open the RecordRef directly on the
+    /// table and iterate THAT, so the record is never cloned. Same fields, same resolver, same
+    /// only-if-populated semantics - purely the documented performance fix.
+    /// </summary>
     local procedure MigrateOriginalCustomerFields()
     var
         MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
-        Customer: Record Customer;
         RecRef: RecordRef;
         Modified: Boolean;
         RowsSinceCommit: Integer;
     begin
-        if Customer.FindSet(true) then
+        RecRef.Open(Database::Customer);
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(Customer);
                 Modified := false;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Data Crédito VIP_DXR', 'TU - Data Crédito VIP|Data Crédito VIP_Old') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Forma Crédito_DXR', 'TU - Forma Crédito|Forma Crédito_Old') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cuenta Abogado_DXR', 'TU - Cuenta Abogado|Cuenta Abogado_Old') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Incobrable_DXR', 'TU - Incobrable|Incobrable_Old') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Teléfono 2_DXR', 'TU - Teléfono 2|Teléfono 2_Old') or Modified;
-                if Modified then
+                if Modified then begin
                     RecRef.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= BatchSize() then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
-            until Customer.Next() = 0;
-        Commit();
+            until RecRef.Next() = 0;
+        RecRef.Close();
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure MigrateLegacyCustLedgerEntryFields()
@@ -191,6 +208,17 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
+        // Added 2026-08-27: partial records. "Cust. Ledger Entry" is normally the largest table in
+        // the database and carries many tableextensions across this portfolio, each of which is a
+        // companion table the server would otherwise join in for every single row. Learn recommends
+        // partial records "especially when looping through several records or when table extensions
+        // are defined on the table". Only these ten fields are ever read or written here.
+        CustLedgerEntry.SetLoadFields(
+            "Data Crédito VIP_DXR", "TU - Data Crédito VIP",
+            "Forma Crédito_DXR", "TU - Forma Crédito",
+            "Cuenta Abogado_DXR", "TU - Cuenta Abogado",
+            "Incobrable_DXR", "TU - Incobrable",
+            "Teléfono 2_DXR", "TU - Teléfono 2");
         if CustLedgerEntry.FindSet(true) then
             repeat
                 Changed := false;
@@ -306,6 +334,13 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
+        // Added 2026-08-27: partial records, same rationale as MigrateLegacyCustLedgerEntryFields.
+        CustLedgerEntry.SetLoadFields(
+            "Data Crédito VIP_DXR", "Data Crédito VIP_Old",
+            "Forma Crédito_DXR", "Forma Crédito_Old",
+            "Cuenta Abogado_DXR", "Cuenta Abogado_Old",
+            "Incobrable_DXR", "Incobrable_Old",
+            "Teléfono 2_DXR", "Teléfono 2_Old");
         if CustLedgerEntry.FindSet(true) then
             repeat
                 Changed := false;
