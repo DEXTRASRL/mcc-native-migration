@@ -8,6 +8,16 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     // adapter itself already used and documented as safe). No hidden/untracked phases here - the
     // sibling's own Dispatcher only runs Phase 1 (critical/inline, out of scope like every other
     // extension's Phase 1) and this Phase 2, both already fully covered by the deleted adapter.
+    //
+    // Fixed 2026-08-27 (missing Permissions entries): the block below covered only the tables this
+    // codeunit reaches through a typed Record or a named Database::"X" RecordRef. It did NOT cover
+    // the six tables MigrateLegacyTableData() opens BY NUMERIC ID (50300/50301/50302 ->
+    // 53563/53564/53565), and MCC's permission set 60000 grants no tabledata for foreign tables at
+    // all, so those three legacy restores could only ever fail with a TableData permission error
+    // when the phase runs in the background (TaskScheduler). Sources are read-only (FindSet/Next)
+    // => R; destinations are IsEmpty() + Insert, never Modify or Delete => RI, not RIMD.
+    // Names resolved from Dextra_Bellon Customization POS_28.3.2.6.app's own SymbolReference.json;
+    // note "POS Trans RTC. " really does carry a trailing space in its object name.
     Permissions =
         tabledata "BE DX Setup" = RM,
         tabledata "LSC Coupon Header" = RM,
@@ -16,7 +26,13 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         tabledata "LSC POS Terminal" = RM,
         tabledata "LSC POS Transaction" = RM,
         tabledata "LSC Trans. Sales Entry" = RM,
-        tabledata "LSC Trans. Server Table Log" = RM;
+        tabledata "LSC Trans. Server Table Log" = RM,
+        tabledata "POS Trans. Grouped RTC" = R,
+        tabledata "POS Trans RTC. " = R,
+        tabledata "POS Trans. / Invalid Items RTC" = R,
+        tabledata "DXR_POS Trans. Grouped RTC" = RI,
+        tabledata "DXR_POS Trans RTC." = RI,
+        tabledata "DXR_POS Trans./Inv Items RTC" = RI;
 
     trigger OnRun()
     begin
@@ -75,33 +91,56 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
     begin
     end;
 
+    // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every "BE DX Setup" row for the whole run
+    // and, with no SetLoadFields, joined every tableextension companion table per row. Now reads
+    // partial + unlocked and re-reads with Get() only the rows that actually need a value copied.
     local procedure MigrateTableExt_BEDXSetupFields()
     var
         Setup: Record "BE DX Setup";
+        SetupToUpdate: Record "BE DX Setup";
         Modified: Boolean;
     begin
-        if Setup.FindSet(true) then
-            repeat
-                Modified := false;
-                if (Setup."POS Venta Exonerada ITBIS_DXR" = false) and Setup."POS Venta Exonerada ITBIS" then begin
-                    Setup."POS Venta Exonerada ITBIS_DXR" := Setup."POS Venta Exonerada ITBIS";
-                    Modified := true;
+        Setup.SetLoadFields(
+            "Key",
+            "POS Venta Exonerada ITBIS_DXR", "POS Venta Exonerada ITBIS",
+            "Filtro Pos Devolucion_DXR", "Filtro Pos Devolucion",
+            "POS Devolucion Exonerada ITBIS_DXR", "POS Devolucion Exonerada ITBIS",
+            "Show SalesPerson on Receipt_DXR", "Show SalesPerson on Receipt");
+        if not Setup.FindSet(false) then
+            exit;
+        repeat
+            if BEDXSetupRowNeedsMigration(Setup) then
+                if SetupToUpdate.Get(Setup."Key") then begin
+                    Modified := false;
+                    if (SetupToUpdate."POS Venta Exonerada ITBIS_DXR" = false) and SetupToUpdate."POS Venta Exonerada ITBIS" then begin
+                        SetupToUpdate."POS Venta Exonerada ITBIS_DXR" := SetupToUpdate."POS Venta Exonerada ITBIS";
+                        Modified := true;
+                    end;
+                    if (SetupToUpdate."Filtro Pos Devolucion_DXR" = false) and SetupToUpdate."Filtro Pos Devolucion" then begin
+                        SetupToUpdate."Filtro Pos Devolucion_DXR" := SetupToUpdate."Filtro Pos Devolucion";
+                        Modified := true;
+                    end;
+                    if (SetupToUpdate."POS Devolucion Exonerada ITBIS_DXR" = false) and SetupToUpdate."POS Devolucion Exonerada ITBIS" then begin
+                        SetupToUpdate."POS Devolucion Exonerada ITBIS_DXR" := SetupToUpdate."POS Devolucion Exonerada ITBIS";
+                        Modified := true;
+                    end;
+                    if (SetupToUpdate."Show SalesPerson on Receipt_DXR" = false) and SetupToUpdate."Show SalesPerson on Receipt" then begin
+                        SetupToUpdate."Show SalesPerson on Receipt_DXR" := SetupToUpdate."Show SalesPerson on Receipt";
+                        Modified := true;
+                    end;
+                    if Modified then
+                        SetupToUpdate.Modify(false);
                 end;
-                if (Setup."Filtro Pos Devolucion_DXR" = false) and Setup."Filtro Pos Devolucion" then begin
-                    Setup."Filtro Pos Devolucion_DXR" := Setup."Filtro Pos Devolucion";
-                    Modified := true;
-                end;
-                if (Setup."POS Devolucion Exonerada ITBIS_DXR" = false) and Setup."POS Devolucion Exonerada ITBIS" then begin
-                    Setup."POS Devolucion Exonerada ITBIS_DXR" := Setup."POS Devolucion Exonerada ITBIS";
-                    Modified := true;
-                end;
-                if (Setup."Show SalesPerson on Receipt_DXR" = false) and Setup."Show SalesPerson on Receipt" then begin
-                    Setup."Show SalesPerson on Receipt_DXR" := Setup."Show SalesPerson on Receipt";
-                    Modified := true;
-                end;
-                if Modified then
-                    Setup.Modify(false);
-            until Setup.Next() = 0;
+        until Setup.Next() = 0;
+    end;
+
+    local procedure BEDXSetupRowNeedsMigration(var Setup: Record "BE DX Setup"): Boolean
+    begin
+        exit(
+            ((Setup."POS Venta Exonerada ITBIS_DXR" = false) and Setup."POS Venta Exonerada ITBIS") or
+            ((Setup."Filtro Pos Devolucion_DXR" = false) and Setup."Filtro Pos Devolucion") or
+            ((Setup."POS Devolucion Exonerada ITBIS_DXR" = false) and Setup."POS Devolucion Exonerada ITBIS") or
+            ((Setup."Show SalesPerson on Receipt_DXR" = false) and Setup."Show SalesPerson on Receipt"));
     end;
 
     local procedure MigrateTableExt_LSCCouponHeaderFields()
@@ -146,29 +185,50 @@ codeunit 60159 "DXR MCC BellonPOS Migr Phase2"
         FinishTable(RecRef);
     end;
 
+    // Fixed 2026-08-27: same whole-table UPDLOCK + missing-SetLoadFields problem, and the same fix,
+    // as MigrateTableExt_BEDXSetupFields() above. "LSC POS Terminal" is polled by every live POS
+    // terminal, so holding an update lock over all of it for the whole run is especially bad here.
     local procedure MigrateTableExt_LSCPOSTerminalFields()
     var
         Terminal: Record "LSC POS Terminal";
+        TerminalToUpdate: Record "LSC POS Terminal";
         Modified: Boolean;
     begin
-        if Terminal.FindSet(true) then
-            repeat
-                Modified := false;
-                if (Terminal."External Cmd. Print Z by Range_DXR" = '') and (Terminal."External Cmd. Print Z by Range" <> '') then begin
-                    Terminal."External Cmd. Print Z by Range_DXR" := Terminal."External Cmd. Print Z by Range";
-                    Modified := true;
+        Terminal.SetLoadFields(
+            "No.",
+            "External Cmd. Print Z by Range_DXR", "External Cmd. Print Z by Range",
+            "External Cmd. Imp. Factura_DXR", "External Cmd. Imp. Factura",
+            "External Cmd. Cliente Suspe._DXR", "External Cmd. Cliente Suspe.");
+        if not Terminal.FindSet(false) then
+            exit;
+        repeat
+            if TerminalRowNeedsMigration(Terminal) then
+                if TerminalToUpdate.Get(Terminal."No.") then begin
+                    Modified := false;
+                    if (TerminalToUpdate."External Cmd. Print Z by Range_DXR" = '') and (TerminalToUpdate."External Cmd. Print Z by Range" <> '') then begin
+                        TerminalToUpdate."External Cmd. Print Z by Range_DXR" := TerminalToUpdate."External Cmd. Print Z by Range";
+                        Modified := true;
+                    end;
+                    if (TerminalToUpdate."External Cmd. Imp. Factura_DXR" = '') and (TerminalToUpdate."External Cmd. Imp. Factura" <> '') then begin
+                        TerminalToUpdate."External Cmd. Imp. Factura_DXR" := TerminalToUpdate."External Cmd. Imp. Factura";
+                        Modified := true;
+                    end;
+                    if (TerminalToUpdate."External Cmd. Cliente Suspe._DXR" = '') and (TerminalToUpdate."External Cmd. Cliente Suspe." <> '') then begin
+                        TerminalToUpdate."External Cmd. Cliente Suspe._DXR" := TerminalToUpdate."External Cmd. Cliente Suspe.";
+                        Modified := true;
+                    end;
+                    if Modified then
+                        TerminalToUpdate.Modify(false);
                 end;
-                if (Terminal."External Cmd. Imp. Factura_DXR" = '') and (Terminal."External Cmd. Imp. Factura" <> '') then begin
-                    Terminal."External Cmd. Imp. Factura_DXR" := Terminal."External Cmd. Imp. Factura";
-                    Modified := true;
-                end;
-                if (Terminal."External Cmd. Cliente Suspe._DXR" = '') and (Terminal."External Cmd. Cliente Suspe." <> '') then begin
-                    Terminal."External Cmd. Cliente Suspe._DXR" := Terminal."External Cmd. Cliente Suspe.";
-                    Modified := true;
-                end;
-                if Modified then
-                    Terminal.Modify(false);
-            until Terminal.Next() = 0;
+        until Terminal.Next() = 0;
+    end;
+
+    local procedure TerminalRowNeedsMigration(var Terminal: Record "LSC POS Terminal"): Boolean
+    begin
+        exit(
+            ((Terminal."External Cmd. Print Z by Range_DXR" = '') and (Terminal."External Cmd. Print Z by Range" <> '')) or
+            ((Terminal."External Cmd. Imp. Factura_DXR" = '') and (Terminal."External Cmd. Imp. Factura" <> '')) or
+            ((Terminal."External Cmd. Cliente Suspe._DXR" = '') and (Terminal."External Cmd. Cliente Suspe." <> '')));
     end;
 
     local procedure MigrateTableExt_LSCPOSTransactionFields()

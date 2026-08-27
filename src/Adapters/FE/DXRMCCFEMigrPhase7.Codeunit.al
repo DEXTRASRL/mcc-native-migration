@@ -246,6 +246,10 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         PurchCrMemoLine: Record "Purch. Cr. Memo Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (PK + exactly the 2 fields this loop reads/writes)
+        // so the scan no longer joins the companion table of every "Purch. Cr. Memo Line"
+        // tableextension in this portfolio once per row; plus a final Commit for the last partial batch.
+        PurchCrMemoLine.SetLoadFields("Document No.", "Line No.", "Applies Withholding_DXR", "EF Applies for Withholding");
         if PurchCrMemoLine.FindSet() then
             repeat
                 if PurchCrMemoLine."Applies Withholding_DXR" <> PurchCrMemoLine."EF Applies for Withholding" then begin
@@ -258,6 +262,8 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
                     end;
                 end;
             until PurchCrMemoLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyPurchInvLineAppliesWithholding()
@@ -265,6 +271,9 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         PurchInvLine: Record "Purch. Inv. Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields (PK + the 2 fields touched) + final Commit for the
+        // last partial batch. Same reason as CopyPurchCrMemoLineAppliesWithholding above.
+        PurchInvLine.SetLoadFields("Document No.", "Line No.", "Applies Withholding_DXR", "EF Applies for Withholding");
         if PurchInvLine.FindSet() then
             repeat
                 if PurchInvLine."Applies Withholding_DXR" <> PurchInvLine."EF Applies for Withholding" then begin
@@ -277,6 +286,8 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
                     end;
                 end;
             until PurchInvLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesLineAppliesWithholding()
@@ -284,6 +295,9 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesLine: Record "Sales Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields (PK + the 2 fields touched) + final Commit for the
+        // last partial batch. Same reason as CopyPurchCrMemoLineAppliesWithholding above.
+        SalesLine.SetLoadFields("Document Type", "Document No.", "Line No.", "Applies Withholding_DXR", "EF Applies for Withholding");
         if SalesLine.FindSet() then
             repeat
                 if SalesLine."Applies Withholding_DXR" <> SalesLine."EF Applies for Withholding" then begin
@@ -296,6 +310,8 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
                     end;
                 end;
             until SalesLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesInvoiceLineAppliesWithholding()
@@ -303,6 +319,9 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesInvoiceLine: Record "Sales Invoice Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields (PK + the 2 fields touched) + final Commit for the
+        // last partial batch. Same reason as CopyPurchCrMemoLineAppliesWithholding above.
+        SalesInvoiceLine.SetLoadFields("Document No.", "Line No.", "Applies Withholding_DXR", "EF Applies for Withholding");
         if SalesInvoiceLine.FindSet() then
             repeat
                 if SalesInvoiceLine."Applies Withholding_DXR" <> SalesInvoiceLine."EF Applies for Withholding" then begin
@@ -315,6 +334,8 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
                     end;
                 end;
             until SalesInvoiceLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopySalesCrMemoLineAppliesWithholding()
@@ -322,6 +343,9 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
         SalesCrMemoLine: Record "Sales Cr.Memo Line";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1): SetLoadFields (PK + the 2 fields touched) + final Commit for the
+        // last partial batch. Same reason as CopyPurchCrMemoLineAppliesWithholding above.
+        SalesCrMemoLine.SetLoadFields("Document No.", "Line No.", "Applies Withholding_DXR", "EF Applies for Withholding");
         if SalesCrMemoLine.FindSet() then
             repeat
                 if SalesCrMemoLine."Applies Withholding_DXR" <> SalesCrMemoLine."EF Applies for Withholding" then begin
@@ -334,5 +358,7 @@ codeunit 60136 "DXR MCC FE Migr Phase7"
                     end;
                 end;
             until SalesCrMemoLine.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 }

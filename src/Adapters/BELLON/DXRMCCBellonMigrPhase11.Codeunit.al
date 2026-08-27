@@ -34,6 +34,12 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         tabledata "Config. NCF Compras" = RM,
         tabledata SalesHeaderOrderListFromBo = RM,
         tabledata "DXCash Journal Receipt List" = R,
+        // Fixed 2026-08-27: MigrateListadoRecibodeIngresoOldCrossTable() opens table 52132 via
+        // RecordRef and calls Modify(false) on it, but this table had NO Permissions entry - the
+        // 60000 "DXR MCC" permissionset grants no third-party tabledata, so the background
+        // (TaskScheduler) run would fail with "Required permission ... Modify". Declared by NAME
+        // here, the same way "DXR MCC Bellon Migr Phase7" already declares it.
+        tabledata "DXR_Cash Journal Receipt List" = RM,
         tabledata "DXNCF Setup" = R,
         tabledata "DXR_NCF Setup" = RIM;
 
@@ -92,6 +98,10 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
     var
         ConfigNCFCompras: Record "Config. NCF Compras";
     begin
+        // Fixed 2026-08-27: FindSet(true) over the whole table with no SetLoadFields made the
+        // server join every tableextension companion table per row. SetLoadFields limits the read
+        // to exactly the two fields this loop touches (the primary key is always loaded).
+        ConfigNCFCompras.SetLoadFields("EF Alternal No. Series", "Alternal No. Series_DXR");
         if ConfigNCFCompras.FindSet(true) then
             repeat
                 ConfigNCFCompras."EF Alternal No. Series" := ConfigNCFCompras."Alternal No. Series_DXR";
@@ -102,14 +112,26 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
     local procedure MigrateSalesHeaderOrderListFromBoFieldRename()
     var
         RecRef: RecordRef;
+        RowsSinceCommit: Integer;
     begin
         RecRef.Open(Database::SalesHeaderOrderListFromBo);
         if RecRef.FindSet(true) then
             repeat
                 CopyFieldIfExists(RecRef, 'Tipo NCF Cliente_DXR', 'DXTipo NCF Cliente'); // Tipo NCF Cliente_DXR -> DXTipo NCF Cliente (54100 -> 54101)
                 RecRef.Modify(false);
+
+                // Fixed 2026-08-27: this loop had no Commit at all, so the whole table ran inside a
+                // single unbounded transaction. Same 500-row batching the sibling phases already
+                // use; the copy is unconditional and idempotent, so a partial run is safe to retry.
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure MigrateNCFSetupOldCrossTable()
@@ -146,6 +168,7 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         NewPkFieldRef: FieldRef;
         KeyFieldIndex: Integer;
         AllKeyFieldsMapped: Boolean;
+        RowsSinceCommit: Integer;
     begin
         // "DXR_Cash Journal Receipt List" is Access = Internal, so the new side is opened by
         // numeric table ID (52132) via RecordRef; the old (legacy) side is opened by RecordRef too
@@ -183,11 +206,22 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
                         CopyFieldValueIfExists(OldRef, NewRef, 'IsRecaudo', 'IsRecaudo_DXR'); // 50003 -> 52791
                         CopyFieldValueIfExists(OldRef, NewRef, 'No. Authorizacion', 'No. Authorizacion_DXR'); // 50004 -> 52792
                         NewRef.Modify(false);
+
+                        // Fixed 2026-08-27: this loop had no Commit at all, so the whole table ran
+                        // inside a single unbounded transaction. Counter advances per MODIFIED row
+                        // (a row whose PK does not resolve on the new side writes nothing).
+                        RowsSinceCommit += 1;
+                        if RowsSinceCommit >= 500 then begin
+                            Commit();
+                            RowsSinceCommit := 0;
+                        end;
                     end;
             until OldRef.Next() = 0;
 
         NewRef.Close();
         OldRef.Close();
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldName: Text; TargetFieldName: Text)

@@ -45,6 +45,10 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
         SalesHeader: Record "Sales Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1). "Sales Header" carries many tableextensions
+        // across this portfolio; without a partial-record hint every companion table was joined per
+        // row. Only these two fields are read/written here.
+        SalesHeader.SetLoadFields("POS Special Order_DXR", "POS Special Order_DXR_Old");
         if not SalesHeader.FindSet(true) then
             exit;
         repeat
@@ -55,6 +59,10 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
             if Processed mod BatchSize = 0 then
                 Commit();
         until SalesHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4) - previously the last <500 rows
+        // stayed inside the caller's transaction.
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 
     local procedure CopySalesInvoiceHeaderField()
@@ -62,6 +70,9 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
         SalesInvHeader: Record "Sales Invoice Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - see CopySalesHeaderField above; only these
+        // two fields are read/written here.
+        SalesInvHeader.SetLoadFields("POS Special Order_DXR", "POS Special Order_DXR_Old");
         if not SalesInvHeader.FindSet(true) then
             exit;
         repeat
@@ -72,6 +83,9 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
             if Processed mod BatchSize = 0 then
                 Commit();
         until SalesInvHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4).
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 
     local procedure CopyPurchaseHeaderField()
@@ -79,6 +93,9 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
         PurchHeader: Record "Purchase Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - see CopySalesHeaderField above; only these
+        // two fields are read/written here.
+        PurchHeader.SetLoadFields(Toggle_DXR, Toggle_DXR_Old);
         if not PurchHeader.FindSet(true) then
             exit;
         repeat
@@ -89,6 +106,9 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
             if Processed mod BatchSize = 0 then
                 Commit();
         until PurchHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4).
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 
     // No Commit() batching: "LSC POS Func. Profile" is a small master/setup table (a handful of
@@ -99,6 +119,11 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     var
         FuncProfile: Record "LSC POS Func. Profile";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - "LSC POS Func. Profile" is a wide LS Central
+        // table carrying several tableextensions; only these four fields are read/written here.
+        FuncProfile.SetLoadFields(
+            "TS POS Special Order_DXR", "TS POS Special Order_DXR_Old",
+            "PSO Distribution Location_DXR", "PSO Distribution Location_Old");
         if not FuncProfile.FindSet(true) then
             exit;
         repeat
@@ -116,6 +141,11 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     var
         Setup: Record "DXR_Sales Controls Setup";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - only these six fields are read/written.
+        Setup.SetLoadFields(
+            "Special POS Order_DXR", "Special POS Order_DXR_Old",
+            "Non Decimal Qty on Lines_DXR", "Non Decimal Qty on Lines_Old",
+            "Mand Return Reason Code_DXR", "Mand Return Reason Code_Old");
         if not Setup.FindSet(true) then
             exit;
         repeat
@@ -135,6 +165,8 @@ codeunit 60133 "DXR MCC RC Migr Phase3"
     var
         Setup: Record "DXR_Purchase Controls Setup";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - only these two fields are read/written.
+        Setup.SetLoadFields("BarCode Length_DXR", "BarCode Length_DXR_Old");
         if not Setup.FindSet(true) then
             exit;
         repeat

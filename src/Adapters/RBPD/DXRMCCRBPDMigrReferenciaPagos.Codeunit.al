@@ -6,10 +6,14 @@ codeunit 60110 "DXR MCC RBPD Migr RefPagos"
     Permissions = tabledata "DXR-IB IbankingReferenciaPagos" = R,
                   tabledata "DXR_IbankingReferenciaPagos" = RIM;
 
+    // Fixed 2026-08-27: the loop had no Commit at all, so a whole-table restore ran as ONE
+    // unbounded transaction. Bounded to 500 INSERTED rows; safe because every insert is already
+    // guarded by "if not NewRec.Get(...)", so a re-run after a partial commit skips what exists.
     trigger OnRun()
     var
         OldRec: Record "DXR-IB IbankingReferenciaPagos";
         NewRec: Record "DXR_IbankingReferenciaPagos";
+        RowsSinceCommit: Integer;
     begin
         if OldRec.FindSet() then
             repeat
@@ -27,8 +31,17 @@ codeunit 60110 "DXR MCC RBPD Migr RefPagos"
                     NewRec."Currency Code DXR-IB" := OldRec."Currency Code DXR-IB";
                     NewRec."Posting Date DXR-IB" := OldRec."Posting Date DXR-IB";
                     NewRec.Insert(true);
+
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= 500 then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
             until OldRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 }
 

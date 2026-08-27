@@ -293,24 +293,34 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         GLAccount: Record "G/L Account";
+        GLAccountToUpdate: Record "G/L Account";
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-MCC-DRLOC-GLACCOUNT-NCFCATEGORY-20260825.') then
             exit;
 
-        if GLAccount.FindSet(true) then
+        // Fixed 2026-08-27: was FindSet(true) over the whole chart of accounts with no SetLoadFields -
+        // an UPDLOCK on every G/L Account row plus a companion-table join per tableextension per row.
+        // Now: partial read without the update lock, and the lock is taken (via Get) only on rows that
+        // really change; the Commit counter advances per MODIFIED row instead of per scanned row.
+        GLAccount.SetLoadFields("No.", "NCFCategories_DXR", "DXNCF Categories");
+        if GLAccount.FindSet(false) then
             repeat
-                if GLAccount."NCFCategories_DXR" <> GLAccount."DXNCF Categories" then begin
-                    GLAccount."NCFCategories_DXR" := GLAccount."DXNCF Categories";
-                    GLAccount.Modify(false);
-                end;
+                if GLAccount."NCFCategories_DXR" <> GLAccount."DXNCF Categories" then
+                    if GLAccountToUpdate.Get(GLAccount."No.") then begin
+                        GLAccountToUpdate."NCFCategories_DXR" := GLAccountToUpdate."DXNCF Categories";
+                        GLAccountToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until GLAccount.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-MCC-DRLOC-GLACCOUNT-NCFCATEGORY-20260825.');
     end;
@@ -405,15 +415,21 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateBankAccountFields()
     var
         BankAccountRec: Record "Bank Account";
+        BankAccountToUpdate: Record "Bank Account";
     begin
-        if BankAccountRec.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every Bank Account row for the whole run
+        // and, without SetLoadFields, joined every tableextension companion table per row. Read
+        // partial/unlocked, lock only the rows that actually need the copy.
+        BankAccountRec.SetLoadFields("No.", "Cod. Proveedor Bco._DXR", "DxCod. Proveedor Bco.", "Cargar Estados CSV_DXR", "DxCargar Estados CSV");
+        if BankAccountRec.FindSet(false) then
             repeat
                 if (BankAccountRec."Cod. Proveedor Bco._DXR" <> BankAccountRec."DxCod. Proveedor Bco.") or
-                   (BankAccountRec."Cargar Estados CSV_DXR" <> BankAccountRec."DxCargar Estados CSV") then begin
-                    BankAccountRec."Cod. Proveedor Bco._DXR" := BankAccountRec."DxCod. Proveedor Bco.";
-                    BankAccountRec."Cargar Estados CSV_DXR" := BankAccountRec."DxCargar Estados CSV";
-                    BankAccountRec.Modify(false);
-                end;
+                   (BankAccountRec."Cargar Estados CSV_DXR" <> BankAccountRec."DxCargar Estados CSV") then
+                    if BankAccountToUpdate.Get(BankAccountRec."No.") then begin
+                        BankAccountToUpdate."Cod. Proveedor Bco._DXR" := BankAccountToUpdate."DxCod. Proveedor Bco.";
+                        BankAccountToUpdate."Cargar Estados CSV_DXR" := BankAccountToUpdate."DxCargar Estados CSV";
+                        BankAccountToUpdate.Modify(false);
+                    end;
             until BankAccountRec.Next() = 0;
     end;
 
@@ -427,8 +443,27 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateCustomerFields()
     var
         CustomerRec: Record Customer;
+        CustomerToUpdate: Record Customer;
+        BatchCount: Integer;
     begin
-        if CustomerRec.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) over the whole Customer table held a SQL UPDLOCK on every
+        // customer for the entire run (Learn, "Record.FindSet") and, with no SetLoadFields, joined the
+        // companion table of every Customer tableextension in this portfolio once per row. Now the scan
+        // is a partial, unlocked read; the row is re-read with Get() and locked only when it really
+        // needs the copy, and a Commit every 500 MODIFIED rows bounds the transaction (there was none).
+        CustomerRec.SetLoadFields(
+            "No.",
+            "Tipo NCF_DXR", "DxTipo NCF", "Utiliza NCF_DXR", "DxUtiliza NCF",
+            "Tipo Identificacion_DXR", "DXTipo Identificacion", "Razon Social_DXR", "DxRazon Social",
+            "Nombre Comercial_DXR", "DxNombre Comercial", "Tipo Negocio_DXR", "DxTipo Negocio",
+            "Fecha Constitucion_DXR", "DxFecha Constitucion", "Estatus_DXR", "DxEstatus",
+            "Fecha Act. DGII_DXR", "DxFecha Act. DGII", "Tax Identification Type_DXR", "DxTax Identification Type",
+            "Proveedor Tarjeta Cr._DXR", "DxProveedor Tarjeta Cr.", "International Customer_DXR", "DX International Customer",
+            "Uses Withholding_DXR", "DX Uses Withholding", "Bank Commission_DXR", "DX Bank Commission",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS", "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Bank Commission Account_DXR", "DX Bank Commission Account", "Def ITBIS Withhold_DXR", "DXDefault ITBIS Withholding",
+            "Default ISR Withholding_DXR", "DXDefault ISR Withholding", "Apply Cust Withhold_DXR", "DX Apply Customer Withholding");
+        if CustomerRec.FindSet(false) then
             repeat
                 if (CustomerRec."Tipo NCF_DXR" <> CustomerRec."DxTipo NCF") or
                    (CustomerRec."Utiliza NCF_DXR" <> CustomerRec."DxUtiliza NCF") or
@@ -449,26 +484,27 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (CustomerRec."Bank Commission Account_DXR" <> CustomerRec."DX Bank Commission Account") or
                    (CustomerRec."Def ITBIS Withhold_DXR" <> CustomerRec."DXDefault ITBIS Withholding") or
                    (CustomerRec."Default ISR Withholding_DXR" <> CustomerRec."DXDefault ISR Withholding") or
-                   (CustomerRec."Apply Cust Withhold_DXR" <> CustomerRec."DX Apply Customer Withholding") then begin
-                    CustomerRec."Tipo NCF_DXR" := CustomerRec."DxTipo NCF";
-                    CustomerRec."Utiliza NCF_DXR" := CustomerRec."DxUtiliza NCF";
-                    CustomerRec."Tipo Identificacion_DXR" := CustomerRec."DXTipo Identificacion";
-                    CustomerRec."Razon Social_DXR" := CustomerRec."DxRazon Social";
-                    CustomerRec."Nombre Comercial_DXR" := CustomerRec."DxNombre Comercial";
-                    CustomerRec."Tipo Negocio_DXR" := CustomerRec."DxTipo Negocio";
-                    CustomerRec."Fecha Constitucion_DXR" := CustomerRec."DxFecha Constitucion";
-                    CustomerRec."Estatus_DXR" := CustomerRec."DxEstatus";
-                    CustomerRec."Fecha Act. DGII_DXR" := CustomerRec."DxFecha Act. DGII";
-                    CustomerRec."Tax Identification Type_DXR" := CustomerRec."DxTax Identification Type";
-                    CustomerRec."Proveedor Tarjeta Cr._DXR" := CustomerRec."DxProveedor Tarjeta Cr.";
-                    CustomerRec."International Customer_DXR" := CustomerRec."DX International Customer";
-                    CustomerRec."Uses Withholding_DXR" := CustomerRec."DX Uses Withholding";
-                    CustomerRec."Bank Commission_DXR" := CustomerRec."DX Bank Commission";
-                    CustomerRec."Cod. Retencion ITBIS_DXR" := CustomerRec."DXCod. Retencion ITBIS";
-                    CustomerRec."Cod. Retencion ISR_DXR" := CustomerRec."DXCod. Retencion ISR";
-                    CustomerRec."Bank Commission Account_DXR" := CustomerRec."DX Bank Commission Account";
-                    CustomerRec."Def ITBIS Withhold_DXR" := CustomerRec."DXDefault ITBIS Withholding";
-                    CustomerRec."Default ISR Withholding_DXR" := CustomerRec."DXDefault ISR Withholding";
+                   (CustomerRec."Apply Cust Withhold_DXR" <> CustomerRec."DX Apply Customer Withholding") then
+                    if CustomerToUpdate.Get(CustomerRec."No.") then begin
+                    CustomerToUpdate."Tipo NCF_DXR" := CustomerToUpdate."DxTipo NCF";
+                    CustomerToUpdate."Utiliza NCF_DXR" := CustomerToUpdate."DxUtiliza NCF";
+                    CustomerToUpdate."Tipo Identificacion_DXR" := CustomerToUpdate."DXTipo Identificacion";
+                    CustomerToUpdate."Razon Social_DXR" := CustomerToUpdate."DxRazon Social";
+                    CustomerToUpdate."Nombre Comercial_DXR" := CustomerToUpdate."DxNombre Comercial";
+                    CustomerToUpdate."Tipo Negocio_DXR" := CustomerToUpdate."DxTipo Negocio";
+                    CustomerToUpdate."Fecha Constitucion_DXR" := CustomerToUpdate."DxFecha Constitucion";
+                    CustomerToUpdate."Estatus_DXR" := CustomerToUpdate."DxEstatus";
+                    CustomerToUpdate."Fecha Act. DGII_DXR" := CustomerToUpdate."DxFecha Act. DGII";
+                    CustomerToUpdate."Tax Identification Type_DXR" := CustomerToUpdate."DxTax Identification Type";
+                    CustomerToUpdate."Proveedor Tarjeta Cr._DXR" := CustomerToUpdate."DxProveedor Tarjeta Cr.";
+                    CustomerToUpdate."International Customer_DXR" := CustomerToUpdate."DX International Customer";
+                    CustomerToUpdate."Uses Withholding_DXR" := CustomerToUpdate."DX Uses Withholding";
+                    CustomerToUpdate."Bank Commission_DXR" := CustomerToUpdate."DX Bank Commission";
+                    CustomerToUpdate."Cod. Retencion ITBIS_DXR" := CustomerToUpdate."DXCod. Retencion ITBIS";
+                    CustomerToUpdate."Cod. Retencion ISR_DXR" := CustomerToUpdate."DXCod. Retencion ISR";
+                    CustomerToUpdate."Bank Commission Account_DXR" := CustomerToUpdate."DX Bank Commission Account";
+                    CustomerToUpdate."Def ITBIS Withhold_DXR" := CustomerToUpdate."DXDefault ITBIS Withholding";
+                    CustomerToUpdate."Default ISR Withholding_DXR" := CustomerToUpdate."DXDefault ISR Withholding";
                     // Explicit conversion required - "Apply Cust Withhold_DXR" (52201) and
                     // "DX Apply Customer Withholding" (54203) are two distinct Enum objects (the
                     // latter Obsolete = Pending, replaced by the former), even though their value
@@ -476,25 +512,39 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                     // confirmed against DXR_ApplyCustomerWithholding.Enum.al and
                     // DXApplyCustomerWithholding.Enum.al). AL does not implicitly convert between
                     // different Enum types on assignment (AL0122), so FromInteger/AsInteger is used.
-                    CustomerRec."Apply Cust Withhold_DXR" :=
-                        "Apply Cust Withhold_DXR".FromInteger(CustomerRec."DX Apply Customer Withholding".AsInteger());
-                    CustomerRec.Modify(false);
+                    CustomerToUpdate."Apply Cust Withhold_DXR" :=
+                        "Apply Cust Withhold_DXR".FromInteger(CustomerToUpdate."DX Apply Customer Withholding".AsInteger());
+                    CustomerToUpdate.Modify(false);
+
+                    BatchCount += 1;
+                    if BatchCount >= 500 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until CustomerRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateCustomerTemplFields()
     var
         CustomerTemplRec: Record "Customer Templ.";
+        CustomerTemplToUpdate: Record "Customer Templ.";
     begin
-        if CustomerTemplRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) without SetLoadFields locked the whole table and joined
+        // every tableextension companion table per row; now read partial/unlocked and lock only on change.
+        CustomerTemplRec.SetLoadFields(Code, "Tipo NCF_DXR", "DxTipo NCF", "Utiliza NCF_DXR", "DxUtiliza NCF");
+        if CustomerTemplRec.FindSet(false) then
             repeat
                 if (CustomerTemplRec."Tipo NCF_DXR" <> CustomerTemplRec."DxTipo NCF") or
-                   (CustomerTemplRec."Utiliza NCF_DXR" <> CustomerTemplRec."DxUtiliza NCF") then begin
-                    CustomerTemplRec."Tipo NCF_DXR" := CustomerTemplRec."DxTipo NCF";
-                    CustomerTemplRec."Utiliza NCF_DXR" := CustomerTemplRec."DxUtiliza NCF";
-                    CustomerTemplRec.Modify(false);
-                end;
+                   (CustomerTemplRec."Utiliza NCF_DXR" <> CustomerTemplRec."DxUtiliza NCF") then
+                    if CustomerTemplToUpdate.Get(CustomerTemplRec.Code) then begin
+                        CustomerTemplToUpdate."Tipo NCF_DXR" := CustomerTemplToUpdate."DxTipo NCF";
+                        CustomerTemplToUpdate."Utiliza NCF_DXR" := CustomerTemplToUpdate."DxUtiliza NCF";
+                        CustomerTemplToUpdate.Modify(false);
+                    end;
             until CustomerTemplRec.Next() = 0;
     end;
 
@@ -503,8 +553,26 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateVendorFields()
     var
         VendorRec: Record Vendor;
+        VendorToUpdate: Record Vendor;
+        BatchCount: Integer;
     begin
-        if VendorRec.FindSet(true) then
+        // Fixed 2026-08-27: same A1 fix as MigrateCustomerFields - FindSet(true) over the whole Vendor
+        // table took a SQL UPDLOCK on every vendor for the whole run and, without SetLoadFields, joined
+        // every Vendor tableextension companion table per row. Partial unlocked scan + Get() only on
+        // rows that change + Commit every 500 MODIFIED rows (previously the loop never committed).
+        VendorRec.SetLoadFields(
+            "No.",
+            "NCF Interno Proveedor_DXR", "DXNCF Interno Proveedor", "Utiliza NCF Externo_DXR", "DXUtiliza NCF Externo",
+            "Tipo Identificacion_DXR", "DXTipo Identificacion", "Razon Social_DXR", "DXRazon Social",
+            "Nombre Comercial_DXR", "DXNombre Comercial", "Tipo Negocio_DXR", "DXTipo Negocio",
+            "Fecha Constitucion_DXR", "DXFecha Constitucion", "Estatus_DXR", "DXEstatus",
+            "Fecha Act. DGII_DXR", "DXFecha Act. DGII", "Tax Identificaction Type_DXR", "DXTax Identificaction Type",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS", "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Proveedor Internacional_DXR", "DXProveedor Internacional", "Utiliza Retencion_DXR", "DXUtiliza Retencion",
+            "Uses Sel Amount Tip_DXR", "DXUses Selective Amount Tip", "Uses Legal Tip_DXR", "DXUses Legal Tip",
+            "Uses Other Fees Tip_DXR", "DXUses Other Fees Tip", "Parte Relacionada_DXR", "DxParte Relacionada",
+            "Reporta 609_DXR", "DXReporta 609", "Addtl Currency Code_DXR", "DX Additional Currency Code");
+        if VendorRec.FindSet(false) then
             repeat
                 if (VendorRec."NCF Interno Proveedor_DXR" <> VendorRec."DXNCF Interno Proveedor") or
                    (VendorRec."Utiliza NCF Externo_DXR" <> VendorRec."DXUtiliza NCF Externo") or
@@ -525,30 +593,40 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (VendorRec."Uses Other Fees Tip_DXR" <> VendorRec."DXUses Other Fees Tip") or
                    (VendorRec."Parte Relacionada_DXR" <> VendorRec."DxParte Relacionada") or
                    (VendorRec."Reporta 609_DXR" <> VendorRec."DXReporta 609") or
-                   (VendorRec."Addtl Currency Code_DXR" <> VendorRec."DX Additional Currency Code") then begin
-                    VendorRec."NCF Interno Proveedor_DXR" := VendorRec."DXNCF Interno Proveedor";
-                    VendorRec."Utiliza NCF Externo_DXR" := VendorRec."DXUtiliza NCF Externo";
-                    VendorRec."Tipo Identificacion_DXR" := VendorRec."DXTipo Identificacion";
-                    VendorRec."Razon Social_DXR" := VendorRec."DXRazon Social";
-                    VendorRec."Nombre Comercial_DXR" := VendorRec."DXNombre Comercial";
-                    VendorRec."Tipo Negocio_DXR" := VendorRec."DXTipo Negocio";
-                    VendorRec."Fecha Constitucion_DXR" := VendorRec."DXFecha Constitucion";
-                    VendorRec."Estatus_DXR" := VendorRec."DXEstatus";
-                    VendorRec."Fecha Act. DGII_DXR" := VendorRec."DXFecha Act. DGII";
-                    VendorRec."Tax Identificaction Type_DXR" := VendorRec."DXTax Identificaction Type";
-                    VendorRec."Cod. Retencion ITBIS_DXR" := VendorRec."DXCod. Retencion ITBIS";
-                    VendorRec."Cod. Retencion ISR_DXR" := VendorRec."DXCod. Retencion ISR";
-                    VendorRec."Proveedor Internacional_DXR" := VendorRec."DXProveedor Internacional";
-                    VendorRec."Utiliza Retencion_DXR" := VendorRec."DXUtiliza Retencion";
-                    VendorRec."Uses Sel Amount Tip_DXR" := VendorRec."DXUses Selective Amount Tip";
-                    VendorRec."Uses Legal Tip_DXR" := VendorRec."DXUses Legal Tip";
-                    VendorRec."Uses Other Fees Tip_DXR" := VendorRec."DXUses Other Fees Tip";
-                    VendorRec."Parte Relacionada_DXR" := VendorRec."DxParte Relacionada";
-                    VendorRec."Reporta 609_DXR" := VendorRec."DXReporta 609";
-                    VendorRec."Addtl Currency Code_DXR" := VendorRec."DX Additional Currency Code";
-                    VendorRec.Modify(false);
-                end;
+                   (VendorRec."Addtl Currency Code_DXR" <> VendorRec."DX Additional Currency Code") then
+                    if VendorToUpdate.Get(VendorRec."No.") then begin
+                        VendorToUpdate."NCF Interno Proveedor_DXR" := VendorToUpdate."DXNCF Interno Proveedor";
+                        VendorToUpdate."Utiliza NCF Externo_DXR" := VendorToUpdate."DXUtiliza NCF Externo";
+                        VendorToUpdate."Tipo Identificacion_DXR" := VendorToUpdate."DXTipo Identificacion";
+                        VendorToUpdate."Razon Social_DXR" := VendorToUpdate."DXRazon Social";
+                        VendorToUpdate."Nombre Comercial_DXR" := VendorToUpdate."DXNombre Comercial";
+                        VendorToUpdate."Tipo Negocio_DXR" := VendorToUpdate."DXTipo Negocio";
+                        VendorToUpdate."Fecha Constitucion_DXR" := VendorToUpdate."DXFecha Constitucion";
+                        VendorToUpdate."Estatus_DXR" := VendorToUpdate."DXEstatus";
+                        VendorToUpdate."Fecha Act. DGII_DXR" := VendorToUpdate."DXFecha Act. DGII";
+                        VendorToUpdate."Tax Identificaction Type_DXR" := VendorToUpdate."DXTax Identificaction Type";
+                        VendorToUpdate."Cod. Retencion ITBIS_DXR" := VendorToUpdate."DXCod. Retencion ITBIS";
+                        VendorToUpdate."Cod. Retencion ISR_DXR" := VendorToUpdate."DXCod. Retencion ISR";
+                        VendorToUpdate."Proveedor Internacional_DXR" := VendorToUpdate."DXProveedor Internacional";
+                        VendorToUpdate."Utiliza Retencion_DXR" := VendorToUpdate."DXUtiliza Retencion";
+                        VendorToUpdate."Uses Sel Amount Tip_DXR" := VendorToUpdate."DXUses Selective Amount Tip";
+                        VendorToUpdate."Uses Legal Tip_DXR" := VendorToUpdate."DXUses Legal Tip";
+                        VendorToUpdate."Uses Other Fees Tip_DXR" := VendorToUpdate."DXUses Other Fees Tip";
+                        VendorToUpdate."Parte Relacionada_DXR" := VendorToUpdate."DxParte Relacionada";
+                        VendorToUpdate."Reporta 609_DXR" := VendorToUpdate."DXReporta 609";
+                        VendorToUpdate."Addtl Currency Code_DXR" := VendorToUpdate."DX Additional Currency Code";
+                        VendorToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until VendorRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq11: Bootstrap: GL/UserSetup/Journal fields =====
@@ -608,82 +686,112 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateUserSetupFields()
     var
         UserSetupRec: Record "User Setup";
+        UserSetupToUpdate: Record "User Setup";
     begin
-        if UserSetupRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        UserSetupRec.SetLoadFields("User ID", "Entrega Cheques_DXR", "DXEntrega Cheques");
+        if UserSetupRec.FindSet(false) then
             repeat
-                if UserSetupRec."Entrega Cheques_DXR" <> UserSetupRec."DXEntrega Cheques" then begin
-                    UserSetupRec."Entrega Cheques_DXR" := UserSetupRec."DXEntrega Cheques";
-                    UserSetupRec.Modify(false);
-                end;
+                if UserSetupRec."Entrega Cheques_DXR" <> UserSetupRec."DXEntrega Cheques" then
+                    if UserSetupToUpdate.Get(UserSetupRec."User ID") then begin
+                        UserSetupToUpdate."Entrega Cheques_DXR" := UserSetupToUpdate."DXEntrega Cheques";
+                        UserSetupToUpdate.Modify(false);
+                    end;
             until UserSetupRec.Next() = 0;
     end;
 
     local procedure MigrateNoSeriesLineFields()
     var
         NoSeriesLineRec: Record "No. Series Line";
+        NoSeriesLineToUpdate: Record "No. Series Line";
     begin
-        if NoSeriesLineRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        NoSeriesLineRec.SetLoadFields("Series Code", "Line No.", "Fecha Expiracion NCF_DXR", "DXFecha Expiracion NCF");
+        if NoSeriesLineRec.FindSet(false) then
             repeat
-                if NoSeriesLineRec."Fecha Expiracion NCF_DXR" <> NoSeriesLineRec."DXFecha Expiracion NCF" then begin
-                    NoSeriesLineRec."Fecha Expiracion NCF_DXR" := NoSeriesLineRec."DXFecha Expiracion NCF";
-                    NoSeriesLineRec.Modify(false);
-                end;
+                if NoSeriesLineRec."Fecha Expiracion NCF_DXR" <> NoSeriesLineRec."DXFecha Expiracion NCF" then
+                    if NoSeriesLineToUpdate.Get(NoSeriesLineRec."Series Code", NoSeriesLineRec."Line No.") then begin
+                        NoSeriesLineToUpdate."Fecha Expiracion NCF_DXR" := NoSeriesLineToUpdate."DXFecha Expiracion NCF";
+                        NoSeriesLineToUpdate.Modify(false);
+                    end;
             until NoSeriesLineRec.Next() = 0;
     end;
 
     local procedure MigrateGenJournalTemplateFields()
     var
         GenJournalTemplateRec: Record "Gen. Journal Template";
+        GenJournalTemplateToUpdate: Record "Gen. Journal Template";
     begin
-        if GenJournalTemplateRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        GenJournalTemplateRec.SetLoadFields(Name, "Cash Recpt. Report ID_DXR", "Cash Recpt. Report ID");
+        if GenJournalTemplateRec.FindSet(false) then
             repeat
-                if GenJournalTemplateRec."Cash Recpt. Report ID_DXR" <> GenJournalTemplateRec."Cash Recpt. Report ID" then begin
-                    GenJournalTemplateRec."Cash Recpt. Report ID_DXR" := GenJournalTemplateRec."Cash Recpt. Report ID";
-                    GenJournalTemplateRec.Modify(false);
-                end;
+                if GenJournalTemplateRec."Cash Recpt. Report ID_DXR" <> GenJournalTemplateRec."Cash Recpt. Report ID" then
+                    if GenJournalTemplateToUpdate.Get(GenJournalTemplateRec.Name) then begin
+                        GenJournalTemplateToUpdate."Cash Recpt. Report ID_DXR" := GenJournalTemplateToUpdate."Cash Recpt. Report ID";
+                        GenJournalTemplateToUpdate.Modify(false);
+                    end;
             until GenJournalTemplateRec.Next() = 0;
     end;
 
     local procedure MigrateGenJournalBatchFields()
     var
         GenJournalBatchRec: Record "Gen. Journal Batch";
+        GenJournalBatchToUpdate: Record "Gen. Journal Batch";
     begin
-        if GenJournalBatchRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        GenJournalBatchRec.SetLoadFields("Journal Template Name", Name, "Recibo Ingreso_DXR", "DXRecibo Ingreso", "Diario de cheques_DXR", "DXDiario de cheques");
+        if GenJournalBatchRec.FindSet(false) then
             repeat
                 if (GenJournalBatchRec."Recibo Ingreso_DXR" <> GenJournalBatchRec."DXRecibo Ingreso") or
-                   (GenJournalBatchRec."Diario de cheques_DXR" <> GenJournalBatchRec."DXDiario de cheques") then begin
-                    GenJournalBatchRec."Recibo Ingreso_DXR" := GenJournalBatchRec."DXRecibo Ingreso";
-                    GenJournalBatchRec."Diario de cheques_DXR" := GenJournalBatchRec."DXDiario de cheques";
-                    GenJournalBatchRec.Modify(false);
-                end;
+                   (GenJournalBatchRec."Diario de cheques_DXR" <> GenJournalBatchRec."DXDiario de cheques") then
+                    if GenJournalBatchToUpdate.Get(GenJournalBatchRec."Journal Template Name", GenJournalBatchRec.Name) then begin
+                        GenJournalBatchToUpdate."Recibo Ingreso_DXR" := GenJournalBatchToUpdate."DXRecibo Ingreso";
+                        GenJournalBatchToUpdate."Diario de cheques_DXR" := GenJournalBatchToUpdate."DXDiario de cheques";
+                        GenJournalBatchToUpdate.Modify(false);
+                    end;
             until GenJournalBatchRec.Next() = 0;
     end;
 
     local procedure MigrateWorkflowStepArgumentFields()
     var
         WorkflowStepArgumentRec: Record "Workflow Step Argument";
+        WorkflowStepArgumentToUpdate: Record "Workflow Step Argument";
     begin
-        if WorkflowStepArgumentRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        WorkflowStepArgumentRec.SetLoadFields(ID, "Due Invoice Option_DXR", "DX Due Invoice Option");
+        if WorkflowStepArgumentRec.FindSet(false) then
             repeat
-                if WorkflowStepArgumentRec."Due Invoice Option_DXR" <> WorkflowStepArgumentRec."DX Due Invoice Option" then begin
-                    WorkflowStepArgumentRec."Due Invoice Option_DXR" := WorkflowStepArgumentRec."DX Due Invoice Option";
-                    WorkflowStepArgumentRec.Modify(false);
-                end;
+                if WorkflowStepArgumentRec."Due Invoice Option_DXR" <> WorkflowStepArgumentRec."DX Due Invoice Option" then
+                    if WorkflowStepArgumentToUpdate.Get(WorkflowStepArgumentRec.ID) then begin
+                        WorkflowStepArgumentToUpdate."Due Invoice Option_DXR" := WorkflowStepArgumentToUpdate."DX Due Invoice Option";
+                        WorkflowStepArgumentToUpdate.Modify(false);
+                    end;
             until WorkflowStepArgumentRec.Next() = 0;
     end;
 
     local procedure MigrateVATProductPostingGroupFields()
     var
         VATProductPostingGroupRec: Record "VAT Product Posting Group";
+        VATProductPostingGroupToUpdate: Record "VAT Product Posting Group";
     begin
-        if VATProductPostingGroupRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        VATProductPostingGroupRec.SetLoadFields(Code, "Taken To Cost_DXR", "DX Taken To Cost", "Proportionality_DXR", "DX Proportionality");
+        if VATProductPostingGroupRec.FindSet(false) then
             repeat
                 if (VATProductPostingGroupRec."Taken To Cost_DXR" <> VATProductPostingGroupRec."DX Taken To Cost") or
-                   (VATProductPostingGroupRec."Proportionality_DXR" <> VATProductPostingGroupRec."DX Proportionality") then begin
-                    VATProductPostingGroupRec."Taken To Cost_DXR" := VATProductPostingGroupRec."DX Taken To Cost";
-                    VATProductPostingGroupRec."Proportionality_DXR" := VATProductPostingGroupRec."DX Proportionality";
-                    VATProductPostingGroupRec.Modify(false);
-                end;
+                   (VATProductPostingGroupRec."Proportionality_DXR" <> VATProductPostingGroupRec."DX Proportionality") then
+                    if VATProductPostingGroupToUpdate.Get(VATProductPostingGroupRec.Code) then begin
+                        VATProductPostingGroupToUpdate."Taken To Cost_DXR" := VATProductPostingGroupToUpdate."DX Taken To Cost";
+                        VATProductPostingGroupToUpdate."Proportionality_DXR" := VATProductPostingGroupToUpdate."DX Proportionality";
+                        VATProductPostingGroupToUpdate.Modify(false);
+                    end;
             until VATProductPostingGroupRec.Next() = 0;
     end;
 
@@ -1012,25 +1120,37 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateItemNCFCategoryBackfill()
     var
         Item: Record Item;
+        ItemToUpdate: Record Item;
         NCFCategory: Code[20];
         BatchCount: Integer;
     begin
         // Periodic Commit() every 100 rows (matching DR-Localization's own ProductBatchSize()) -
         // see the codeunit-level comment above BootstrapItemNCFCategoryBackfill() for why this is
         // required here even without the full checkpoint/resume machinery.
-        if Item.FindSet(true) then
+        //
+        // Fixed 2026-08-27: FindSet(true) over the whole Item table took a SQL UPDLOCK on every item
+        // for the entire run and, with no SetLoadFields, joined the companion table of every Item
+        // tableextension in this portfolio once per row - on a table where only a small minority of
+        // rows actually change. Read partial/unlocked, take the lock via Get() only on rows that
+        // really need the backfill, and advance the Commit counter per MODIFIED row.
+        Item.SetLoadFields("No.", "Gen. Prod. Posting Group", "NCF Category_DXR");
+        if Item.FindSet(false) then
             repeat
-                if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then begin
-                    Item."NCF Category_DXR" := NCFCategory;
-                    Item.Modify(false);
-                end;
+                if TryGetItemNcfCategoryLocal(Item, NCFCategory) and (Item."NCF Category_DXR" <> NCFCategory) then
+                    if ItemToUpdate.Get(Item."No.") then begin
+                        ItemToUpdate."NCF Category_DXR" := NCFCategory;
+                        ItemToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until Item.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure TryGetItemNcfCategoryLocal(Item: Record Item; var NCFCategory: Code[20]): Boolean
@@ -1042,6 +1162,10 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         if Item."Gen. Prod. Posting Group" = '' then
             exit(false);
 
+        // Fixed 2026-08-27: A1 - partial-record hint on the two lookup reads this helper performs once
+        // per Item row, so neither read drags in every tableextension companion table.
+        GeneralPostingSetup.SetLoadFields("Purch. Account");
+        GLAccount.SetLoadFields("NCFCategories_DXR");
         GeneralPostingSetup.SetRange("Gen. Prod. Posting Group", Item."Gen. Prod. Posting Group");
         GeneralPostingSetup.SetFilter("Purch. Account", '<>%1', '');
         if GeneralPostingSetup.FindSet() then
@@ -1575,6 +1699,16 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         ApplicationAreaSetupRec: Record "Application Area Setup";
     begin
+        // Fixed 2026-08-27: A1 - added the SetLoadFields hint the FindSet(true) scan was missing, so the
+        // read no longer joins every Application Area Setup tableextension companion table per row.
+        // FindSet(true) kept here on purpose: this table is one row per company/profile/user and its
+        // primary key is composite (App ID/Company Name/Profile ID/User ID), so the re-read-with-Get
+        // variant used elsewhere in this file would add risk without a measurable benefit.
+        ApplicationAreaSetupRec.SetLoadFields(
+            DextraBusinessCentralDXR, "DxDextra Business Central",
+            DextraLSCentralDXR, "DxDextra LS Central",
+            DextraEmptyLabelsDXR, "DxDextra Empty Labels",
+            "Dextra Business Central_DXR", "Dextra LS Central_DXR", "Dextra Empty Labels_DXR");
         if ApplicationAreaSetupRec.FindSet(true) then
             repeat
                 if (ApplicationAreaSetupRec.DextraBusinessCentralDXR <> ApplicationAreaSetupRec."DxDextra Business Central") or
@@ -1620,25 +1754,39 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateCustLedgerEntryBulkFields()
     var
         CustLedgerEntryRec: Record "Cust. Ledger Entry";
+        CustLedgerEntryToUpdate: Record "Cust. Ledger Entry";
         BatchCount: Integer;
     begin
-        if CustLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) over the entire Cust. Ledger Entry table took a SQL UPDLOCK on
+        // every ledger row and, with no SetLoadFields, joined every tableextension companion table per
+        // row - the worst case of this antipattern in this file, since the table is transaction-volume
+        // scale. Partial unlocked scan, Get() + lock only on rows that really change, and the Commit
+        // counter now advances per MODIFIED row instead of per scanned row.
+        CustLedgerEntryRec.SetLoadFields(
+            "Entry No.",
+            "NCF_DXR", "DXNCF", "Reporta en 607_DXR", "DXReporta en 607",
+            "Withholding Payment_DXR", "Dx Withholding Payment");
+        if CustLedgerEntryRec.FindSet(false) then
             repeat
                 if (CustLedgerEntryRec."NCF_DXR" <> CustLedgerEntryRec."DXNCF") or
                    (CustLedgerEntryRec."Reporta en 607_DXR" <> CustLedgerEntryRec."DXReporta en 607") or
-                   (CustLedgerEntryRec."Withholding Payment_DXR" <> CustLedgerEntryRec."Dx Withholding Payment") then begin
-                    CustLedgerEntryRec."NCF_DXR" := CustLedgerEntryRec."DXNCF";
-                    CustLedgerEntryRec."Reporta en 607_DXR" := CustLedgerEntryRec."DXReporta en 607";
-                    CustLedgerEntryRec."Withholding Payment_DXR" := CustLedgerEntryRec."Dx Withholding Payment";
-                    CustLedgerEntryRec.Modify(false);
-                end;
+                   (CustLedgerEntryRec."Withholding Payment_DXR" <> CustLedgerEntryRec."Dx Withholding Payment") then
+                    if CustLedgerEntryToUpdate.Get(CustLedgerEntryRec."Entry No.") then begin
+                        CustLedgerEntryToUpdate."NCF_DXR" := CustLedgerEntryToUpdate."DXNCF";
+                        CustLedgerEntryToUpdate."Reporta en 607_DXR" := CustLedgerEntryToUpdate."DXReporta en 607";
+                        CustLedgerEntryToUpdate."Withholding Payment_DXR" := CustLedgerEntryToUpdate."Dx Withholding Payment";
+                        CustLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until CustLedgerEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateCustLedgerEntryFlowFields()
@@ -1646,6 +1794,13 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         CustLedgerEntryRec: Record "Cust. Ledger Entry";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27: A1 - added the missing partial-record hint. Only the primary key can be
+        // listed here: both fields this procedure touches ("Settled Amount_DXR" and "DX Settled Amount")
+        // are FlowFields, and SetLoadFields accepts FieldClass = Normal only (a FlowField argument is a
+        // runtime error - Learn, "Record.SetLoadFields"). FindSet(true) is deliberately left in place:
+        // this procedure is a documented no-op (see the codeunit header) and rewriting it would change
+        // more than it fixes.
+        CustLedgerEntryRec.SetLoadFields("Entry No.");
         CustLedgerEntryRec.SetAutoCalcFields("DX Settled Amount");
         if CustLedgerEntryRec.FindSet(true) then
             repeat
@@ -1684,9 +1839,19 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateBankAccountLedgerEntryFields()
     var
         BankAccountLedgerEntryRec: Record "Bank Account Ledger Entry";
+        BankAccountLedgerEntryToUpdate: Record "Bank Account Ledger Entry";
         BatchCount: Integer;
     begin
-        if BankAccountLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) with no SetLoadFields update-locked this whole
+        // transaction-volume-scale table for the entire run and joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        BankAccountLedgerEntryRec.SetLoadFields(
+            "Entry No.",
+            "Beneficiario_DXR", "DxBeneficiario", "Recibo Ingreso_DXR", "DxRecibo Ingreso",
+            "Importe Efectivo_DXR", "DxImporte Efectivo", "Importe Tcr._DXR", "DxImporte Tcr.",
+            "Importe Cheque_DXR", "DxImporte Cheque", "Importe Transf._DXR", "DxImporte Transf.",
+            "Provider_DXR", "DxProvider");
+        if BankAccountLedgerEntryRec.FindSet(false) then
             repeat
                 if (BankAccountLedgerEntryRec."Beneficiario_DXR" <> BankAccountLedgerEntryRec."DxBeneficiario") or
                    (BankAccountLedgerEntryRec."Recibo Ingreso_DXR" <> BankAccountLedgerEntryRec."DxRecibo Ingreso") or
@@ -1694,51 +1859,68 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (BankAccountLedgerEntryRec."Importe Tcr._DXR" <> BankAccountLedgerEntryRec."DxImporte Tcr.") or
                    (BankAccountLedgerEntryRec."Importe Cheque_DXR" <> BankAccountLedgerEntryRec."DxImporte Cheque") or
                    (BankAccountLedgerEntryRec."Importe Transf._DXR" <> BankAccountLedgerEntryRec."DxImporte Transf.") or
-                   (BankAccountLedgerEntryRec."Provider_DXR" <> BankAccountLedgerEntryRec."DxProvider") then begin
-                    BankAccountLedgerEntryRec."Beneficiario_DXR" := BankAccountLedgerEntryRec."DxBeneficiario";
-                    BankAccountLedgerEntryRec."Recibo Ingreso_DXR" := BankAccountLedgerEntryRec."DxRecibo Ingreso";
-                    BankAccountLedgerEntryRec."Importe Efectivo_DXR" := BankAccountLedgerEntryRec."DxImporte Efectivo";
-                    BankAccountLedgerEntryRec."Importe Tcr._DXR" := BankAccountLedgerEntryRec."DxImporte Tcr.";
-                    BankAccountLedgerEntryRec."Importe Cheque_DXR" := BankAccountLedgerEntryRec."DxImporte Cheque";
-                    BankAccountLedgerEntryRec."Importe Transf._DXR" := BankAccountLedgerEntryRec."DxImporte Transf.";
-                    BankAccountLedgerEntryRec."Provider_DXR" := BankAccountLedgerEntryRec."DxProvider";
-                    BankAccountLedgerEntryRec.Modify(false);
-                end;
+                   (BankAccountLedgerEntryRec."Provider_DXR" <> BankAccountLedgerEntryRec."DxProvider") then
+                    if BankAccountLedgerEntryToUpdate.Get(BankAccountLedgerEntryRec."Entry No.") then begin
+                        BankAccountLedgerEntryToUpdate."Beneficiario_DXR" := BankAccountLedgerEntryToUpdate."DxBeneficiario";
+                        BankAccountLedgerEntryToUpdate."Recibo Ingreso_DXR" := BankAccountLedgerEntryToUpdate."DxRecibo Ingreso";
+                        BankAccountLedgerEntryToUpdate."Importe Efectivo_DXR" := BankAccountLedgerEntryToUpdate."DxImporte Efectivo";
+                        BankAccountLedgerEntryToUpdate."Importe Tcr._DXR" := BankAccountLedgerEntryToUpdate."DxImporte Tcr.";
+                        BankAccountLedgerEntryToUpdate."Importe Cheque_DXR" := BankAccountLedgerEntryToUpdate."DxImporte Cheque";
+                        BankAccountLedgerEntryToUpdate."Importe Transf._DXR" := BankAccountLedgerEntryToUpdate."DxImporte Transf.";
+                        BankAccountLedgerEntryToUpdate."Provider_DXR" := BankAccountLedgerEntryToUpdate."DxProvider";
+                        BankAccountLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until BankAccountLedgerEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateCheckLedgerEntryFields()
     var
         CheckLedgerEntryRec: Record "Check Ledger Entry";
+        CheckLedgerEntryToUpdate: Record "Check Ledger Entry";
         BatchCount: Integer;
     begin
-        if CheckLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) with no SetLoadFields update-locked this whole
+        // transaction-volume-scale table for the entire run and joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        CheckLedgerEntryRec.SetLoadFields(
+            "Entry No.",
+            "Beneficiario_DXR", "DxBeneficiario", "Entregado_DXR", "DxEntregado",
+            "Fecha Entrega_DXR", "DxFecha Entrega", "Usuario entrega_DXR", "DxUsuario entrega",
+            "Check Concept_DXR", "DX Check Concept");
+        if CheckLedgerEntryRec.FindSet(false) then
             repeat
                 if (CheckLedgerEntryRec."Beneficiario_DXR" <> CheckLedgerEntryRec."DxBeneficiario") or
                    (CheckLedgerEntryRec."Entregado_DXR" <> CheckLedgerEntryRec."DxEntregado") or
                    (CheckLedgerEntryRec."Fecha Entrega_DXR" <> CheckLedgerEntryRec."DxFecha Entrega") or
                    (CheckLedgerEntryRec."Usuario entrega_DXR" <> CheckLedgerEntryRec."DxUsuario entrega") or
-                   (CheckLedgerEntryRec."Check Concept_DXR" <> CheckLedgerEntryRec."DX Check Concept") then begin
-                    CheckLedgerEntryRec."Beneficiario_DXR" := CheckLedgerEntryRec."DxBeneficiario";
-                    CheckLedgerEntryRec."Entregado_DXR" := CheckLedgerEntryRec."DxEntregado";
-                    CheckLedgerEntryRec."Fecha Entrega_DXR" := CheckLedgerEntryRec."DxFecha Entrega";
-                    CheckLedgerEntryRec."Usuario entrega_DXR" := CheckLedgerEntryRec."DxUsuario entrega";
-                    CheckLedgerEntryRec."Check Concept_DXR" := CheckLedgerEntryRec."DX Check Concept";
-                    CheckLedgerEntryRec.Modify(false);
-                end;
+                   (CheckLedgerEntryRec."Check Concept_DXR" <> CheckLedgerEntryRec."DX Check Concept") then
+                    if CheckLedgerEntryToUpdate.Get(CheckLedgerEntryRec."Entry No.") then begin
+                        CheckLedgerEntryToUpdate."Beneficiario_DXR" := CheckLedgerEntryToUpdate."DxBeneficiario";
+                        CheckLedgerEntryToUpdate."Entregado_DXR" := CheckLedgerEntryToUpdate."DxEntregado";
+                        CheckLedgerEntryToUpdate."Fecha Entrega_DXR" := CheckLedgerEntryToUpdate."DxFecha Entrega";
+                        CheckLedgerEntryToUpdate."Usuario entrega_DXR" := CheckLedgerEntryToUpdate."DxUsuario entrega";
+                        CheckLedgerEntryToUpdate."Check Concept_DXR" := CheckLedgerEntryToUpdate."DX Check Concept";
+                        CheckLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until CheckLedgerEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== Batch 4, seq41: G/L Entry/G/L Register field restore =====
@@ -1767,41 +1949,60 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateGLEntryFields()
     var
         GLEntryRec: Record "G/L Entry";
+        GLEntryToUpdate: Record "G/L Entry";
         BatchCount: Integer;
     begin
-        if GLEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - G/L Entry is the largest table this codeunit touches; the unfiltered
+        // FindSet(true) update-locked all of it for the whole run and, with no SetLoadFields, joined
+        // every tableextension companion table per row. Partial unlocked scan + Get()/lock only on
+        // changed rows + Commit per MODIFIED row.
+        GLEntryRec.SetLoadFields(
+            "Entry No.",
+            "NCF_DXR", "DXNCF", "Name_DXR", "DX Name",
+            "Withholding Type_DXR", "Withholding Type", "Concepto Cheque_DXR", "Concepto Cheque",
+            "NCFCategories_DXR", "DXNCF Categories");
+        if GLEntryRec.FindSet(false) then
             repeat
                 if (GLEntryRec."NCF_DXR" <> GLEntryRec."DXNCF") or
                    (GLEntryRec."Name_DXR" <> GLEntryRec."DX Name") or
                    (GLEntryRec."Withholding Type_DXR" <> GLEntryRec."Withholding Type") or
                    (GLEntryRec."Concepto Cheque_DXR" <> GLEntryRec."Concepto Cheque") or
-                   (GLEntryRec."NCFCategories_DXR" <> GLEntryRec."DXNCF Categories") then begin
-                    GLEntryRec."NCF_DXR" := GLEntryRec."DXNCF";
-                    GLEntryRec."Name_DXR" := GLEntryRec."DX Name";
-                    GLEntryRec."Withholding Type_DXR" := GLEntryRec."Withholding Type";
-                    GLEntryRec."Concepto Cheque_DXR" := GLEntryRec."Concepto Cheque";
-                    GLEntryRec."NCFCategories_DXR" := GLEntryRec."DXNCF Categories";
-                    GLEntryRec.Modify(false);
-                end;
+                   (GLEntryRec."NCFCategories_DXR" <> GLEntryRec."DXNCF Categories") then
+                    if GLEntryToUpdate.Get(GLEntryRec."Entry No.") then begin
+                        GLEntryToUpdate."NCF_DXR" := GLEntryToUpdate."DXNCF";
+                        GLEntryToUpdate."Name_DXR" := GLEntryToUpdate."DX Name";
+                        GLEntryToUpdate."Withholding Type_DXR" := GLEntryToUpdate."Withholding Type";
+                        GLEntryToUpdate."Concepto Cheque_DXR" := GLEntryToUpdate."Concepto Cheque";
+                        GLEntryToUpdate."NCFCategories_DXR" := GLEntryToUpdate."DXNCF Categories";
+                        GLEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until GLEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateGLRegisterFields()
     var
         GLRegisterRec: Record "G/L Register";
+        GLRegisterToUpdate: Record "G/L Register";
     begin
-        if GLRegisterRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - FindSet(true) with no SetLoadFields update-locked the whole table and
+        // joined every tableextension companion table per row; lock only the rows that really change.
+        GLRegisterRec.SetLoadFields("No.", "Recibo Ingreso_DXR", "DXRecibo Ingreso");
+        if GLRegisterRec.FindSet(false) then
             repeat
-                if GLRegisterRec."Recibo Ingreso_DXR" <> GLRegisterRec."DXRecibo Ingreso" then begin
-                    GLRegisterRec."Recibo Ingreso_DXR" := GLRegisterRec."DXRecibo Ingreso";
-                    GLRegisterRec.Modify(false);
-                end;
+                if GLRegisterRec."Recibo Ingreso_DXR" <> GLRegisterRec."DXRecibo Ingreso" then
+                    if GLRegisterToUpdate.Get(GLRegisterRec."No.") then begin
+                        GLRegisterToUpdate."Recibo Ingreso_DXR" := GLRegisterToUpdate."DXRecibo Ingreso";
+                        GLRegisterToUpdate.Modify(false);
+                    end;
             until GLRegisterRec.Next() = 0;
     end;
 
@@ -1831,8 +2032,30 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateGenJournalLineFields()
     var
         GenJournalLineRec: Record "Gen. Journal Line";
+        GenJournalLineToUpdate: Record "Gen. Journal Line";
+        BatchCount: Integer;
     begin
-        if GenJournalLineRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 + A4 - the unfiltered FindSet(true) held a SQL UPDLOCK on every journal
+        // line for the whole run (blocking normal posting activity on a live staging table) and, with no
+        // SetLoadFields, joined every Gen. Journal Line tableextension companion table per row. Partial
+        // unlocked scan, Get()/lock only on rows that really change, and a Commit every 500 MODIFIED
+        // rows so the whole scan is no longer one unbounded transaction.
+        GenJournalLineRec.SetLoadFields(
+            "Journal Template Name", "Journal Batch Name", "Line No.",
+            "NCF_DXR", "DXNCF", "Beneficiario_DXR", "DXBeneficiario",
+            "Recibo Ingreso_DXR", "DXRecibo Ingreso", "Importe Efectivo_DXR", "DXImporte Efectivo",
+            "Importe Tcr._DXR", "DXImporte Tcr.", "Importe Cheque_DXR", "DXImporte Cheque",
+            "Reporta en 606_DXR", "DXReporta en 606", "Correccion Int._DXR", "DXCorreccion Int.",
+            "Tot. Monto Recibido_DXR", "DXTot. Monto Recibido", "Concepto Cheque_DXR", "DXConcepto Cheque",
+            "Importe Transf._DXR", "DXImporte Transf.", "Venta Bonos_DXR", "DXVenta Bonos",
+            "Withholding Payment_DXR", "Dx Withholding Payment", "Withholding Type_DXR", "Withholding Type",
+            "Cust ITBIS Withhold_DXR", "DXCustomer ITBIS Withholding", "Customer ISR Withholding_DXR", "DXCustomer ISR Withholding",
+            "Bank Commission Amount_DXR", "DXBank Commission Amount", "ITBIS Withholding Code_DXR", "DXITBIS Withholding Code",
+            "ITBIS Withholding %_DXR", "DXITBIS Withholding %", "ITBIS Withholding Base_DXR", "DXITBIS Withholding Base",
+            "ITBIS Withholding Amount_DXR", "DXITBIS Withholding Amount", "ISR Withholding Code_DXR", "DXISR Withholding Code",
+            "ISR Withholding %_DXR", "DXISR Withholding %", "ISR Withholding Base_DXR", "DXISR Withholding Base",
+            "ISR Withholding Amount_DXR", "DXISR Withholding Amount", "Bank Fee Amount_DXR", "DXBank Fee Amount");
+        if GenJournalLineRec.FindSet(false) then
             repeat
                 if (GenJournalLineRec."NCF_DXR" <> GenJournalLineRec."DXNCF") or
                    (GenJournalLineRec."Beneficiario_DXR" <> GenJournalLineRec."DXBeneficiario") or
@@ -1859,56 +2082,75 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (GenJournalLineRec."ISR Withholding %_DXR" <> GenJournalLineRec."DXISR Withholding %") or
                    (GenJournalLineRec."ISR Withholding Base_DXR" <> GenJournalLineRec."DXISR Withholding Base") or
                    (GenJournalLineRec."ISR Withholding Amount_DXR" <> GenJournalLineRec."DXISR Withholding Amount") or
-                   (GenJournalLineRec."Bank Fee Amount_DXR" <> GenJournalLineRec."DXBank Fee Amount") then begin
-                    GenJournalLineRec."NCF_DXR" := GenJournalLineRec."DXNCF";
-                    GenJournalLineRec."Beneficiario_DXR" := GenJournalLineRec."DXBeneficiario";
-                    GenJournalLineRec."Recibo Ingreso_DXR" := GenJournalLineRec."DXRecibo Ingreso";
-                    GenJournalLineRec."Importe Efectivo_DXR" := GenJournalLineRec."DXImporte Efectivo";
-                    GenJournalLineRec."Importe Tcr._DXR" := GenJournalLineRec."DXImporte Tcr.";
-                    GenJournalLineRec."Importe Cheque_DXR" := GenJournalLineRec."DXImporte Cheque";
-                    GenJournalLineRec."Reporta en 606_DXR" := GenJournalLineRec."DXReporta en 606";
-                    GenJournalLineRec."Correccion Int._DXR" := GenJournalLineRec."DXCorreccion Int.";
-                    GenJournalLineRec."Tot. Monto Recibido_DXR" := GenJournalLineRec."DXTot. Monto Recibido";
-                    GenJournalLineRec."Concepto Cheque_DXR" := GenJournalLineRec."DXConcepto Cheque";
-                    GenJournalLineRec."Importe Transf._DXR" := GenJournalLineRec."DXImporte Transf.";
-                    GenJournalLineRec."Venta Bonos_DXR" := GenJournalLineRec."DXVenta Bonos";
-                    GenJournalLineRec."Withholding Payment_DXR" := GenJournalLineRec."Dx Withholding Payment";
-                    GenJournalLineRec."Withholding Type_DXR" := GenJournalLineRec."Withholding Type";
-                    GenJournalLineRec."Cust ITBIS Withhold_DXR" := GenJournalLineRec."DXCustomer ITBIS Withholding";
-                    GenJournalLineRec."Customer ISR Withholding_DXR" := GenJournalLineRec."DXCustomer ISR Withholding";
-                    GenJournalLineRec."Bank Commission Amount_DXR" := GenJournalLineRec."DXBank Commission Amount";
-                    GenJournalLineRec."ITBIS Withholding Code_DXR" := GenJournalLineRec."DXITBIS Withholding Code";
-                    GenJournalLineRec."ITBIS Withholding %_DXR" := GenJournalLineRec."DXITBIS Withholding %";
-                    GenJournalLineRec."ITBIS Withholding Base_DXR" := GenJournalLineRec."DXITBIS Withholding Base";
-                    GenJournalLineRec."ITBIS Withholding Amount_DXR" := GenJournalLineRec."DXITBIS Withholding Amount";
-                    GenJournalLineRec."ISR Withholding Code_DXR" := GenJournalLineRec."DXISR Withholding Code";
-                    GenJournalLineRec."ISR Withholding %_DXR" := GenJournalLineRec."DXISR Withholding %";
-                    GenJournalLineRec."ISR Withholding Base_DXR" := GenJournalLineRec."DXISR Withholding Base";
-                    GenJournalLineRec."ISR Withholding Amount_DXR" := GenJournalLineRec."DXISR Withholding Amount";
-                    GenJournalLineRec."Bank Fee Amount_DXR" := GenJournalLineRec."DXBank Fee Amount";
-                    GenJournalLineRec.Modify(false);
-                end;
+                   (GenJournalLineRec."Bank Fee Amount_DXR" <> GenJournalLineRec."DXBank Fee Amount") then
+                    if GenJournalLineToUpdate.Get(GenJournalLineRec."Journal Template Name", GenJournalLineRec."Journal Batch Name", GenJournalLineRec."Line No.") then begin
+                        GenJournalLineToUpdate."NCF_DXR" := GenJournalLineToUpdate."DXNCF";
+                        GenJournalLineToUpdate."Beneficiario_DXR" := GenJournalLineToUpdate."DXBeneficiario";
+                        GenJournalLineToUpdate."Recibo Ingreso_DXR" := GenJournalLineToUpdate."DXRecibo Ingreso";
+                        GenJournalLineToUpdate."Importe Efectivo_DXR" := GenJournalLineToUpdate."DXImporte Efectivo";
+                        GenJournalLineToUpdate."Importe Tcr._DXR" := GenJournalLineToUpdate."DXImporte Tcr.";
+                        GenJournalLineToUpdate."Importe Cheque_DXR" := GenJournalLineToUpdate."DXImporte Cheque";
+                        GenJournalLineToUpdate."Reporta en 606_DXR" := GenJournalLineToUpdate."DXReporta en 606";
+                        GenJournalLineToUpdate."Correccion Int._DXR" := GenJournalLineToUpdate."DXCorreccion Int.";
+                        GenJournalLineToUpdate."Tot. Monto Recibido_DXR" := GenJournalLineToUpdate."DXTot. Monto Recibido";
+                        GenJournalLineToUpdate."Concepto Cheque_DXR" := GenJournalLineToUpdate."DXConcepto Cheque";
+                        GenJournalLineToUpdate."Importe Transf._DXR" := GenJournalLineToUpdate."DXImporte Transf.";
+                        GenJournalLineToUpdate."Venta Bonos_DXR" := GenJournalLineToUpdate."DXVenta Bonos";
+                        GenJournalLineToUpdate."Withholding Payment_DXR" := GenJournalLineToUpdate."Dx Withholding Payment";
+                        GenJournalLineToUpdate."Withholding Type_DXR" := GenJournalLineToUpdate."Withholding Type";
+                        GenJournalLineToUpdate."Cust ITBIS Withhold_DXR" := GenJournalLineToUpdate."DXCustomer ITBIS Withholding";
+                        GenJournalLineToUpdate."Customer ISR Withholding_DXR" := GenJournalLineToUpdate."DXCustomer ISR Withholding";
+                        GenJournalLineToUpdate."Bank Commission Amount_DXR" := GenJournalLineToUpdate."DXBank Commission Amount";
+                        GenJournalLineToUpdate."ITBIS Withholding Code_DXR" := GenJournalLineToUpdate."DXITBIS Withholding Code";
+                        GenJournalLineToUpdate."ITBIS Withholding %_DXR" := GenJournalLineToUpdate."DXITBIS Withholding %";
+                        GenJournalLineToUpdate."ITBIS Withholding Base_DXR" := GenJournalLineToUpdate."DXITBIS Withholding Base";
+                        GenJournalLineToUpdate."ITBIS Withholding Amount_DXR" := GenJournalLineToUpdate."DXITBIS Withholding Amount";
+                        GenJournalLineToUpdate."ISR Withholding Code_DXR" := GenJournalLineToUpdate."DXISR Withholding Code";
+                        GenJournalLineToUpdate."ISR Withholding %_DXR" := GenJournalLineToUpdate."DXISR Withholding %";
+                        GenJournalLineToUpdate."ISR Withholding Base_DXR" := GenJournalLineToUpdate."DXISR Withholding Base";
+                        GenJournalLineToUpdate."ISR Withholding Amount_DXR" := GenJournalLineToUpdate."DXISR Withholding Amount";
+                        GenJournalLineToUpdate."Bank Fee Amount_DXR" := GenJournalLineToUpdate."DXBank Fee Amount";
+                        GenJournalLineToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until GenJournalLineRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateItemLedgerEntryFields()
     var
         ItemLedgerEntryRec: Record "Item Ledger Entry";
+        ItemLedgerEntryToUpdate: Record "Item Ledger Entry";
         BatchCount: Integer;
     begin
-        if ItemLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) with no SetLoadFields update-locked this whole
+        // transaction-volume-scale table for the entire run and joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        ItemLedgerEntryRec.SetLoadFields("Entry No.", "User Id_DXR", "DX User Id");
+        if ItemLedgerEntryRec.FindSet(false) then
             repeat
-                if ItemLedgerEntryRec."User Id_DXR" <> ItemLedgerEntryRec."DX User Id" then begin
-                    ItemLedgerEntryRec."User Id_DXR" := ItemLedgerEntryRec."DX User Id";
-                    ItemLedgerEntryRec.Modify(false);
-                end;
+                if ItemLedgerEntryRec."User Id_DXR" <> ItemLedgerEntryRec."DX User Id" then
+                    if ItemLedgerEntryToUpdate.Get(ItemLedgerEntryRec."Entry No.") then begin
+                        ItemLedgerEntryToUpdate."User Id_DXR" := ItemLedgerEntryToUpdate."DX User Id";
+                        ItemLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until ItemLedgerEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== Batch 4, seq43: Price List Line/Reversal Entry field restore =====
@@ -1934,6 +2176,10 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         PriceListLineRec: Record "Price List Line";
     begin
+        // Fixed 2026-08-27: A1 - added the missing SetLoadFields hint so this scan stops joining every
+        // Price List Line tableextension companion table per row. FindSet(true) kept: this table is
+        // bounded by catalog size (see the section comment above) and the row is modified in place.
+        PriceListLineRec.SetLoadFields("Item Category Code_DXR", "Item Category Code");
         if PriceListLineRec.FindSet(true) then
             repeat
                 if PriceListLineRec."Item Category Code_DXR" <> PriceListLineRec."Item Category Code" then begin
@@ -1947,6 +2193,10 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     var
         ReversalEntryRec: Record "Reversal Entry";
     begin
+        // Fixed 2026-08-27: A1 - added the missing SetLoadFields hint so this scan stops joining every
+        // Reversal Entry tableextension companion table per row. FindSet(true) kept: one row per
+        // reversal action (see the section comment above) and the row is modified in place.
+        ReversalEntryRec.SetLoadFields("Reporta en 606_DXR", "DXReporta en 606");
         if ReversalEntryRec.FindSet(true) then
             repeat
                 if ReversalEntryRec."Reporta en 606_DXR" <> ReversalEntryRec."DXReporta en 606" then begin
@@ -1981,9 +2231,21 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
     local procedure MigrateVendorLedgerEntryBulkFields()
     var
         VendorLedgerEntryRec: Record "Vendor Ledger Entry";
+        VendorLedgerEntryToUpdate: Record "Vendor Ledger Entry";
         BatchCount: Integer;
     begin
-        if VendorLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) with no SetLoadFields update-locked this whole
+        // transaction-volume-scale table for the entire run and joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        VendorLedgerEntryRec.SetLoadFields(
+            "Entry No.",
+            "NCF_DXR", "DXNCF", "Reporta en 606_DXR", "DXReporta en 606",
+            "Withholding Payment_DXR", "Dx Withholding Payment",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Utiliza NCF Externo_DXR", "DXUtiliza NCF Externo",
+            "Withholding Apply Type_DXR", "DX Withholding Apply Type");
+        if VendorLedgerEntryRec.FindSet(false) then
             repeat
                 if (VendorLedgerEntryRec."NCF_DXR" <> VendorLedgerEntryRec."DXNCF") or
                    (VendorLedgerEntryRec."Reporta en 606_DXR" <> VendorLedgerEntryRec."DXReporta en 606") or
@@ -1991,23 +2253,27 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
                    (VendorLedgerEntryRec."Cod. Retencion ITBIS_DXR" <> VendorLedgerEntryRec."DXCod. Retencion ITBIS") or
                    (VendorLedgerEntryRec."Cod. Retencion ISR_DXR" <> VendorLedgerEntryRec."DXCod. Retencion ISR") or
                    (VendorLedgerEntryRec."Utiliza NCF Externo_DXR" <> VendorLedgerEntryRec."DXUtiliza NCF Externo") or
-                   (VendorLedgerEntryRec."Withholding Apply Type_DXR" <> VendorLedgerEntryRec."DX Withholding Apply Type") then begin
-                    VendorLedgerEntryRec."NCF_DXR" := VendorLedgerEntryRec."DXNCF";
-                    VendorLedgerEntryRec."Reporta en 606_DXR" := VendorLedgerEntryRec."DXReporta en 606";
-                    VendorLedgerEntryRec."Withholding Payment_DXR" := VendorLedgerEntryRec."Dx Withholding Payment";
-                    VendorLedgerEntryRec."Cod. Retencion ITBIS_DXR" := VendorLedgerEntryRec."DXCod. Retencion ITBIS";
-                    VendorLedgerEntryRec."Cod. Retencion ISR_DXR" := VendorLedgerEntryRec."DXCod. Retencion ISR";
-                    VendorLedgerEntryRec."Utiliza NCF Externo_DXR" := VendorLedgerEntryRec."DXUtiliza NCF Externo";
-                    VendorLedgerEntryRec."Withholding Apply Type_DXR" := VendorLedgerEntryRec."DX Withholding Apply Type";
-                    VendorLedgerEntryRec.Modify(false);
-                end;
+                   (VendorLedgerEntryRec."Withholding Apply Type_DXR" <> VendorLedgerEntryRec."DX Withholding Apply Type") then
+                    if VendorLedgerEntryToUpdate.Get(VendorLedgerEntryRec."Entry No.") then begin
+                        VendorLedgerEntryToUpdate."NCF_DXR" := VendorLedgerEntryToUpdate."DXNCF";
+                        VendorLedgerEntryToUpdate."Reporta en 606_DXR" := VendorLedgerEntryToUpdate."DXReporta en 606";
+                        VendorLedgerEntryToUpdate."Withholding Payment_DXR" := VendorLedgerEntryToUpdate."Dx Withholding Payment";
+                        VendorLedgerEntryToUpdate."Cod. Retencion ITBIS_DXR" := VendorLedgerEntryToUpdate."DXCod. Retencion ITBIS";
+                        VendorLedgerEntryToUpdate."Cod. Retencion ISR_DXR" := VendorLedgerEntryToUpdate."DXCod. Retencion ISR";
+                        VendorLedgerEntryToUpdate."Utiliza NCF Externo_DXR" := VendorLedgerEntryToUpdate."DXUtiliza NCF Externo";
+                        VendorLedgerEntryToUpdate."Withholding Apply Type_DXR" := VendorLedgerEntryToUpdate."DX Withholding Apply Type";
+                        VendorLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until VendorLedgerEntryRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure MigrateVendorLedgerEntryFlowFields()
@@ -2015,6 +2281,11 @@ codeunit 60165 "DXR MCC DRLOC Migr Phase2"
         VendorLedgerEntryRec: Record "Vendor Ledger Entry";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27: A1 - added the missing partial-record hint. Only the primary key can be
+        // listed: all four fields this procedure touches are FlowFields, and SetLoadFields accepts
+        // FieldClass = Normal only (Learn, "Record.SetLoadFields"). FindSet(true) left in place - this
+        // procedure is a documented no-op (see the codeunit header).
+        VendorLedgerEntryRec.SetLoadFields("Entry No.");
         VendorLedgerEntryRec.SetAutoCalcFields("Dx Vendor Name", "DX Settled Amount");
         if VendorLedgerEntryRec.FindSet(true) then
             repeat

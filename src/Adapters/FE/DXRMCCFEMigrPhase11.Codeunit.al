@@ -43,9 +43,39 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     // scope, left exactly as before (still generic RecordRef/FieldRef by numeric table ID),
     // matching this plan's established precedent (Phase7's "Applies Withholding_DXR" fill,
     // Phase8's Item fields) of leaving out-of-scope in-file code untouched.
+    // Fixed 2026-08-27 (A3): the "EF ..." source tables that CopyStandaloneTable()/
+    // MigrateArchivedSentRequest()/MigrateCodigosItem() open by numeric table ID through
+    // RecordRef.Open() were missing from this block entirely - only the 12 typed ones were listed.
+    // Permissionset 60000 "DXR MCC" grants no tabledata on foreign tables, so this property is the
+    // only runtime access this codeunit has, and these phases run in the background under
+    // TaskScheduler: every RecordRef.Open(555xx) read below would have failed with a missing-Read-
+    // permission error. Added at R only - all of them are read-only sources (the targets already had
+    // their RIMD entries).
     Permissions =
         tabledata "EF Administration Setup" = R,
+        tabledata "EF Archived E Documents" = R,
+        tabledata "EF Archived Sent Request" = R,
+        tabledata "EF Bulk Credit Memo Entry" = R,
+        tabledata "EF Bulk Credit Memo Log" = R,
+        tabledata "EF Bulk NCF Import Entry" = R,
+        tabledata "EF Codigos Item" = R,
         tabledata "EF Currency Type" = R,
+        tabledata "EF Descuentos O Recargos" = R,
+        tabledata "EF Detalle Bienes o Servicios" = R,
+        tabledata "EF Encabezado" = R,
+        tabledata "EF Imp. Adicionales - Encab." = R,
+        tabledata "EF Impuestos Adicionales - DBS" = R,
+        tabledata "EF Informacion Referencia" = R,
+        tabledata "EF Log Message" = R,
+        tabledata "EF Process Request" = R,
+        tabledata "EF Receipt Acknowledgement" = R,
+        tabledata "EF Resend Document Queue" = R,
+        tabledata "EF Resend Job Log" = R,
+        tabledata "EF Response Documents" = R,
+        tabledata "EF Subcantidad" = R,
+        tabledata "EF SubDescuento" = R,
+        tabledata "EF SubRecargo" = R,
+        tabledata "EF SubTotales Informativos" = R,
         tabledata "EF Formas de Pago" = R,
         tabledata "EF Form Type" = R,
         tabledata "EF Income Validation Type" = R,
@@ -312,7 +342,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Formas de Pago";
         New: Record "DXR_Formas de Pago";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): "EF Formas de Pago" holds one row per payment form per document, so
+        // this loop is of unbounded volume and used to run as one single uncommitted transaction.
+        // Bounded Commit every 100 upserted rows (plus the remainder), the same batch size
+        // CopyStandaloneTable() in this codeunit already uses for the same category of table.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago);
@@ -328,7 +363,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq281: EF Form Type (55529) -> DXR_Form Type (52484). PK = (DocumentNo, FormaPago, "Line No.").
@@ -337,7 +380,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Form Type";
         New: Record "DXR_Form Type";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per payment-form line per document - same unbounded-volume
+        // reason and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago, Legacy."Line No.");
@@ -353,7 +399,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq284: EF Income Validation Type (55512) -> DXR_Income Validation Type (52488). PK = Id.
@@ -404,7 +458,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Paginacion";
         New: Record "DXR_Paginacion";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per printed page per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.PaginaNo);
@@ -432,7 +489,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq289: EF Payment Type Form (55517) -> DXR_Payment Type Form (52493). PK = Id.
@@ -480,7 +545,11 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     var
         Legacy: Record "EF Telefono Emisor";
         New: Record "DXR_Telefono Emisor";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per emitter phone per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above. The counter advances per INSERTED
+        // row only, since rows that already exist on the target are left untouched.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.DocumentNo, Legacy.TelefonoEmisor) then begin
@@ -488,8 +557,16 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.DocumentNo := Legacy.DocumentNo;
                     New.TelefonoEmisor := Legacy.TelefonoEmisor;
                     New.Insert(false);
+
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq301: EF Township (55527) -> DXR_Township (52507). Field NAMES renamed on the target

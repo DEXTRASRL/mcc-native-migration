@@ -96,6 +96,10 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
     var
         Setup: Record "DXR_Purchase Controls Setup";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1). FindSet(true) without a partial-record hint
+        // makes the server join every tableextension companion table of this row; only these two
+        // fields are read/written here.
+        Setup.SetLoadFields("BarCode Length_DXR", "BarCode Length_DXR_Old");
         if not Setup.FindSet(true) then
             exit;
         repeat
@@ -108,6 +112,12 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
     var
         Setup: Record "DXR_Sales Controls Setup";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - only these six fields are read/written, so
+        // the companion tables of every other tableextension on this table need not be joined.
+        Setup.SetLoadFields(
+            "Special POS Order_DXR", "Special POS Order_DXR_Old",
+            "Non Decimal Qty on Lines_DXR", "Non Decimal Qty on Lines_old",
+            "Mand Return Reason Code_DXR", "Mand Return Reason Code_Old");
         if not Setup.FindSet(true) then
             exit;
         repeat
@@ -122,6 +132,11 @@ codeunit 60131 "DXR MCC RC Migr Phase1"
     var
         FuncProfile: Record "LSC POS Func. Profile";
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - "LSC POS Func. Profile" is a wide LS Central
+        // table carrying several tableextensions; only these four fields are read/written here.
+        FuncProfile.SetLoadFields(
+            "TS POS Special Order_DXR", "TS POS Special Order",
+            "PSO Distribution Location_DXR", "PSO Distribution Location");
         if not FuncProfile.FindSet(true) then
             exit;
         repeat

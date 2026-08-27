@@ -82,52 +82,88 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure RepairTransactionHeaderNCFFields()
     var
         TransactionHeader: Record "LSC Transaction Header";
+        HeaderToUpdate: Record "LSC Transaction Header";
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
-        if not TransactionHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): "LSC Transaction Header" es de las tablas mas grandes del POS y
+        // carga muchas tableextensions. Antes se recorria con FindSet(true), que por Learn
+        // ("Record.FindSet") lee TODAS las filas de una vez y con ForUpdate = true las toma con
+        // IsolationLevel::UpdLock (SQL UPDLOCK), reteniendo ese lock sobre la tabla completa durante
+        // toda la corrida aunque la inmensa mayoria de filas no cambie, y sin SetLoadFields el
+        // servidor ademas hacia join de la companion table de cada tableextension por fila.
+        // Ahora: lectura parcial y sin lock, re-lectura con Get(<PK>) solo en la fila que realmente
+        // necesita el copiado, y el contador de Commit avanza por fila MODIFICADA. Mismos campos,
+        // mismas guardas "solo si el destino sigue vacio": la semantica de migracion no cambia.
+        TransactionHeader.SetLoadFields(
+            "Store No.", "POS Terminal No.", "Transaction No.",
+            "Alternate NCF_DXR", "LSDX Alternate NCF",
+            "Alternate No. Series_DXR", "LSDX Alternate No. Series",
+            "Has NCF Contingency_DXR", "LSDX Has NCF Contingency",
+            "Provider Reference_DXR", "LSDX Provider Reference",
+            "Electronic Send Outcome_DXR", "LSDX Electronic Send Outcome",
+            "Reconciliation DateTime_DXR", "LSDX Reconciliation DateTime");
+        if not TransactionHeader.FindSet(false) then
             exit;
         repeat
-            Changed := false;
-            if (TransactionHeader."Alternate NCF_DXR" = '') and (TransactionHeader."LSDX Alternate NCF" <> '') then begin
-                TransactionHeader."Alternate NCF_DXR" := TransactionHeader."LSDX Alternate NCF";
-                Changed := true;
-            end;
-            if (TransactionHeader."Alternate No. Series_DXR" = '') and (TransactionHeader."LSDX Alternate No. Series" <> '') then begin
-                TransactionHeader."Alternate No. Series_DXR" := TransactionHeader."LSDX Alternate No. Series";
-                Changed := true;
-            end;
-            if (not TransactionHeader."Has NCF Contingency_DXR") and TransactionHeader."LSDX Has NCF Contingency" then begin
-                TransactionHeader."Has NCF Contingency_DXR" := true;
-                Changed := true;
-            end;
-            if (TransactionHeader."Provider Reference_DXR" = '') and (TransactionHeader."LSDX Provider Reference" <> '') then begin
-                TransactionHeader."Provider Reference_DXR" := TransactionHeader."LSDX Provider Reference";
-                Changed := true;
-            end;
-            // Same enum type on both sides ("DXR_Electronic Send Outcome"), so no ordinal crossing.
-            if (TransactionHeader."Electronic Send Outcome_DXR".AsInteger() = 0) and
-               (TransactionHeader."LSDX Electronic Send Outcome".AsInteger() <> 0)
-            then begin
-                TransactionHeader."Electronic Send Outcome_DXR" := TransactionHeader."LSDX Electronic Send Outcome";
-                Changed := true;
-            end;
-            if (TransactionHeader."Reconciliation DateTime_DXR" = 0DT) and
-               (TransactionHeader."LSDX Reconciliation DateTime" <> 0DT)
-            then begin
-                TransactionHeader."Reconciliation DateTime_DXR" := TransactionHeader."LSDX Reconciliation DateTime";
-                Changed := true;
-            end;
+            if TransactionHeaderNeedsNCFRepair(TransactionHeader) then
+                if HeaderToUpdate.Get(TransactionHeader."Store No.", TransactionHeader."POS Terminal No.", TransactionHeader."Transaction No.") then begin
+                    Changed := false;
+                    if (HeaderToUpdate."Alternate NCF_DXR" = '') and (HeaderToUpdate."LSDX Alternate NCF" <> '') then begin
+                        HeaderToUpdate."Alternate NCF_DXR" := HeaderToUpdate."LSDX Alternate NCF";
+                        Changed := true;
+                    end;
+                    if (HeaderToUpdate."Alternate No. Series_DXR" = '') and (HeaderToUpdate."LSDX Alternate No. Series" <> '') then begin
+                        HeaderToUpdate."Alternate No. Series_DXR" := HeaderToUpdate."LSDX Alternate No. Series";
+                        Changed := true;
+                    end;
+                    if (not HeaderToUpdate."Has NCF Contingency_DXR") and HeaderToUpdate."LSDX Has NCF Contingency" then begin
+                        HeaderToUpdate."Has NCF Contingency_DXR" := true;
+                        Changed := true;
+                    end;
+                    if (HeaderToUpdate."Provider Reference_DXR" = '') and (HeaderToUpdate."LSDX Provider Reference" <> '') then begin
+                        HeaderToUpdate."Provider Reference_DXR" := HeaderToUpdate."LSDX Provider Reference";
+                        Changed := true;
+                    end;
+                    // Same enum type on both sides ("DXR_Electronic Send Outcome"), so no ordinal crossing.
+                    if (HeaderToUpdate."Electronic Send Outcome_DXR".AsInteger() = 0) and
+                       (HeaderToUpdate."LSDX Electronic Send Outcome".AsInteger() <> 0)
+                    then begin
+                        HeaderToUpdate."Electronic Send Outcome_DXR" := HeaderToUpdate."LSDX Electronic Send Outcome";
+                        Changed := true;
+                    end;
+                    if (HeaderToUpdate."Reconciliation DateTime_DXR" = 0DT) and
+                       (HeaderToUpdate."LSDX Reconciliation DateTime" <> 0DT)
+                    then begin
+                        HeaderToUpdate."Reconciliation DateTime_DXR" := HeaderToUpdate."LSDX Reconciliation DateTime";
+                        Changed := true;
+                    end;
 
-            if Changed then
-                TransactionHeader.Modify(false);
-            RowsSinceCommit += 1;
-            if RowsSinceCommit >= 500 then begin
-                Commit();
-                RowsSinceCommit := 0;
-            end;
+                    if Changed then begin
+                        HeaderToUpdate.Modify(false);
+                        RowsSinceCommit += 1;
+                        if RowsSinceCommit >= BatchSize() then begin
+                            Commit();
+                            RowsSinceCommit := 0;
+                        end;
+                    end;
+                end;
         until TransactionHeader.Next() = 0;
-        Commit();
+        if RowsSinceCommit > 0 then
+            Commit();
+    end;
+
+    local procedure TransactionHeaderNeedsNCFRepair(var TransactionHeader: Record "LSC Transaction Header"): Boolean
+    begin
+        exit(
+            ((TransactionHeader."Alternate NCF_DXR" = '') and (TransactionHeader."LSDX Alternate NCF" <> '')) or
+            ((TransactionHeader."Alternate No. Series_DXR" = '') and (TransactionHeader."LSDX Alternate No. Series" <> '')) or
+            ((not TransactionHeader."Has NCF Contingency_DXR") and TransactionHeader."LSDX Has NCF Contingency") or
+            ((TransactionHeader."Provider Reference_DXR" = '') and (TransactionHeader."LSDX Provider Reference" <> '')) or
+            ((TransactionHeader."Electronic Send Outcome_DXR".AsInteger() = 0) and
+             (TransactionHeader."LSDX Electronic Send Outcome".AsInteger() <> 0)) or
+            ((TransactionHeader."Reconciliation DateTime_DXR" = 0DT) and
+             (TransactionHeader."LSDX Reconciliation DateTime" <> 0DT)));
     end;
 
     local procedure RepairPOSTerminalAltNCFFields()
@@ -135,6 +171,16 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         POSTerminal: Record "LSC POS Terminal";
         Changed: Boolean;
     begin
+        // Fixed 2026-08-27 (A1, partial records): "LSC POS Terminal" tiene decenas de
+        // tableextensions en este portafolio; sin SetLoadFields cada una se une por fila. Solo estos
+        // doce campos se leen/escriben aqui (la clave primaria "No." se carga siempre).
+        POSTerminal.SetLoadFields(
+            "Alt. NCF Fiscal Credit_DXR", "LSDX Alt. NCF Fiscal Credit",
+            "Alt. NCF Final Consumer_DXR", "LSDX Alt. NCF Final Consumer",
+            "Alt. NCF Credit Note_DXR", "LSDX Alt. NCF Credit Note",
+            "Alt. NCF Governmental_DXR", "LSDX Alt. NCF Governmental",
+            "Alt. NCF Reg. Special_DXR", "LSDX Alt. NCF Reg. Special",
+            "Alt. NCF Export_DXR", "LSDX Alt. NCF Export");
         if not POSTerminal.FindSet(true) then
             exit;
         repeat
@@ -277,6 +323,11 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Hospitality Type";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos cuatro campos se leen/escriben; sin
+        // SetLoadFields se traen todas las columnas de la tabla y de sus tableextensions por fila.
+        Rec.SetLoadFields(
+            "Void line after Bill Prin_DXR", "LSDX Void line after Bill Prin",
+            "Void Tran. after Bill Prnt_DXR", "LSDXVoid Tran. after Bill Prnt");
         if Rec.FindSet() then
             repeat
                 if (Rec."Void line after Bill Prin_DXR" <> Rec."LSDX Void line after Bill Prin") or
@@ -294,6 +345,8 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Label Functions";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos dos campos se leen/escriben.
+        Rec.SetLoadFields("Function Description_DXR", "LSDX Function Description");
         if Rec.FindSet() then
             repeat
                 if Rec."Function Description_DXR" <> Rec."LSDX Function Description" then begin
@@ -308,6 +361,8 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC POS Print Setup Header";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos dos campos se leen/escriben.
+        Rec.SetLoadFields("Print Voucher Loc._DXR", "LSDX Print Voucher Loc.");
         if Rec.FindSet() then
             repeat
                 if Rec."Print Voucher Loc._DXR" <> Rec."LSDX Print Voucher Loc." then begin
@@ -322,6 +377,22 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC POS Terminal";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos 26 campos se leen/escriben; sin
+        // SetLoadFields se une la companion table de cada tableextension de POS Terminal por fila.
+        Rec.SetLoadFields(
+            "No. Serie NCF Gubern._DXR", "LSDXNo. Serie NCF Gubern.",
+            "No. Serie NCF Reg. Esp._DXR", "LSDXNo. Serie NCF Reg. Esp.",
+            "No. Serie NCF Cred. Fiscal_DXR", "LSDXNo. Serie NCF Cred. Fiscal",
+            "Ext. Cmd. NCF Cr. Fiscal_DXR", "LSDXExt. Cmd. NCF Cr. Fiscal",
+            "External Cmd. NCF Guvern_DXR", "LSDXExternal Cmd. NCF Guvern",
+            "Ext. Cmd. NCF Reg. Esp._DXR", "LSDXExt. Cmd. NCF Reg. Esp.",
+            "No. Serie NCF Cons. Final_DXR", "LSDXNo. Serie NCF Cons. Final",
+            "Ext. Cmd. NCF Cons. Final_DXR", "LSDXExt. Cmd. NCF Cons. Final",
+            "NCF Nota de Credito_DXR", "LSDXNCF Nota de Credito",
+            "NCF Credito U. Final_DXR", "LSDXNCF Credito U. Final",
+            "NCF Credito Gubernamental_DXR", "LSDXNCF Credito Gubernamental",
+            "NCF Credito Reg Especiales_DXR", "LSDXNCF Credito Reg Especiales",
+            "Ext. Cmd. Nota de Credito_DXR", "LSDXExt. Cmd. Nota de Credito");
         if Rec.FindSet(true) then
             repeat
                 if (Rec."No. Serie NCF Gubern._DXR" <> Rec."LSDXNo. Serie NCF Gubern.") or
@@ -361,6 +432,10 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Sales Type";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos cuatro campos se leen/escriben.
+        Rec.SetLoadFields(
+            "Exento ITBIS_DXR", "LSDX Exento ITBIS",
+            "POS VAT Exento_DXR", "LSDX POS VAT Exento");
         if Rec.FindSet(true) then
             repeat
                 if (Rec."Exento ITBIS_DXR" <> Rec."LSDX Exento ITBIS") or
@@ -378,6 +453,18 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         Rec: Record "LSC Store";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos 18 campos se leen/escriben; sin
+        // SetLoadFields se une la companion table de cada tableextension de Store por fila.
+        Rec.SetLoadFields(
+            "Cod. Cliente Contado_DXR", "LSDX Cod. Cliente Contado",
+            "No. Serie 3er. Party Item_DXR", "LSDX No. Serie 3er. Party Item",
+            "No. Serie NCF Unico_DXR", "LSDX No. Serie NCF Unico",
+            "No. Serie NCF Gubern._DXR", "LSDX No. Serie NCF Gubern.",
+            "No. Serie NCF Reg. Esp._DXR", "LSDX No. Serie NCF Reg. Esp.",
+            "No. Serie NCF Cr. Fiscal_DXR", "LSDX No. Serie NCF Cr. Fiscal",
+            "No. Serie NCF Cons. Final_DXR", "LSDX No. Serie NCF Cons. Final",
+            "Address 3_DXR", "LSDX Address 3",
+            "Utiliza NCF Unico_DXR", "LSDX Utiliza NCF Unico");
         if Rec.FindSet(true) then
             repeat
                 if (Rec."Cod. Cliente Contado_DXR" <> Rec."LSDX Cod. Cliente Contado") or
@@ -413,53 +500,82 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure CopyGenJournalLineFields()
     var
         Rec: Record "Gen. Journal Line";
+        LineToUpdate: Record "Gen. Journal Line";
     begin
-        if Rec.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) sobre "Gen. Journal Line" completa tomaba UPDLOCK
+        // (Learn "Record.FindSet": ForUpdate = true lee con IsolationLevel::UpdLock) sobre toda una
+        // tabla que los usuarios usan para registrar, y sin SetLoadFields se unia la companion table
+        // de cada tableextension por fila. Ahora se escanea parcial y sin lock, y solo la fila que de
+        // verdad cambia se re-lee con Get(<PK>) y se bloquea. Mismo campo, misma condicion de copia.
+        Rec.SetLoadFields(
+            "Journal Template Name", "Journal Batch Name", "Line No.",
+            "No. Ticket_DXR", "LSDX No. Ticket");
+        if Rec.FindSet(false) then
             repeat
-                if Rec."No. Ticket_DXR" <> Rec."LSDX No. Ticket" then begin
-                    Rec."No. Ticket_DXR" := Rec."LSDX No. Ticket";
-                    Rec.Modify(false);
-                    Commit();
-                end;
+                if Rec."No. Ticket_DXR" <> Rec."LSDX No. Ticket" then
+                    if LineToUpdate.Get(Rec."Journal Template Name", Rec."Journal Batch Name", Rec."Line No.") then
+                        if LineToUpdate."No. Ticket_DXR" <> LineToUpdate."LSDX No. Ticket" then begin
+                            LineToUpdate."No. Ticket_DXR" := LineToUpdate."LSDX No. Ticket";
+                            LineToUpdate.Modify(false);
+                            Commit();
+                        end;
             until Rec.Next() = 0;
     end;
 
+    /// <summary>
+    /// Fixed 2026-08-27 (A2). El bucle mantenia un Record Item tipado y llamaba RecRef.GetTable(Rec)
+    /// una vez por fila. Ese es textualmente el patron que Microsoft documenta como "bad code" en
+    /// "AL database methods and performance on SQL Server" -> Insert, Modify, Delete and LockTable:
+    /// "Cloning a record before a Modify or Delete operation issues an extra SQL statement, since the
+    /// SQL SELECT query is restarted every time the table is cloned. A record is cloned [...] when
+    /// using a RecordRef" - o sea una consulta SQL extra por CADA item.
+    /// El reemplazo es la forma prescrita por el propio articulo: abrir el RecordRef sobre la tabla e
+    /// iterarlo directamente, sin Record tipado ni GetTable. Mismo campo, mismo resolver, misma
+    /// semantica "solo si el origen esta poblado"; identico a lo ya aplicado en
+    /// DXRMCCTUMigrDispatcher.MigrateOriginalCustomerFields.
+    /// </summary>
     local procedure CopyItemFields()
     var
-        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
-        Rec: Record Item;
         RecRef: RecordRef;
     begin
-        if Rec.FindSet(true) then
+        RecRef.Open(Database::Item);
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(Rec);
-                if MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Factor_DXR', 'Factor') then
-                    RecordChanged := true;
+                CopyFieldIfExists(RecRef, 'Factor_DXR', 'Factor');
                 PersistChangedRecord(RecRef);
-            until Rec.Next() = 0;
-        Commit();
-        RowsSinceCommit := 0;
+            until RecRef.Next() = 0;
+        FinishTable(RecRef);
     end;
 
     local procedure CopyLSCStoreInventoryLineFields()
     var
         Rec: Record "LSC Store Inventory Line";
+        LineToUpdate: Record "LSC Store Inventory Line";
         RowsSinceLineCommit: Integer;
     begin
-        if Rec.FindSet(true) then
+        // Fixed 2026-08-27 (A1): tabla de lineas de inventario de tienda, grande y con
+        // tableextensions. Antes: FindSet(true) = UPDLOCK sobre la tabla completa durante toda la
+        // corrida (Learn "Record.FindSet") y sin SetLoadFields un join por companion table y fila.
+        // Ahora: escaneo parcial sin lock, re-lectura con Get(<PK>) solo en la fila que cambia, y el
+        // contador de Commit avanza por fila MODIFICADA en vez de por fila leida.
+        Rec.SetLoadFields("WorksheetSeqNo", "Line No.", "Recalculate Time_DXR", "DX Recalculate Time");
+        if Rec.FindSet(false) then
             repeat
-                if Rec."Recalculate Time_DXR" <> Rec."DX Recalculate Time" then begin
-                    Rec."Recalculate Time_DXR" := Rec."DX Recalculate Time";
-                    Rec.Modify(false);
-                end;
+                if Rec."Recalculate Time_DXR" <> Rec."DX Recalculate Time" then
+                    if LineToUpdate.Get(Rec.WorksheetSeqNo, Rec."Line No.") then
+                        if LineToUpdate."Recalculate Time_DXR" <> LineToUpdate."DX Recalculate Time" then begin
+                            LineToUpdate."Recalculate Time_DXR" := LineToUpdate."DX Recalculate Time";
+                            LineToUpdate.Modify(false);
 
-                RowsSinceLineCommit += 1;
-                if RowsSinceLineCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceLineCommit := 0;
-                end;
+                            RowsSinceLineCommit += 1;
+                            if RowsSinceLineCommit >= BatchSize() then begin
+                                Commit();
+                                RowsSinceLineCommit := 0;
+                            end;
+                        end;
             until Rec.Next() = 0;
-        Commit();
+        if RowsSinceLineCommit > 0 then
+            Commit();
     end;
 
     // ===== In-scope OTHER same-table field-range restores (LSLOC-TOLOC seq10/14) =====
@@ -560,6 +676,8 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     var
         POSTerminal: Record "LSC POS Terminal";
     begin
+        // Fixed 2026-08-27 (A1, partial records): solo estos dos campos se leen/escriben.
+        POSTerminal.SetLoadFields("Ext. POS Type_DXR", "LSDXExt. POS Type");
         if POSTerminal.FindSet(true) then
             repeat
                 POSTerminal."Ext. POS Type_DXR" := Enum::"DXR_LS POS Type".FromInteger(POSTerminal."LSDXExt. POS Type".AsInteger());
@@ -570,25 +688,57 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     local procedure MigratePOSTransactionEnumFields()
     var
         POSTransaction: Record "LSC POS Transaction";
+        RowsSinceEnumCommit: Integer;
     begin
+        // Fixed 2026-08-27 (A1 + A4): tabla de transacciones POS, grande y con tableextensions.
+        // Sin SetLoadFields el servidor unia la companion table de cada tableextension por fila, y el
+        // bucle modificaba cada fila sin hacer Commit nunca, es decir toda la fase en UNA sola
+        // transaccion sin cota. Se acota a un Commit cada 500 filas modificadas. La copia es
+        // incondicional e idempotente, asi que reanudar tras un fallo repite el mismo resultado.
+        POSTransaction.SetLoadFields(
+            "Tipo Doc. Fiscal_DXR", "LSDX Tipo Doc. Fiscal",
+            "Tipo Identificacion_DXR", "LSDX Tipo Identificacion");
         if POSTransaction.FindSet(true) then
             repeat
                 POSTransaction."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(POSTransaction."LSDX Tipo Doc. Fiscal".AsInteger());
                 POSTransaction."Tipo Identificacion_DXR" := Enum::"DXR_LS Fiscal Identity Type".FromInteger(POSTransaction."LSDX Tipo Identificacion".AsInteger());
                 POSTransaction.Modify(false);
+
+                RowsSinceEnumCommit += 1;
+                if RowsSinceEnumCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceEnumCommit := 0;
+                end;
             until POSTransaction.Next() = 0;
+        if RowsSinceEnumCommit > 0 then
+            Commit();
     end;
 
     local procedure MigrateTransactionHeaderEnumFields()
     var
         TransactionHeader: Record "LSC Transaction Header";
+        RowsSinceEnumCommit: Integer;
     begin
+        // Fixed 2026-08-27 (A1 + A4): misma razon que MigratePOSTransactionEnumFields - lectura
+        // parcial para no arrastrar las companion tables de cada tableextension, y Commit cada 500
+        // filas modificadas en vez de una unica transaccion sin cota sobre toda la tabla.
+        TransactionHeader.SetLoadFields(
+            "Tipo Doc. Fiscal_DXR", "LSDX Tipo Doc. Fiscal",
+            "Tipo Identificacion_DXR", "LSDX Tipo Identificacion");
         if TransactionHeader.FindSet(true) then
             repeat
                 TransactionHeader."Tipo Doc. Fiscal_DXR" := Enum::"DXR_LS Fiscal Doc. Type".FromInteger(TransactionHeader."LSDX Tipo Doc. Fiscal".AsInteger());
                 TransactionHeader."Tipo Identificacion_DXR" := Enum::"DXR_LS Fiscal Identity Type".FromInteger(TransactionHeader."LSDX Tipo Identificacion".AsInteger());
                 TransactionHeader.Modify(false);
+
+                RowsSinceEnumCommit += 1;
+                if RowsSinceEnumCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceEnumCommit := 0;
+                end;
             until TransactionHeader.Next() = 0;
+        if RowsSinceEnumCommit > 0 then
+            Commit();
     end;
 
     // ===== "DXR_LS Legacy Tables Upgrade" (54511) =====

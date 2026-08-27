@@ -24,6 +24,10 @@ codeunit 60164 "DXR MCC Adapt DRLOC PmtMethod"
         Legacy: Record "DXPayment Method Relation";
         New: Record "DXR_Payment Method Relation";
     begin
+        // Fixed 2026-08-27: A1 - added the partial-record hint the scan was missing, so the read no
+        // longer joins the companion table of every tableextension on the legacy table per row.
+        // FindSet() (ForUpdate = false) was already correct here - the legacy side is only read.
+        Legacy.SetLoadFields(Code, Description, "Payment Method Code");
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Code, Legacy."Payment Method Code") then begin

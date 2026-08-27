@@ -14,6 +14,25 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     // Sequence No. ordering - unlike the sibling's original delegation chain (Dispatcher), MCC's
     // registry has no equivalent single-call orchestration point once each phase becomes its own
     // adapter, so the safe order has to be baked into one codeunit's OnRun instead.
+    //
+    // Fixed 2026-08-27 (performance/locking pass, no migration semantics changed):
+    //  * Every RecRef.GetTable(<typed record>) inside a loop was removed. Learn ("AL database
+    //    methods and performance on SQL Server") flags cloning a record inside a loop as bad code:
+    //    "the SQL SELECT query is restarted every time the table is cloned. A record is cloned
+    //    [...] when using a RecordRef" - one extra SQL statement per row. Those loops now open the
+    //    RecordRef once outside the loop and iterate the RecordRef directly, exactly as
+    //    MigrateTransferHeaderCollision already did.
+    //  * The typed Phase 1 loops used FindSet(true) over the WHOLE table with no partial-record
+    //    hint: FindSet "will request all rows at once" and with ForUpdate = true reads them "using
+    //    IsolationLevel::UpdLock (SQL UPDLOCK)", so a single run held an update lock on every row
+    //    of tables as large as Item Ledger Entry / Value Entry for its whole duration, and joined
+    //    in every tableextension companion table for every row. They now SetLoadFields the exact
+    //    fields they touch, read with FindSet(false) (no UPDLOCK) and re-read/lock the row with
+    //    Get() only when it actually needs a value copied.
+    //  * The typed Phase 1 loops had no Commit at all, so the whole phase ran as one unbounded
+    //    transaction. They now commit every 500 MODIFIED rows plus a final commit for the
+    //    remainder.
+    // Same fields, same order, same copy conditions, same upgrade tags.
     Permissions =
         tabledata "Sales Header" = RM,
         tabledata "Transfer Header" = RM,
@@ -89,12 +108,16 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     // ===== Phase 2: TransferFields ID collision fix =====
 
     // Sales Header's 6 collision-source fields ("...DXR" suffix, 53664-53669) carry no
-    // ObsoleteState - confirmed against DESB's current SalesHeaderExt.TableExt.al - so this
-    // procedure converts cleanly to typed Record access.
+    // ObsoleteState - confirmed against DESB's current SalesHeaderExt.TableExt.al - but the copy is
+    // still driven by NAME through MasterFieldResolver, so a RecordRef is needed either way.
+    //
+    // Fixed 2026-08-27: was `SalesHeaderRec.FindSet(true)` + `RecRef.GetTable(SalesHeaderRec)`
+    // INSIDE the loop - one extra SQL statement per Sales Header row (Learn: cloning a record via
+    // RecordRef restarts the SELECT). The RecordRef is now opened once on the table and iterated
+    // directly; the typed Record was only ever a carrier for GetTable and is gone.
     local procedure MigrateSalesHeaderCollision()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        SalesHeaderRec: Record "Sales Header";
         RecRef: RecordRef;
         BatchCount: Integer;
         Modified: Boolean;
@@ -102,9 +125,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826') then
             exit;
 
-        if SalesHeaderRec.FindSet(true) then
+        RecRef.Open(Database::"Sales Header");
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(SalesHeaderRec);
                 Modified := false;
                 if CopyFirstPopulatedField(RecRef, 'DXR_DiscountAppliedLS_Old2', 'DiscountAppliedLS_DXR|DXR-DE DiscountAppliedLS') then
                     Modified := true;
@@ -126,7 +149,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                     Commit();
                     BatchCount := 0;
                 end;
-            until SalesHeaderRec.Next() = 0;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        // Fixed 2026-08-27: commit the remainder instead of leaving up to 99 rows inside the
+        // caller's transaction.
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826');
     end;
@@ -204,6 +233,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             until RecRef.Next() = 0;
         RecRef.Close();
 
+        // Fixed 2026-08-27: commit the remainder instead of leaving up to 99 rows inside the
+        // caller's transaction.
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-NAME-FALLBACK-20260826');
     end;
 
@@ -235,6 +269,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                 end;
             until RecRef.Next() = 0;
         RecRef.Close();
+
+        // Fixed 2026-08-27: commit the remainder instead of leaving up to 99 rows inside the
+        // caller's transaction.
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESLINE-NAME-FALLBACK-20260826');
     end;
@@ -268,6 +307,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
             until RecRef.Next() = 0;
         RecRef.Close();
 
+        // Fixed 2026-08-27: commit the remainder instead of leaving up to 99 rows inside the
+        // caller's transaction.
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase2-SALESINVLINE-NAME-FALLBACK-20260826');
     end;
 
@@ -277,16 +321,33 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         CustomerRec: Record Customer;
+        CustomerToUpdate: Record Customer;
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-CUSTOMER-28.3') then
             exit;
 
-        if CustomerRec.FindSet(true) then
+        // Fixed 2026-08-27: SetLoadFields + FindSet(false) + Get-on-second-record so the run no
+        // longer holds a table-wide UPDLOCK on Customer, and commits every 500 modified rows.
+        CustomerRec.SetLoadFields(
+            "No.",
+            "Clasific. Cliente ABC_DXR", "DXR-DE Clasific. Cliente ABC",
+            "Ruta_DXR", "DXR-DE Ruta");
+        if CustomerRec.FindSet(false) then
             repeat
-                CustomerRec."Clasific. Cliente ABC_DXR" := CustomerRec."DXR-DE Clasific. Cliente ABC";
-                CustomerRec."Ruta_DXR" := CustomerRec."DXR-DE Ruta";
-                CustomerRec.Modify(false);
+                if (CustomerRec."Clasific. Cliente ABC_DXR" <> CustomerRec."DXR-DE Clasific. Cliente ABC") or
+                   (CustomerRec."Ruta_DXR" <> CustomerRec."DXR-DE Ruta")
+                then
+                    if CustomerToUpdate.Get(CustomerRec."No.") then begin
+                        CustomerToUpdate."Clasific. Cliente ABC_DXR" := CustomerToUpdate."DXR-DE Clasific. Cliente ABC";
+                        CustomerToUpdate."Ruta_DXR" := CustomerToUpdate."DXR-DE Ruta";
+                        CustomerToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until CustomerRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-CUSTOMER-28.3');
     end;
@@ -295,16 +356,32 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ApprovalEntryRec: Record "Approval Entry";
+        ApprovalEntryToUpdate: Record "Approval Entry";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-APPROVALENTRY-28.3') then
             exit;
 
-        if ApprovalEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ApprovalEntryRec.SetLoadFields(
+            "Entry No.",
+            "Aprobacion Inmediata_DXR", "DXR-DE Aprobacion Inmediata",
+            "ID_DXR", "DXR-DE ID");
+        if ApprovalEntryRec.FindSet(false) then
             repeat
-                ApprovalEntryRec."Aprobacion Inmediata_DXR" := ApprovalEntryRec."DXR-DE Aprobacion Inmediata";
-                ApprovalEntryRec."ID_DXR" := ApprovalEntryRec."DXR-DE ID";
-                ApprovalEntryRec.Modify(false);
+                if (ApprovalEntryRec."Aprobacion Inmediata_DXR" <> ApprovalEntryRec."DXR-DE Aprobacion Inmediata") or
+                   (ApprovalEntryRec."ID_DXR" <> ApprovalEntryRec."DXR-DE ID")
+                then
+                    if ApprovalEntryToUpdate.Get(ApprovalEntryRec."Entry No.") then begin
+                        ApprovalEntryToUpdate."Aprobacion Inmediata_DXR" := ApprovalEntryToUpdate."DXR-DE Aprobacion Inmediata";
+                        ApprovalEntryToUpdate."ID_DXR" := ApprovalEntryToUpdate."DXR-DE ID";
+                        ApprovalEntryToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ApprovalEntryRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-APPROVALENTRY-28.3');
     end;
@@ -313,16 +390,32 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesCrMemoHeaderRec: Record "Sales Cr.Memo Header";
+        SalesCrMemoHeaderToUpdate: Record "Sales Cr.Memo Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESCRMEMOHDR-28.3') then
             exit;
 
-        if SalesCrMemoHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        SalesCrMemoHeaderRec.SetLoadFields(
+            "No.",
+            "Sent Pickup_DXR", "DXR-DE Sent Pickup",
+            "Ruta_DXR", "DXR-DE Ruta");
+        if SalesCrMemoHeaderRec.FindSet(false) then
             repeat
-                SalesCrMemoHeaderRec."Sent Pickup_DXR" := SalesCrMemoHeaderRec."DXR-DE Sent Pickup";
-                SalesCrMemoHeaderRec."Ruta_DXR" := SalesCrMemoHeaderRec."DXR-DE Ruta";
-                SalesCrMemoHeaderRec.Modify(false);
+                if (SalesCrMemoHeaderRec."Sent Pickup_DXR" <> SalesCrMemoHeaderRec."DXR-DE Sent Pickup") or
+                   (SalesCrMemoHeaderRec."Ruta_DXR" <> SalesCrMemoHeaderRec."DXR-DE Ruta")
+                then
+                    if SalesCrMemoHeaderToUpdate.Get(SalesCrMemoHeaderRec."No.") then begin
+                        SalesCrMemoHeaderToUpdate."Sent Pickup_DXR" := SalesCrMemoHeaderToUpdate."DXR-DE Sent Pickup";
+                        SalesCrMemoHeaderToUpdate."Ruta_DXR" := SalesCrMemoHeaderToUpdate."DXR-DE Ruta";
+                        SalesCrMemoHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until SalesCrMemoHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESCRMEMOHDR-28.3');
     end;
@@ -331,26 +424,45 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesInvoiceHeaderRec: Record "Sales Invoice Header";
+        SalesInvoiceHeaderToUpdate: Record "Sales Invoice Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVHEADER-28.3') then
             exit;
 
         // Field 50807 "DXR-DE Entregada CxC" / 50810 "Entregada CxC_DXR" are both FlowFields
         // (CalcFormula Exist(...)). Their values are calculated and cannot be persisted.
-        if SalesInvoiceHeaderRec.FindSet(true) then
+        //
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        SalesInvoiceHeaderRec.SetLoadFields(
+            "No.",
+            "Sent Pickup_DXR", "DXR-DE Sent Pickup",
+            "Ruta_DXR", "DXR-DE Ruta");
+        if SalesInvoiceHeaderRec.FindSet(false) then
             repeat
-                SalesInvoiceHeaderRec."Sent Pickup_DXR" := SalesInvoiceHeaderRec."DXR-DE Sent Pickup";
-                SalesInvoiceHeaderRec."Ruta_DXR" := SalesInvoiceHeaderRec."DXR-DE Ruta";
-                SalesInvoiceHeaderRec.Modify(false);
+                if (SalesInvoiceHeaderRec."Sent Pickup_DXR" <> SalesInvoiceHeaderRec."DXR-DE Sent Pickup") or
+                   (SalesInvoiceHeaderRec."Ruta_DXR" <> SalesInvoiceHeaderRec."DXR-DE Ruta")
+                then
+                    if SalesInvoiceHeaderToUpdate.Get(SalesInvoiceHeaderRec."No.") then begin
+                        SalesInvoiceHeaderToUpdate."Sent Pickup_DXR" := SalesInvoiceHeaderToUpdate."DXR-DE Sent Pickup";
+                        SalesInvoiceHeaderToUpdate."Ruta_DXR" := SalesInvoiceHeaderToUpdate."DXR-DE Ruta";
+                        SalesInvoiceHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until SalesInvoiceHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVHEADER-28.3');
     end;
 
+    // Fixed 2026-08-27: was `SalesInvoiceLineRec.FindSet(true)` + `RecRef.GetTable(...)` inside the
+    // loop - one extra SQL statement per Sales Invoice Line row. RecordRef is now opened once on
+    // the table and iterated directly (the typed Record only ever fed GetTable).
     local procedure MigrateTable_SalesInvoiceLine()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        SalesInvoiceLineRec: Record "Sales Invoice Line";
         RecRef: RecordRef;
         BatchCount: Integer;
     begin
@@ -360,9 +472,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         // Reads from "DXR Package Quantity_Old2" (53900), not the original "DXR Package Quantity"
         // (53658, now ObsoleteState = Removed) - relocated by Phase 2 above to resolve a
         // TransferFields collision with Sales Line's "DXR_DiscountByLS_Old" at the same field ID.
-        if SalesInvoiceLineRec.FindSet(true) then
+        RecRef.Open(Database::"Sales Invoice Line");
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(SalesInvoiceLineRec);
                 if CopyFirstPopulatedField(RecRef, 'Package Quantity_DXR', 'DXR Package Quantity_Old2') then
                     RecRef.Modify(false);
 
@@ -371,7 +483,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                     Commit();
                     BatchCount := 0;
                 end;
-            until SalesInvoiceLineRec.Next() = 0;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESINVLINE-NAME-FALLBACK-20260826');
     end;
@@ -380,17 +496,29 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesShipmentHeaderRec: Record "Sales Shipment Header";
+        SalesShipmentHeaderToUpdate: Record "Sales Shipment Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESSHIPTHDR-28.3') then
             exit;
 
         // Field 50801 "DXR-DE Cust Salesperson Code" / 50806 "Cust Salesperson Code_DXR" are
         // both FlowFields (CalcFormula Lookup). Their values are calculated and cannot be persisted.
-        if SalesShipmentHeaderRec.FindSet(true) then
+        //
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        SalesShipmentHeaderRec.SetLoadFields("No.", "Shipment_DXR", "DXR-DE Shipment");
+        if SalesShipmentHeaderRec.FindSet(false) then
             repeat
-                SalesShipmentHeaderRec."Shipment_DXR" := SalesShipmentHeaderRec."DXR-DE Shipment";
-                SalesShipmentHeaderRec.Modify(false);
+                if SalesShipmentHeaderRec."Shipment_DXR" <> SalesShipmentHeaderRec."DXR-DE Shipment" then
+                    if SalesShipmentHeaderToUpdate.Get(SalesShipmentHeaderRec."No.") then begin
+                        SalesShipmentHeaderToUpdate."Shipment_DXR" := SalesShipmentHeaderToUpdate."DXR-DE Shipment";
+                        SalesShipmentHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until SalesShipmentHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESSHIPTHDR-28.3');
     end;
@@ -399,19 +527,41 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransferShipmentHeaderRec: Record "Transfer Shipment Header";
+        TransferShipmentHeaderToUpdate: Record "Transfer Shipment Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERSHPTHDR-28.3') then
             exit;
 
-        if TransferShipmentHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        TransferShipmentHeaderRec.SetLoadFields(
+            "No.",
+            "No. Despachador_DXR", "DXR-DE No. Despachador",
+            "Codigo Auditoria_DXR", "DXR-DE Codigo Auditoria",
+            "Order User Id_DXR", "DXR-DE Order User Id",
+            "Order Date Created_DXR", "DXR-DE Order Date Created",
+            "Shipment User ID_DXR", "DXR-DE Shipment User ID");
+        if TransferShipmentHeaderRec.FindSet(false) then
             repeat
-                TransferShipmentHeaderRec."No. Despachador_DXR" := TransferShipmentHeaderRec."DXR-DE No. Despachador";
-                TransferShipmentHeaderRec."Codigo Auditoria_DXR" := TransferShipmentHeaderRec."DXR-DE Codigo Auditoria";
-                TransferShipmentHeaderRec."Order User Id_DXR" := TransferShipmentHeaderRec."DXR-DE Order User Id";
-                TransferShipmentHeaderRec."Order Date Created_DXR" := TransferShipmentHeaderRec."DXR-DE Order Date Created";
-                TransferShipmentHeaderRec."Shipment User ID_DXR" := TransferShipmentHeaderRec."DXR-DE Shipment User ID";
-                TransferShipmentHeaderRec.Modify(false);
+                if (TransferShipmentHeaderRec."No. Despachador_DXR" <> TransferShipmentHeaderRec."DXR-DE No. Despachador") or
+                   (TransferShipmentHeaderRec."Codigo Auditoria_DXR" <> TransferShipmentHeaderRec."DXR-DE Codigo Auditoria") or
+                   (TransferShipmentHeaderRec."Order User Id_DXR" <> TransferShipmentHeaderRec."DXR-DE Order User Id") or
+                   (TransferShipmentHeaderRec."Order Date Created_DXR" <> TransferShipmentHeaderRec."DXR-DE Order Date Created") or
+                   (TransferShipmentHeaderRec."Shipment User ID_DXR" <> TransferShipmentHeaderRec."DXR-DE Shipment User ID")
+                then
+                    if TransferShipmentHeaderToUpdate.Get(TransferShipmentHeaderRec."No.") then begin
+                        TransferShipmentHeaderToUpdate."No. Despachador_DXR" := TransferShipmentHeaderToUpdate."DXR-DE No. Despachador";
+                        TransferShipmentHeaderToUpdate."Codigo Auditoria_DXR" := TransferShipmentHeaderToUpdate."DXR-DE Codigo Auditoria";
+                        TransferShipmentHeaderToUpdate."Order User Id_DXR" := TransferShipmentHeaderToUpdate."DXR-DE Order User Id";
+                        TransferShipmentHeaderToUpdate."Order Date Created_DXR" := TransferShipmentHeaderToUpdate."DXR-DE Order Date Created";
+                        TransferShipmentHeaderToUpdate."Shipment User ID_DXR" := TransferShipmentHeaderToUpdate."DXR-DE Shipment User ID";
+                        TransferShipmentHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until TransferShipmentHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERSHPTHDR-28.3');
     end;
@@ -420,15 +570,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         FixedAssetRec: Record "Fixed Asset";
+        FixedAssetToUpdate: Record "Fixed Asset";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-FIXEDASSET-28.3') then
             exit;
 
-        if FixedAssetRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        FixedAssetRec.SetLoadFields("No.", "GTIN_DXR", "DXR-DE GTIN");
+        if FixedAssetRec.FindSet(false) then
             repeat
-                FixedAssetRec."GTIN_DXR" := FixedAssetRec."DXR-DE GTIN";
-                FixedAssetRec.Modify(false);
+                if FixedAssetRec."GTIN_DXR" <> FixedAssetRec."DXR-DE GTIN" then
+                    if FixedAssetToUpdate.Get(FixedAssetRec."No.") then begin
+                        FixedAssetToUpdate."GTIN_DXR" := FixedAssetToUpdate."DXR-DE GTIN";
+                        FixedAssetToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until FixedAssetRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-FIXEDASSET-28.3');
     end;
@@ -437,15 +598,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ItemRec: Record Item;
+        ItemToUpdate: Record Item;
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEM-28.3') then
             exit;
 
-        if ItemRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ItemRec.SetLoadFields("No.", "Descripcion Bellon_DXR", "DXR-DE Descripcion Bellon");
+        if ItemRec.FindSet(false) then
             repeat
-                ItemRec."Descripcion Bellon_DXR" := ItemRec."DXR-DE Descripcion Bellon";
-                ItemRec.Modify(false);
+                if ItemRec."Descripcion Bellon_DXR" <> ItemRec."DXR-DE Descripcion Bellon" then
+                    if ItemToUpdate.Get(ItemRec."No.") then begin
+                        ItemToUpdate."Descripcion Bellon_DXR" := ItemToUpdate."DXR-DE Descripcion Bellon";
+                        ItemToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ItemRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEM-28.3');
     end;
@@ -454,15 +626,32 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ItemJournalLineRec: Record "Item Journal Line";
+        ItemJournalLineToUpdate: Record "Item Journal Line";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEMJNLLINE-28.3') then
             exit;
 
-        if ItemJournalLineRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ItemJournalLineRec.SetLoadFields(
+            "Journal Template Name", "Journal Batch Name", "Line No.",
+            "Codigo Auditoria Ajuste_DXR", "DXR-DE Codigo Auditoria Ajuste");
+        if ItemJournalLineRec.FindSet(false) then
             repeat
-                ItemJournalLineRec."Codigo Auditoria Ajuste_DXR" := ItemJournalLineRec."DXR-DE Codigo Auditoria Ajuste";
-                ItemJournalLineRec.Modify(false);
+                if ItemJournalLineRec."Codigo Auditoria Ajuste_DXR" <> ItemJournalLineRec."DXR-DE Codigo Auditoria Ajuste" then
+                    if ItemJournalLineToUpdate.Get(
+                        ItemJournalLineRec."Journal Template Name",
+                        ItemJournalLineRec."Journal Batch Name",
+                        ItemJournalLineRec."Line No.")
+                    then begin
+                        ItemJournalLineToUpdate."Codigo Auditoria Ajuste_DXR" := ItemJournalLineToUpdate."DXR-DE Codigo Auditoria Ajuste";
+                        ItemJournalLineToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ItemJournalLineRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEMJNLLINE-28.3');
     end;
@@ -471,15 +660,28 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ItemLedgerEntryRec: Record "Item Ledger Entry";
+        ItemLedgerEntryToUpdate: Record "Item Ledger Entry";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEMLEDGERENTRY-28.3') then
             exit;
 
-        if ItemLedgerEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        // Item Ledger Entry is one of the largest tables in the database, so the old
+        // FindSet(true)-over-everything held an update lock on the entire ledger for the whole run.
+        ItemLedgerEntryRec.SetLoadFields("Entry No.", "Codigo Auditoria_DXR", "DXR-DE Codigo Auditoria");
+        if ItemLedgerEntryRec.FindSet(false) then
             repeat
-                ItemLedgerEntryRec."Codigo Auditoria_DXR" := ItemLedgerEntryRec."DXR-DE Codigo Auditoria";
-                ItemLedgerEntryRec.Modify(false);
+                if ItemLedgerEntryRec."Codigo Auditoria_DXR" <> ItemLedgerEntryRec."DXR-DE Codigo Auditoria" then
+                    if ItemLedgerEntryToUpdate.Get(ItemLedgerEntryRec."Entry No.") then begin
+                        ItemLedgerEntryToUpdate."Codigo Auditoria_DXR" := ItemLedgerEntryToUpdate."DXR-DE Codigo Auditoria";
+                        ItemLedgerEntryToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ItemLedgerEntryRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-ITEMLEDGERENTRY-28.3');
     end;
@@ -488,15 +690,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         LocationRec: Record Location;
+        LocationToUpdate: Record Location;
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-LOCATION-28.3') then
             exit;
 
-        if LocationRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        LocationRec.SetLoadFields("Code", "Req. Transport_DXR", "DXR-DE Req. Transport");
+        if LocationRec.FindSet(false) then
             repeat
-                LocationRec."Req. Transport_DXR" := LocationRec."DXR-DE Req. Transport";
-                LocationRec.Modify(false);
+                if LocationRec."Req. Transport_DXR" <> LocationRec."DXR-DE Req. Transport" then
+                    if LocationToUpdate.Get(LocationRec."Code") then begin
+                        LocationToUpdate."Req. Transport_DXR" := LocationToUpdate."DXR-DE Req. Transport";
+                        LocationToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until LocationRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-LOCATION-28.3');
     end;
@@ -505,15 +718,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PaymentMethodRec: Record "Payment Method";
+        PaymentMethodToUpdate: Record "Payment Method";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PAYMENTMETHOD-28.3') then
             exit;
 
-        if PaymentMethodRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        PaymentMethodRec.SetLoadFields("Code", "Prioridad_DXR", "DXR-DE Prioridad");
+        if PaymentMethodRec.FindSet(false) then
             repeat
-                PaymentMethodRec."Prioridad_DXR" := PaymentMethodRec."DXR-DE Prioridad";
-                PaymentMethodRec.Modify(false);
+                if PaymentMethodRec."Prioridad_DXR" <> PaymentMethodRec."DXR-DE Prioridad" then
+                    if PaymentMethodToUpdate.Get(PaymentMethodRec."Code") then begin
+                        PaymentMethodToUpdate."Prioridad_DXR" := PaymentMethodToUpdate."DXR-DE Prioridad";
+                        PaymentMethodToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until PaymentMethodRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-PAYMENTMETHOD-28.3');
     end;
@@ -522,15 +746,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PostedWhseReceiptHeaderRec: Record "Posted Whse. Receipt Header";
+        PostedWhseReceiptHeaderToUpdate: Record "Posted Whse. Receipt Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PTDWHSERECEIPTHDR-28.3') then
             exit;
 
-        if PostedWhseReceiptHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        PostedWhseReceiptHeaderRec.SetLoadFields("No.", "Auxiliar Recepcion_DXR", "DXR-DE Auxiliar Recepcion");
+        if PostedWhseReceiptHeaderRec.FindSet(false) then
             repeat
-                PostedWhseReceiptHeaderRec."Auxiliar Recepcion_DXR" := PostedWhseReceiptHeaderRec."DXR-DE Auxiliar Recepcion";
-                PostedWhseReceiptHeaderRec.Modify(false);
+                if PostedWhseReceiptHeaderRec."Auxiliar Recepcion_DXR" <> PostedWhseReceiptHeaderRec."DXR-DE Auxiliar Recepcion" then
+                    if PostedWhseReceiptHeaderToUpdate.Get(PostedWhseReceiptHeaderRec."No.") then begin
+                        PostedWhseReceiptHeaderToUpdate."Auxiliar Recepcion_DXR" := PostedWhseReceiptHeaderToUpdate."DXR-DE Auxiliar Recepcion";
+                        PostedWhseReceiptHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until PostedWhseReceiptHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-PTDWHSERECEIPTHDR-28.3');
     end;
@@ -539,17 +774,29 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PostedWhseShipmentHeaderRec: Record "Posted Whse. Shipment Header";
+        PostedWhseShipmentHeaderToUpdate: Record "Posted Whse. Shipment Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PTDWHSESHIPMENTHDR-28.3') then
             exit;
 
         // Field 50801 "DXR-DE DespachadorName" / 50803 "DespachadorName_DXR" are both FlowFields
         // (CalcFormula Lookup). Their values are calculated and cannot be persisted.
-        if PostedWhseShipmentHeaderRec.FindSet(true) then
+        //
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        PostedWhseShipmentHeaderRec.SetLoadFields("No.", "Despachador_DXR", "DXR-DE Despachador");
+        if PostedWhseShipmentHeaderRec.FindSet(false) then
             repeat
-                PostedWhseShipmentHeaderRec."Despachador_DXR" := PostedWhseShipmentHeaderRec."DXR-DE Despachador";
-                PostedWhseShipmentHeaderRec.Modify(false);
+                if PostedWhseShipmentHeaderRec."Despachador_DXR" <> PostedWhseShipmentHeaderRec."DXR-DE Despachador" then
+                    if PostedWhseShipmentHeaderToUpdate.Get(PostedWhseShipmentHeaderRec."No.") then begin
+                        PostedWhseShipmentHeaderToUpdate."Despachador_DXR" := PostedWhseShipmentHeaderToUpdate."DXR-DE Despachador";
+                        PostedWhseShipmentHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until PostedWhseShipmentHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-PTDWHSESHIPMENTHDR-28.3');
     end;
@@ -558,15 +805,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PurchRcptHeaderRec: Record "Purch. Rcpt. Header";
+        PurchRcptHeaderToUpdate: Record "Purch. Rcpt. Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PURCHRCPTHDR-28.3') then
             exit;
 
-        if PurchRcptHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        PurchRcptHeaderRec.SetLoadFields("No.", "Auxiliar Recepcion_DXR", "DXR-DE Auxiliar Recepcion");
+        if PurchRcptHeaderRec.FindSet(false) then
             repeat
-                PurchRcptHeaderRec."Auxiliar Recepcion_DXR" := PurchRcptHeaderRec."DXR-DE Auxiliar Recepcion";
-                PurchRcptHeaderRec.Modify(false);
+                if PurchRcptHeaderRec."Auxiliar Recepcion_DXR" <> PurchRcptHeaderRec."DXR-DE Auxiliar Recepcion" then
+                    if PurchRcptHeaderToUpdate.Get(PurchRcptHeaderRec."No.") then begin
+                        PurchRcptHeaderToUpdate."Auxiliar Recepcion_DXR" := PurchRcptHeaderToUpdate."DXR-DE Auxiliar Recepcion";
+                        PurchRcptHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until PurchRcptHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-PURCHRCPTHDR-28.3');
     end;
@@ -575,15 +833,28 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PurchaseHeaderRec: Record "Purchase Header";
+        PurchaseHeaderToUpdate: Record "Purchase Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-PURCHASEHEADER-28.3') then
             exit;
 
-        if PurchaseHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        PurchaseHeaderRec.SetLoadFields(
+            "Document Type", "No.",
+            "Auxiliar Recepcion_DXR", "DXR-DE Auxiliar Recepcion");
+        if PurchaseHeaderRec.FindSet(false) then
             repeat
-                PurchaseHeaderRec."Auxiliar Recepcion_DXR" := PurchaseHeaderRec."DXR-DE Auxiliar Recepcion";
-                PurchaseHeaderRec.Modify(false);
+                if PurchaseHeaderRec."Auxiliar Recepcion_DXR" <> PurchaseHeaderRec."DXR-DE Auxiliar Recepcion" then
+                    if PurchaseHeaderToUpdate.Get(PurchaseHeaderRec."Document Type", PurchaseHeaderRec."No.") then begin
+                        PurchaseHeaderToUpdate."Auxiliar Recepcion_DXR" := PurchaseHeaderToUpdate."DXR-DE Auxiliar Recepcion";
+                        PurchaseHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until PurchaseHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-PURCHASEHEADER-28.3');
     end;
@@ -592,15 +863,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ReasonCodeRec: Record "Reason Code";
+        ReasonCodeToUpdate: Record "Reason Code";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-REASONCODE-28.3') then
             exit;
 
-        if ReasonCodeRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ReasonCodeRec.SetLoadFields("Code", "GroupTransport_DXR", "DXR-DE GroupTransport");
+        if ReasonCodeRec.FindSet(false) then
             repeat
-                ReasonCodeRec."GroupTransport_DXR" := ReasonCodeRec."DXR-DE GroupTransport";
-                ReasonCodeRec.Modify(false);
+                if ReasonCodeRec."GroupTransport_DXR" <> ReasonCodeRec."DXR-DE GroupTransport" then
+                    if ReasonCodeToUpdate.Get(ReasonCodeRec."Code") then begin
+                        ReasonCodeToUpdate."GroupTransport_DXR" := ReasonCodeToUpdate."DXR-DE GroupTransport";
+                        ReasonCodeToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ReasonCodeRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-REASONCODE-28.3');
     end;
@@ -610,10 +892,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     // "DXR_DiscountAppliedLS_Old2", "DXR-DE Shipment" -> "DXR_Shipment_Old2", "DXR-DE Sent Pickup"
     // -> "DXR_Sent Pickup_Old2", "DXR-DE Ruta" -> "DXR_Ruta_Old2" - same field IDs, same data, only
     // the AL name changed (these are the same _Old2 fields Phase 2 above populates).
+    //
+    // Fixed 2026-08-27: was `SalesHeaderRec.FindSet(true)` + `RecRef.GetTable(SalesHeaderRec)`
+    // inside the loop - one extra SQL statement per row. RecordRef is now opened once and iterated
+    // directly.
     local procedure MigrateTable_SalesHeader()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        SalesHeaderRec: Record "Sales Header";
         RecRef: RecordRef;
         BatchCount: Integer;
         Modified: Boolean;
@@ -621,9 +906,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-NAME-FALLBACK-20260826') then
             exit;
 
-        if SalesHeaderRec.FindSet(true) then
+        RecRef.Open(Database::"Sales Header");
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(SalesHeaderRec);
                 Modified := false;
                 if CopyFirstPopulatedField(RecRef, 'Tipo_DXR', 'DXR_Tipo_Old2') then
                     Modified := true;
@@ -645,7 +930,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                     Commit();
                     BatchCount := 0;
                 end;
-            until SalesHeaderRec.Next() = 0;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESHEADER-NAME-FALLBACK-20260826');
     end;
@@ -653,10 +942,13 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     // "DXR_DiscountByLS" (53658) and "DXR_Periodic Discount%" (53659) were renamed (not removed) -
     // to "DXR_DiscountByLS_Old" and "DXR_Periodic Discount%_Old". "DXR_Total Weight"/"DXR_Total
     // Volume" were never renamed.
+    //
+    // Fixed 2026-08-27: was `SalesLineRec.FindSet(true)` + `RecRef.GetTable(SalesLineRec)` inside
+    // the loop - one extra SQL statement per Sales Line row. RecordRef is now opened once and
+    // iterated directly.
     local procedure MigrateTable_SalesLine()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        SalesLineRec: Record "Sales Line";
         RecRef: RecordRef;
         BatchCount: Integer;
         Modified: Boolean;
@@ -668,9 +960,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         // "DXR_DiscountByLS_Old" (53658, now ObsoleteState = Removed) - relocated by Phase 2 above
         // to resolve a TransferFields collision with Sales Invoice Line's "DXR Package Quantity"
         // at the same field ID.
-        if SalesLineRec.FindSet(true) then
+        RecRef.Open(Database::"Sales Line");
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(SalesLineRec);
                 Modified := false;
                 if CopyFirstPopulatedField(RecRef, 'Total Weight_DXR', 'DXR-DE Total Weight') then
                     Modified := true;
@@ -688,7 +980,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                     Commit();
                     BatchCount := 0;
                 end;
-            until SalesLineRec.Next() = 0;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SALESLINE-NAME-FALLBACK-20260826');
     end;
@@ -697,16 +993,32 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ShipToAddressRec: Record "Ship-to Address";
+        ShipToAddressToUpdate: Record "Ship-to Address";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SHIPTOADDRESS-28.3') then
             exit;
 
-        if ShipToAddressRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ShipToAddressRec.SetLoadFields(
+            "Customer No.", "Code",
+            "Latitud_DXR", "DXR-DE Latitud",
+            "Longitud_DXR", "DXR-DE Longitud");
+        if ShipToAddressRec.FindSet(false) then
             repeat
-                ShipToAddressRec."Latitud_DXR" := ShipToAddressRec."DXR-DE Latitud";
-                ShipToAddressRec."Longitud_DXR" := ShipToAddressRec."DXR-DE Longitud";
-                ShipToAddressRec.Modify(false);
+                if (ShipToAddressRec."Latitud_DXR" <> ShipToAddressRec."DXR-DE Latitud") or
+                   (ShipToAddressRec."Longitud_DXR" <> ShipToAddressRec."DXR-DE Longitud")
+                then
+                    if ShipToAddressToUpdate.Get(ShipToAddressRec."Customer No.", ShipToAddressRec."Code") then begin
+                        ShipToAddressToUpdate."Latitud_DXR" := ShipToAddressToUpdate."DXR-DE Latitud";
+                        ShipToAddressToUpdate."Longitud_DXR" := ShipToAddressToUpdate."DXR-DE Longitud";
+                        ShipToAddressToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ShipToAddressRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SHIPTOADDRESS-28.3');
     end;
@@ -715,23 +1027,36 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ShipmentMethodRec: Record "Shipment Method";
+        ShipmentMethodToUpdate: Record "Shipment Method";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-SHIPMENTMETHOD-28.3') then
             exit;
 
-        if ShipmentMethodRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        ShipmentMethodRec.SetLoadFields("Code", "Shipment Transport_DXR", "DXR-DE Shipment Transport");
+        if ShipmentMethodRec.FindSet(false) then
             repeat
-                ShipmentMethodRec."Shipment Transport_DXR" := ShipmentMethodRec."DXR-DE Shipment Transport";
-                ShipmentMethodRec.Modify(false);
+                if ShipmentMethodRec."Shipment Transport_DXR" <> ShipmentMethodRec."DXR-DE Shipment Transport" then
+                    if ShipmentMethodToUpdate.Get(ShipmentMethodRec."Code") then begin
+                        ShipmentMethodToUpdate."Shipment Transport_DXR" := ShipmentMethodToUpdate."DXR-DE Shipment Transport";
+                        ShipmentMethodToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ShipmentMethodRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-SHIPMENTMETHOD-28.3');
     end;
 
+    // Fixed 2026-08-27: was `TransferHeaderRec.FindSet(true)` + `RecRef.GetTable(TransferHeaderRec)`
+    // inside the loop - one extra SQL statement per row. RecordRef is now opened once and iterated
+    // directly, exactly as MigrateTransferHeaderCollision already did on the same table.
     local procedure MigrateTable_TransferHeader()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
-        TransferHeaderRec: Record "Transfer Header";
         RecRef: RecordRef;
         BatchCount: Integer;
         Modified: Boolean;
@@ -739,9 +1064,9 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-NAME-FALLBACK-20260826') then
             exit;
 
-        if TransferHeaderRec.FindSet(true) then
+        RecRef.Open(Database::"Transfer Header");
+        if RecRef.FindSet(true) then
             repeat
-                RecRef.GetTable(TransferHeaderRec);
                 Modified := false;
                 if CopyFirstPopulatedField(RecRef, 'No. Despachador_DXR_Reloc', 'DXR_No. Despachador_Reloc') then
                     Modified := true;
@@ -765,7 +1090,11 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
                     Commit();
                     BatchCount := 0;
                 end;
-            until TransferHeaderRec.Next() = 0;
+            until RecRef.Next() = 0;
+        RecRef.Close();
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERHEADER-NAME-FALLBACK-20260826');
     end;
@@ -774,20 +1103,44 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         TransferReceiptHeaderRec: Record "Transfer Receipt Header";
+        TransferReceiptHeaderToUpdate: Record "Transfer Receipt Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERRECEIPTHDR-28.3') then
             exit;
 
-        if TransferReceiptHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        TransferReceiptHeaderRec.SetLoadFields(
+            "No.",
+            "No. Despachador_DXR", "DXR-DE No. Despachador",
+            "Codigo Auditoria_DXR", "DXR-DE Codigo Auditoria",
+            "Order User Id_DXR", "DXR-DE Order User Id",
+            "Order Date Created_DXR", "DXR-DE Order Date Created",
+            "Receipt User ID_DXR", "DXR-DE Receipt User ID",
+            "Pre Receive Ref. No._DXR", "DXR-DE Pre Receive Ref. No.");
+        if TransferReceiptHeaderRec.FindSet(false) then
             repeat
-                TransferReceiptHeaderRec."No. Despachador_DXR" := TransferReceiptHeaderRec."DXR-DE No. Despachador";
-                TransferReceiptHeaderRec."Codigo Auditoria_DXR" := TransferReceiptHeaderRec."DXR-DE Codigo Auditoria";
-                TransferReceiptHeaderRec."Order User Id_DXR" := TransferReceiptHeaderRec."DXR-DE Order User Id";
-                TransferReceiptHeaderRec."Order Date Created_DXR" := TransferReceiptHeaderRec."DXR-DE Order Date Created";
-                TransferReceiptHeaderRec."Receipt User ID_DXR" := TransferReceiptHeaderRec."DXR-DE Receipt User ID";
-                TransferReceiptHeaderRec."Pre Receive Ref. No._DXR" := TransferReceiptHeaderRec."DXR-DE Pre Receive Ref. No.";
-                TransferReceiptHeaderRec.Modify(false);
+                if (TransferReceiptHeaderRec."No. Despachador_DXR" <> TransferReceiptHeaderRec."DXR-DE No. Despachador") or
+                   (TransferReceiptHeaderRec."Codigo Auditoria_DXR" <> TransferReceiptHeaderRec."DXR-DE Codigo Auditoria") or
+                   (TransferReceiptHeaderRec."Order User Id_DXR" <> TransferReceiptHeaderRec."DXR-DE Order User Id") or
+                   (TransferReceiptHeaderRec."Order Date Created_DXR" <> TransferReceiptHeaderRec."DXR-DE Order Date Created") or
+                   (TransferReceiptHeaderRec."Receipt User ID_DXR" <> TransferReceiptHeaderRec."DXR-DE Receipt User ID") or
+                   (TransferReceiptHeaderRec."Pre Receive Ref. No._DXR" <> TransferReceiptHeaderRec."DXR-DE Pre Receive Ref. No.")
+                then
+                    if TransferReceiptHeaderToUpdate.Get(TransferReceiptHeaderRec."No.") then begin
+                        TransferReceiptHeaderToUpdate."No. Despachador_DXR" := TransferReceiptHeaderToUpdate."DXR-DE No. Despachador";
+                        TransferReceiptHeaderToUpdate."Codigo Auditoria_DXR" := TransferReceiptHeaderToUpdate."DXR-DE Codigo Auditoria";
+                        TransferReceiptHeaderToUpdate."Order User Id_DXR" := TransferReceiptHeaderToUpdate."DXR-DE Order User Id";
+                        TransferReceiptHeaderToUpdate."Order Date Created_DXR" := TransferReceiptHeaderToUpdate."DXR-DE Order Date Created";
+                        TransferReceiptHeaderToUpdate."Receipt User ID_DXR" := TransferReceiptHeaderToUpdate."DXR-DE Receipt User ID";
+                        TransferReceiptHeaderToUpdate."Pre Receive Ref. No._DXR" := TransferReceiptHeaderToUpdate."DXR-DE Pre Receive Ref. No.";
+                        TransferReceiptHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until TransferReceiptHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-TRANSFERRECEIPTHDR-28.3');
     end;
@@ -796,16 +1149,32 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         UserSetupRec: Record "User Setup";
+        UserSetupToUpdate: Record "User Setup";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-USERSETUP-28.3') then
             exit;
 
-        if UserSetupRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        UserSetupRec.SetLoadFields(
+            "User ID",
+            "Create Shipments_DXR", "DXR-DE Create Shipments",
+            "Filtrar Cartera Cte_DXR", "DXR-DE Filtrar Cartera Cte");
+        if UserSetupRec.FindSet(false) then
             repeat
-                UserSetupRec."Create Shipments_DXR" := UserSetupRec."DXR-DE Create Shipments";
-                UserSetupRec."Filtrar Cartera Cte_DXR" := UserSetupRec."DXR-DE Filtrar Cartera Cte";
-                UserSetupRec.Modify(false);
+                if (UserSetupRec."Create Shipments_DXR" <> UserSetupRec."DXR-DE Create Shipments") or
+                   (UserSetupRec."Filtrar Cartera Cte_DXR" <> UserSetupRec."DXR-DE Filtrar Cartera Cte")
+                then
+                    if UserSetupToUpdate.Get(UserSetupRec."User ID") then begin
+                        UserSetupToUpdate."Create Shipments_DXR" := UserSetupToUpdate."DXR-DE Create Shipments";
+                        UserSetupToUpdate."Filtrar Cartera Cte_DXR" := UserSetupToUpdate."DXR-DE Filtrar Cartera Cte";
+                        UserSetupToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until UserSetupRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-USERSETUP-28.3');
     end;
@@ -814,15 +1183,27 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ValueEntryRec: Record "Value Entry";
+        ValueEntryToUpdate: Record "Value Entry";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-VALUEENTRY-28.3') then
             exit;
 
-        if ValueEntryRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        // Value Entry is one of the largest tables in the database.
+        ValueEntryRec.SetLoadFields("Entry No.", "Codigo Auditoria Ajuste_DXR", "DXR-DE Codigo Auditoria Ajuste");
+        if ValueEntryRec.FindSet(false) then
             repeat
-                ValueEntryRec."Codigo Auditoria Ajuste_DXR" := ValueEntryRec."DXR-DE Codigo Auditoria Ajuste";
-                ValueEntryRec.Modify(false);
+                if ValueEntryRec."Codigo Auditoria Ajuste_DXR" <> ValueEntryRec."DXR-DE Codigo Auditoria Ajuste" then
+                    if ValueEntryToUpdate.Get(ValueEntryRec."Entry No.") then begin
+                        ValueEntryToUpdate."Codigo Auditoria Ajuste_DXR" := ValueEntryToUpdate."DXR-DE Codigo Auditoria Ajuste";
+                        ValueEntryToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until ValueEntryRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-VALUEENTRY-28.3');
     end;
@@ -831,15 +1212,26 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         WarehouseReceiptHeaderRec: Record "Warehouse Receipt Header";
+        WarehouseReceiptHeaderToUpdate: Record "Warehouse Receipt Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-WAREHOUSERECEIPTHDR-28.3') then
             exit;
 
-        if WarehouseReceiptHeaderRec.FindSet(true) then
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        WarehouseReceiptHeaderRec.SetLoadFields("No.", "Auxiliar Recepcion_DXR", "DXR-DE Auxiliar Recepcion");
+        if WarehouseReceiptHeaderRec.FindSet(false) then
             repeat
-                WarehouseReceiptHeaderRec."Auxiliar Recepcion_DXR" := WarehouseReceiptHeaderRec."DXR-DE Auxiliar Recepcion";
-                WarehouseReceiptHeaderRec.Modify(false);
+                if WarehouseReceiptHeaderRec."Auxiliar Recepcion_DXR" <> WarehouseReceiptHeaderRec."DXR-DE Auxiliar Recepcion" then
+                    if WarehouseReceiptHeaderToUpdate.Get(WarehouseReceiptHeaderRec."No.") then begin
+                        WarehouseReceiptHeaderToUpdate."Auxiliar Recepcion_DXR" := WarehouseReceiptHeaderToUpdate."DXR-DE Auxiliar Recepcion";
+                        WarehouseReceiptHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until WarehouseReceiptHeaderRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-WAREHOUSERECEIPTHDR-28.3');
     end;
@@ -848,19 +1240,43 @@ codeunit 60128 "DXR MCC DESB Migr Phase2"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         WarehouseShipmtHeaderRec: Record "Warehouse Shipment Header";
+        WarehouseShipmtHeaderToUpdate: Record "Warehouse Shipment Header";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoBase-MigrPhase1-WAREHOUSESHIPMTHDR-28.3') then
             exit;
 
         // Field 50801 "DXR-DE DespachadorName" / 50803 "DespachadorName_DXR" are both FlowFields
         // (CalcFormula Lookup). Their values are calculated and cannot be persisted.
-        if WarehouseShipmtHeaderRec.FindSet(true) then
+        //
+        // Fixed 2026-08-27: see MigrateTable_Customer - no table-wide UPDLOCK, bounded transaction.
+        WarehouseShipmtHeaderRec.SetLoadFields("No.", "Despachador_DXR", "DXR-DE Despachador");
+        if WarehouseShipmtHeaderRec.FindSet(false) then
             repeat
-                WarehouseShipmtHeaderRec."Despachador_DXR" := WarehouseShipmtHeaderRec."DXR-DE Despachador";
-                WarehouseShipmtHeaderRec.Modify(false);
+                if WarehouseShipmtHeaderRec."Despachador_DXR" <> WarehouseShipmtHeaderRec."DXR-DE Despachador" then
+                    if WarehouseShipmtHeaderToUpdate.Get(WarehouseShipmtHeaderRec."No.") then begin
+                        WarehouseShipmtHeaderToUpdate."Despachador_DXR" := WarehouseShipmtHeaderToUpdate."DXR-DE Despachador";
+                        WarehouseShipmtHeaderToUpdate.Modify(false);
+                        CommitEvery500(RowsSinceCommit);
+                    end;
             until WarehouseShipmtHeaderRec.Next() = 0;
 
+        if RowsSinceCommit > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoBase-MigrPhase1-WAREHOUSESHIPMTHDR-28.3');
+    end;
+
+    // Fixed 2026-08-27: shared bounded-transaction helper for the Phase 1 typed loops - the counter
+    // advances per MODIFIED row, so a re-run that has nothing to do performs zero commits.
+    local procedure CommitEvery500(var RowsSinceCommit: Integer)
+    begin
+        RowsSinceCommit += 1;
+        if RowsSinceCommit < 500 then
+            exit;
+
+        Commit();
+        RowsSinceCommit := 0;
     end;
 }
 

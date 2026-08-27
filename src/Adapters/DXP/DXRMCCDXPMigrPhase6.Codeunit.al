@@ -40,6 +40,9 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (PK + exactly the 2 fields this loop reads/writes) so
+        // the server stops joining every LSC Infocode tableextension companion table for every row.
+        Infocode.SetLoadFields("Code", "Refund Card_DXR", "Refund Card_Old");
         if Infocode.FindSet(true) then
             repeat
                 RecordChanged := false;
@@ -64,6 +67,34 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (PK + exactly the fields read/written below) so the
+        // server stops joining every LSC POS Terminal tableextension companion table for every row.
+        PosTerminal.SetLoadFields(
+            "No.",
+            "Uses VeriPhone_DXR", "Uses VeriPhone_Old",
+            Puerto_DXR, Puerto_Old,
+            Proveedor_DXR, Proveedor_Old,
+            "Imprime Ticket_DXR", "Imprime Ticket_Old",
+            "Puerto Secundario_DXR", "Puerto Secundario_Old",
+            "Direccion IP Secundaria_DXR", "Direccion IP Secundaria_Old",
+            "Direccion IP_DXR", "Direccion IP_Old",
+            "Puerto IP_DXR", "Puerto IP_Old",
+            "Numero Transaccion_DXR", "Numero Transaccion_Old",
+            "Numero Terminal_DXR", "Numero Terminal_Old",
+            "Merchant ID_DXR", "Merchant ID_Old",
+            RutaFirma_DXR, RutaFirma_Old,
+            Auth1_DXR, Auth1_Old,
+            Auth2_DXR, Auth2_Old,
+            IpString_DXR, IpString_Old,
+            Rpuerto_DXR, Rpuerto_Old,
+            LocalIpString_DXR, LocalIpString_Old,
+            LPuerto_DXR, LPuerto_Old,
+            "Cierre Automatico_DXR", "Cierre Automatico_Old",
+            "Visanet IpString_DXR", "Visanet IpString_Old",
+            "Visanet Puerto_DXR", "Visanet Puerto_Old",
+            URLEndPoint_DXR, URLEndPoint_Old,
+            "Use Amount In Currency_DXR", "Use Amount In Currency_Old",
+            "Local Currency Symbol_DXR", "Local Currency Symbol_Old");
         if PosTerminal.FindSet(true) then
             repeat
                 RecordChanged := false;
@@ -177,37 +208,49 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     local procedure CopyPOSTransLineFields()
     var
         PosTransLine: Record "LSC POS Trans. Line";
+        PosTransLineToUpdate: Record "LSC POS Trans. Line";
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
-        if PosTransLine.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) over the WHOLE LSC POS Trans. Line table took an UPDLOCK on
+        // every transaction line for the entire run while only a minority of rows change. Now reads
+        // without the lock (SetLoadFields + FindSet(false)) and locks a row via Get() only when it
+        // really needs a copy; the commit counter advances per MODIFIED row. Same fields, same guards.
+        PosTransLine.SetLoadFields(
+            "Receipt No.", "Line No.",
+            "VP Approved_DXR", "VP Approved_Old",
+            "VP Authorization No._DXR", "VP Authorization No._Old",
+            "VP Lot No._DXR", "VP Lot No._Old",
+            "Cuota Quantity_DXR", "Cuota Quantity_Old");
+        if PosTransLine.FindSet(false) then begin
             repeat
-                RecordChanged := false;
-                if PosTransLine."VP Approved_DXR" <> PosTransLine."VP Approved_Old" then begin
-                    PosTransLine."VP Approved_DXR" := PosTransLine."VP Approved_Old";
-                    RecordChanged := true;
-                end;
-                if PosTransLine."VP Authorization No._DXR" <> PosTransLine."VP Authorization No._Old" then begin
-                    PosTransLine."VP Authorization No._DXR" := PosTransLine."VP Authorization No._Old";
-                    RecordChanged := true;
-                end;
-                if PosTransLine."VP Lot No._DXR" <> PosTransLine."VP Lot No._Old" then begin
-                    PosTransLine."VP Lot No._DXR" := PosTransLine."VP Lot No._Old";
-                    RecordChanged := true;
-                end;
-                if PosTransLine."Cuota Quantity_DXR" <> PosTransLine."Cuota Quantity_Old" then begin
-                    PosTransLine."Cuota Quantity_DXR" := PosTransLine."Cuota Quantity_Old";
-                    RecordChanged := true;
-                end;
+                RecordChanged :=
+                    (PosTransLine."VP Approved_DXR" <> PosTransLine."VP Approved_Old") or
+                    (PosTransLine."VP Authorization No._DXR" <> PosTransLine."VP Authorization No._Old") or
+                    (PosTransLine."VP Lot No._DXR" <> PosTransLine."VP Lot No._Old") or
+                    (PosTransLine."Cuota Quantity_DXR" <> PosTransLine."Cuota Quantity_Old");
                 if RecordChanged then
-                    PosTransLine.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= 500 then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
+                    if PosTransLineToUpdate.Get(PosTransLine."Receipt No.", PosTransLine."Line No.") then begin
+                        if PosTransLineToUpdate."VP Approved_DXR" <> PosTransLineToUpdate."VP Approved_Old" then
+                            PosTransLineToUpdate."VP Approved_DXR" := PosTransLineToUpdate."VP Approved_Old";
+                        if PosTransLineToUpdate."VP Authorization No._DXR" <> PosTransLineToUpdate."VP Authorization No._Old" then
+                            PosTransLineToUpdate."VP Authorization No._DXR" := PosTransLineToUpdate."VP Authorization No._Old";
+                        if PosTransLineToUpdate."VP Lot No._DXR" <> PosTransLineToUpdate."VP Lot No._Old" then
+                            PosTransLineToUpdate."VP Lot No._DXR" := PosTransLineToUpdate."VP Lot No._Old";
+                        if PosTransLineToUpdate."Cuota Quantity_DXR" <> PosTransLineToUpdate."Cuota Quantity_Old" then
+                            PosTransLineToUpdate."Cuota Quantity_DXR" := PosTransLineToUpdate."Cuota Quantity_Old";
+                        PosTransLineToUpdate.Modify(false);
+
+                        RowsSinceCommit += 1;
+                        if RowsSinceCommit >= 500 then begin
+                            Commit();
+                            RowsSinceCommit := 0;
+                        end;
+                    end;
             until PosTransLine.Next() = 0;
-        Commit();
+            if RowsSinceCommit > 0 then
+                Commit();
+        end;
     end;
 
     local procedure CopyTenderTypeFields()
@@ -216,6 +259,15 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (PK + exactly the fields read/written below) so the
+        // server stops joining every LSC Tender Type tableextension companion table for every row.
+        TenderType.SetLoadFields(
+            "Store No.", "Code",
+            "ReqVeriphoneProcessing_DXR", "ReqVeriphoneProcessing_Old",
+            tPayment_DXR, tPayment_Old,
+            "Cuota Payment_DXR", "Cuota Payment_Old",
+            "Use Form For Cuotas_DXR", "Use Form For Cuotas_Old",
+            "InfoCode For Cuotas_DXR", "InfoCode For Cuotas_Old");
         if TenderType.FindSet(true) then
             repeat
                 RecordChanged := false;
@@ -253,37 +305,52 @@ codeunit 60085 "DXR MCC DXP Migr Phase6"
     local procedure CopyTransPaymentEntryFields()
     var
         TransPaymentEntry: Record "LSC Trans. Payment Entry";
+        TransPaymentEntryToUpdate: Record "LSC Trans. Payment Entry";
         RowsSinceCommit: Integer;
         RecordChanged: Boolean;
     begin
-        if TransPaymentEntry.FindSet(true) then
+        // Fixed 2026-08-27: same fix as CopyPOSTransLineFields - FindSet(true) took an UPDLOCK on the
+        // whole LSC Trans. Payment Entry table for the entire run. Read without the lock
+        // (SetLoadFields + FindSet(false)) and lock only the rows that really need a copy via Get();
+        // the commit counter advances per MODIFIED row.
+        TransPaymentEntry.SetLoadFields(
+            "Store No.", "POS Terminal No.", "Transaction No.", "Line No.",
+            "VP Approved_DXR", "VP Approved_Old",
+            "VP Authorization No._DXR", "VP Authorization No._Old",
+            "VP Lot No._DXR", "VP Lot No._Old",
+            "Cuota Quantity_DXR", "Cuota Quantity_Old");
+        if TransPaymentEntry.FindSet(false) then begin
             repeat
-                RecordChanged := false;
-                if TransPaymentEntry."VP Approved_DXR" <> TransPaymentEntry."VP Approved_Old" then begin
-                    TransPaymentEntry."VP Approved_DXR" := TransPaymentEntry."VP Approved_Old";
-                    RecordChanged := true;
-                end;
-                if TransPaymentEntry."VP Authorization No._DXR" <> TransPaymentEntry."VP Authorization No._Old" then begin
-                    TransPaymentEntry."VP Authorization No._DXR" := TransPaymentEntry."VP Authorization No._Old";
-                    RecordChanged := true;
-                end;
-                if TransPaymentEntry."VP Lot No._DXR" <> TransPaymentEntry."VP Lot No._Old" then begin
-                    TransPaymentEntry."VP Lot No._DXR" := TransPaymentEntry."VP Lot No._Old";
-                    RecordChanged := true;
-                end;
-                if TransPaymentEntry."Cuota Quantity_DXR" <> TransPaymentEntry."Cuota Quantity_Old" then begin
-                    TransPaymentEntry."Cuota Quantity_DXR" := TransPaymentEntry."Cuota Quantity_Old";
-                    RecordChanged := true;
-                end;
+                RecordChanged :=
+                    (TransPaymentEntry."VP Approved_DXR" <> TransPaymentEntry."VP Approved_Old") or
+                    (TransPaymentEntry."VP Authorization No._DXR" <> TransPaymentEntry."VP Authorization No._Old") or
+                    (TransPaymentEntry."VP Lot No._DXR" <> TransPaymentEntry."VP Lot No._Old") or
+                    (TransPaymentEntry."Cuota Quantity_DXR" <> TransPaymentEntry."Cuota Quantity_Old");
                 if RecordChanged then
-                    TransPaymentEntry.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= 500 then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
+                    if TransPaymentEntryToUpdate.Get(
+                        TransPaymentEntry."Store No.", TransPaymentEntry."POS Terminal No.",
+                        TransPaymentEntry."Transaction No.", TransPaymentEntry."Line No.")
+                    then begin
+                        if TransPaymentEntryToUpdate."VP Approved_DXR" <> TransPaymentEntryToUpdate."VP Approved_Old" then
+                            TransPaymentEntryToUpdate."VP Approved_DXR" := TransPaymentEntryToUpdate."VP Approved_Old";
+                        if TransPaymentEntryToUpdate."VP Authorization No._DXR" <> TransPaymentEntryToUpdate."VP Authorization No._Old" then
+                            TransPaymentEntryToUpdate."VP Authorization No._DXR" := TransPaymentEntryToUpdate."VP Authorization No._Old";
+                        if TransPaymentEntryToUpdate."VP Lot No._DXR" <> TransPaymentEntryToUpdate."VP Lot No._Old" then
+                            TransPaymentEntryToUpdate."VP Lot No._DXR" := TransPaymentEntryToUpdate."VP Lot No._Old";
+                        if TransPaymentEntryToUpdate."Cuota Quantity_DXR" <> TransPaymentEntryToUpdate."Cuota Quantity_Old" then
+                            TransPaymentEntryToUpdate."Cuota Quantity_DXR" := TransPaymentEntryToUpdate."Cuota Quantity_Old";
+                        TransPaymentEntryToUpdate.Modify(false);
+
+                        RowsSinceCommit += 1;
+                        if RowsSinceCommit >= 500 then begin
+                            Commit();
+                            RowsSinceCommit := 0;
+                        end;
+                    end;
             until TransPaymentEntry.Next() = 0;
-        Commit();
+            if RowsSinceCommit > 0 then
+                Commit();
+        end;
     end;
 }
 

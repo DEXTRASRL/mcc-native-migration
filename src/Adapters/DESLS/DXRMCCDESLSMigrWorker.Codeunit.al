@@ -47,6 +47,10 @@ codeunit 60129 "DXR MCC DESLS Migr Worker"
         // Hardcoded Despacho LS's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        //
+        // Fixed 2026-08-27: SetLoadFields - the loop reads only "User Security ID", and without the
+        // hint every tableextension companion table on User is joined in for every row.
+        UserRec.SetLoadFields("User Security ID");
         if UserRec.FindSet() then
             repeat
                 AssignPermissionSetToUser(UserRec."User Security ID", 'DXR_Despacho LS', DESLSAppId());
@@ -87,10 +91,13 @@ codeunit 60129 "DXR MCC DESLS Migr Worker"
         OldRec: Record "DXR-DE Document Generic";
         NewRec: Record "DXR_Document Generic";
         UpgradeTag: Codeunit "Upgrade Tag";
+        RowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DESPACHOLS-TABLEMIGR-01-50870-28.3') then
             exit;
 
+        // Fixed 2026-08-27: this restore had no Commit at all, so the whole table copy ran as one
+        // unbounded transaction. It now commits every 500 INSERTED rows (plus the remainder below).
         if OldRec.FindSet() then
             repeat
                 if not NewRec.Get(OldRec."Entry No.") then begin
@@ -109,8 +116,17 @@ codeunit 60129 "DXR MCC DESLS Migr Worker"
                     NewRec."Location" := OldRec."Location";
                     NewRec."Document Reference" := OldRec."Document Reference";
                     NewRec.Insert(false);
+
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= 500 then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
             until OldRec.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DESPACHOLS-TABLEMIGR-01-50870-28.3');
     end;

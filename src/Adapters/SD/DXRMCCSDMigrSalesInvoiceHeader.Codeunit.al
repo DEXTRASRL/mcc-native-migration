@@ -6,23 +6,33 @@ codeunit 60073 "DXR MCC SD Migr SalesInvHdr"
     // 59000->54747 on its own "DXR_Sales Invoice Header Ext" table extension).
     Permissions = tabledata "Sales Invoice Header" = RM;
 
+    // Fixed 2026-08-27: same whole-table UPDLOCK + missing-SetLoadFields problem, and the same fix,
+    // as "DXR MCC SD Migr Customer". Sales Invoice Header is one of the largest tables in a live
+    // company, so the old full-table update lock was the worst instance of this pattern here.
     trigger OnRun()
     var
         SalesInvHeader: Record "Sales Invoice Header";
+        SalesInvHeaderToUpdate: Record "Sales Invoice Header";
         RowsSinceCommit: Integer;
     begin
-        if SalesInvHeader.FindSet(true) then
-            repeat
-                if SalesInvHeader."Special Dispatch_DXR" <> SalesInvHeader."Special Dispatch DXR" then begin
-                    SalesInvHeader."Special Dispatch_DXR" := SalesInvHeader."Special Dispatch DXR";
-                    SalesInvHeader.Modify(false);
+        SalesInvHeader.SetLoadFields("No.", "Special Dispatch_DXR", "Special Dispatch DXR");
+        if not SalesInvHeader.FindSet(false) then
+            exit;
+        repeat
+            if SalesInvHeader."Special Dispatch_DXR" <> SalesInvHeader."Special Dispatch DXR" then
+                if SalesInvHeaderToUpdate.Get(SalesInvHeader."No.") then begin
+                    SalesInvHeaderToUpdate."Special Dispatch_DXR" := SalesInvHeaderToUpdate."Special Dispatch DXR";
+                    SalesInvHeaderToUpdate.Modify(false);
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= BatchSize() then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
-            until SalesInvHeader.Next() = 0;
+        until SalesInvHeader.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure BatchSize(): Integer

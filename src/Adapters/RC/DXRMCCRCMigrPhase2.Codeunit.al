@@ -33,6 +33,10 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
         SalesHeader: Record "Sales Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1). "Sales Header" carries many tableextensions
+        // across this portfolio; without a partial-record hint every companion table was joined per
+        // row. Only these two fields are read/written here.
+        SalesHeader.SetLoadFields("POS Special Order_DXR", "POS Special Order");
         if not SalesHeader.FindSet(true) then
             exit;
         repeat
@@ -42,6 +46,10 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
             if Processed mod BatchSize = 0 then
                 Commit();
         until SalesHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4) - previously the last <500 rows
+        // stayed inside the caller's transaction.
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 
     local procedure CopyPurchaseHeaderField()
@@ -49,6 +57,9 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
         PurchHeader: Record "Purchase Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - see CopySalesHeaderField above; only these
+        // two fields are read/written here.
+        PurchHeader.SetLoadFields(Toggle_DXR, Toggle);
         if not PurchHeader.FindSet(true) then
             exit;
         repeat
@@ -58,6 +69,9 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
             if Processed mod BatchSize = 0 then
                 Commit();
         until PurchHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4).
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 
     local procedure CopySalesInvoiceHeaderField()
@@ -65,6 +79,9 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
         SalesInvHeader: Record "Sales Invoice Header";
         Processed: Integer;
     begin
+        // Fixed 2026-08-27: added SetLoadFields (A1) - see CopySalesHeaderField above; only these
+        // two fields are read/written here.
+        SalesInvHeader.SetLoadFields("POS Special Order_DXR", "POS Special Order");
         if not SalesInvHeader.FindSet(true) then
             exit;
         repeat
@@ -74,6 +91,9 @@ codeunit 60132 "DXR MCC RC Migr Phase2"
             if Processed mod BatchSize = 0 then
                 Commit();
         until SalesInvHeader.Next() = 0;
+        // Fixed 2026-08-27: commit the trailing partial batch (A4).
+        if Processed mod BatchSize <> 0 then
+            Commit();
     end;
 }
 

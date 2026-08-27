@@ -187,6 +187,10 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
         // Hardcoded Despacho Base's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        //
+        // Fixed 2026-08-27: SetLoadFields - the loop reads only "User Security ID", and without the
+        // hint every tableextension companion table on User is joined in for every row.
+        UserRec.SetLoadFields("User Security ID");
         if UserRec.FindSet() then
             repeat
                 AssignPermissionSetToUser(UserRec."User Security ID", 'DXR_Despacho Base', DESBAppId());

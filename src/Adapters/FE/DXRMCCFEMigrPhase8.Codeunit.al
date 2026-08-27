@@ -79,6 +79,10 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     var
         Currency: Record Currency;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields this loop reads/writes; PK
+        // fields are always loaded) so the scan stops joining the companion table of every Currency
+        // tableextension in this portfolio once per row.
+        Currency.SetLoadFields("Currency Type_DXR", "EF Currency Type");
         if Currency.FindSet(true) then
             repeat
                 Currency."Currency Type_DXR" := Currency."EF Currency Type";
@@ -89,19 +93,34 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     local procedure CopyPostCodeFields()
     var
         PostCode: Record "Post Code";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1/A4): added SetLoadFields (exactly the 4 fields read/written) and a
+        // bounded Commit - "Post Code" is a full country postal catalogue (tens of thousands of rows
+        // in a DR install), so this used to run as one single unbounded transaction.
+        PostCode.SetLoadFields("Township Code_DXR", "EF Township Code", "County Code_DXR", "EF County Code");
         if PostCode.FindSet(true) then
             repeat
                 PostCode."Township Code_DXR" := PostCode."EF Township Code";
                 PostCode."County Code_DXR" := PostCode."EF County Code";
                 PostCode.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until PostCode.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyUnitOfMeasureFields()
     var
         UnitOfMeasure: Record "Unit of Measure";
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields read/written).
+        UnitOfMeasure.SetLoadFields("UOM Type_DXR", "EF UOM Type");
         if UnitOfMeasure.FindSet(true) then
             repeat
                 UnitOfMeasure."UOM Type_DXR" := UnitOfMeasure."EF UOM Type";
@@ -113,6 +132,8 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     var
         VATPostingSetup: Record "VAT Posting Setup";
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields read/written).
+        VATPostingSetup.SetLoadFields("Tax Indicator_DXR", "EF Tax Indicator");
         if VATPostingSetup.FindSet(true) then
             repeat
                 VATPostingSetup."Tax Indicator_DXR" :=
@@ -128,24 +149,36 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     local procedure CopyItemFieldsInBatches()
     var
         Item: Record Item;
+        ItemToUpdate: Record Item;
         BatchCount: Integer;
     begin
-        if Item.FindSet(true) then
+        // Fixed 2026-08-27 (A1): this scanned the WHOLE Item table with FindSet(true), i.e. an UPDLOCK
+        // on every item held for the entire run, while only the minority of rows whose values differ
+        // actually change; and with no SetLoadFields every Item tableextension companion table in this
+        // portfolio was joined in per row. Now: SetLoadFields (PK + the 4 fields touched) +
+        // FindSet(false) (no UPDLOCK), and the row is re-read with Get() and locked only when it really
+        // needs the copy. The commit counter advances per MODIFIED row instead of per scanned row.
+        // Same fields, same guard condition, same result.
+        Item.SetLoadFields("No.", "Applies for ISC_DXR", "EF Applies for ISC", "Tax Type_DXR", "EF Tax Type");
+        if Item.FindSet(false) then
             repeat
                 if (Item."Applies for ISC_DXR" <> Item."EF Applies for ISC") or
                    (Item."Tax Type_DXR" <> Item."EF Tax Type")
-                then begin
-                    Item."Applies for ISC_DXR" := Item."EF Applies for ISC";
-                    Item."Tax Type_DXR" := Item."EF Tax Type";
-                    Item.Modify(false);
-                end;
+                then
+                    if ItemToUpdate.Get(Item."No.") then begin
+                        ItemToUpdate."Applies for ISC_DXR" := ItemToUpdate."EF Applies for ISC";
+                        ItemToUpdate."Tax Type_DXR" := ItemToUpdate."EF Tax Type";
+                        ItemToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= ProductBatchSize() then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= ProductBatchSize() then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until Item.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure ProductBatchSize(): Integer

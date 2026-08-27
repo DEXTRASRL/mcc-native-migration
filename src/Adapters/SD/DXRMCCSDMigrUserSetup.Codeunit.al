@@ -8,17 +8,24 @@ codeunit 60077 "DXR MCC SD Migr UserSetup"
     // "Special Dispatch..." name).
     Permissions = tabledata "User Setup" = RM;
 
+    // Fixed 2026-08-27: same whole-table UPDLOCK + missing-SetLoadFields problem, and the same fix,
+    // as "DXR MCC SD Migr Customer" - "User Setup" is small but is read on virtually every posting
+    // path, so an UPDLOCK over all of it for the whole run blocks unrelated work.
     trigger OnRun()
     var
         UserSetup: Record "User Setup";
+        UserSetupToUpdate: Record "User Setup";
     begin
-        if UserSetup.FindSet(true) then
-            repeat
-                if UserSetup."Invoice Permission_DXR" <> UserSetup."Invoice Permission DXR" then begin
-                    UserSetup."Invoice Permission_DXR" := UserSetup."Invoice Permission DXR";
-                    UserSetup.Modify(false);
+        UserSetup.SetLoadFields("User ID", "Invoice Permission_DXR", "Invoice Permission DXR");
+        if not UserSetup.FindSet(false) then
+            exit;
+        repeat
+            if UserSetup."Invoice Permission_DXR" <> UserSetup."Invoice Permission DXR" then
+                if UserSetupToUpdate.Get(UserSetup."User ID") then begin
+                    UserSetupToUpdate."Invoice Permission_DXR" := UserSetupToUpdate."Invoice Permission DXR";
+                    UserSetupToUpdate.Modify(false);
                 end;
-            until UserSetup.Next() = 0;
+        until UserSetup.Next() = 0;
     end;
 }
 

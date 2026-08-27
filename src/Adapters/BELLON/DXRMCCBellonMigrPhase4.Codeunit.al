@@ -29,6 +29,9 @@ codeunit 60148 "DXR MCC Bellon Migr Phase4"
         // Hardcoded Bellon Customization's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        // Fixed 2026-08-27: the loop read every column of every User row (and every companion
+        // table of every tableextension on User) although it only ever uses "User Security ID".
+        UserRec.SetLoadFields("User Security ID");
         if not UserRec.FindSet() then
             exit;
         repeat

@@ -263,8 +263,41 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchaseHeaderFields()
     var
         PurchaseHeader: Record "Purchase Header";
+        PurchaseHeaderToUpdate: Record "Purchase Header";
+        BatchCount: Integer;
     begin
-        if PurchaseHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 + A4 - the unfiltered FindSet(true) took a SQL UPDLOCK on every open
+        // purchase document for the whole run (Learn, "Record.FindSet") and, with no SetLoadFields,
+        // joined every Purchase Header tableextension companion table per row. Now: partial unlocked
+        // scan, Get()/lock only on rows that really change, and a Commit every 500 MODIFIED rows so the
+        // scan is no longer one unbounded transaction (it previously never committed at all).
+        PurchaseHeader.SetLoadFields(
+            "Document Type", "No.",
+            "NCF Interno Proveedor_DXR", "DXNCF Interno Proveedor",
+            "No. Series NCF Fact._DXR", "DXNo. Series NCF Fact.",
+            "No. Series NCF Ab._DXR", "DXNo. Series NCF Ab.",
+            "Utiliza Retencion_DXR", "DXUtiliza Retencion", NCF_DXR, DXNCF,
+            "Utiliza NCF Externo_DXR", "DXUtiliza NCF Externo",
+            "Descripcion NCF_DXR", "DXDescripcion NCF",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Cod. Categoria NCF_DXR", "DXCod. Categoria NCF",
+            "Multiples Cat. NCF_DXR", "DXMultiples Cat. NCF",
+            "Correccion Int._DXR", "DXCorreccion Int.",
+            "Note Description_DXR", "DX Note Description",
+            "Num. Importacion_DXR", "DXNum. Importacion",
+            "Monto Selectivo_DXR", "DXMonto Selectivo",
+            "Propina Legal_DXR", "DXPropina Legal",
+            "Tipo NCF_DXR", "DXTipo NCF", "Tipo Retencion_DXR", "DXTipo Retencion",
+            "Otros Impuestos y Tasas_DXR", "DXOtros Impuestos y Tasas",
+            "Razon Social_DXR", "DXRazon Social",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR,
+            "Vendor Name_DXR", "DXVendor Name",
+            "Tipo Servicio Adquirido_DXR", "DXTipo Servicio Adquirido",
+            "Det Servicio Adquir_DXR", "DXDetalle Servicio Adquirido",
+            "Parte Relacionada_DXR", "DXParte Relacionada");
+        if PurchaseHeader.FindSet(false) then
             repeat
                 if (PurchaseHeader."NCF Interno Proveedor_DXR" <> PurchaseHeader."DXNCF Interno Proveedor") or
                    (PurchaseHeader."No. Series NCF Fact._DXR" <> PurchaseHeader."DXNo. Series NCF Fact.") or
@@ -292,36 +325,46 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
                    (PurchaseHeader."Tipo Servicio Adquirido_DXR" <> PurchaseHeader."DXTipo Servicio Adquirido") or
                    (PurchaseHeader."Det Servicio Adquir_DXR" <> PurchaseHeader."DXDetalle Servicio Adquirido") or
                    (PurchaseHeader."Parte Relacionada_DXR" <> PurchaseHeader."DXParte Relacionada")
-                then begin
-                    PurchaseHeader."NCF Interno Proveedor_DXR" := PurchaseHeader."DXNCF Interno Proveedor";
-                    PurchaseHeader."No. Series NCF Fact._DXR" := PurchaseHeader."DXNo. Series NCF Fact.";
-                    PurchaseHeader."No. Series NCF Ab._DXR" := PurchaseHeader."DXNo. Series NCF Ab.";
-                    PurchaseHeader."Utiliza Retencion_DXR" := PurchaseHeader."DXUtiliza Retencion";
-                    PurchaseHeader.NCF_DXR := PurchaseHeader.DXNCF;
-                    PurchaseHeader."Utiliza NCF Externo_DXR" := PurchaseHeader."DXUtiliza NCF Externo";
-                    PurchaseHeader."Descripcion NCF_DXR" := PurchaseHeader."DXDescripcion NCF";
-                    PurchaseHeader."Cod. Retencion ITBIS_DXR" := PurchaseHeader."DXCod. Retencion ITBIS";
-                    PurchaseHeader."Cod. Retencion ISR_DXR" := PurchaseHeader."DXCod. Retencion ISR";
-                    PurchaseHeader."Cod. Categoria NCF_DXR" := PurchaseHeader."DXCod. Categoria NCF";
-                    PurchaseHeader."Multiples Cat. NCF_DXR" := PurchaseHeader."DXMultiples Cat. NCF";
-                    PurchaseHeader."Correccion Int._DXR" := PurchaseHeader."DXCorreccion Int.";
-                    PurchaseHeader."Note Description_DXR" := PurchaseHeader."DX Note Description";
-                    PurchaseHeader."Num. Importacion_DXR" := PurchaseHeader."DXNum. Importacion";
-                    PurchaseHeader."Monto Selectivo_DXR" := PurchaseHeader."DXMonto Selectivo";
-                    PurchaseHeader."Propina Legal_DXR" := PurchaseHeader."DXPropina Legal";
-                    PurchaseHeader."Tipo NCF_DXR" := PurchaseHeader."DXTipo NCF";
-                    PurchaseHeader."Tipo Retencion_DXR" := PurchaseHeader."DXTipo Retencion";
-                    PurchaseHeader."Otros Impuestos y Tasas_DXR" := PurchaseHeader."DXOtros Impuestos y Tasas";
-                    PurchaseHeader."Razon Social_DXR" := PurchaseHeader."DXRazon Social";
-                    PurchaseHeader.ImporteRetenidoITBIS_DXR := PurchaseHeader.DXImporteRetenidoITBIS;
-                    PurchaseHeader.ImporteRetenidoISR_DXR := PurchaseHeader.DXImporteRetenidoISR;
-                    PurchaseHeader."Vendor Name_DXR" := PurchaseHeader."DXVendor Name";
-                    PurchaseHeader."Tipo Servicio Adquirido_DXR" := PurchaseHeader."DXTipo Servicio Adquirido";
-                    PurchaseHeader."Det Servicio Adquir_DXR" := PurchaseHeader."DXDetalle Servicio Adquirido";
-                    PurchaseHeader."Parte Relacionada_DXR" := PurchaseHeader."DXParte Relacionada";
-                    PurchaseHeader.Modify(false);
-                end;
+                then
+                    if PurchaseHeaderToUpdate.Get(PurchaseHeader."Document Type", PurchaseHeader."No.") then begin
+                        PurchaseHeaderToUpdate."NCF Interno Proveedor_DXR" := PurchaseHeaderToUpdate."DXNCF Interno Proveedor";
+                        PurchaseHeaderToUpdate."No. Series NCF Fact._DXR" := PurchaseHeaderToUpdate."DXNo. Series NCF Fact.";
+                        PurchaseHeaderToUpdate."No. Series NCF Ab._DXR" := PurchaseHeaderToUpdate."DXNo. Series NCF Ab.";
+                        PurchaseHeaderToUpdate."Utiliza Retencion_DXR" := PurchaseHeaderToUpdate."DXUtiliza Retencion";
+                        PurchaseHeaderToUpdate.NCF_DXR := PurchaseHeaderToUpdate.DXNCF;
+                        PurchaseHeaderToUpdate."Utiliza NCF Externo_DXR" := PurchaseHeaderToUpdate."DXUtiliza NCF Externo";
+                        PurchaseHeaderToUpdate."Descripcion NCF_DXR" := PurchaseHeaderToUpdate."DXDescripcion NCF";
+                        PurchaseHeaderToUpdate."Cod. Retencion ITBIS_DXR" := PurchaseHeaderToUpdate."DXCod. Retencion ITBIS";
+                        PurchaseHeaderToUpdate."Cod. Retencion ISR_DXR" := PurchaseHeaderToUpdate."DXCod. Retencion ISR";
+                        PurchaseHeaderToUpdate."Cod. Categoria NCF_DXR" := PurchaseHeaderToUpdate."DXCod. Categoria NCF";
+                        PurchaseHeaderToUpdate."Multiples Cat. NCF_DXR" := PurchaseHeaderToUpdate."DXMultiples Cat. NCF";
+                        PurchaseHeaderToUpdate."Correccion Int._DXR" := PurchaseHeaderToUpdate."DXCorreccion Int.";
+                        PurchaseHeaderToUpdate."Note Description_DXR" := PurchaseHeaderToUpdate."DX Note Description";
+                        PurchaseHeaderToUpdate."Num. Importacion_DXR" := PurchaseHeaderToUpdate."DXNum. Importacion";
+                        PurchaseHeaderToUpdate."Monto Selectivo_DXR" := PurchaseHeaderToUpdate."DXMonto Selectivo";
+                        PurchaseHeaderToUpdate."Propina Legal_DXR" := PurchaseHeaderToUpdate."DXPropina Legal";
+                        PurchaseHeaderToUpdate."Tipo NCF_DXR" := PurchaseHeaderToUpdate."DXTipo NCF";
+                        PurchaseHeaderToUpdate."Tipo Retencion_DXR" := PurchaseHeaderToUpdate."DXTipo Retencion";
+                        PurchaseHeaderToUpdate."Otros Impuestos y Tasas_DXR" := PurchaseHeaderToUpdate."DXOtros Impuestos y Tasas";
+                        PurchaseHeaderToUpdate."Razon Social_DXR" := PurchaseHeaderToUpdate."DXRazon Social";
+                        PurchaseHeaderToUpdate.ImporteRetenidoITBIS_DXR := PurchaseHeaderToUpdate.DXImporteRetenidoITBIS;
+                        PurchaseHeaderToUpdate.ImporteRetenidoISR_DXR := PurchaseHeaderToUpdate.DXImporteRetenidoISR;
+                        PurchaseHeaderToUpdate."Vendor Name_DXR" := PurchaseHeaderToUpdate."DXVendor Name";
+                        PurchaseHeaderToUpdate."Tipo Servicio Adquirido_DXR" := PurchaseHeaderToUpdate."DXTipo Servicio Adquirido";
+                        PurchaseHeaderToUpdate."Det Servicio Adquir_DXR" := PurchaseHeaderToUpdate."DXDetalle Servicio Adquirido";
+                        PurchaseHeaderToUpdate."Parte Relacionada_DXR" := PurchaseHeaderToUpdate."DXParte Relacionada";
+                        PurchaseHeaderToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchaseHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq21: Purch. Inv. Header field restore (bulk + FlowFields + special conversions) =====
@@ -354,9 +397,37 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchInvHeaderBulkFields()
     var
         PurchInvHeader: Record "Purch. Inv. Header";
+        PurchInvHeaderToUpdate: Record "Purch. Inv. Header";
         BatchCount: Integer;
     begin
-        if PurchInvHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        PurchInvHeader.SetLoadFields(
+            "No.",
+            "Tipo NCF Provedor_DXR", "DXTipo NCF Provedor",
+            "No. Series NCF Fact._DXR", "DXNo. Series NCF Fact.",
+            "No. Series NCF Ab._DXR", "DXNo. Series NCF Ab.",
+            "Utiliza Retencion_DXR", "DXUtiliza Retencion", NCF_DXR, DXNCF,
+            "Utiliza NCF Externo_DXR", "DXUtiliza NCF Externo",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Cod. Categoria NCF_DXR", "DXCod. Categoria NCF",
+            "Multiples Cat. NCF_DXR", "DXMultiples Cat. NCF",
+            "Correccion Int._DXR", "DXCorreccion Int.",
+            "Note Description_DXR", "DX Note Description",
+            "Monto Selectivo_DXR", "DXMonto Selectivo",
+            "Propina Legal_DXR", "DXPropina Legal",
+            "Tipo NCF_DXR", "DXTipo NCF", "Tipo Retencion_DXR", "DXTipo Retencion",
+            "Otros Impuestos y Tasas_DXR", "DXOtros Impuestos y Tasas",
+            "Tipo Compra_DXR", "DXTipo Compra",
+            "Fecha Expiracion NCF_DXR", "DXFecha Expiracion NCF",
+            "Vendor Name_DXR", "DX Vendor Name",
+            "Tipo Servicio Adquirido_DXR", "DXTipo Servicio Adquirido",
+            "Det Servicio Adquir_DXR", "DXDetalle Servicio Adquirido",
+            "Parte Relacionada_DXR", "DXParte Relacionada",
+            "Inv. Status_DXR", "DX Inv. Status");
+        if PurchInvHeader.FindSet(false) then
             repeat
                 if (PurchInvHeader."Tipo NCF Provedor_DXR" <> PurchInvHeader."DXTipo NCF Provedor") or
                    (PurchInvHeader."No. Series NCF Fact._DXR" <> PurchInvHeader."DXNo. Series NCF Fact.") or
@@ -382,40 +453,44 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
                    (PurchInvHeader."Det Servicio Adquir_DXR" <> PurchInvHeader."DXDetalle Servicio Adquirido") or
                    (PurchInvHeader."Parte Relacionada_DXR" <> PurchInvHeader."DXParte Relacionada") or
                    (PurchInvHeader."Inv. Status_DXR" <> PurchInvHeader."DX Inv. Status")
-                then begin
-                    PurchInvHeader."Tipo NCF Provedor_DXR" := PurchInvHeader."DXTipo NCF Provedor";
-                    PurchInvHeader."No. Series NCF Fact._DXR" := PurchInvHeader."DXNo. Series NCF Fact.";
-                    PurchInvHeader."No. Series NCF Ab._DXR" := PurchInvHeader."DXNo. Series NCF Ab.";
-                    PurchInvHeader."Utiliza Retencion_DXR" := PurchInvHeader."DXUtiliza Retencion";
-                    PurchInvHeader.NCF_DXR := PurchInvHeader.DXNCF;
-                    PurchInvHeader."Utiliza NCF Externo_DXR" := PurchInvHeader."DXUtiliza NCF Externo";
-                    PurchInvHeader."Cod. Retencion ITBIS_DXR" := PurchInvHeader."DXCod. Retencion ITBIS";
-                    PurchInvHeader."Cod. Retencion ISR_DXR" := PurchInvHeader."DXCod. Retencion ISR";
-                    PurchInvHeader."Cod. Categoria NCF_DXR" := PurchInvHeader."DXCod. Categoria NCF";
-                    PurchInvHeader."Multiples Cat. NCF_DXR" := PurchInvHeader."DXMultiples Cat. NCF";
-                    PurchInvHeader."Correccion Int._DXR" := PurchInvHeader."DXCorreccion Int.";
-                    PurchInvHeader."Note Description_DXR" := PurchInvHeader."DX Note Description";
-                    PurchInvHeader."Monto Selectivo_DXR" := PurchInvHeader."DXMonto Selectivo";
-                    PurchInvHeader."Propina Legal_DXR" := PurchInvHeader."DXPropina Legal";
-                    PurchInvHeader."Tipo NCF_DXR" := PurchInvHeader."DXTipo NCF";
-                    PurchInvHeader."Tipo Retencion_DXR" := PurchInvHeader."DXTipo Retencion";
-                    PurchInvHeader."Otros Impuestos y Tasas_DXR" := PurchInvHeader."DXOtros Impuestos y Tasas";
-                    PurchInvHeader."Tipo Compra_DXR" := PurchInvHeader."DXTipo Compra";
-                    PurchInvHeader."Fecha Expiracion NCF_DXR" := PurchInvHeader."DXFecha Expiracion NCF";
-                    PurchInvHeader."Vendor Name_DXR" := PurchInvHeader."DX Vendor Name";
-                    PurchInvHeader."Tipo Servicio Adquirido_DXR" := PurchInvHeader."DXTipo Servicio Adquirido";
-                    PurchInvHeader."Det Servicio Adquir_DXR" := PurchInvHeader."DXDetalle Servicio Adquirido";
-                    PurchInvHeader."Parte Relacionada_DXR" := PurchInvHeader."DXParte Relacionada";
-                    PurchInvHeader."Inv. Status_DXR" := PurchInvHeader."DX Inv. Status";
-                    PurchInvHeader.Modify(false);
-                end;
+                then
+                    if PurchInvHeaderToUpdate.Get(PurchInvHeader."No.") then begin
+                        PurchInvHeaderToUpdate."Tipo NCF Provedor_DXR" := PurchInvHeaderToUpdate."DXTipo NCF Provedor";
+                        PurchInvHeaderToUpdate."No. Series NCF Fact._DXR" := PurchInvHeaderToUpdate."DXNo. Series NCF Fact.";
+                        PurchInvHeaderToUpdate."No. Series NCF Ab._DXR" := PurchInvHeaderToUpdate."DXNo. Series NCF Ab.";
+                        PurchInvHeaderToUpdate."Utiliza Retencion_DXR" := PurchInvHeaderToUpdate."DXUtiliza Retencion";
+                        PurchInvHeaderToUpdate.NCF_DXR := PurchInvHeaderToUpdate.DXNCF;
+                        PurchInvHeaderToUpdate."Utiliza NCF Externo_DXR" := PurchInvHeaderToUpdate."DXUtiliza NCF Externo";
+                        PurchInvHeaderToUpdate."Cod. Retencion ITBIS_DXR" := PurchInvHeaderToUpdate."DXCod. Retencion ITBIS";
+                        PurchInvHeaderToUpdate."Cod. Retencion ISR_DXR" := PurchInvHeaderToUpdate."DXCod. Retencion ISR";
+                        PurchInvHeaderToUpdate."Cod. Categoria NCF_DXR" := PurchInvHeaderToUpdate."DXCod. Categoria NCF";
+                        PurchInvHeaderToUpdate."Multiples Cat. NCF_DXR" := PurchInvHeaderToUpdate."DXMultiples Cat. NCF";
+                        PurchInvHeaderToUpdate."Correccion Int._DXR" := PurchInvHeaderToUpdate."DXCorreccion Int.";
+                        PurchInvHeaderToUpdate."Note Description_DXR" := PurchInvHeaderToUpdate."DX Note Description";
+                        PurchInvHeaderToUpdate."Monto Selectivo_DXR" := PurchInvHeaderToUpdate."DXMonto Selectivo";
+                        PurchInvHeaderToUpdate."Propina Legal_DXR" := PurchInvHeaderToUpdate."DXPropina Legal";
+                        PurchInvHeaderToUpdate."Tipo NCF_DXR" := PurchInvHeaderToUpdate."DXTipo NCF";
+                        PurchInvHeaderToUpdate."Tipo Retencion_DXR" := PurchInvHeaderToUpdate."DXTipo Retencion";
+                        PurchInvHeaderToUpdate."Otros Impuestos y Tasas_DXR" := PurchInvHeaderToUpdate."DXOtros Impuestos y Tasas";
+                        PurchInvHeaderToUpdate."Tipo Compra_DXR" := PurchInvHeaderToUpdate."DXTipo Compra";
+                        PurchInvHeaderToUpdate."Fecha Expiracion NCF_DXR" := PurchInvHeaderToUpdate."DXFecha Expiracion NCF";
+                        PurchInvHeaderToUpdate."Vendor Name_DXR" := PurchInvHeaderToUpdate."DX Vendor Name";
+                        PurchInvHeaderToUpdate."Tipo Servicio Adquirido_DXR" := PurchInvHeaderToUpdate."DXTipo Servicio Adquirido";
+                        PurchInvHeaderToUpdate."Det Servicio Adquir_DXR" := PurchInvHeaderToUpdate."DXDetalle Servicio Adquirido";
+                        PurchInvHeaderToUpdate."Parte Relacionada_DXR" := PurchInvHeaderToUpdate."DXParte Relacionada";
+                        PurchInvHeaderToUpdate."Inv. Status_DXR" := PurchInvHeaderToUpdate."DX Inv. Status";
+                        PurchInvHeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchInvHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Deliberate no-op, matching real source behavior exactly: both "DX Reports 606" (54133) and
@@ -432,23 +507,32 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchInvHeaderSpecialConversions()
     var
         PurchInvHeader: Record "Purch. Inv. Header";
+        PurchInvHeaderToUpdate: Record "Purch. Inv. Header";
         NewPostedInvStatus: Enum "DXR_Posted Inv. Status";
         BatchCount: Integer;
     begin
-        if PurchInvHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        PurchInvHeader.SetLoadFields("No.", "Posted Inv. Status_DXR", "DX Posted Inv. Status");
+        if PurchInvHeader.FindSet(false) then
             repeat
                 NewPostedInvStatus := MapPostedInvStatus(PurchInvHeader."DX Posted Inv. Status");
-                if PurchInvHeader."Posted Inv. Status_DXR" <> NewPostedInvStatus then begin
-                    PurchInvHeader."Posted Inv. Status_DXR" := NewPostedInvStatus;
-                    PurchInvHeader.Modify(false);
-                end;
+                if PurchInvHeader."Posted Inv. Status_DXR" <> NewPostedInvStatus then
+                    if PurchInvHeaderToUpdate.Get(PurchInvHeader."No.") then begin
+                        PurchInvHeaderToUpdate."Posted Inv. Status_DXR" := NewPostedInvStatus;
+                        PurchInvHeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchInvHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Verified against Enum "Posted Inv. Status" (standard BC platform enum) and Enum
@@ -492,9 +576,31 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchCrMemoHdrBulkFields()
     var
         PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
+        PurchCrMemoHdrToUpdate: Record "Purch. Cr. Memo Hdr.";
         BatchCount: Integer;
     begin
-        if PurchCrMemoHdr.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        PurchCrMemoHdr.SetLoadFields(
+            "No.",
+            "Tipo NCF Provedor_DXR", "DXTipo NCF Provedor",
+            "No. Series NCF Fact._DXR", "DXNo. Series NCF Fact.",
+            "No. Series NCF Ab._DXR", "DXNo. Series NCF Ab.",
+            "Utiliza Retencion_DXR", "DXUtiliza Retencion", NCF_DXR, DXNCF,
+            "Utiliza NCF Externo_DXR", "DXUtiliza NCF Externo",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Cod. Categoria NCF_DXR", "DXCod. Categoria NCF",
+            "Multiples Cat. NCF_DXR", "DXMultiples Cat. NCF",
+            "Correccion Int._DXR", "DXCorreccion Int.",
+            "Monto Selectivo_DXR", "DXMonto Selectivo",
+            "Propina Legal_DXR", "DXPropina Legal",
+            "Tipo NCF_DXR", "DXTipo NCF", "Tipo Retencion_DXR", "DXTipo Retencion",
+            "Otros Impuestos y Tasas_DXR", "DXOtros Impuestos y Tasas",
+            "Tipo Compra_DXR", "DXTipo Compra",
+            "Fecha Expiracion NCF_DXR", "DXFecha Expiracion NCF");
+        if PurchCrMemoHdr.FindSet(false) then
             repeat
                 if (PurchCrMemoHdr."Tipo NCF Provedor_DXR" <> PurchCrMemoHdr."DXTipo NCF Provedor") or
                    (PurchCrMemoHdr."No. Series NCF Fact._DXR" <> PurchCrMemoHdr."DXNo. Series NCF Fact.") or
@@ -514,34 +620,38 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
                    (PurchCrMemoHdr."Otros Impuestos y Tasas_DXR" <> PurchCrMemoHdr."DXOtros Impuestos y Tasas") or
                    (PurchCrMemoHdr."Tipo Compra_DXR" <> PurchCrMemoHdr."DXTipo Compra") or
                    (PurchCrMemoHdr."Fecha Expiracion NCF_DXR" <> PurchCrMemoHdr."DXFecha Expiracion NCF")
-                then begin
-                    PurchCrMemoHdr."Tipo NCF Provedor_DXR" := PurchCrMemoHdr."DXTipo NCF Provedor";
-                    PurchCrMemoHdr."No. Series NCF Fact._DXR" := PurchCrMemoHdr."DXNo. Series NCF Fact.";
-                    PurchCrMemoHdr."No. Series NCF Ab._DXR" := PurchCrMemoHdr."DXNo. Series NCF Ab.";
-                    PurchCrMemoHdr."Utiliza Retencion_DXR" := PurchCrMemoHdr."DXUtiliza Retencion";
-                    PurchCrMemoHdr.NCF_DXR := PurchCrMemoHdr.DXNCF;
-                    PurchCrMemoHdr."Utiliza NCF Externo_DXR" := PurchCrMemoHdr."DXUtiliza NCF Externo";
-                    PurchCrMemoHdr."Cod. Retencion ITBIS_DXR" := PurchCrMemoHdr."DXCod. Retencion ITBIS";
-                    PurchCrMemoHdr."Cod. Retencion ISR_DXR" := PurchCrMemoHdr."DXCod. Retencion ISR";
-                    PurchCrMemoHdr."Cod. Categoria NCF_DXR" := PurchCrMemoHdr."DXCod. Categoria NCF";
-                    PurchCrMemoHdr."Multiples Cat. NCF_DXR" := PurchCrMemoHdr."DXMultiples Cat. NCF";
-                    PurchCrMemoHdr."Correccion Int._DXR" := PurchCrMemoHdr."DXCorreccion Int.";
-                    PurchCrMemoHdr."Monto Selectivo_DXR" := PurchCrMemoHdr."DXMonto Selectivo";
-                    PurchCrMemoHdr."Propina Legal_DXR" := PurchCrMemoHdr."DXPropina Legal";
-                    PurchCrMemoHdr."Tipo NCF_DXR" := PurchCrMemoHdr."DXTipo NCF";
-                    PurchCrMemoHdr."Tipo Retencion_DXR" := PurchCrMemoHdr."DXTipo Retencion";
-                    PurchCrMemoHdr."Otros Impuestos y Tasas_DXR" := PurchCrMemoHdr."DXOtros Impuestos y Tasas";
-                    PurchCrMemoHdr."Tipo Compra_DXR" := PurchCrMemoHdr."DXTipo Compra";
-                    PurchCrMemoHdr."Fecha Expiracion NCF_DXR" := PurchCrMemoHdr."DXFecha Expiracion NCF";
-                    PurchCrMemoHdr.Modify(false);
-                end;
+                then
+                    if PurchCrMemoHdrToUpdate.Get(PurchCrMemoHdr."No.") then begin
+                        PurchCrMemoHdrToUpdate."Tipo NCF Provedor_DXR" := PurchCrMemoHdrToUpdate."DXTipo NCF Provedor";
+                        PurchCrMemoHdrToUpdate."No. Series NCF Fact._DXR" := PurchCrMemoHdrToUpdate."DXNo. Series NCF Fact.";
+                        PurchCrMemoHdrToUpdate."No. Series NCF Ab._DXR" := PurchCrMemoHdrToUpdate."DXNo. Series NCF Ab.";
+                        PurchCrMemoHdrToUpdate."Utiliza Retencion_DXR" := PurchCrMemoHdrToUpdate."DXUtiliza Retencion";
+                        PurchCrMemoHdrToUpdate.NCF_DXR := PurchCrMemoHdrToUpdate.DXNCF;
+                        PurchCrMemoHdrToUpdate."Utiliza NCF Externo_DXR" := PurchCrMemoHdrToUpdate."DXUtiliza NCF Externo";
+                        PurchCrMemoHdrToUpdate."Cod. Retencion ITBIS_DXR" := PurchCrMemoHdrToUpdate."DXCod. Retencion ITBIS";
+                        PurchCrMemoHdrToUpdate."Cod. Retencion ISR_DXR" := PurchCrMemoHdrToUpdate."DXCod. Retencion ISR";
+                        PurchCrMemoHdrToUpdate."Cod. Categoria NCF_DXR" := PurchCrMemoHdrToUpdate."DXCod. Categoria NCF";
+                        PurchCrMemoHdrToUpdate."Multiples Cat. NCF_DXR" := PurchCrMemoHdrToUpdate."DXMultiples Cat. NCF";
+                        PurchCrMemoHdrToUpdate."Correccion Int._DXR" := PurchCrMemoHdrToUpdate."DXCorreccion Int.";
+                        PurchCrMemoHdrToUpdate."Monto Selectivo_DXR" := PurchCrMemoHdrToUpdate."DXMonto Selectivo";
+                        PurchCrMemoHdrToUpdate."Propina Legal_DXR" := PurchCrMemoHdrToUpdate."DXPropina Legal";
+                        PurchCrMemoHdrToUpdate."Tipo NCF_DXR" := PurchCrMemoHdrToUpdate."DXTipo NCF";
+                        PurchCrMemoHdrToUpdate."Tipo Retencion_DXR" := PurchCrMemoHdrToUpdate."DXTipo Retencion";
+                        PurchCrMemoHdrToUpdate."Otros Impuestos y Tasas_DXR" := PurchCrMemoHdrToUpdate."DXOtros Impuestos y Tasas";
+                        PurchCrMemoHdrToUpdate."Tipo Compra_DXR" := PurchCrMemoHdrToUpdate."DXTipo Compra";
+                        PurchCrMemoHdrToUpdate."Fecha Expiracion NCF_DXR" := PurchCrMemoHdrToUpdate."DXFecha Expiracion NCF";
+                        PurchCrMemoHdrToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchCrMemoHdr.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Deliberate no-op, matching real source behavior exactly: both "DX Reports 606" (54133) and
@@ -577,8 +687,22 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchaseLineBulkFields()
     var
         PurchaseLine: Record "Purchase Line";
+        PurchaseLineToUpdate: Record "Purchase Line";
+        BatchCount: Integer;
     begin
-        if PurchaseLine.FindSet(true) then
+        // Fixed 2026-08-27: A1 + A4 - the unfiltered FindSet(true) held a SQL UPDLOCK on every open
+        // purchase line for the whole run and, with no SetLoadFields, joined every Purchase Line
+        // tableextension companion table per row. Partial unlocked scan, Get()/lock only on rows that
+        // really change, and a Commit every 500 MODIFIED rows (this loop previously never committed).
+        PurchaseLine.SetLoadFields(
+            "Document Type", "Document No.", "Line No.",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR,
+            "Services/Assets_DXR", "DX Services/Assets",
+            "Cat. NCF_DXR", "DX Cat. NCF");
+        if PurchaseLine.FindSet(false) then
             repeat
                 if (PurchaseLine."Cod. Retencion ITBIS_DXR" <> PurchaseLine."DXCod. Retencion ITBIS") or
                    (PurchaseLine."Cod. Retencion ISR_DXR" <> PurchaseLine."DXCod. Retencion ISR") or
@@ -586,16 +710,26 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
                    (PurchaseLine.ImporteRetenidoISR_DXR <> PurchaseLine.DXImporteRetenidoISR) or
                    (PurchaseLine."Services/Assets_DXR" <> PurchaseLine."DX Services/Assets") or
                    (PurchaseLine."Cat. NCF_DXR" <> PurchaseLine."DX Cat. NCF")
-                then begin
-                    PurchaseLine."Cod. Retencion ITBIS_DXR" := PurchaseLine."DXCod. Retencion ITBIS";
-                    PurchaseLine."Cod. Retencion ISR_DXR" := PurchaseLine."DXCod. Retencion ISR";
-                    PurchaseLine.ImporteRetenidoITBIS_DXR := PurchaseLine.DXImporteRetenidoITBIS;
-                    PurchaseLine.ImporteRetenidoISR_DXR := PurchaseLine.DXImporteRetenidoISR;
-                    PurchaseLine."Services/Assets_DXR" := PurchaseLine."DX Services/Assets";
-                    PurchaseLine."Cat. NCF_DXR" := PurchaseLine."DX Cat. NCF";
-                    PurchaseLine.Modify(false);
-                end;
+                then
+                    if PurchaseLineToUpdate.Get(PurchaseLine."Document Type", PurchaseLine."Document No.", PurchaseLine."Line No.") then begin
+                        PurchaseLineToUpdate."Cod. Retencion ITBIS_DXR" := PurchaseLineToUpdate."DXCod. Retencion ITBIS";
+                        PurchaseLineToUpdate."Cod. Retencion ISR_DXR" := PurchaseLineToUpdate."DXCod. Retencion ISR";
+                        PurchaseLineToUpdate.ImporteRetenidoITBIS_DXR := PurchaseLineToUpdate.DXImporteRetenidoITBIS;
+                        PurchaseLineToUpdate.ImporteRetenidoISR_DXR := PurchaseLineToUpdate.DXImporteRetenidoISR;
+                        PurchaseLineToUpdate."Services/Assets_DXR" := PurchaseLineToUpdate."DX Services/Assets";
+                        PurchaseLineToUpdate."Cat. NCF_DXR" := PurchaseLineToUpdate."DX Cat. NCF";
+                        PurchaseLineToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchaseLine.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Deliberate no-op, matching real source behavior exactly: both "DXTipo Compra" (54100) and
@@ -626,28 +760,42 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchInvLineFields()
     var
         PurchInvLine: Record "Purch. Inv. Line";
+        PurchInvLineToUpdate: Record "Purch. Inv. Line";
         BatchCount: Integer;
     begin
-        if PurchInvLine.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        PurchInvLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR);
+        if PurchInvLine.FindSet(false) then
             repeat
                 if (PurchInvLine."Cod. Retencion ITBIS_DXR" <> PurchInvLine."DXCod. Retencion ITBIS") or
                    (PurchInvLine."Cod. Retencion ISR_DXR" <> PurchInvLine."DXCod. Retencion ISR") or
                    (PurchInvLine.ImporteRetenidoITBIS_DXR <> PurchInvLine.DXImporteRetenidoITBIS) or
                    (PurchInvLine.ImporteRetenidoISR_DXR <> PurchInvLine.DXImporteRetenidoISR)
-                then begin
-                    PurchInvLine."Cod. Retencion ITBIS_DXR" := PurchInvLine."DXCod. Retencion ITBIS";
-                    PurchInvLine."Cod. Retencion ISR_DXR" := PurchInvLine."DXCod. Retencion ISR";
-                    PurchInvLine.ImporteRetenidoITBIS_DXR := PurchInvLine.DXImporteRetenidoITBIS;
-                    PurchInvLine.ImporteRetenidoISR_DXR := PurchInvLine.DXImporteRetenidoISR;
-                    PurchInvLine.Modify(false);
-                end;
+                then
+                    if PurchInvLineToUpdate.Get(PurchInvLine."Document No.", PurchInvLine."Line No.") then begin
+                        PurchInvLineToUpdate."Cod. Retencion ITBIS_DXR" := PurchInvLineToUpdate."DXCod. Retencion ITBIS";
+                        PurchInvLineToUpdate."Cod. Retencion ISR_DXR" := PurchInvLineToUpdate."DXCod. Retencion ISR";
+                        PurchInvLineToUpdate.ImporteRetenidoITBIS_DXR := PurchInvLineToUpdate.DXImporteRetenidoITBIS;
+                        PurchInvLineToUpdate.ImporteRetenidoISR_DXR := PurchInvLineToUpdate.DXImporteRetenidoISR;
+                        PurchInvLineToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchInvLine.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq24: Purch. Cr. Memo Line field restore =====
@@ -669,28 +817,42 @@ codeunit 60167 "DXR MCC DRLOC Migr Phase3"
     local procedure MigratePurchCrMemoLineFields()
     var
         PurchCrMemoLine: Record "Purch. Cr. Memo Line";
+        PurchCrMemoLineToUpdate: Record "Purch. Cr. Memo Line";
         BatchCount: Integer;
     begin
-        if PurchCrMemoLine.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        PurchCrMemoLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR);
+        if PurchCrMemoLine.FindSet(false) then
             repeat
                 if (PurchCrMemoLine."Cod. Retencion ITBIS_DXR" <> PurchCrMemoLine."DXCod. Retencion ITBIS") or
                    (PurchCrMemoLine."Cod. Retencion ISR_DXR" <> PurchCrMemoLine."DXCod. Retencion ISR") or
                    (PurchCrMemoLine.ImporteRetenidoITBIS_DXR <> PurchCrMemoLine.DXImporteRetenidoITBIS) or
                    (PurchCrMemoLine.ImporteRetenidoISR_DXR <> PurchCrMemoLine.DXImporteRetenidoISR)
-                then begin
-                    PurchCrMemoLine."Cod. Retencion ITBIS_DXR" := PurchCrMemoLine."DXCod. Retencion ITBIS";
-                    PurchCrMemoLine."Cod. Retencion ISR_DXR" := PurchCrMemoLine."DXCod. Retencion ISR";
-                    PurchCrMemoLine.ImporteRetenidoITBIS_DXR := PurchCrMemoLine.DXImporteRetenidoITBIS;
-                    PurchCrMemoLine.ImporteRetenidoISR_DXR := PurchCrMemoLine.DXImporteRetenidoISR;
-                    PurchCrMemoLine.Modify(false);
-                end;
+                then
+                    if PurchCrMemoLineToUpdate.Get(PurchCrMemoLine."Document No.", PurchCrMemoLine."Line No.") then begin
+                        PurchCrMemoLineToUpdate."Cod. Retencion ITBIS_DXR" := PurchCrMemoLineToUpdate."DXCod. Retencion ITBIS";
+                        PurchCrMemoLineToUpdate."Cod. Retencion ISR_DXR" := PurchCrMemoLineToUpdate."DXCod. Retencion ISR";
+                        PurchCrMemoLineToUpdate.ImporteRetenidoITBIS_DXR := PurchCrMemoLineToUpdate.DXImporteRetenidoITBIS;
+                        PurchCrMemoLineToUpdate.ImporteRetenidoISR_DXR := PurchCrMemoLineToUpdate.DXImporteRetenidoISR;
+                        PurchCrMemoLineToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchCrMemoLine.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq25: Archived Purchase 606 legacy table restore (54105 -> 52113) =====

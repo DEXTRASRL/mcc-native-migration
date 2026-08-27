@@ -71,6 +71,9 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
         // Hardcoded Facturacion Electronica's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        // Fixed 2026-08-27 (A1): added SetLoadFields - the loop only needs "User Security ID", and
+        // the User table carries tableextensions whose companion tables were joined in per row.
+        UserRec.SetLoadFields("User Security ID");
         if not UserRec.FindSet() then
             exit;
         repeat
@@ -146,6 +149,8 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
         LineNo: Integer;
     begin
         LineNo := 10000;
+        // Fixed 2026-08-27 (A1): added SetLoadFields - only these 3 source fields are read below.
+        FormasDePago.SetLoadFields(FormaPago, MontoPago, DocumentNo);
         if FormasDePago.FindSet() then
             repeat
                 EFFormType.Init();
@@ -257,131 +262,219 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
         MigratePurchaseCreditMemoContingency();
     end;
 
+    // Fixed 2026-08-27 (A1) - applies to the four MigrateXxxContingency procedures below. Each used
+    // FindSet(true) over a WHOLE posted-document header table, i.e. an UPDLOCK on every row held for
+    // the entire run even though only rows with a stranded legacy value change; and with no
+    // SetLoadFields every tableextension companion table on those headers was joined in per row.
+    // Now: SetLoadFields (PK + exactly the 6 fields touched) + FindSet(false) (no UPDLOCK), the row is
+    // re-read with Get() and locked only when it genuinely needs a copy, and the commit counter
+    // advances per MODIFIED row instead of per scanned row. Same fields, same fill-only-if-blank
+    // guards, same order, same result.
     local procedure MigrateSalesInvoiceContingency()
     var
         Header: Record "Sales Invoice Header";
+        HeaderToUpdate: Record "Sales Invoice Header";
         Modified: Boolean;
         BatchCount: Integer;
     begin
-        if Header.FindSet(true) then
+        Header.SetLoadFields(
+            "No.",
+            "Alternate NCF V2_DXR", "Alternal NCF_DXR",
+            "Alternate No. Series_DXR_V2", "Alternal No. Series_DXR",
+            "Has NCF Contingency_DXR_V2", "Has Contingencies_DXR");
+        if Header.FindSet(false) then
             repeat
-                Modified := false;
-                if (Header."Alternate NCF V2_DXR" = '') and (Header."Alternal NCF_DXR" <> '') then begin
-                    Header."Alternate NCF V2_DXR" := Header."Alternal NCF_DXR";
-                    Modified := true;
-                end;
-                if (Header."Alternate No. Series_DXR_V2" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
-                    Header."Alternate No. Series_DXR_V2" := Header."Alternal No. Series_DXR";
-                    Modified := true;
-                end;
-                if not Header."Has NCF Contingency_DXR_V2" and Header."Has Contingencies_DXR" then begin
-                    Header."Has NCF Contingency_DXR_V2" := true;
-                    Modified := true;
-                end;
-                if Modified then
-                    Header.Modify(false);
+                if SalesInvoiceContingencyRowNeedsMigration(Header) then
+                    if HeaderToUpdate.Get(Header."No.") then begin
+                        Modified := false;
+                        if (HeaderToUpdate."Alternate NCF V2_DXR" = '') and (HeaderToUpdate."Alternal NCF_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate NCF V2_DXR" := HeaderToUpdate."Alternal NCF_DXR";
+                            Modified := true;
+                        end;
+                        if (HeaderToUpdate."Alternate No. Series_DXR_V2" = '') and (HeaderToUpdate."Alternal No. Series_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate No. Series_DXR_V2" := HeaderToUpdate."Alternal No. Series_DXR";
+                            Modified := true;
+                        end;
+                        if not HeaderToUpdate."Has NCF Contingency_DXR_V2" and HeaderToUpdate."Has Contingencies_DXR" then begin
+                            HeaderToUpdate."Has NCF Contingency_DXR_V2" := true;
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            HeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                            BatchCount += 1;
+                            if BatchCount >= 100 then begin
+                                Commit();
+                                BatchCount := 0;
+                            end;
+                        end;
+                    end;
             until Header.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    local procedure SalesInvoiceContingencyRowNeedsMigration(var Header: Record "Sales Invoice Header"): Boolean
+    begin
+        exit(
+            ((Header."Alternate NCF V2_DXR" = '') and (Header."Alternal NCF_DXR" <> '')) or
+            ((Header."Alternate No. Series_DXR_V2" = '') and (Header."Alternal No. Series_DXR" <> '')) or
+            ((not Header."Has NCF Contingency_DXR_V2") and Header."Has Contingencies_DXR"));
     end;
 
     local procedure MigrateSalesCreditMemoContingency()
     var
         Header: Record "Sales Cr.Memo Header";
+        HeaderToUpdate: Record "Sales Cr.Memo Header";
         Modified: Boolean;
         BatchCount: Integer;
     begin
-        if Header.FindSet(true) then
+        Header.SetLoadFields(
+            "No.",
+            "Alternate NCF_DXR_V2", "Alternal NCF_DXR",
+            "Alternate No. Series_DXR_V2", "Alternal No. Series_DXR",
+            "Has NCF Contingency_DXR_V2", "Has Contingencies_DXR");
+        if Header.FindSet(false) then
             repeat
-                Modified := false;
-                if (Header."Alternate NCF_DXR_V2" = '') and (Header."Alternal NCF_DXR" <> '') then begin
-                    Header."Alternate NCF_DXR_V2" := Header."Alternal NCF_DXR";
-                    Modified := true;
-                end;
-                if (Header."Alternate No. Series_DXR_V2" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
-                    Header."Alternate No. Series_DXR_V2" := Header."Alternal No. Series_DXR";
-                    Modified := true;
-                end;
-                if not Header."Has NCF Contingency_DXR_V2" and Header."Has Contingencies_DXR" then begin
-                    Header."Has NCF Contingency_DXR_V2" := true;
-                    Modified := true;
-                end;
-                if Modified then
-                    Header.Modify(false);
+                if SalesCrMemoContingencyRowNeedsMigration(Header) then
+                    if HeaderToUpdate.Get(Header."No.") then begin
+                        Modified := false;
+                        if (HeaderToUpdate."Alternate NCF_DXR_V2" = '') and (HeaderToUpdate."Alternal NCF_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate NCF_DXR_V2" := HeaderToUpdate."Alternal NCF_DXR";
+                            Modified := true;
+                        end;
+                        if (HeaderToUpdate."Alternate No. Series_DXR_V2" = '') and (HeaderToUpdate."Alternal No. Series_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate No. Series_DXR_V2" := HeaderToUpdate."Alternal No. Series_DXR";
+                            Modified := true;
+                        end;
+                        if not HeaderToUpdate."Has NCF Contingency_DXR_V2" and HeaderToUpdate."Has Contingencies_DXR" then begin
+                            HeaderToUpdate."Has NCF Contingency_DXR_V2" := true;
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            HeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                            BatchCount += 1;
+                            if BatchCount >= 100 then begin
+                                Commit();
+                                BatchCount := 0;
+                            end;
+                        end;
+                    end;
             until Header.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    local procedure SalesCrMemoContingencyRowNeedsMigration(var Header: Record "Sales Cr.Memo Header"): Boolean
+    begin
+        exit(
+            ((Header."Alternate NCF_DXR_V2" = '') and (Header."Alternal NCF_DXR" <> '')) or
+            ((Header."Alternate No. Series_DXR_V2" = '') and (Header."Alternal No. Series_DXR" <> '')) or
+            ((not Header."Has NCF Contingency_DXR_V2") and Header."Has Contingencies_DXR"));
     end;
 
     local procedure MigratePurchaseInvoiceContingency()
     var
         Header: Record "Purch. Inv. Header";
+        HeaderToUpdate: Record "Purch. Inv. Header";
         Modified: Boolean;
         BatchCount: Integer;
     begin
-        if Header.FindSet(true) then
+        Header.SetLoadFields(
+            "No.",
+            "Alternate NCF_DXR", "Alternal NCF_DXR",
+            "Alternate No. Series_DXR", "Alternal No. Series_DXR",
+            "Has NCF Contingency_DXR", "Has Contingencies_DXR");
+        if Header.FindSet(false) then
             repeat
-                Modified := false;
-                if (Header."Alternate NCF_DXR" = '') and (Header."Alternal NCF_DXR" <> '') then begin
-                    Header."Alternate NCF_DXR" := Header."Alternal NCF_DXR";
-                    Modified := true;
-                end;
-                if (Header."Alternate No. Series_DXR" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
-                    Header."Alternate No. Series_DXR" := Header."Alternal No. Series_DXR";
-                    Modified := true;
-                end;
-                if not Header."Has NCF Contingency_DXR" and Header."Has Contingencies_DXR" then begin
-                    Header."Has NCF Contingency_DXR" := true;
-                    Modified := true;
-                end;
-                if Modified then
-                    Header.Modify(false);
+                if PurchInvContingencyRowNeedsMigration(Header) then
+                    if HeaderToUpdate.Get(Header."No.") then begin
+                        Modified := false;
+                        if (HeaderToUpdate."Alternate NCF_DXR" = '') and (HeaderToUpdate."Alternal NCF_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate NCF_DXR" := HeaderToUpdate."Alternal NCF_DXR";
+                            Modified := true;
+                        end;
+                        if (HeaderToUpdate."Alternate No. Series_DXR" = '') and (HeaderToUpdate."Alternal No. Series_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate No. Series_DXR" := HeaderToUpdate."Alternal No. Series_DXR";
+                            Modified := true;
+                        end;
+                        if not HeaderToUpdate."Has NCF Contingency_DXR" and HeaderToUpdate."Has Contingencies_DXR" then begin
+                            HeaderToUpdate."Has NCF Contingency_DXR" := true;
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            HeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                            BatchCount += 1;
+                            if BatchCount >= 100 then begin
+                                Commit();
+                                BatchCount := 0;
+                            end;
+                        end;
+                    end;
             until Header.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    local procedure PurchInvContingencyRowNeedsMigration(var Header: Record "Purch. Inv. Header"): Boolean
+    begin
+        exit(
+            ((Header."Alternate NCF_DXR" = '') and (Header."Alternal NCF_DXR" <> '')) or
+            ((Header."Alternate No. Series_DXR" = '') and (Header."Alternal No. Series_DXR" <> '')) or
+            ((not Header."Has NCF Contingency_DXR") and Header."Has Contingencies_DXR"));
     end;
 
     local procedure MigratePurchaseCreditMemoContingency()
     var
         Header: Record "Purch. Cr. Memo Hdr.";
+        HeaderToUpdate: Record "Purch. Cr. Memo Hdr.";
         Modified: Boolean;
         BatchCount: Integer;
     begin
-        if Header.FindSet(true) then
+        Header.SetLoadFields(
+            "No.",
+            "Alternate NCF_DXR", "Alternal NCF_DXR",
+            "Alternate No. Series_DXR", "Alternal No. Series_DXR",
+            "Has NCF Contingency_DXR", "Has Contingencies_DXR");
+        if Header.FindSet(false) then
             repeat
-                Modified := false;
-                if (Header."Alternate NCF_DXR" = '') and (Header."Alternal NCF_DXR" <> '') then begin
-                    Header."Alternate NCF_DXR" := Header."Alternal NCF_DXR";
-                    Modified := true;
-                end;
-                if (Header."Alternate No. Series_DXR" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
-                    Header."Alternate No. Series_DXR" := Header."Alternal No. Series_DXR";
-                    Modified := true;
-                end;
-                if not Header."Has NCF Contingency_DXR" and Header."Has Contingencies_DXR" then begin
-                    Header."Has NCF Contingency_DXR" := true;
-                    Modified := true;
-                end;
-                if Modified then
-                    Header.Modify(false);
+                if PurchCrMemoContingencyRowNeedsMigration(Header) then
+                    if HeaderToUpdate.Get(Header."No.") then begin
+                        Modified := false;
+                        if (HeaderToUpdate."Alternate NCF_DXR" = '') and (HeaderToUpdate."Alternal NCF_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate NCF_DXR" := HeaderToUpdate."Alternal NCF_DXR";
+                            Modified := true;
+                        end;
+                        if (HeaderToUpdate."Alternate No. Series_DXR" = '') and (HeaderToUpdate."Alternal No. Series_DXR" <> '') then begin
+                            HeaderToUpdate."Alternate No. Series_DXR" := HeaderToUpdate."Alternal No. Series_DXR";
+                            Modified := true;
+                        end;
+                        if not HeaderToUpdate."Has NCF Contingency_DXR" and HeaderToUpdate."Has Contingencies_DXR" then begin
+                            HeaderToUpdate."Has NCF Contingency_DXR" := true;
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            HeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                            BatchCount += 1;
+                            if BatchCount >= 100 then begin
+                                Commit();
+                                BatchCount := 0;
+                            end;
+                        end;
+                    end;
             until Header.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
+    end;
+
+    local procedure PurchCrMemoContingencyRowNeedsMigration(var Header: Record "Purch. Cr. Memo Hdr."): Boolean
+    begin
+        exit(
+            ((Header."Alternate NCF_DXR" = '') and (Header."Alternal NCF_DXR" <> '')) or
+            ((Header."Alternate No. Series_DXR" = '') and (Header."Alternal No. Series_DXR" <> '')) or
+            ((not Header."Has NCF Contingency_DXR") and Header."Has Contingencies_DXR"));
     end;
 }

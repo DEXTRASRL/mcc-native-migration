@@ -28,10 +28,19 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
     // Record directly here (see the "DXR_NCF Setup" block below) - DR-Localization grants MCC's own
     // app ID internalsVisibleTo directly, so BELLON's "DXR_BE MCC Migr Bridge" (56132) bridge
     // codeunit is no longer needed for this table (left in place, unused).
+    // Fixed 2026-08-27 (two gaps in this block):
+    //   * RunAccounting()/MigrateMissingOldToDxrBridgeFields() open table 52132 via RecordRef and
+    //     Modify(false) it, but "DXR_Cash Journal Receipt List" had NO entry at all. The 60000
+    //     "DXR MCC" permissionset grants no third-party tabledata, so the background
+    //     (TaskScheduler) run would fail with "Required permission ... Modify". Declared by NAME,
+    //     the same way "DXR MCC Bellon Migr Phase7" already declares it.
+    //   * "DXR_NCF Setup" was "RM", but RunSetup() calls Insert(false) when Get() misses - that
+    //     needs I as well, so it is now RIM.
     Permissions =
         tabledata "Item Charge Assignment (Purch)" = RM,
         tabledata Vendor = RM,
-        tabledata "DXR_NCF Setup" = RM;
+        tabledata "DXR_Cash Journal Receipt List" = RM,
+        tabledata "DXR_NCF Setup" = RIM;
 
     trigger OnRun()
     var
@@ -57,14 +66,25 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
     procedure RunAccounting()
     var
         RecRef: RecordRef;
+        RowsSinceCommit: Integer;
     begin
+        // Fixed 2026-08-27: neither loop below had any Commit, so both tables ran inside a single
+        // unbounded transaction. Same 500-row batching the sibling phases already use; the copies
+        // are unconditional and idempotent, so a partial run is safe to retry.
         RecRef.Open(Database::"Item Charge Assignment (Purch)");
         if RecRef.FindSet(true) then
             repeat
                 CopyFieldIfExists(RecRef, 50001, 52787);
                 RecRef.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
 
         RecRef.Open(52132);
         if RecRef.FindSet(true) then
@@ -74,9 +94,14 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
                 CopyFieldIfExists(RecRef, 50010, 52791);
                 CopyFieldIfExists(RecRef, 50011, 52792);
                 RecRef.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
-
+        Commit();
     end;
 
     procedure RunMaster()
@@ -84,6 +109,7 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         RecRef: RecordRef;
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         RecRef.Open(Database::Vendor);
         if RecRef.FindSet(true) then
@@ -102,10 +128,23 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Despachador Email_DX.R', 'BE Despachador Email') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Proveedor Cilindros_DXR', 'BE Proveedor Cilindros') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Gestor_CXP_ID_DXR.', 'BE Gestor_CXP_ID') or Modified;
-                if Modified then
+                if Modified then begin
                     RecRef.Modify(false);
+
+                    // Fixed 2026-08-27: this Vendor loop had no Commit at all, so the whole table
+                    // ran inside a single unbounded transaction. Counter advances per MODIFIED row
+                    // (the resolver is skip-if-target-already-populated, so most rows write
+                    // nothing); mirrors the identical loop in MigrateMissingOldToDxrBridgeFields.
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= 500 then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure MigrateMissingOldToDxrBridgeFields(var UpgradeTag: Codeunit "Upgrade Tag")
@@ -114,18 +153,30 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         RecRef: RecordRef;
         NCFSetup: Record "DXR_NCF Setup";
         Modified: Boolean;
+        RowsSinceCommit: Integer;
         VendorRowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-BellonP13OldGapCompleted') then
             exit;
 
+        // Fixed 2026-08-27: neither of the two loops below had any Commit, so both tables ran
+        // inside a single unbounded transaction (only the Vendor loop further down was batched).
+        // Same 500-row batching; the copies are unconditional and idempotent, so a partial run is
+        // safe to retry - the UpgradeTag is still only set once the whole procedure completes.
         RecRef.Open(Database::"Item Charge Assignment (Purch)");
         if RecRef.FindSet(true) then
             repeat
                 CopyFieldIfExists(RecRef, 50001, 52787); // Monto Cargo Liq._Old -> _DXR
                 RecRef.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
 
         RecRef.Open(52132); // DXR_Cash Journal Receipt List
         if RecRef.FindSet(true) then
@@ -135,8 +186,15 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
                 CopyFieldIfExists(RecRef, 50010, 52791); // IsRecaudo_Old -> _DXR
                 CopyFieldIfExists(RecRef, 50011, 52792); // No. Authorizacion_Old -> _DXR
                 RecRef.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
 
         // DXR_NCF Setup (52179) is Access = Internal in DR-Localization, but DR-Localization now
         // grants MCC's own app ID internalsVisibleTo directly, so it is declared as a typed Record
@@ -147,6 +205,10 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         // Preserves the exact FindSet(true)/repeat.../Modify(false) loop shape of the original
         // procedure for minimal risk, even though "DXR_NCF Setup" is a singleton (single-row)
         // table. Zero RecordRef/FieldRef/TransferFields.
+        // Fixed 2026-08-27: FindSet(true) with no SetLoadFields made the server join every
+        // tableextension companion table per row. SetLoadFields limits the read to exactly the
+        // four fields this loop touches (the primary key is always loaded).
+        NCFSetup.SetLoadFields("Grupo Contable BS_DXR", "Grupo Contable BS_Old", "Legal Tip %_DXR", "Legal Tip %_Old");
         if NCFSetup.FindSet(true) then
             repeat
                 NCFSetup."Grupo Contable BS_DXR" := NCFSetup."Grupo Contable BS_Old";
@@ -180,17 +242,23 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Despachador Email_DX.R', 'BE Despachador Email') or Modified; // 50030 -> 57123
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Proveedor Cilindros_DXR', 'BE Proveedor Cilindros') or Modified; // 50031 -> 57124
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Gestor_CXP_ID_DXR.', 'BE Gestor_CXP_ID') or Modified; // 50032 -> 57125
-                if Modified then
+                // Fixed 2026-08-27: the commit counter used to advance per SCANNED row; it now
+                // advances per MODIFIED row, so a re-run that has nothing left to copy (the
+                // resolver is skip-if-target-already-populated) performs zero writes and zero
+                // commits instead of one commit per 500 rows.
+                if Modified then begin
                     RecRef.Modify(false);
 
-                VendorRowsSinceCommit += 1;
-                if VendorRowsSinceCommit >= 500 then begin
-                    Commit();
-                    VendorRowsSinceCommit := 0;
+                    VendorRowsSinceCommit += 1;
+                    if VendorRowsSinceCommit >= 500 then begin
+                        Commit();
+                        VendorRowsSinceCommit := 0;
+                    end;
                 end;
             until RecRef.Next() = 0;
         RecRef.Close();
-        Commit();
+        if VendorRowsSinceCommit > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-BellonP13OldGapCompleted');
     end;

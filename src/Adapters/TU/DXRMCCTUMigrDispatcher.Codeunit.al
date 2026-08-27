@@ -205,6 +205,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure MigrateLegacyCustLedgerEntryFields()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        EntryToUpdate: Record "Cust. Ledger Entry";
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
@@ -213,44 +214,65 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         // companion table the server would otherwise join in for every single row. Learn recommends
         // partial records "especially when looping through several records or when table extensions
         // are defined on the table". Only these ten fields are ever read or written here.
+        // Fixed 2026-08-27 (A1): el escaneo pasa a FindSet(false). Con FindSet(true) el servidor lee
+        // TODA la tabla con IsolationLevel::UpdLock (SQL UPDLOCK) y mantiene ese lock durante toda la
+        // corrida, incluso sobre la mayoria de filas que no cambian. Ahora la fila se re-lee con
+        // Get("Entry No.") y se bloquea solo cuando realmente hay que copiar algo, y el contador de
+        // Commit avanza por fila MODIFICADA en vez de por fila leida.
         CustLedgerEntry.SetLoadFields(
+            "Entry No.",
             "Data Crédito VIP_DXR", "TU - Data Crédito VIP",
             "Forma Crédito_DXR", "TU - Forma Crédito",
             "Cuenta Abogado_DXR", "TU - Cuenta Abogado",
             "Incobrable_DXR", "TU - Incobrable",
             "Teléfono 2_DXR", "TU - Teléfono 2");
-        if CustLedgerEntry.FindSet(true) then
+        if CustLedgerEntry.FindSet(false) then
             repeat
-                Changed := false;
-                if CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."TU - Data Crédito VIP" then begin
-                    CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."TU - Data Crédito VIP";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."TU - Forma Crédito" then begin
-                    CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."TU - Forma Crédito";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."TU - Cuenta Abogado" then begin
-                    CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."TU - Cuenta Abogado";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."TU - Incobrable" then begin
-                    CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."TU - Incobrable";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."TU - Teléfono 2" then begin
-                    CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."TU - Teléfono 2";
-                    Changed := true;
-                end;
-                if Changed then
-                    CustLedgerEntry.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
+                if LegacyEntryNeedsMigration(CustLedgerEntry) then
+                    if EntryToUpdate.Get(CustLedgerEntry."Entry No.") then begin
+                        Changed := false;
+                        if EntryToUpdate."Data Crédito VIP_DXR" <> EntryToUpdate."TU - Data Crédito VIP" then begin
+                            EntryToUpdate."Data Crédito VIP_DXR" := EntryToUpdate."TU - Data Crédito VIP";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Forma Crédito_DXR" <> EntryToUpdate."TU - Forma Crédito" then begin
+                            EntryToUpdate."Forma Crédito_DXR" := EntryToUpdate."TU - Forma Crédito";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Cuenta Abogado_DXR" <> EntryToUpdate."TU - Cuenta Abogado" then begin
+                            EntryToUpdate."Cuenta Abogado_DXR" := EntryToUpdate."TU - Cuenta Abogado";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Incobrable_DXR" <> EntryToUpdate."TU - Incobrable" then begin
+                            EntryToUpdate."Incobrable_DXR" := EntryToUpdate."TU - Incobrable";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Teléfono 2_DXR" <> EntryToUpdate."TU - Teléfono 2" then begin
+                            EntryToUpdate."Teléfono 2_DXR" := EntryToUpdate."TU - Teléfono 2";
+                            Changed := true;
+                        end;
+                        if Changed then begin
+                            EntryToUpdate.Modify(false);
+                            RowsSinceCommit += 1;
+                            if RowsSinceCommit >= BatchSize() then begin
+                                Commit();
+                                RowsSinceCommit := 0;
+                            end;
+                        end;
+                    end;
             until CustLedgerEntry.Next() = 0;
-        Commit();
+        if RowsSinceCommit > 0 then
+            Commit();
+    end;
+
+    local procedure LegacyEntryNeedsMigration(var CustLedgerEntry: Record "Cust. Ledger Entry"): Boolean
+    begin
+        exit(
+            (CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."TU - Data Crédito VIP") or
+            (CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."TU - Forma Crédito") or
+            (CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."TU - Cuenta Abogado") or
+            (CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."TU - Incobrable") or
+            (CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."TU - Teléfono 2"));
     end;
 
     // Table 57305 "DXR_Transunion Header Old2" is Access = Internal on TU's side, and TU's own
@@ -331,48 +353,67 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure MigrateGen2LegacyCustLedgerEntryFields()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        EntryToUpdate: Record "Cust. Ledger Entry";
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
         // Added 2026-08-27: partial records, same rationale as MigrateLegacyCustLedgerEntryFields.
+        // Fixed 2026-08-27 (A1): escaneo sin UPDLOCK (FindSet(false)) + re-lectura con
+        // Get("Entry No.") solo en las filas que de verdad cambian, misma razon que el gemelo Gen0.
         CustLedgerEntry.SetLoadFields(
+            "Entry No.",
             "Data Crédito VIP_DXR", "Data Crédito VIP_Old",
             "Forma Crédito_DXR", "Forma Crédito_Old",
             "Cuenta Abogado_DXR", "Cuenta Abogado_Old",
             "Incobrable_DXR", "Incobrable_Old",
             "Teléfono 2_DXR", "Teléfono 2_Old");
-        if CustLedgerEntry.FindSet(true) then
+        if CustLedgerEntry.FindSet(false) then
             repeat
-                Changed := false;
-                if CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."Data Crédito VIP_Old" then begin
-                    CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."Data Crédito VIP_Old";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."Forma Crédito_Old" then begin
-                    CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."Forma Crédito_Old";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."Cuenta Abogado_Old" then begin
-                    CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."Cuenta Abogado_Old";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."Incobrable_Old" then begin
-                    CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."Incobrable_Old";
-                    Changed := true;
-                end;
-                if CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."Teléfono 2_Old" then begin
-                    CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."Teléfono 2_Old";
-                    Changed := true;
-                end;
-                if Changed then
-                    CustLedgerEntry.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
+                if Gen2EntryNeedsMigration(CustLedgerEntry) then
+                    if EntryToUpdate.Get(CustLedgerEntry."Entry No.") then begin
+                        Changed := false;
+                        if EntryToUpdate."Data Crédito VIP_DXR" <> EntryToUpdate."Data Crédito VIP_Old" then begin
+                            EntryToUpdate."Data Crédito VIP_DXR" := EntryToUpdate."Data Crédito VIP_Old";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Forma Crédito_DXR" <> EntryToUpdate."Forma Crédito_Old" then begin
+                            EntryToUpdate."Forma Crédito_DXR" := EntryToUpdate."Forma Crédito_Old";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Cuenta Abogado_DXR" <> EntryToUpdate."Cuenta Abogado_Old" then begin
+                            EntryToUpdate."Cuenta Abogado_DXR" := EntryToUpdate."Cuenta Abogado_Old";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Incobrable_DXR" <> EntryToUpdate."Incobrable_Old" then begin
+                            EntryToUpdate."Incobrable_DXR" := EntryToUpdate."Incobrable_Old";
+                            Changed := true;
+                        end;
+                        if EntryToUpdate."Teléfono 2_DXR" <> EntryToUpdate."Teléfono 2_Old" then begin
+                            EntryToUpdate."Teléfono 2_DXR" := EntryToUpdate."Teléfono 2_Old";
+                            Changed := true;
+                        end;
+                        if Changed then begin
+                            EntryToUpdate.Modify(false);
+                            RowsSinceCommit += 1;
+                            if RowsSinceCommit >= BatchSize() then begin
+                                Commit();
+                                RowsSinceCommit := 0;
+                            end;
+                        end;
+                    end;
             until CustLedgerEntry.Next() = 0;
-        Commit();
+        if RowsSinceCommit > 0 then
+            Commit();
+    end;
+
+    local procedure Gen2EntryNeedsMigration(var CustLedgerEntry: Record "Cust. Ledger Entry"): Boolean
+    begin
+        exit(
+            (CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."Data Crédito VIP_Old") or
+            (CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."Forma Crédito_Old") or
+            (CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."Cuenta Abogado_Old") or
+            (CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."Incobrable_Old") or
+            (CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."Teléfono 2_Old"));
     end;
 
     local procedure AssignPermissionSetsToAllUsers()
@@ -382,6 +423,8 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         // Hardcoded TU's real app ID (from TransUnion's own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        // Fixed 2026-08-27 (A1, partial records): el bucle solo usa "User Security ID".
+        UserRec.SetLoadFields("User Security ID");
         if not UserRec.FindSet() then
             exit;
 

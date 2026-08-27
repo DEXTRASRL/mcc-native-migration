@@ -95,6 +95,16 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         Target: Record "DXR_Report Sales 607 Buffer";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1, partial records): este bucle recorre una tabla historica completa y
+        // sin SetLoadFields el servidor hace join de la companion table de cada tableextension por
+        // cada fila. Solo estos campos se leen/escriben aqui.
+        Source.SetLoadFields(
+            "Tipo Documento", "No. Documento", "No. Linea",
+            "LSDX Statement No.", "LSDX Posted Statement No.",
+            "LSDX Posted Statement Date", "LSDX Stmt. Posting Date");
+        Target.SetLoadFields(
+            "Statement No._DXR", "Posted Statement No._DXR",
+            "Posted Statement Date_DXR", "Stmt. Posting Date_DXR");
         if Source.FindSet(false) then
             repeat
                 if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea") then begin
@@ -119,6 +129,15 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         Target: Record "DXR_Archived Sales 607";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1, partial records): misma razon que MigrateReportSales607Buffer -
+        // tabla historica completa, solo estos campos se leen/escriben.
+        Source.SetLoadFields(
+            "Tipo Documento", "No. Documento", "No. Linea", NCF,
+            "LSDX Statement No.", "LSDX Posted Statement No.",
+            "LSDX Posted Statement Date", "LSDX Stmt. Posting Date");
+        Target.SetLoadFields(
+            "Statement No._DXR", "Posted Statement No._DXR",
+            "Posted Statement Date_DXR", "Stmt. Posting Date_DXR");
         if Source.FindSet(false) then
             repeat
                 if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea", Source.NCF) then begin
@@ -143,6 +162,14 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         Target: Record "DXR_Arch Consumer Sales 607";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1, partial records): misma razon que MigrateReportSales607Buffer.
+        Source.SetLoadFields(
+            "Tipo Documento", "No. Documento", "No. Linea", NCF,
+            "LSDX Statement No.", "LSDX Posted Statement No.",
+            "LSDX Posted Statement Date", "LSDX Stmt. Posting Date");
+        Target.SetLoadFields(
+            "Statement No._DXR", "Posted Statement No._DXR",
+            "Posted Statement Date_DXR", "Stmt. Posting Date_DXR");
         if Source.FindSet() then
             repeat
                 if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea", Source.NCF) then begin
@@ -167,6 +194,14 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
         Target: Record "DXR_Consumer Sales 607 Buffer";
         BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1, partial records): misma razon que MigrateReportSales607Buffer.
+        Source.SetLoadFields(
+            "Tipo Documento", "No. Documento", "No. Linea",
+            "LSDX Statement No.", "LSDX Posted Statement No.",
+            "LSDX Posted Statement Date", "LSDX Stmt. Posting Date");
+        Target.SetLoadFields(
+            "Statement No._DXR", "Posted Statement No._DXR",
+            "Posted Statement Date_DXR", "Stmt. Posting Date_DXR");
         if Source.FindSet() then
             repeat
                 if Target.Get(Source."Tipo Documento", Source."No. Documento", Source."No. Linea") then begin

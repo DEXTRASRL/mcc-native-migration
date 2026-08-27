@@ -30,12 +30,21 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
         ApprovalEntry: Record "Approval Entry";
         Modified: Boolean;
         AttemptNo: Integer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(ApprovalEntryFieldsMigratedTag()) then
             exit;
 
+        // Fixed 2026-08-27: added SetLoadFields (only the 6 fields this loop reads/writes; the primary
+        // key is always loaded) so the server stops joining every Approval Entry tableextension
+        // companion table per row, and added a bounded Commit - this loop over a potentially large
+        // entry table previously ran entirely inside one unbounded transaction.
+        ApprovalEntry.SetLoadFields(
+            "Workflow Code", "Workflow Code_DXR",
+            "Workflow Instance ID", "Workflow Instance ID_DXR",
+            "Posting Date", "Posting Date_DXR");
         ApprovalEntry.SetFilter("Workflow Code", '<>%1', '');
-        if ApprovalEntry.FindSet() then
+        if ApprovalEntry.FindSet() then begin
             repeat
                 Modified := false;
 
@@ -61,8 +70,19 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
                         if not RetryMgt.ShouldRetry(AttemptNo, GetLastErrorText()) then
                             Error(GetLastErrorText());
                     end;
+
+                    // Only reached once the retry-on-lock loop above has fully resolved, never
+                    // mid-retry; counter advances per MODIFIED row.
+                    RowCounter += 1;
+                    if RowCounter >= BatchSize() then begin
+                        Commit();
+                        RowCounter := 0;
+                    end;
                 end;
             until ApprovalEntry.Next() = 0;
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(ApprovalEntryFieldsMigratedTag());
     end;
@@ -83,6 +103,10 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
         if UpgradeTag.HasUpgradeTag(WorkflowFieldsMigratedTag()) then
             exit;
 
+        // Fixed 2026-08-27: added SetLoadFields (only the 2 fields this loop reads/writes; the primary
+        // key is always loaded) so the server stops joining every Workflow tableextension companion
+        // table per row.
+        Workflow.SetLoadFields("PRC Approval Type_DXR", "DXR_Approval Type");
         if Workflow.FindSet() then
             repeat
                 if (Workflow."PRC Approval Type_DXR" = Workflow."PRC Approval Type_DXR"::All) and
@@ -105,6 +129,11 @@ codeunit 60123 "DXR MCC PCM Migr Phase3"
     local procedure TryModifyWorkflow(var Workflow: Record Workflow)
     begin
         Workflow.Modify(false);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure ApprovalEntryFieldsMigratedTag(): Code[250]

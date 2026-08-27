@@ -10,23 +10,34 @@ codeunit 60070 "DXR MCC SD Migr Customer"
     // visible here because Special Dispatch is a real app.json dependency of MCC.
     Permissions = tabledata Customer = RM;
 
+    // Fixed 2026-08-27: FindSet(true) over the WHOLE Customer table read every row under
+    // IsolationLevel::UpdLock (Learn "Record.FindSet") and, with no SetLoadFields, joined every
+    // tableextension companion table for every row; the commit counter also advanced per row READ
+    // instead of per row MODIFIED. Now reads partial + unlocked and locks only rows that change.
     trigger OnRun()
     var
         Cust: Record Customer;
+        CustToUpdate: Record Customer;
         RowsSinceCommit: Integer;
     begin
-        if Cust.FindSet(true) then
-            repeat
-                if Cust."Special Dispatch_DXR" <> Cust."Special Dispatch DXR" then begin
-                    Cust."Special Dispatch_DXR" := Cust."Special Dispatch DXR";
-                    Cust.Modify(false);
+        Cust.SetLoadFields("No.", "Special Dispatch_DXR", "Special Dispatch DXR");
+        if not Cust.FindSet(false) then
+            exit;
+        repeat
+            if Cust."Special Dispatch_DXR" <> Cust."Special Dispatch DXR" then
+                if CustToUpdate.Get(Cust."No.") then begin
+                    CustToUpdate."Special Dispatch_DXR" := CustToUpdate."Special Dispatch DXR";
+                    CustToUpdate.Modify(false);
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= BatchSize() then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
-                end;
-            until Cust.Next() = 0;
+        until Cust.Next() = 0;
+
+        if RowsSinceCommit > 0 then
+            Commit();
     end;
 
     local procedure BatchSize(): Integer

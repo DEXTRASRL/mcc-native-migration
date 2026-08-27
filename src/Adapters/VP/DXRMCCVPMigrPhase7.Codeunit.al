@@ -464,25 +464,45 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         exit(true);
     end;
 
+    // Fixed 2026-08-27 (A1), applied to all seven FLD-* merges below. These loops used
+    // FindSet(true) over a WHOLE base table with no partial-record hint, yet only a small minority
+    // of rows ever needs a value copied. Per Learn ("Record.FindSet"), FindSet "will request all
+    // rows at once" and with ForUpdate = true reads them "using IsolationLevel::UpdLock (SQL
+    // UPDLOCK)" - i.e. an update lock on every row of Vendor / Gen. Journal Line / Purchase Header
+    // for the whole run, serializing against every other migration codeunit touching the same
+    // tables. Three changes, none of which alter what is migrated:
+    //   * SetLoadFields limits the scan to the fields actually read (plus the primary key used for
+    //     the Get()), so the companion table of every unrelated tableextension is no longer joined
+    //     per row.
+    //   * FindSet(false) reads without UPDLOCK; the row is re-read with Get() into a second Record
+    //     variable and locked only when it genuinely needs a value copied.
+    //   * The commit counter advances per MODIFIED row instead of per scanned row, and the trailing
+    //     Commit only fires when there is an uncommitted remainder.
+    // The per-field fill-only-if-default guards are unchanged and are re-evaluated on the row that
+    // is actually written, exactly as before.
     local procedure MergeBankAccountFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         BankAccount: Record "Bank Account";
-        Modified: Boolean;
+        BankAccountToUpdate: Record "Bank Account";
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-BANK-ACCOUNT')) then
             exit;
 
-        if BankAccount.FindSet(true) then
+        BankAccount.SetLoadFields("No.", "VP Account Type_DXR", "VP Account Type_Old");
+        if BankAccount.FindSet(false) then
             repeat
-                if (BankAccount."VP Account Type_DXR".AsInteger() = 0) and (BankAccount."VP Account Type_Old".AsInteger() <> 0) then begin
-                    BankAccount."VP Account Type_DXR" := BankAccount."VP Account Type_Old";
-                    BankAccount.Modify(false);
-                end;
-                CommitBatch(BatchCount);
+                if (BankAccount."VP Account Type_DXR".AsInteger() = 0) and (BankAccount."VP Account Type_Old".AsInteger() <> 0) then
+                    if BankAccountToUpdate.Get(BankAccount."No.") then
+                        if (BankAccountToUpdate."VP Account Type_DXR".AsInteger() = 0) and (BankAccountToUpdate."VP Account Type_Old".AsInteger() <> 0) then begin
+                            BankAccountToUpdate."VP Account Type_DXR" := BankAccountToUpdate."VP Account Type_Old";
+                            BankAccountToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
             until BankAccount.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-BANK-ACCOUNT'));
     end;
@@ -491,54 +511,74 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         GenJournalLine: Record "Gen. Journal Line";
+        GenJournalLineToUpdate: Record "Gen. Journal Line";
         Modified: Boolean;
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-GEN-JOURNAL-LINE')) then
             exit;
 
-        if GenJournalLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        GenJournalLine.SetLoadFields(
+            "Journal Template Name", "Journal Batch Name", "Line No.",
+            "VP From VP_DXR", "VP From VP_Old",
+            "VP VendorPay No._DXR", "VP VendorPay No._Old");
+        if GenJournalLine.FindSet(false) then
             repeat
-                Modified := false;
-                if (not GenJournalLine."VP From VP_DXR") and GenJournalLine."VP From VP_Old" then begin
-                    GenJournalLine."VP From VP_DXR" := GenJournalLine."VP From VP_Old";
-                    Modified := true;
-                end;
-                if (GenJournalLine."VP VendorPay No._DXR" = '') and (GenJournalLine."VP VendorPay No._Old" <> '') then begin
-                    GenJournalLine."VP VendorPay No._DXR" := GenJournalLine."VP VendorPay No._Old";
-                    Modified := true;
-                end;
-                if Modified then
-                    GenJournalLine.Modify(false);
-                CommitBatch(BatchCount);
+                if GenJournalLineNeedsMerge(GenJournalLine) then
+                    if GenJournalLineToUpdate.Get(GenJournalLine."Journal Template Name", GenJournalLine."Journal Batch Name", GenJournalLine."Line No.") then begin
+                        Modified := false;
+                        if (not GenJournalLineToUpdate."VP From VP_DXR") and GenJournalLineToUpdate."VP From VP_Old" then begin
+                            GenJournalLineToUpdate."VP From VP_DXR" := GenJournalLineToUpdate."VP From VP_Old";
+                            Modified := true;
+                        end;
+                        if (GenJournalLineToUpdate."VP VendorPay No._DXR" = '') and (GenJournalLineToUpdate."VP VendorPay No._Old" <> '') then begin
+                            GenJournalLineToUpdate."VP VendorPay No._DXR" := GenJournalLineToUpdate."VP VendorPay No._Old";
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            GenJournalLineToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
+                    end;
             until GenJournalLine.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-GEN-JOURNAL-LINE'));
+    end;
+
+    local procedure GenJournalLineNeedsMerge(var GenJournalLine: Record "Gen. Journal Line"): Boolean
+    begin
+        exit(
+            ((not GenJournalLine."VP From VP_DXR") and GenJournalLine."VP From VP_Old") or
+            ((GenJournalLine."VP VendorPay No._DXR" = '') and (GenJournalLine."VP VendorPay No._Old" <> '')));
     end;
 
     local procedure MergePostCodeFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PostCode: Record "Post Code";
-        Modified: Boolean;
+        PostCodeToUpdate: Record "Post Code";
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-POST-CODE')) then
             exit;
 
-        if PostCode.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        PostCode.SetLoadFields(Code, City, "VP Cod. Province_DXR", "VP Cod. Province_Old");
+        if PostCode.FindSet(false) then
             repeat
-                Modified := false;
-                if (PostCode."VP Cod. Province_DXR" = '') and (PostCode."VP Cod. Province_Old" <> '') then begin
-                    PostCode."VP Cod. Province_DXR" := PostCode."VP Cod. Province_Old";
-                    Modified := true;
-                end;
-                if Modified then
-                    PostCode.Modify(false);
-                CommitBatch(BatchCount);
+                if (PostCode."VP Cod. Province_DXR" = '') and (PostCode."VP Cod. Province_Old" <> '') then
+                    if PostCodeToUpdate.Get(PostCode.Code, PostCode.City) then
+                        if (PostCodeToUpdate."VP Cod. Province_DXR" = '') and (PostCodeToUpdate."VP Cod. Province_Old" <> '') then begin
+                            PostCodeToUpdate."VP Cod. Province_DXR" := PostCodeToUpdate."VP Cod. Province_Old";
+                            PostCodeToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
             until PostCode.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-POST-CODE'));
     end;
@@ -547,190 +587,290 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         UserSetup: Record "User Setup";
+        UserSetupToUpdate: Record "User Setup";
         Modified: Boolean;
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-USER-SETUP')) then
             exit;
 
-        if UserSetup.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        UserSetup.SetLoadFields(
+            "User ID",
+            "VP Amount Approval Limit_DXR", "VP Amount Approval Limit_Old",
+            "VP Unlimited VP Approval_DXR", "VP Unlimited VP Approval_Old",
+            "VP Approver ID_DXR", "VP Approver ID_Old",
+            "VP Approver VP_DXR", "VP Approver VP_Old",
+            "VP Reprint TXT_DXR", "VP Reprint TXT_Old",
+            "VP Allow Reopen_DXR", "VP Allow Reopen_Old");
+        if UserSetup.FindSet(false) then
             repeat
-                Modified := false;
-                if (UserSetup."VP Amount Approval Limit_DXR" = 0) and (UserSetup."VP Amount Approval Limit_Old" <> 0) then begin
-                    UserSetup."VP Amount Approval Limit_DXR" := UserSetup."VP Amount Approval Limit_Old";
-                    Modified := true;
-                end;
-                if (not UserSetup."VP Unlimited VP Approval_DXR") and UserSetup."VP Unlimited VP Approval_Old" then begin
-                    UserSetup."VP Unlimited VP Approval_DXR" := UserSetup."VP Unlimited VP Approval_Old";
-                    Modified := true;
-                end;
-                if (UserSetup."VP Approver ID_DXR" = '') and (UserSetup."VP Approver ID_Old" <> '') then begin
-                    UserSetup."VP Approver ID_DXR" := UserSetup."VP Approver ID_Old";
-                    Modified := true;
-                end;
-                if (not UserSetup."VP Approver VP_DXR") and UserSetup."VP Approver VP_Old" then begin
-                    UserSetup."VP Approver VP_DXR" := UserSetup."VP Approver VP_Old";
-                    Modified := true;
-                end;
-                if (not UserSetup."VP Reprint TXT_DXR") and UserSetup."VP Reprint TXT_Old" then begin
-                    UserSetup."VP Reprint TXT_DXR" := UserSetup."VP Reprint TXT_Old";
-                    Modified := true;
-                end;
-                if (not UserSetup."VP Allow Reopen_DXR") and UserSetup."VP Allow Reopen_Old" then begin
-                    UserSetup."VP Allow Reopen_DXR" := UserSetup."VP Allow Reopen_Old";
-                    Modified := true;
-                end;
-                if Modified then
-                    UserSetup.Modify(false);
-                CommitBatch(BatchCount);
+                if UserSetupNeedsMerge(UserSetup) then
+                    if UserSetupToUpdate.Get(UserSetup."User ID") then begin
+                        Modified := false;
+                        if (UserSetupToUpdate."VP Amount Approval Limit_DXR" = 0) and (UserSetupToUpdate."VP Amount Approval Limit_Old" <> 0) then begin
+                            UserSetupToUpdate."VP Amount Approval Limit_DXR" := UserSetupToUpdate."VP Amount Approval Limit_Old";
+                            Modified := true;
+                        end;
+                        if (not UserSetupToUpdate."VP Unlimited VP Approval_DXR") and UserSetupToUpdate."VP Unlimited VP Approval_Old" then begin
+                            UserSetupToUpdate."VP Unlimited VP Approval_DXR" := UserSetupToUpdate."VP Unlimited VP Approval_Old";
+                            Modified := true;
+                        end;
+                        if (UserSetupToUpdate."VP Approver ID_DXR" = '') and (UserSetupToUpdate."VP Approver ID_Old" <> '') then begin
+                            UserSetupToUpdate."VP Approver ID_DXR" := UserSetupToUpdate."VP Approver ID_Old";
+                            Modified := true;
+                        end;
+                        if (not UserSetupToUpdate."VP Approver VP_DXR") and UserSetupToUpdate."VP Approver VP_Old" then begin
+                            UserSetupToUpdate."VP Approver VP_DXR" := UserSetupToUpdate."VP Approver VP_Old";
+                            Modified := true;
+                        end;
+                        if (not UserSetupToUpdate."VP Reprint TXT_DXR") and UserSetupToUpdate."VP Reprint TXT_Old" then begin
+                            UserSetupToUpdate."VP Reprint TXT_DXR" := UserSetupToUpdate."VP Reprint TXT_Old";
+                            Modified := true;
+                        end;
+                        if (not UserSetupToUpdate."VP Allow Reopen_DXR") and UserSetupToUpdate."VP Allow Reopen_Old" then begin
+                            UserSetupToUpdate."VP Allow Reopen_DXR" := UserSetupToUpdate."VP Allow Reopen_Old";
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            UserSetupToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
+                    end;
             until UserSetup.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-USER-SETUP'));
+    end;
+
+    local procedure UserSetupNeedsMerge(var UserSetup: Record "User Setup"): Boolean
+    begin
+        exit(
+            ((UserSetup."VP Amount Approval Limit_DXR" = 0) and (UserSetup."VP Amount Approval Limit_Old" <> 0)) or
+            ((not UserSetup."VP Unlimited VP Approval_DXR") and UserSetup."VP Unlimited VP Approval_Old") or
+            ((UserSetup."VP Approver ID_DXR" = '') and (UserSetup."VP Approver ID_Old" <> '')) or
+            ((not UserSetup."VP Approver VP_DXR") and UserSetup."VP Approver VP_Old") or
+            ((not UserSetup."VP Reprint TXT_DXR") and UserSetup."VP Reprint TXT_Old") or
+            ((not UserSetup."VP Allow Reopen_DXR") and UserSetup."VP Allow Reopen_Old"));
     end;
 
     local procedure MergeVendorFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Vendor: Record Vendor;
+        VendorToUpdate: Record Vendor;
         Modified: Boolean;
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-VENDOR')) then
             exit;
 
-        if Vendor.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        Vendor.SetLoadFields(
+            "No.",
+            "VP Name BPD_DXR", "VP Name BPD_Old",
+            "VP Sent BPD_DXR", "VP Sent BPD_Old",
+            "VP Date Sent BPD_DXR", "VP Date Sent BPD_Old",
+            "VP Document Type BPD_DXR", "VP Document Type BPD_Old",
+            "VP Contract account type_DXR", "VP Contract account type_Old",
+            "VP Send BPD_DXR", "VP Send BPD_Old",
+            "VP Ident Type BPD_DXR", "VP Ident Type BPD_Old",
+            "VPTaxIdentTypeBPD_DXR", "VPTaxIdentTypeBPD_Old",
+            "Business Partnert Id 1_DXR", "Business Partnert Id 1_Old",
+            "Business Partnert Id 2_DXR", "Business Partnert Id 2_Old");
+        if Vendor.FindSet(false) then
             repeat
-                Modified := false;
-                if (Vendor."VP Name BPD_DXR" = '') and (Vendor."VP Name BPD_Old" <> '') then begin
-                    Vendor."VP Name BPD_DXR" := Vendor."VP Name BPD_Old";
-                    Modified := true;
-                end;
-                if (not Vendor."VP Sent BPD_DXR") and Vendor."VP Sent BPD_Old" then begin
-                    Vendor."VP Sent BPD_DXR" := Vendor."VP Sent BPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."VP Date Sent BPD_DXR" = 0D) and (Vendor."VP Date Sent BPD_Old" <> 0D) then begin
-                    Vendor."VP Date Sent BPD_DXR" := Vendor."VP Date Sent BPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."VP Document Type BPD_DXR".AsInteger() = 0) and (Vendor."VP Document Type BPD_Old".AsInteger() <> 0) then begin
-                    Vendor."VP Document Type BPD_DXR" := Vendor."VP Document Type BPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."VP Contract account type_DXR".AsInteger() = 0) and (Vendor."VP Contract account type_Old".AsInteger() <> 0) then begin
-                    Vendor."VP Contract account type_DXR" := Vendor."VP Contract account type_Old";
-                    Modified := true;
-                end;
-                if (not Vendor."VP Send BPD_DXR") and Vendor."VP Send BPD_Old" then begin
-                    Vendor."VP Send BPD_DXR" := Vendor."VP Send BPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."VP Ident Type BPD_DXR".AsInteger() = 0) and (Vendor."VP Ident Type BPD_Old".AsInteger() <> 0) then begin
-                    Vendor."VP Ident Type BPD_DXR" := Vendor."VP Ident Type BPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."VPTaxIdentTypeBPD_DXR".AsInteger() = 0) and (Vendor."VPTaxIdentTypeBPD_Old".AsInteger() <> 0) then begin
-                    Vendor."VPTaxIdentTypeBPD_DXR" := Vendor."VPTaxIdentTypeBPD_Old";
-                    Modified := true;
-                end;
-                if (Vendor."Business Partnert Id 1_DXR" = '') and (Vendor."Business Partnert Id 1_Old" <> '') then begin
-                    Vendor."Business Partnert Id 1_DXR" := Vendor."Business Partnert Id 1_Old";
-                    Modified := true;
-                end;
-                if (Vendor."Business Partnert Id 2_DXR" = '') and (Vendor."Business Partnert Id 2_Old" <> '') then begin
-                    Vendor."Business Partnert Id 2_DXR" := Vendor."Business Partnert Id 2_Old";
-                    Modified := true;
-                end;
-                if Modified then
-                    Vendor.Modify(false);
-                CommitBatch(BatchCount);
+                if VendorNeedsMerge(Vendor) then
+                    if VendorToUpdate.Get(Vendor."No.") then begin
+                        Modified := false;
+                        if (VendorToUpdate."VP Name BPD_DXR" = '') and (VendorToUpdate."VP Name BPD_Old" <> '') then begin
+                            VendorToUpdate."VP Name BPD_DXR" := VendorToUpdate."VP Name BPD_Old";
+                            Modified := true;
+                        end;
+                        if (not VendorToUpdate."VP Sent BPD_DXR") and VendorToUpdate."VP Sent BPD_Old" then begin
+                            VendorToUpdate."VP Sent BPD_DXR" := VendorToUpdate."VP Sent BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."VP Date Sent BPD_DXR" = 0D) and (VendorToUpdate."VP Date Sent BPD_Old" <> 0D) then begin
+                            VendorToUpdate."VP Date Sent BPD_DXR" := VendorToUpdate."VP Date Sent BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."VP Document Type BPD_DXR".AsInteger() = 0) and (VendorToUpdate."VP Document Type BPD_Old".AsInteger() <> 0) then begin
+                            VendorToUpdate."VP Document Type BPD_DXR" := VendorToUpdate."VP Document Type BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."VP Contract account type_DXR".AsInteger() = 0) and (VendorToUpdate."VP Contract account type_Old".AsInteger() <> 0) then begin
+                            VendorToUpdate."VP Contract account type_DXR" := VendorToUpdate."VP Contract account type_Old";
+                            Modified := true;
+                        end;
+                        if (not VendorToUpdate."VP Send BPD_DXR") and VendorToUpdate."VP Send BPD_Old" then begin
+                            VendorToUpdate."VP Send BPD_DXR" := VendorToUpdate."VP Send BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."VP Ident Type BPD_DXR".AsInteger() = 0) and (VendorToUpdate."VP Ident Type BPD_Old".AsInteger() <> 0) then begin
+                            VendorToUpdate."VP Ident Type BPD_DXR" := VendorToUpdate."VP Ident Type BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."VPTaxIdentTypeBPD_DXR".AsInteger() = 0) and (VendorToUpdate."VPTaxIdentTypeBPD_Old".AsInteger() <> 0) then begin
+                            VendorToUpdate."VPTaxIdentTypeBPD_DXR" := VendorToUpdate."VPTaxIdentTypeBPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."Business Partnert Id 1_DXR" = '') and (VendorToUpdate."Business Partnert Id 1_Old" <> '') then begin
+                            VendorToUpdate."Business Partnert Id 1_DXR" := VendorToUpdate."Business Partnert Id 1_Old";
+                            Modified := true;
+                        end;
+                        if (VendorToUpdate."Business Partnert Id 2_DXR" = '') and (VendorToUpdate."Business Partnert Id 2_Old" <> '') then begin
+                            VendorToUpdate."Business Partnert Id 2_DXR" := VendorToUpdate."Business Partnert Id 2_Old";
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            VendorToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
+                    end;
             until Vendor.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-VENDOR'));
+    end;
+
+    local procedure VendorNeedsMerge(var Vendor: Record Vendor): Boolean
+    begin
+        exit(
+            ((Vendor."VP Name BPD_DXR" = '') and (Vendor."VP Name BPD_Old" <> '')) or
+            ((not Vendor."VP Sent BPD_DXR") and Vendor."VP Sent BPD_Old") or
+            ((Vendor."VP Date Sent BPD_DXR" = 0D) and (Vendor."VP Date Sent BPD_Old" <> 0D)) or
+            ((Vendor."VP Document Type BPD_DXR".AsInteger() = 0) and (Vendor."VP Document Type BPD_Old".AsInteger() <> 0)) or
+            ((Vendor."VP Contract account type_DXR".AsInteger() = 0) and (Vendor."VP Contract account type_Old".AsInteger() <> 0)) or
+            ((not Vendor."VP Send BPD_DXR") and Vendor."VP Send BPD_Old") or
+            ((Vendor."VP Ident Type BPD_DXR".AsInteger() = 0) and (Vendor."VP Ident Type BPD_Old".AsInteger() <> 0)) or
+            ((Vendor."VPTaxIdentTypeBPD_DXR".AsInteger() = 0) and (Vendor."VPTaxIdentTypeBPD_Old".AsInteger() <> 0)) or
+            ((Vendor."Business Partnert Id 1_DXR" = '') and (Vendor."Business Partnert Id 1_Old" <> '')) or
+            ((Vendor."Business Partnert Id 2_DXR" = '') and (Vendor."Business Partnert Id 2_Old" <> '')));
     end;
 
     local procedure MergeVendorBankAccountFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         VendorBankAccount: Record "Vendor Bank Account";
+        VendorBankAccToUpdate: Record "Vendor Bank Account";
         Modified: Boolean;
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-VENDOR-BANK-ACCOUNT')) then
             exit;
 
-        if VendorBankAccount.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        VendorBankAccount.SetLoadFields(
+            "Vendor No.", Code,
+            "VP ID Bank_DXR", "VP ID Bank_Old",
+            "VP Payment Method Bank_DXR", "VP Payment Method Bank_Old",
+            "VP Acc. Type_DXR", "VP Acc. Type_Old",
+            "VP Default_DXR", "VP Default_Old",
+            "VP ID Type_DXR", "VP ID Type_Old",
+            "VP Sent BPD_DXR", "VP Sent BPD_Old",
+            "VP Status_DXR", "VP Status_Old",
+            "VP Send BPD_DXR", "VP Send BPD_Old",
+            "VP Date Sent BPD_DXR", "VP Date Sent BPD_Old",
+            "VP Default Currency_DXR", "VP Default Currency_Old");
+        if VendorBankAccount.FindSet(false) then
             repeat
-                Modified := false;
-                if (VendorBankAccount."VP ID Bank_DXR" = '') and (VendorBankAccount."VP ID Bank_Old" <> '') then begin
-                    VendorBankAccount."VP ID Bank_DXR" := VendorBankAccount."VP ID Bank_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP Payment Method Bank_DXR".AsInteger() = 0) and (VendorBankAccount."VP Payment Method Bank_Old".AsInteger() <> 0) then begin
-                    VendorBankAccount."VP Payment Method Bank_DXR" := VendorBankAccount."VP Payment Method Bank_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP Acc. Type_DXR".AsInteger() = 0) and (VendorBankAccount."VP Acc. Type_Old".AsInteger() <> 0) then begin
-                    VendorBankAccount."VP Acc. Type_DXR" := VendorBankAccount."VP Acc. Type_Old";
-                    Modified := true;
-                end;
-                if (not VendorBankAccount."VP Default_DXR") and VendorBankAccount."VP Default_Old" then begin
-                    VendorBankAccount."VP Default_DXR" := VendorBankAccount."VP Default_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP ID Type_DXR".AsInteger() = 0) and (VendorBankAccount."VP ID Type_Old".AsInteger() <> 0) then begin
-                    VendorBankAccount."VP ID Type_DXR" := VendorBankAccount."VP ID Type_Old";
-                    Modified := true;
-                end;
-                if (not VendorBankAccount."VP Sent BPD_DXR") and VendorBankAccount."VP Sent BPD_Old" then begin
-                    VendorBankAccount."VP Sent BPD_DXR" := VendorBankAccount."VP Sent BPD_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP Status_DXR".AsInteger() = 0) and (VendorBankAccount."VP Status_Old".AsInteger() <> 0) then begin
-                    VendorBankAccount."VP Status_DXR" := VendorBankAccount."VP Status_Old";
-                    Modified := true;
-                end;
-                if (not VendorBankAccount."VP Send BPD_DXR") and VendorBankAccount."VP Send BPD_Old" then begin
-                    VendorBankAccount."VP Send BPD_DXR" := VendorBankAccount."VP Send BPD_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP Date Sent BPD_DXR" = 0D) and (VendorBankAccount."VP Date Sent BPD_Old" <> 0D) then begin
-                    VendorBankAccount."VP Date Sent BPD_DXR" := VendorBankAccount."VP Date Sent BPD_Old";
-                    Modified := true;
-                end;
-                if (VendorBankAccount."VP Default Currency_DXR" = '') and (VendorBankAccount."VP Default Currency_Old" <> '') then begin
-                    VendorBankAccount."VP Default Currency_DXR" := VendorBankAccount."VP Default Currency_Old";
-                    Modified := true;
-                end;
-                if Modified then
-                    VendorBankAccount.Modify(false);
-                CommitBatch(BatchCount);
+                if VendorBankAccountNeedsMerge(VendorBankAccount) then
+                    if VendorBankAccToUpdate.Get(VendorBankAccount."Vendor No.", VendorBankAccount.Code) then begin
+                        Modified := false;
+                        if (VendorBankAccToUpdate."VP ID Bank_DXR" = '') and (VendorBankAccToUpdate."VP ID Bank_Old" <> '') then begin
+                            VendorBankAccToUpdate."VP ID Bank_DXR" := VendorBankAccToUpdate."VP ID Bank_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP Payment Method Bank_DXR".AsInteger() = 0) and (VendorBankAccToUpdate."VP Payment Method Bank_Old".AsInteger() <> 0) then begin
+                            VendorBankAccToUpdate."VP Payment Method Bank_DXR" := VendorBankAccToUpdate."VP Payment Method Bank_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP Acc. Type_DXR".AsInteger() = 0) and (VendorBankAccToUpdate."VP Acc. Type_Old".AsInteger() <> 0) then begin
+                            VendorBankAccToUpdate."VP Acc. Type_DXR" := VendorBankAccToUpdate."VP Acc. Type_Old";
+                            Modified := true;
+                        end;
+                        if (not VendorBankAccToUpdate."VP Default_DXR") and VendorBankAccToUpdate."VP Default_Old" then begin
+                            VendorBankAccToUpdate."VP Default_DXR" := VendorBankAccToUpdate."VP Default_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP ID Type_DXR".AsInteger() = 0) and (VendorBankAccToUpdate."VP ID Type_Old".AsInteger() <> 0) then begin
+                            VendorBankAccToUpdate."VP ID Type_DXR" := VendorBankAccToUpdate."VP ID Type_Old";
+                            Modified := true;
+                        end;
+                        if (not VendorBankAccToUpdate."VP Sent BPD_DXR") and VendorBankAccToUpdate."VP Sent BPD_Old" then begin
+                            VendorBankAccToUpdate."VP Sent BPD_DXR" := VendorBankAccToUpdate."VP Sent BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP Status_DXR".AsInteger() = 0) and (VendorBankAccToUpdate."VP Status_Old".AsInteger() <> 0) then begin
+                            VendorBankAccToUpdate."VP Status_DXR" := VendorBankAccToUpdate."VP Status_Old";
+                            Modified := true;
+                        end;
+                        if (not VendorBankAccToUpdate."VP Send BPD_DXR") and VendorBankAccToUpdate."VP Send BPD_Old" then begin
+                            VendorBankAccToUpdate."VP Send BPD_DXR" := VendorBankAccToUpdate."VP Send BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP Date Sent BPD_DXR" = 0D) and (VendorBankAccToUpdate."VP Date Sent BPD_Old" <> 0D) then begin
+                            VendorBankAccToUpdate."VP Date Sent BPD_DXR" := VendorBankAccToUpdate."VP Date Sent BPD_Old";
+                            Modified := true;
+                        end;
+                        if (VendorBankAccToUpdate."VP Default Currency_DXR" = '') and (VendorBankAccToUpdate."VP Default Currency_Old" <> '') then begin
+                            VendorBankAccToUpdate."VP Default Currency_DXR" := VendorBankAccToUpdate."VP Default Currency_Old";
+                            Modified := true;
+                        end;
+                        if Modified then begin
+                            VendorBankAccToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
+                    end;
             until VendorBankAccount.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-VENDOR-BANK-ACCOUNT'));
+    end;
+
+    local procedure VendorBankAccountNeedsMerge(var VendorBankAccount: Record "Vendor Bank Account"): Boolean
+    begin
+        exit(
+            ((VendorBankAccount."VP ID Bank_DXR" = '') and (VendorBankAccount."VP ID Bank_Old" <> '')) or
+            ((VendorBankAccount."VP Payment Method Bank_DXR".AsInteger() = 0) and (VendorBankAccount."VP Payment Method Bank_Old".AsInteger() <> 0)) or
+            ((VendorBankAccount."VP Acc. Type_DXR".AsInteger() = 0) and (VendorBankAccount."VP Acc. Type_Old".AsInteger() <> 0)) or
+            ((not VendorBankAccount."VP Default_DXR") and VendorBankAccount."VP Default_Old") or
+            ((VendorBankAccount."VP ID Type_DXR".AsInteger() = 0) and (VendorBankAccount."VP ID Type_Old".AsInteger() <> 0)) or
+            ((not VendorBankAccount."VP Sent BPD_DXR") and VendorBankAccount."VP Sent BPD_Old") or
+            ((VendorBankAccount."VP Status_DXR".AsInteger() = 0) and (VendorBankAccount."VP Status_Old".AsInteger() <> 0)) or
+            ((not VendorBankAccount."VP Send BPD_DXR") and VendorBankAccount."VP Send BPD_Old") or
+            ((VendorBankAccount."VP Date Sent BPD_DXR" = 0D) and (VendorBankAccount."VP Date Sent BPD_Old" <> 0D)) or
+            ((VendorBankAccount."VP Default Currency_DXR" = '') and (VendorBankAccount."VP Default Currency_Old" <> '')));
     end;
 
     local procedure MergePurchaseHeaderFields()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PurchaseHeader: Record "Purchase Header";
+        PurchaseHeaderToUpdate: Record "Purchase Header";
         BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-PURCHASE-HEADER')) then
             exit;
 
-        if PurchaseHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1) - see MergeBankAccountFields above for the full rationale.
+        PurchaseHeader.SetLoadFields("Document Type", "No.", VPAmountCredit_DXR, VPAmountCredit_Old);
+        if PurchaseHeader.FindSet(false) then
             repeat
-                if (PurchaseHeader.VPAmountCredit_DXR = 0) and (PurchaseHeader.VPAmountCredit_Old <> 0) then begin
-                    PurchaseHeader.VPAmountCredit_DXR := PurchaseHeader.VPAmountCredit_Old;
-                    PurchaseHeader.Modify(false);
-                end;
-                CommitBatch(BatchCount);
+                if (PurchaseHeader.VPAmountCredit_DXR = 0) and (PurchaseHeader.VPAmountCredit_Old <> 0) then
+                    if PurchaseHeaderToUpdate.Get(PurchaseHeader."Document Type", PurchaseHeader."No.") then
+                        if (PurchaseHeaderToUpdate.VPAmountCredit_DXR = 0) and (PurchaseHeaderToUpdate.VPAmountCredit_Old <> 0) then begin
+                            PurchaseHeaderToUpdate.VPAmountCredit_DXR := PurchaseHeaderToUpdate.VPAmountCredit_Old;
+                            PurchaseHeaderToUpdate.Modify(false);
+                            CommitBatch(BatchCount);
+                        end;
             until PurchaseHeader.Next() = 0;
-        Commit();
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-PURCHASE-HEADER'));
     end;

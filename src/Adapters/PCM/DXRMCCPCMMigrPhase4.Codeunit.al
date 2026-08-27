@@ -20,10 +20,26 @@ codeunit 60124 "DXR MCC PCM Migr Phase4"
         SalesHeader: Record "Sales Header";
         Modified: Boolean;
         AttemptNo: Integer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(SalesHeaderFieldsMigratedTag()) then
             exit;
 
+        // Fixed 2026-08-27: added SetLoadFields with exactly the fields this loop reads/writes (the
+        // primary key is always loaded). Sales Header carries many tableextensions in this portfolio
+        // and without a partial record the server joined every companion table for every row. Also
+        // added a bounded Commit - the loop previously ran entirely in one unbounded transaction.
+        SalesHeader.SetLoadFields(
+            "PRC Snapshot Enabled", "PRC Snapshot Enabled_DXR",
+            "PRC Source Quote No.", "PRC Src Quote No._DXR",
+            "PRC Snapshot Timestamp", "PRC Snap Timestamp_DXR",
+            "PRC Snapshot Line Count", "PRC Snap Line Count_DXR",
+            "PRC Team Code", "PRC Team Code_DXR",
+            "PRC Team Name", "PRC Team Name_DXR",
+            "PRC Snapshot Quote Doc Date", "PRC Snap Quote DocDt_DXR",
+            "PRC Snapshot Quote Post Date", "PRC Snap Quote PostDt_DXR",
+            "PRC Snap MakeOrder WorkDate", "PRC Snap MkOrd WD_DXR",
+            "PRC Snap MakeOrder Today", "PRC Snap MkOrd Today_DXR");
         if not SalesHeader.FindSet() then begin
             UpgradeTag.SetUpgradeTag(SalesHeaderFieldsMigratedTag());
             exit;
@@ -89,8 +105,19 @@ codeunit 60124 "DXR MCC PCM Migr Phase4"
                     if not RetryMgt.ShouldRetry(AttemptNo, GetLastErrorText()) then
                         Error(GetLastErrorText());
                 end;
+
+                // Only reached once the retry-on-lock loop above has fully resolved, never mid-retry;
+                // counter advances per MODIFIED row.
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             end;
         until SalesHeader.Next() = 0;
+
+        if RowCounter > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(SalesHeaderFieldsMigratedTag());
     end;
@@ -108,10 +135,48 @@ codeunit 60124 "DXR MCC PCM Migr Phase4"
         SalesLine: Record "Sales Line";
         Modified: Boolean;
         AttemptNo: Integer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(SalesLineFieldsMigratedTag()) then
             exit;
 
+        // Fixed 2026-08-27: added SetLoadFields with exactly the fields this loop reads/writes (the
+        // primary key is always loaded). Sales Line is the widest table in this portfolio and carries
+        // many tableextensions - without a partial record every companion table was joined per row.
+        // Also added a bounded Commit - the loop previously ran in one unbounded transaction.
+        SalesLine.SetLoadFields(
+            "Precio Menor A PrecioFijado", "PrecMenorFijado_DXR",
+            "PRC Exempt Price", "PRC Exempt Price_DXR",
+            "PRC Store From Customer", "PRC StoreFrmCust_DXR",
+            "PRC Line Style", "PRC Line Style_DXR",
+            "PRC Requires Price Approval", "PRC ReqPrcAppr_DXR",
+            "PRC Customer Price Applied", "PRC CustPrcAppl_DXR",
+            "PRC Store Price Applied", "PRC StorePrcAppl_DXR",
+            "PRC LSC Original Unit Price", "PRC LSC OrigUP_DXR",
+            "PRC LSC Price Manual Change", "PRC LSC Price Man Chg_DXR",
+            "PRC LSC Disc Manual Change", "PRC LSC Disc Man Chg_DXR",
+            "PRC Approval Reason", "PRC Approval Reason_DXR",
+            "PRC VAT Exempt", "PRC VAT Exempt_DXR",
+            "PRC Original Item No.", "PRC Orig Item No._DXR",
+            "PRC Original Quantity", "PRC Orig Quantity_DXR",
+            "PRC Original Unit Price", "PRC Orig Unit Price_DXR",
+            "PRC Original Amount Incl VAT", "PRC Orig AmtInclVAT_DXR",
+            "PRC Original VAT Percent", "PRC Orig VAT Pct_DXR",
+            "PRC Snapshot Customer Price", "PRC Snap Cust Price_DXR",
+            "PRC Snapshot Store Price", "PRC Snap Store Price_DXR",
+            "PRC Snapshot Line Approved", "PRC Snap Line Appr_DXR",
+            "PRC Source Quote No.", "PRC Src Quote No._DXR",
+            "PRC Snapshot Timestamp", "PRC Snap Timestamp_DXR",
+            "PRC Snapshot Line Count", "PRC Snap Line Count_DXR",
+            "PRC Snapshot Quote Doc Date", "PRC Snap QuoteDocDt_DXR",
+            "PRC Snapshot Quote Post Date", "PRC Snap QuotePostDt_DXR",
+            "PRC Snap MakeOrder WorkDate", "PRC Snap MkOrd WD_DXR",
+            "PRC Snap MakeOrder Today", "PRC Snap MkOrdToday_DXR",
+            "PRC Original Net Amount", "PRC Orig Net Amt_DXR",
+            "PRC Original Line Disc. %", "PRC Orig LinDisc %_DXR",
+            "PRC Original Line Disc. Amt", "PRC Orig LinDisc Amt_DXR",
+            "PRC Snapshot VAT Exempt", "PRC Snap VAT Exempt_DXR",
+            "PRC Snapshot Exempt Price", "PRC Snap ExemptPrc_DXR");
         if not SalesLine.FindSet() then begin
             UpgradeTag.SetUpgradeTag(SalesLineFieldsMigratedTag());
             exit;
@@ -287,10 +352,26 @@ codeunit 60124 "DXR MCC PCM Migr Phase4"
                     if not RetryMgt.ShouldRetry(AttemptNo, GetLastErrorText()) then
                         Error(GetLastErrorText());
                 end;
+
+                // Only reached once the retry-on-lock loop above has fully resolved, never mid-retry;
+                // counter advances per MODIFIED row.
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             end;
         until SalesLine.Next() = 0;
 
+        if RowCounter > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag(SalesLineFieldsMigratedTag());
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     [TryFunction]

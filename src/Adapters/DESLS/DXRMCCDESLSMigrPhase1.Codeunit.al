@@ -8,6 +8,15 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
     // the active table anymore) - the other 4 (LS Central's own native Staff/RetailUser/
     // RetailProductGroup/UserSetup tables) were never split into a legacy/active pair and read the
     // old field directly.
+    //
+    // Fixed 2026-08-27 (performance/locking pass, no migration semantics changed): every loop below
+    // did FindSet(true) over the WHOLE table with no partial-record hint. Per Learn ("Record.FindSet")
+    // FindSet "will request all rows at once" and with ForUpdate = true reads them "using
+    // IsolationLevel::UpdLock (SQL UPDLOCK)", and without SetLoadFields the server joins in every
+    // tableextension companion table for every row. Each loop now declares SetLoadFields with exactly
+    // the fields it reads/writes. Loops over unbounded (line/historic/log) tables that had no Commit
+    // at all now commit in batches, and every batching loop commits the remainder at the end instead
+    // of leaving it in the caller's transaction. Same fields, same copy conditions, same upgrade tags.
     Permissions =
         tabledata "DXR-DE Dispatch Line" = R,
         tabledata "DXR_Dispatch Line" = RIMD,
@@ -87,6 +96,8 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHLINE-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 5 fields this loop touches.
+        DispatchLineRec.SetLoadFields(Type, "No.", "Invoice No.", "Store No._DXR", "Document Reference_DXR");
         if DispatchLineRec.FindSet(true) then
             repeat
                 if LegacyDispatchLineRec.Get(DispatchLineRec.Type, DispatchLineRec."No.", DispatchLineRec."Invoice No.") then begin
@@ -107,6 +118,11 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                 end;
             until DispatchLineRec.Next() = 0;
 
+        // Fixed 2026-08-27: commit the remainder (< 200 rows) instead of leaving it in the caller's
+        // transaction.
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHLINE-28.3');
     end;
 
@@ -119,6 +135,8 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-DISPATCHSETUP-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop reads.
+        LegacyDispatchSetupRec.SetLoadFields("Key", "DXR-DE Enable Manual Gen. Doc.");
         if LegacyDispatchSetupRec.FindSet() then
             repeat
                 if not DispatchSetupRec.Get(LegacyDispatchSetupRec."Key") then begin
@@ -142,10 +160,15 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag: Codeunit "Upgrade Tag";
         LogReimpresionesCondRec: Record "DXR_Log Reimpresiones Cond";
         LegacyLogReimpresionesCondRec: Record "DXR-DE Log Reimpresiones Cond";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-LOGREIMPRESIONESCOND-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches, and the
+        // loop is now committed in batches - it is an unbounded log table and previously ran the
+        // whole rewrite in a single transaction.
+        LogReimpresionesCondRec.SetLoadFields("Entry No.", "Staff ID_DXR");
         if LogReimpresionesCondRec.FindSet(true) then
             repeat
                 if LegacyLogReimpresionesCondRec.Get(LogReimpresionesCondRec."Entry No.") then begin
@@ -155,7 +178,16 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                         LogReimpresionesCondRec.Modify(false);
                     end;
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until LogReimpresionesCondRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-LOGREIMPRESIONESCOND-28.3');
     end;
@@ -168,6 +200,11 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-STAFF-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 6 fields this loop touches.
+        StaffRec.SetLoadFields(
+            "Reprint Shipments_DXR", "DXR-DE Reprint Shipments",
+            "Reprint invoices_DXR", "DXR-DE Reprint invoices",
+            "Del Dispatch Document_DXR", "DXR-DE Del Dispatch Document");
         if StaffRec.FindSet(true) then
             repeat
                 StaffRec."Reprint Shipments_DXR" := StaffRec."DXR-DE Reprint Shipments";
@@ -187,6 +224,8 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-RETAILUSER-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches.
+        RetailUserRec.SetLoadFields("Almacen Despacho_DXR", "DXR-DE Almacen Despacho");
         if RetailUserRec.FindSet(true) then
             repeat
                 RetailUserRec."Almacen Despacho_DXR" := RetailUserRec."DXR-DE Almacen Despacho";
@@ -201,10 +240,14 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag: Codeunit "Upgrade Tag";
         PickupHistoricRec: Record "DXR_Pickup Historic";
         LegacyPickupHistoricRec: Record "DXR-DE Pickup Historic";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPHISTORIC-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches, and the
+        // loop is now committed in batches - it is an unbounded historic table.
+        PickupHistoricRec.SetLoadFields("Document No.", "Store No._DXR");
         if PickupHistoricRec.FindSet(true) then
             repeat
                 if LegacyPickupHistoricRec.Get(PickupHistoricRec."Document No.") then begin
@@ -214,7 +257,16 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                         PickupHistoricRec.Modify(false);
                     end;
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until PickupHistoricRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPHISTORIC-28.3');
     end;
@@ -224,10 +276,14 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag: Codeunit "Upgrade Tag";
         PickupListRec: Record "DXR_Pickup List";
         LegacyPickupListRec: Record "DXR-DE Pickup List";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPLIST-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches, and the
+        // loop is now committed in batches - row volume is unbounded.
+        PickupListRec.SetLoadFields("Document No.", "Store No._DXR");
         if PickupListRec.FindSet(true) then
             repeat
                 if LegacyPickupListRec.Get(PickupListRec."Document No.") then begin
@@ -237,7 +293,16 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                         PickupListRec.Modify(false);
                     end;
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until PickupListRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-PICKUPLIST-28.3');
     end;
@@ -252,6 +317,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-POSTEDTRANSPORTLINE-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 6 fields this loop touches.
+        PostedTransportLineRec.SetLoadFields(
+            Type, "No.", "Transport No.", "Invoice No.",
+            "Store_DXR", "Document Reference_DXR");
         if PostedTransportLineRec.FindSet(true) then
             repeat
                 if LegacyPostedTransportLineRec.Get(PostedTransportLineRec.Type, PostedTransportLineRec."No.", PostedTransportLineRec."Transport No.", PostedTransportLineRec."Invoice No.") then begin
@@ -272,6 +341,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                 end;
             until PostedTransportLineRec.Next() = 0;
 
+        // Fixed 2026-08-27: commit the remainder (< 200 rows).
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-POSTEDTRANSPORTLINE-28.3');
     end;
 
@@ -283,6 +356,8 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-RETAILPRODUCTGROUP-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches.
+        RetailProductGroupRec.SetLoadFields("Comision_Cobro_DXR", "DXR-DE Comision_Cobro");
         if RetailProductGroupRec.FindSet(true) then
             repeat
                 RetailProductGroupRec."Comision_Cobro_DXR" := RetailProductGroupRec."DXR-DE Comision_Cobro";
@@ -297,10 +372,14 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag: Codeunit "Upgrade Tag";
         TransportHeaderRec: Record "DXR_Transport Header";
         LegacyTransportHeaderRec: Record "DXR-DE Transport Header";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTHEADER-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches, and the
+        // loop is now committed in batches - row volume is unbounded.
+        TransportHeaderRec.SetLoadFields("Code", "Store_DXR");
         if TransportHeaderRec.FindSet(true) then
             repeat
                 if LegacyTransportHeaderRec.Get(TransportHeaderRec."Code") then begin
@@ -310,7 +389,16 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                         TransportHeaderRec.Modify(false);
                     end;
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until TransportHeaderRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTHEADER-28.3');
     end;
@@ -325,6 +413,8 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-SHIPMENTHEADER-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches.
+        ShipmentHeaderRec.SetLoadFields("No.", "Store No._DXR");
         if ShipmentHeaderRec.FindSet(true) then
             repeat
                 if LegacyShipmentHeaderRec.Get(ShipmentHeaderRec."No.") then begin
@@ -342,6 +432,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                 end;
             until ShipmentHeaderRec.Next() = 0;
 
+        // Fixed 2026-08-27: commit the remainder (< 200 rows).
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-SHIPMENTHEADER-28.3');
     end;
 
@@ -355,6 +449,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLINE-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 5 fields this loop touches.
+        TransportLineRec.SetLoadFields(
+            "Line No.", "Transport No.", Type,
+            "Store No._DXR", "Document Reference_DXR");
         if TransportLineRec.FindSet(true) then
             repeat
                 if LegacyTransportLineRec.Get(TransportLineRec."Line No.", TransportLineRec."Transport No.", TransportLineRec.Type) then begin
@@ -375,6 +473,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                 end;
             until TransportLineRec.Next() = 0;
 
+        // Fixed 2026-08-27: commit the remainder (< 200 rows).
+        if BatchCount > 0 then
+            Commit();
+
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLINE-28.3');
     end;
 
@@ -383,10 +485,14 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         UpgradeTag: Codeunit "Upgrade Tag";
         TransportLogsRec: Record "DXR_Transport Log's";
         LegacyTransportLogsRec: Record "DXR-DE Transport Log's";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLOGS-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 2 fields this loop touches, and the
+        // loop is now committed in batches - it is an unbounded log table.
+        TransportLogsRec.SetLoadFields("Entry No.", "Document Reference_DXR");
         if TransportLogsRec.FindSet(true) then
             repeat
                 if LegacyTransportLogsRec.Get(TransportLogsRec."Entry No.") then begin
@@ -396,7 +502,16 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
                         TransportLogsRec.Modify(false);
                     end;
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until TransportLogsRec.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-DespachoLS-MigrPhase1-TRANSPORTLOGS-28.3');
     end;
@@ -409,6 +524,10 @@ codeunit 60130 "DXR MCC DESLS Migr Phase1"
         if UpgradeTag.HasUpgradeTag('DXR-DespachoLS-MigrPhase1-USERSETUP-28.3') then
             exit;
 
+        // Fixed 2026-08-27: SetLoadFields limits the scan to the 4 fields this loop touches.
+        UserSetupRec.SetLoadFields(
+            "Grupo Precios Tope_DXR", "DXR-DE Grupo Precios Tope",
+            "Supervisor_DXR", "DXR-DE Supervisor");
         if UserSetupRec.FindSet(true) then
             repeat
                 UserSetupRec."Grupo Precios Tope_DXR" := UserSetupRec."DXR-DE Grupo Precios Tope";

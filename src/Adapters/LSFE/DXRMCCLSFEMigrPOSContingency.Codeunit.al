@@ -87,7 +87,21 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
-        if TransactionHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): this scanned the WHOLE "LSC Transaction Header" table (every POS
+        // receipt ever posted) with FindSet(true), i.e. an UPDLOCK on every row held for the entire
+        // run, while only rows with a stranded legacy value actually change; and with no
+        // SetLoadFields every tableextension companion table on that record was joined in per row.
+        // Now: SetLoadFields (exactly the 13 fields read/written below) + FindSet(false) (no UPDLOCK),
+        // so the lock is taken per row at Modify time, and the commit counter advances per MODIFIED
+        // row instead of per scanned row. Same fields, same only-if-blank guards, same order.
+        TransactionHeader.SetLoadFields(
+            "DGII Message_DXR", "EF DGII Message",
+            "Status_DXR", "EF Status",
+            "Alternal NCF_DXR", "LSEF Alternal NCF",
+            "Alt NCF Srl No._DXR", "LSEF Alternal NCF Serial No.",
+            "Has Contingencies_DXR", "LSEF Has Contingencies",
+            "Alternate NCF_DXR", "Alternate No. Series_DXR", "Has NCF Contingency_DXR");
+        if TransactionHeader.FindSet(false) then
             repeat
                 Changed := false;
                 if (TransactionHeader."DGII Message_DXR" = '') and (TransactionHeader."EF DGII Message" <> '') then begin
@@ -120,12 +134,13 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
                     TransactionHeader."Has NCF Contingency_DXR" := true;
                     Changed := true;
                 end;
-                if Changed then
+                if Changed then begin
                     TransactionHeader.Modify(false);
-                RowsSinceCommit += 1;
-                if RowsSinceCommit >= BatchSize() then begin
-                    Commit();
-                    RowsSinceCommit := 0;
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= BatchSize() then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
                 end;
             until TransactionHeader.Next() = 0;
         Commit();
@@ -263,6 +278,17 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         POSTerminal: Record "LSC POS Terminal";
         Changed: Boolean;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 15 fields read/written below) so the
+        // scan stops joining the companion table of every "LSC POS Terminal" tableextension per row.
+        POSTerminal.SetLoadFields(
+            "Alt NCF SrlNo CRF_DXR", "LSEF Alternal NCF SerialNo CRF",
+            "Alt NCF SrlNo CF_DXR", "LSEF Alternal NCF SerialNo CF",
+            "Alt NCF SrlNo ESP_DXR", "LSEF Alternal NCF SerialNo ESP",
+            "Alt NCF SrlNo GUB_DXR", "LSEF Alternal NCF SerialNo GUB",
+            "Alt NCF SrlNo NC_DXR", "LSEF Alternal NCF SerialNo NC",
+            "Alt. NCF Fiscal Credit_DXR", "Alt. NCF Final Consumer_DXR",
+            "Alt. NCF Credit Note_DXR", "Alt. NCF Governmental_DXR",
+            "Alt. NCF Reg. Special_DXR");
         if POSTerminal.FindSet(true) then
             repeat
                 Changed := false;
@@ -318,7 +344,21 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
-        if not TransactionHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): same whole-table UPDLOCK + missing-SetLoadFields problem as
+        // MigrateTransactions() above, and the same fix - SetLoadFields with exactly the non-Blob
+        // fields read/written (Blobs are never part of a partial load per Learn's partial-records FAQ,
+        // so the CalcFields call below keeps fetching them exactly as before), FindSet(false) so the
+        // scan takes no update lock, and a commit counter that advances per MODIFIED row.
+        TransactionHeader.SetLoadFields(
+            "Security Code_DXR", "LSEF Security Code",
+            "Stamped Date/Time_DXR", "LSEF Stamped Date/Time",
+            "RequestedDateTime_DXR", "LSEF Requested DateTime",
+            "NCF Mod. Reason_DXR", "LSEF NCF Modification Reason",
+            "Applies for ISC_DXR", "LSEF Applies for ISC",
+            "e-NCF Type_DXR", "LSEF e-NCF Type",
+            "DGII Message_DXR", "LSEF DGII Message",
+            "Status_DXR", "LSEF Status");
+        if not TransactionHeader.FindSet(false) then
             exit;
         repeat
             Changed := false;
@@ -396,12 +436,13 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
                 Changed := true;
             end;
 
-            if Changed then
+            if Changed then begin
                 TransactionHeader.Modify(false);
-            RowsSinceCommit += 1;
-            if RowsSinceCommit >= BatchSize() then begin
-                Commit();
-                RowsSinceCommit := 0;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             end;
         until TransactionHeader.Next() = 0;
         Commit();
@@ -417,7 +458,17 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
         Changed: Boolean;
         RowsSinceCommit: Integer;
     begin
-        if not TransSalesEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): "LSC Trans. Sales Entry" is the largest table in an LS Central
+        // database (one row per POS sales line ever posted); FindSet(true) took an update lock on all
+        // of it for the whole run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. SetLoadFields (exactly the 8 fields read/written) + FindSet(false), and the
+        // commit counter now advances per MODIFIED row.
+        TransSalesEntry.SetLoadFields(
+            "Applies for ISC_DXR", "LSEF Applies for ISC",
+            "Appl. Withholding_DXR", "LSEF Applies for Withholding",
+            "UOM Type_DXR", "LSEF UOM Type",
+            "Tax Indicator_DXR", "LSEF Tax Indicator");
+        if not TransSalesEntry.FindSet(false) then
             exit;
         repeat
             Changed := false;
@@ -442,12 +493,13 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
                 Changed := true;
             end;
 
-            if Changed then
+            if Changed then begin
                 TransSalesEntry.Modify(false);
-            RowsSinceCommit += 1;
-            if RowsSinceCommit >= BatchSize() then begin
-                Commit();
-                RowsSinceCommit := 0;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             end;
         until TransSalesEntry.Next() = 0;
         Commit();

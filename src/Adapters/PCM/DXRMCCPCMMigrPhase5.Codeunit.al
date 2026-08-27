@@ -242,39 +242,50 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         ApprovalEntry: Record "Approval Entry";
+        ApprovalEntryToUpdate: Record "Approval Entry";
         Modified: Boolean;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step3Tag()) then
             exit;
 
-        if ApprovalEntry.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) over the WHOLE Approval Entry table took an UPDLOCK on every
+        // row for the entire run while only a minority need a copy. Now SetLoadFields (PK + the 6
+        // fields touched) + FindSet(false) (no UPDLOCK), the row is re-read with Get() and locked only
+        // when it really needs a change, and the commit counter advances per MODIFIED row.
+        ApprovalEntry.SetLoadFields(
+            "Entry No.",
+            "Workflow Code", "Workflow Code_DXR",
+            "Workflow Instance ID", "Workflow Instance ID_DXR",
+            "Posting Date", "Posting Date_DXR");
+        if ApprovalEntry.FindSet(false) then begin
             repeat
-                Modified := false;
-
-                if (ApprovalEntry."Workflow Code" <> '') and (ApprovalEntry."Workflow Code_DXR" = '') then begin
-                    ApprovalEntry."Workflow Code_DXR" := ApprovalEntry."Workflow Code";
-                    Modified := true;
-                end;
-                if (not IsNullGuid(ApprovalEntry."Workflow Instance ID")) and IsNullGuid(ApprovalEntry."Workflow Instance ID_DXR") then begin
-                    ApprovalEntry."Workflow Instance ID_DXR" := ApprovalEntry."Workflow Instance ID";
-                    Modified := true;
-                end;
-                if (ApprovalEntry."Posting Date" <> 0D) and (ApprovalEntry."Posting Date_DXR" = 0D) then begin
-                    ApprovalEntry."Posting Date_DXR" := ApprovalEntry."Posting Date";
-                    Modified := true;
-                end;
+                Modified :=
+                    ((ApprovalEntry."Workflow Code" <> '') and (ApprovalEntry."Workflow Code_DXR" = '')) or
+                    ((not IsNullGuid(ApprovalEntry."Workflow Instance ID")) and IsNullGuid(ApprovalEntry."Workflow Instance ID_DXR")) or
+                    ((ApprovalEntry."Posting Date" <> 0D) and (ApprovalEntry."Posting Date_DXR" = 0D));
 
                 if Modified then
-                    ApprovalEntry.Modify(false);
+                    if ApprovalEntryToUpdate.Get(ApprovalEntry."Entry No.") then begin
+                        if (ApprovalEntryToUpdate."Workflow Code" <> '') and (ApprovalEntryToUpdate."Workflow Code_DXR" = '') then
+                            ApprovalEntryToUpdate."Workflow Code_DXR" := ApprovalEntryToUpdate."Workflow Code";
+                        if (not IsNullGuid(ApprovalEntryToUpdate."Workflow Instance ID")) and IsNullGuid(ApprovalEntryToUpdate."Workflow Instance ID_DXR") then
+                            ApprovalEntryToUpdate."Workflow Instance ID_DXR" := ApprovalEntryToUpdate."Workflow Instance ID";
+                        if (ApprovalEntryToUpdate."Posting Date" <> 0D) and (ApprovalEntryToUpdate."Posting Date_DXR" = 0D) then
+                            ApprovalEntryToUpdate."Posting Date_DXR" := ApprovalEntryToUpdate."Posting Date";
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                        ApprovalEntryToUpdate.Modify(false);
+
+                        RowCounter += 1;
+                        if RowCounter >= BatchSize() then begin
+                            Commit();
+                            RowCounter := 0;
+                        end;
+                    end;
             until ApprovalEntry.Next() = 0;
-        Commit();
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(Step3Tag());
     end;
@@ -283,26 +294,37 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Customer: Record Customer;
+        CustomerToUpdate: Record Customer;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step4Tag()) then
             exit;
 
+        // Fixed 2026-08-27: same fix as "DXR MCC BC Migr P3 Customer" - FindSet(true) took an UPDLOCK
+        // on every customer with a "PRC Store" for the whole run, including those already filled.
+        // SetLoadFields limits the read to the 3 fields touched (Customer carries many tableextensions
+        // in this portfolio), FindSet(false) drops the lock, and the row is re-read with Get() and
+        // locked only when it really needs the copy. Commit counter per MODIFIED row.
+        Customer.SetLoadFields("No.", "PRC Store", "PRC Store_DXR");
         Customer.SetFilter("PRC Store", '<>%1', '');
-        if Customer.FindSet(true) then
+        if Customer.FindSet(false) then begin
             repeat
-                if Customer."PRC Store_DXR" = '' then begin
-                    Customer."PRC Store_DXR" := Customer."PRC Store";
-                    Customer.Modify(false);
-                end;
+                if Customer."PRC Store_DXR" = '' then
+                    if CustomerToUpdate.Get(Customer."No.") then
+                        if CustomerToUpdate."PRC Store_DXR" = '' then begin
+                            CustomerToUpdate."PRC Store_DXR" := CustomerToUpdate."PRC Store";
+                            CustomerToUpdate.Modify(false);
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                            RowCounter += 1;
+                            if RowCounter >= BatchSize() then begin
+                                Commit();
+                                RowCounter := 0;
+                            end;
+                        end;
             until Customer.Next() = 0;
-        Commit();
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(Step4Tag());
     end;
@@ -311,39 +333,50 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         StorePriceGroup: Record "LSC Store Price Group";
+        StorePriceGroupToUpdate: Record "LSC Store Price Group";
         Modified: Boolean;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step5Tag()) then
             exit;
 
-        if StorePriceGroup.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) over the WHOLE LSC Store Price Group table took an UPDLOCK
+        // on every row for the entire run even though only rows with a legacy flag set change. Now:
+        // SetLoadFields (PK + the 6 fields touched), FindSet(false) without the lock, and the row is
+        // re-read with Get() and locked only when it really needs a change; commit per MODIFIED row.
+        StorePriceGroup.SetLoadFields(
+            Store, "Price Group Code",
+            "PRC Precio Fijado", "PRC Precio Fijado_DXR",
+            "PRC Excluir Store Prices", "PRC ExclStorePrc_DXR",
+            "PRC Excluir Cust. Prices", "PRC ExclCustPrc_DXR");
+        if StorePriceGroup.FindSet(false) then begin
             repeat
-                Modified := false;
-
-                if StorePriceGroup."PRC Precio Fijado" and not StorePriceGroup."PRC Precio Fijado_DXR" then begin
-                    StorePriceGroup."PRC Precio Fijado_DXR" := true;
-                    Modified := true;
-                end;
-                if StorePriceGroup."PRC Excluir Store Prices" and not StorePriceGroup."PRC ExclStorePrc_DXR" then begin
-                    StorePriceGroup."PRC ExclStorePrc_DXR" := true;
-                    Modified := true;
-                end;
-                if StorePriceGroup."PRC Excluir Cust. Prices" and not StorePriceGroup."PRC ExclCustPrc_DXR" then begin
-                    StorePriceGroup."PRC ExclCustPrc_DXR" := true;
-                    Modified := true;
-                end;
+                Modified :=
+                    (StorePriceGroup."PRC Precio Fijado" and not StorePriceGroup."PRC Precio Fijado_DXR") or
+                    (StorePriceGroup."PRC Excluir Store Prices" and not StorePriceGroup."PRC ExclStorePrc_DXR") or
+                    (StorePriceGroup."PRC Excluir Cust. Prices" and not StorePriceGroup."PRC ExclCustPrc_DXR");
 
                 if Modified then
-                    StorePriceGroup.Modify(false);
+                    if StorePriceGroupToUpdate.Get(StorePriceGroup.Store, StorePriceGroup."Price Group Code") then begin
+                        if StorePriceGroupToUpdate."PRC Precio Fijado" and not StorePriceGroupToUpdate."PRC Precio Fijado_DXR" then
+                            StorePriceGroupToUpdate."PRC Precio Fijado_DXR" := true;
+                        if StorePriceGroupToUpdate."PRC Excluir Store Prices" and not StorePriceGroupToUpdate."PRC ExclStorePrc_DXR" then
+                            StorePriceGroupToUpdate."PRC ExclStorePrc_DXR" := true;
+                        if StorePriceGroupToUpdate."PRC Excluir Cust. Prices" and not StorePriceGroupToUpdate."PRC ExclCustPrc_DXR" then
+                            StorePriceGroupToUpdate."PRC ExclCustPrc_DXR" := true;
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                        StorePriceGroupToUpdate.Modify(false);
+
+                        RowCounter += 1;
+                        if RowCounter >= BatchSize() then begin
+                            Commit();
+                            RowCounter := 0;
+                        end;
+                    end;
             until StorePriceGroup.Next() = 0;
-        Commit();
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(Step5Tag());
     end;
@@ -352,40 +385,53 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Workflow: Record Workflow;
+        WorkflowToUpdate: Record Workflow;
         Modified: Boolean;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step6Tag()) then
             exit;
 
-        if Workflow.FindSet(true) then
+        // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every Workflow row for the whole run.
+        // SetLoadFields (PK + the 4 fields touched) + FindSet(false) reads without the lock, and the
+        // row is re-read with Get() and locked only when it really needs a change; commit per
+        // MODIFIED row.
+        Workflow.SetLoadFields(
+            "Code",
+            "PRC Approval Type", "DXR_Approval Type",
+            "PRC Approval Type_DXR_Old", "PRC Approval Type_DXR");
+        if Workflow.FindSet(false) then begin
             repeat
-                Modified := false;
-
-                if (Workflow."PRC Approval Type" <> Workflow."PRC Approval Type"::All) and
-                   (Workflow."DXR_Approval Type" = Workflow."DXR_Approval Type"::All)
-                then begin
-                    Workflow."DXR_Approval Type" := Workflow."PRC Approval Type";
-                    Modified := true;
-                end;
-
-                if (Workflow."PRC Approval Type_DXR_Old" <> Workflow."PRC Approval Type_DXR_Old"::All) and
-                   (Workflow."PRC Approval Type_DXR" = Workflow."PRC Approval Type_DXR"::All)
-                then begin
-                    Workflow."PRC Approval Type_DXR" := Workflow."PRC Approval Type_DXR_Old";
-                    Modified := true;
-                end;
+                Modified :=
+                    ((Workflow."PRC Approval Type" <> Workflow."PRC Approval Type"::All) and
+                     (Workflow."DXR_Approval Type" = Workflow."DXR_Approval Type"::All)) or
+                    ((Workflow."PRC Approval Type_DXR_Old" <> Workflow."PRC Approval Type_DXR_Old"::All) and
+                     (Workflow."PRC Approval Type_DXR" = Workflow."PRC Approval Type_DXR"::All));
 
                 if Modified then
-                    Workflow.Modify(false);
+                    if WorkflowToUpdate.Get(Workflow."Code") then begin
+                        if (WorkflowToUpdate."PRC Approval Type" <> WorkflowToUpdate."PRC Approval Type"::All) and
+                           (WorkflowToUpdate."DXR_Approval Type" = WorkflowToUpdate."DXR_Approval Type"::All)
+                        then
+                            WorkflowToUpdate."DXR_Approval Type" := WorkflowToUpdate."PRC Approval Type";
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                        if (WorkflowToUpdate."PRC Approval Type_DXR_Old" <> WorkflowToUpdate."PRC Approval Type_DXR_Old"::All) and
+                           (WorkflowToUpdate."PRC Approval Type_DXR" = WorkflowToUpdate."PRC Approval Type_DXR"::All)
+                        then
+                            WorkflowToUpdate."PRC Approval Type_DXR" := WorkflowToUpdate."PRC Approval Type_DXR_Old";
+
+                        WorkflowToUpdate.Modify(false);
+
+                        RowCounter += 1;
+                        if RowCounter >= BatchSize() then begin
+                            Commit();
+                            RowCounter := 0;
+                        end;
+                    end;
             until Workflow.Next() = 0;
-        Commit();
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(Step6Tag());
     end;
@@ -394,68 +440,81 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesHeader: Record "Sales Header";
+        SalesHeaderToUpdate: Record "Sales Header";
         Modified: Boolean;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step7Tag()) then
             exit;
 
+        // Fixed 2026-08-27: FindSet(true) took an UPDLOCK on every snapshot-enabled sales document for
+        // the whole run, blocking normal document activity, while only the rows still missing a _DXR
+        // value need a write. Now: SetLoadFields (PK + exactly the fields touched - Sales Header
+        // carries many tableextensions in this portfolio), FindSet(false) without the lock, and the
+        // row is re-read with Get() and locked only when it really needs a change; commit per
+        // MODIFIED row. Same filter, same fields, same fill-only-if-blank guards.
+        SalesHeader.SetLoadFields(
+            "Document Type", "No.",
+            "PRC Snapshot Enabled", "PRC Snapshot Enabled_DXR",
+            "PRC Source Quote No.", "PRC Src Quote No._DXR",
+            "PRC Snapshot Timestamp", "PRC Snap Timestamp_DXR",
+            "PRC Snapshot Line Count", "PRC Snap Line Count_DXR",
+            "PRC Team Code", "PRC Team Code_DXR",
+            "PRC Team Name", "PRC Team Name_DXR",
+            "PRC Snapshot Quote Doc Date", "PRC Snap Quote DocDt_DXR",
+            "PRC Snapshot Quote Post Date", "PRC Snap Quote PostDt_DXR",
+            "PRC Snap MakeOrder WorkDate", "PRC Snap MkOrd WD_DXR",
+            "PRC Snap MakeOrder Today", "PRC Snap MkOrd Today_DXR");
         SalesHeader.SetRange("PRC Snapshot Enabled", true);
-        if SalesHeader.FindSet(true) then
+        if SalesHeader.FindSet(false) then begin
             repeat
-                Modified := false;
-
-                if not SalesHeader."PRC Snapshot Enabled_DXR" then begin
-                    SalesHeader."PRC Snapshot Enabled_DXR" := SalesHeader."PRC Snapshot Enabled";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Source Quote No." <> '') and (SalesHeader."PRC Src Quote No._DXR" = '') then begin
-                    SalesHeader."PRC Src Quote No._DXR" := SalesHeader."PRC Source Quote No.";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snapshot Timestamp" <> 0DT) and (SalesHeader."PRC Snap Timestamp_DXR" = 0DT) then begin
-                    SalesHeader."PRC Snap Timestamp_DXR" := SalesHeader."PRC Snapshot Timestamp";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snapshot Line Count" <> 0) and (SalesHeader."PRC Snap Line Count_DXR" = 0) then begin
-                    SalesHeader."PRC Snap Line Count_DXR" := SalesHeader."PRC Snapshot Line Count";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Team Code" <> '') and (SalesHeader."PRC Team Code_DXR" = '') then begin
-                    SalesHeader."PRC Team Code_DXR" := SalesHeader."PRC Team Code";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Team Name" <> '') and (SalesHeader."PRC Team Name_DXR" = '') then begin
-                    SalesHeader."PRC Team Name_DXR" := SalesHeader."PRC Team Name";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snapshot Quote Doc Date" <> 0D) and (SalesHeader."PRC Snap Quote DocDt_DXR" = 0D) then begin
-                    SalesHeader."PRC Snap Quote DocDt_DXR" := SalesHeader."PRC Snapshot Quote Doc Date";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snapshot Quote Post Date" <> 0D) and (SalesHeader."PRC Snap Quote PostDt_DXR" = 0D) then begin
-                    SalesHeader."PRC Snap Quote PostDt_DXR" := SalesHeader."PRC Snapshot Quote Post Date";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snap MakeOrder WorkDate" <> 0D) and (SalesHeader."PRC Snap MkOrd WD_DXR" = 0D) then begin
-                    SalesHeader."PRC Snap MkOrd WD_DXR" := SalesHeader."PRC Snap MakeOrder WorkDate";
-                    Modified := true;
-                end;
-                if (SalesHeader."PRC Snap MakeOrder Today" <> 0D) and (SalesHeader."PRC Snap MkOrd Today_DXR" = 0D) then begin
-                    SalesHeader."PRC Snap MkOrd Today_DXR" := SalesHeader."PRC Snap MakeOrder Today";
-                    Modified := true;
-                end;
+                Modified :=
+                    (not SalesHeader."PRC Snapshot Enabled_DXR") or
+                    ((SalesHeader."PRC Source Quote No." <> '') and (SalesHeader."PRC Src Quote No._DXR" = '')) or
+                    ((SalesHeader."PRC Snapshot Timestamp" <> 0DT) and (SalesHeader."PRC Snap Timestamp_DXR" = 0DT)) or
+                    ((SalesHeader."PRC Snapshot Line Count" <> 0) and (SalesHeader."PRC Snap Line Count_DXR" = 0)) or
+                    ((SalesHeader."PRC Team Code" <> '') and (SalesHeader."PRC Team Code_DXR" = '')) or
+                    ((SalesHeader."PRC Team Name" <> '') and (SalesHeader."PRC Team Name_DXR" = '')) or
+                    ((SalesHeader."PRC Snapshot Quote Doc Date" <> 0D) and (SalesHeader."PRC Snap Quote DocDt_DXR" = 0D)) or
+                    ((SalesHeader."PRC Snapshot Quote Post Date" <> 0D) and (SalesHeader."PRC Snap Quote PostDt_DXR" = 0D)) or
+                    ((SalesHeader."PRC Snap MakeOrder WorkDate" <> 0D) and (SalesHeader."PRC Snap MkOrd WD_DXR" = 0D)) or
+                    ((SalesHeader."PRC Snap MakeOrder Today" <> 0D) and (SalesHeader."PRC Snap MkOrd Today_DXR" = 0D));
 
                 if Modified then
-                    SalesHeader.Modify(false);
+                    if SalesHeaderToUpdate.Get(SalesHeader."Document Type", SalesHeader."No.") then begin
+                        if not SalesHeaderToUpdate."PRC Snapshot Enabled_DXR" then
+                            SalesHeaderToUpdate."PRC Snapshot Enabled_DXR" := SalesHeaderToUpdate."PRC Snapshot Enabled";
+                        if (SalesHeaderToUpdate."PRC Source Quote No." <> '') and (SalesHeaderToUpdate."PRC Src Quote No._DXR" = '') then
+                            SalesHeaderToUpdate."PRC Src Quote No._DXR" := SalesHeaderToUpdate."PRC Source Quote No.";
+                        if (SalesHeaderToUpdate."PRC Snapshot Timestamp" <> 0DT) and (SalesHeaderToUpdate."PRC Snap Timestamp_DXR" = 0DT) then
+                            SalesHeaderToUpdate."PRC Snap Timestamp_DXR" := SalesHeaderToUpdate."PRC Snapshot Timestamp";
+                        if (SalesHeaderToUpdate."PRC Snapshot Line Count" <> 0) and (SalesHeaderToUpdate."PRC Snap Line Count_DXR" = 0) then
+                            SalesHeaderToUpdate."PRC Snap Line Count_DXR" := SalesHeaderToUpdate."PRC Snapshot Line Count";
+                        if (SalesHeaderToUpdate."PRC Team Code" <> '') and (SalesHeaderToUpdate."PRC Team Code_DXR" = '') then
+                            SalesHeaderToUpdate."PRC Team Code_DXR" := SalesHeaderToUpdate."PRC Team Code";
+                        if (SalesHeaderToUpdate."PRC Team Name" <> '') and (SalesHeaderToUpdate."PRC Team Name_DXR" = '') then
+                            SalesHeaderToUpdate."PRC Team Name_DXR" := SalesHeaderToUpdate."PRC Team Name";
+                        if (SalesHeaderToUpdate."PRC Snapshot Quote Doc Date" <> 0D) and (SalesHeaderToUpdate."PRC Snap Quote DocDt_DXR" = 0D) then
+                            SalesHeaderToUpdate."PRC Snap Quote DocDt_DXR" := SalesHeaderToUpdate."PRC Snapshot Quote Doc Date";
+                        if (SalesHeaderToUpdate."PRC Snapshot Quote Post Date" <> 0D) and (SalesHeaderToUpdate."PRC Snap Quote PostDt_DXR" = 0D) then
+                            SalesHeaderToUpdate."PRC Snap Quote PostDt_DXR" := SalesHeaderToUpdate."PRC Snapshot Quote Post Date";
+                        if (SalesHeaderToUpdate."PRC Snap MakeOrder WorkDate" <> 0D) and (SalesHeaderToUpdate."PRC Snap MkOrd WD_DXR" = 0D) then
+                            SalesHeaderToUpdate."PRC Snap MkOrd WD_DXR" := SalesHeaderToUpdate."PRC Snap MakeOrder WorkDate";
+                        if (SalesHeaderToUpdate."PRC Snap MakeOrder Today" <> 0D) and (SalesHeaderToUpdate."PRC Snap MkOrd Today_DXR" = 0D) then
+                            SalesHeaderToUpdate."PRC Snap MkOrd Today_DXR" := SalesHeaderToUpdate."PRC Snap MakeOrder Today";
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                        SalesHeaderToUpdate.Modify(false);
+
+                        RowCounter += 1;
+                        if RowCounter >= BatchSize() then begin
+                            Commit();
+                            RowCounter := 0;
+                        end;
+                    end;
             until SalesHeader.Next() = 0;
-        Commit();
+            if RowCounter > 0 then
+                Commit();
+        end;
 
         UpgradeTag.SetUpgradeTag(Step7Tag());
     end;
@@ -464,13 +523,55 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesLine: Record "Sales Line";
+        SalesLineToUpdate: Record "Sales Line";
         Modified: Boolean;
         RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step8Tag()) then
             exit;
 
-        if SalesLine.FindSet(true) then
+        // Fixed 2026-08-27: this was the worst offender of the phase - FindSet(true) over the WHOLE
+        // Sales Line table took an UPDLOCK on every open sales line for the entire run, blocking all
+        // normal sales activity, while only lines with a legacy value still to copy need a write.
+        // Now: SetLoadFields with exactly the fields touched (Sales Line is the widest table here and
+        // carries many tableextensions - without a partial record every companion table was joined per
+        // row), FindSet(false) without the lock, and the row is re-read with Get() and locked only
+        // when it really needs a change; commit counter per MODIFIED row. Same fields, same guards.
+        SalesLine.SetLoadFields(
+            "Document Type", "Document No.", "Line No.",
+            "Precio Menor A PrecioFijado", "PrecMenorFijado_DXR",
+            "PRC Exempt Price", "PRC Exempt Price_DXR",
+            "PRC Store From Customer", "PRC StoreFrmCust_DXR",
+            "PRC Line Style", "PRC Line Style_DXR",
+            "PRC Requires Price Approval", "PRC ReqPrcAppr_DXR",
+            "PRC Customer Price Applied", "PRC CustPrcAppl_DXR",
+            "PRC Store Price Applied", "PRC StorePrcAppl_DXR",
+            "PRC LSC Original Unit Price", "PRC LSC OrigUP_DXR",
+            "PRC LSC Price Manual Change", "PRC LSC Price Man Chg_DXR",
+            "PRC LSC Disc Manual Change", "PRC LSC Disc Man Chg_DXR",
+            "PRC Approval Reason", "PRC Approval Reason_DXR",
+            "PRC VAT Exempt", "PRC VAT Exempt_DXR",
+            "PRC Original Item No.", "PRC Orig Item No._DXR",
+            "PRC Original Quantity", "PRC Orig Quantity_DXR",
+            "PRC Original Unit Price", "PRC Orig Unit Price_DXR",
+            "PRC Original Amount Incl VAT", "PRC Orig AmtInclVAT_DXR",
+            "PRC Original VAT Percent", "PRC Orig VAT Pct_DXR",
+            "PRC Snapshot Customer Price", "PRC Snap Cust Price_DXR",
+            "PRC Snapshot Store Price", "PRC Snap Store Price_DXR",
+            "PRC Snapshot Line Approved", "PRC Snap Line Appr_DXR",
+            "PRC Source Quote No.", "PRC Src Quote No._DXR",
+            "PRC Snapshot Timestamp", "PRC Snap Timestamp_DXR",
+            "PRC Snapshot Line Count", "PRC Snap Line Count_DXR",
+            "PRC Snapshot Quote Doc Date", "PRC Snap QuoteDocDt_DXR",
+            "PRC Snapshot Quote Post Date", "PRC Snap QuotePostDt_DXR",
+            "PRC Snap MakeOrder WorkDate", "PRC Snap MkOrd WD_DXR",
+            "PRC Snap MakeOrder Today", "PRC Snap MkOrdToday_DXR",
+            "PRC Original Net Amount", "PRC Orig Net Amt_DXR",
+            "PRC Original Line Disc. %", "PRC Orig LinDisc %_DXR",
+            "PRC Original Line Disc. Amt", "PRC Orig LinDisc Amt_DXR",
+            "PRC Snapshot VAT Exempt", "PRC Snap VAT Exempt_DXR",
+            "PRC Snapshot Exempt Price", "PRC Snap ExemptPrc_DXR");
+        if SalesLine.FindSet(false) then
             repeat
                 Modified := false;
 
@@ -604,16 +705,57 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
                     Modified := true;
                 end;
 
+                // Fixed 2026-08-27 (2/2): the guarded assignments above now run on the UNLOCKED read
+                // copy and act as the "does this row need anything" detector. The actual write goes to
+                // a second Record re-read under lock with Get(), receiving exactly the _DXR values the
+                // block above computed - identical resulting row, but only the rows that really change
+                // are ever locked, and the commit counter advances per MODIFIED row.
                 if Modified then
-                    SalesLine.Modify(false);
+                    if SalesLineToUpdate.Get(SalesLine."Document Type", SalesLine."Document No.", SalesLine."Line No.") then begin
+                        SalesLineToUpdate."PrecMenorFijado_DXR" := SalesLine."PrecMenorFijado_DXR";
+                        SalesLineToUpdate."PRC Exempt Price_DXR" := SalesLine."PRC Exempt Price_DXR";
+                        SalesLineToUpdate."PRC StoreFrmCust_DXR" := SalesLine."PRC StoreFrmCust_DXR";
+                        SalesLineToUpdate."PRC Line Style_DXR" := SalesLine."PRC Line Style_DXR";
+                        SalesLineToUpdate."PRC ReqPrcAppr_DXR" := SalesLine."PRC ReqPrcAppr_DXR";
+                        SalesLineToUpdate."PRC CustPrcAppl_DXR" := SalesLine."PRC CustPrcAppl_DXR";
+                        SalesLineToUpdate."PRC StorePrcAppl_DXR" := SalesLine."PRC StorePrcAppl_DXR";
+                        SalesLineToUpdate."PRC LSC OrigUP_DXR" := SalesLine."PRC LSC OrigUP_DXR";
+                        SalesLineToUpdate."PRC LSC Price Man Chg_DXR" := SalesLine."PRC LSC Price Man Chg_DXR";
+                        SalesLineToUpdate."PRC LSC Disc Man Chg_DXR" := SalesLine."PRC LSC Disc Man Chg_DXR";
+                        SalesLineToUpdate."PRC Approval Reason_DXR" := SalesLine."PRC Approval Reason_DXR";
+                        SalesLineToUpdate."PRC VAT Exempt_DXR" := SalesLine."PRC VAT Exempt_DXR";
+                        SalesLineToUpdate."PRC Orig Item No._DXR" := SalesLine."PRC Orig Item No._DXR";
+                        SalesLineToUpdate."PRC Orig Quantity_DXR" := SalesLine."PRC Orig Quantity_DXR";
+                        SalesLineToUpdate."PRC Orig Unit Price_DXR" := SalesLine."PRC Orig Unit Price_DXR";
+                        SalesLineToUpdate."PRC Orig AmtInclVAT_DXR" := SalesLine."PRC Orig AmtInclVAT_DXR";
+                        SalesLineToUpdate."PRC Orig VAT Pct_DXR" := SalesLine."PRC Orig VAT Pct_DXR";
+                        SalesLineToUpdate."PRC Snap Cust Price_DXR" := SalesLine."PRC Snap Cust Price_DXR";
+                        SalesLineToUpdate."PRC Snap Store Price_DXR" := SalesLine."PRC Snap Store Price_DXR";
+                        SalesLineToUpdate."PRC Snap Line Appr_DXR" := SalesLine."PRC Snap Line Appr_DXR";
+                        SalesLineToUpdate."PRC Src Quote No._DXR" := SalesLine."PRC Src Quote No._DXR";
+                        SalesLineToUpdate."PRC Snap Timestamp_DXR" := SalesLine."PRC Snap Timestamp_DXR";
+                        SalesLineToUpdate."PRC Snap Line Count_DXR" := SalesLine."PRC Snap Line Count_DXR";
+                        SalesLineToUpdate."PRC Snap QuoteDocDt_DXR" := SalesLine."PRC Snap QuoteDocDt_DXR";
+                        SalesLineToUpdate."PRC Snap QuotePostDt_DXR" := SalesLine."PRC Snap QuotePostDt_DXR";
+                        SalesLineToUpdate."PRC Snap MkOrd WD_DXR" := SalesLine."PRC Snap MkOrd WD_DXR";
+                        SalesLineToUpdate."PRC Snap MkOrdToday_DXR" := SalesLine."PRC Snap MkOrdToday_DXR";
+                        SalesLineToUpdate."PRC Orig Net Amt_DXR" := SalesLine."PRC Orig Net Amt_DXR";
+                        SalesLineToUpdate."PRC Orig LinDisc %_DXR" := SalesLine."PRC Orig LinDisc %_DXR";
+                        SalesLineToUpdate."PRC Orig LinDisc Amt_DXR" := SalesLine."PRC Orig LinDisc Amt_DXR";
+                        SalesLineToUpdate."PRC Snap VAT Exempt_DXR" := SalesLine."PRC Snap VAT Exempt_DXR";
+                        SalesLineToUpdate."PRC Snap ExemptPrc_DXR" := SalesLine."PRC Snap ExemptPrc_DXR";
+                        SalesLineToUpdate.Modify(false);
 
-                RowCounter += 1;
-                if RowCounter >= BatchSize() then begin
-                    Commit();
-                    RowCounter := 0;
-                end;
+                        RowCounter += 1;
+                        if RowCounter >= BatchSize() then begin
+                            Commit();
+                            RowCounter := 0;
+                        end;
+                    end;
             until SalesLine.Next() = 0;
-        Commit();
+
+        if RowCounter > 0 then
+            Commit();
 
         UpgradeTag.SetUpgradeTag(Step8Tag());
     end;

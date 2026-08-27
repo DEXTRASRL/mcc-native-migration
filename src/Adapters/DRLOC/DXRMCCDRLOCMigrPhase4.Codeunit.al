@@ -316,8 +316,29 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     local procedure MigrateSalesHeaderFields()
     var
         SalesHeader: Record "Sales Header";
+        SalesHeaderToUpdate: Record "Sales Header";
+        BatchCount: Integer;
     begin
-        if SalesHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 + A4 - the unfiltered FindSet(true) took a SQL UPDLOCK on every open
+        // sales document for the whole run (Learn, "Record.FindSet") and, with no SetLoadFields, joined
+        // every Sales Header tableextension companion table per row. Partial unlocked scan, Get()/lock
+        // only on rows that really change, and a Commit every 500 MODIFIED rows (previously none).
+        SalesHeader.SetLoadFields(
+            "Document Type", "No.",
+            "Tipo NCF Cliente_DXR", "DXTipo NCF Cliente",
+            "No. Series NCF Fact._DXR", "DXNo. Series NCF Fact.",
+            "No. Series NCF Cr._DXR", "DXNo. Series NCF Cr.",
+            "Customer Name_DXR", "DXCustomer Name",
+            "Mult Tipos Ingresos_DXR", "DXMultiples Tipos de Ingresos",
+            "Tipo NCF_DXR", "DXTipo NCF", "Is Debit Note_DXR", "DX Is Debit Note",
+            "Utiliza Retencion_DXR", "DXUtiliza Retencion",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Puerto_DXR", DXPuerto,
+            "NCF Expiration Date_DXR", "DX NCF Expiration Date",
+            "Correccion Int._DXR", "DXCorreccion Int.",
+            "Tipo Retencion_DXR", "DXTipo Retencion");
+        if SalesHeader.FindSet(false) then
             repeat
                 if (SalesHeader."Tipo NCF Cliente_DXR" <> SalesHeader."DXTipo NCF Cliente") or
                    (SalesHeader."No. Series NCF Fact._DXR" <> SalesHeader."DXNo. Series NCF Fact.") or
@@ -333,24 +354,34 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
                    (SalesHeader."NCF Expiration Date_DXR" <> SalesHeader."DX NCF Expiration Date") or
                    (SalesHeader."Correccion Int._DXR" <> SalesHeader."DXCorreccion Int.") or
                    (SalesHeader."Tipo Retencion_DXR" <> SalesHeader."DXTipo Retencion")
-                then begin
-                    SalesHeader."Tipo NCF Cliente_DXR" := SalesHeader."DXTipo NCF Cliente";
-                    SalesHeader."No. Series NCF Fact._DXR" := SalesHeader."DXNo. Series NCF Fact.";
-                    SalesHeader."No. Series NCF Cr._DXR" := SalesHeader."DXNo. Series NCF Cr.";
-                    SalesHeader."Customer Name_DXR" := SalesHeader."DXCustomer Name";
-                    SalesHeader."Mult Tipos Ingresos_DXR" := SalesHeader."DXMultiples Tipos de Ingresos";
-                    SalesHeader."Tipo NCF_DXR" := SalesHeader."DXTipo NCF";
-                    SalesHeader."Is Debit Note_DXR" := SalesHeader."DX Is Debit Note";
-                    SalesHeader."Utiliza Retencion_DXR" := SalesHeader."DXUtiliza Retencion";
-                    SalesHeader."Cod. Retencion ITBIS_DXR" := SalesHeader."DXCod. Retencion ITBIS";
-                    SalesHeader."Cod. Retencion ISR_DXR" := SalesHeader."DXCod. Retencion ISR";
-                    SalesHeader."Puerto_DXR" := SalesHeader.DXPuerto;
-                    SalesHeader."NCF Expiration Date_DXR" := SalesHeader."DX NCF Expiration Date";
-                    SalesHeader."Correccion Int._DXR" := SalesHeader."DXCorreccion Int.";
-                    SalesHeader."Tipo Retencion_DXR" := SalesHeader."DXTipo Retencion";
-                    SalesHeader.Modify(false);
-                end;
+                then
+                    if SalesHeaderToUpdate.Get(SalesHeader."Document Type", SalesHeader."No.") then begin
+                        SalesHeaderToUpdate."Tipo NCF Cliente_DXR" := SalesHeaderToUpdate."DXTipo NCF Cliente";
+                        SalesHeaderToUpdate."No. Series NCF Fact._DXR" := SalesHeaderToUpdate."DXNo. Series NCF Fact.";
+                        SalesHeaderToUpdate."No. Series NCF Cr._DXR" := SalesHeaderToUpdate."DXNo. Series NCF Cr.";
+                        SalesHeaderToUpdate."Customer Name_DXR" := SalesHeaderToUpdate."DXCustomer Name";
+                        SalesHeaderToUpdate."Mult Tipos Ingresos_DXR" := SalesHeaderToUpdate."DXMultiples Tipos de Ingresos";
+                        SalesHeaderToUpdate."Tipo NCF_DXR" := SalesHeaderToUpdate."DXTipo NCF";
+                        SalesHeaderToUpdate."Is Debit Note_DXR" := SalesHeaderToUpdate."DX Is Debit Note";
+                        SalesHeaderToUpdate."Utiliza Retencion_DXR" := SalesHeaderToUpdate."DXUtiliza Retencion";
+                        SalesHeaderToUpdate."Cod. Retencion ITBIS_DXR" := SalesHeaderToUpdate."DXCod. Retencion ITBIS";
+                        SalesHeaderToUpdate."Cod. Retencion ISR_DXR" := SalesHeaderToUpdate."DXCod. Retencion ISR";
+                        SalesHeaderToUpdate."Puerto_DXR" := SalesHeaderToUpdate.DXPuerto;
+                        SalesHeaderToUpdate."NCF Expiration Date_DXR" := SalesHeaderToUpdate."DX NCF Expiration Date";
+                        SalesHeaderToUpdate."Correccion Int._DXR" := SalesHeaderToUpdate."DXCorreccion Int.";
+                        SalesHeaderToUpdate."Tipo Retencion_DXR" := SalesHeaderToUpdate."DXTipo Retencion";
+                        SalesHeaderToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq31: Sales Line field restore =====
@@ -373,21 +404,43 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     local procedure MigrateSalesLineFields()
     var
         SalesLine: Record "Sales Line";
+        SalesLineToUpdate: Record "Sales Line";
+        BatchCount: Integer;
     begin
-        if SalesLine.FindSet(true) then
+        // Fixed 2026-08-27: A1 + A4 - the unfiltered FindSet(true) held a SQL UPDLOCK on every open
+        // sales line for the whole run and, with no SetLoadFields, joined every Sales Line
+        // tableextension companion table per row. Partial unlocked scan, Get()/lock only on rows that
+        // really change, and a Commit every 500 MODIFIED rows (this loop previously never committed).
+        SalesLine.SetLoadFields(
+            "Document Type", "Document No.", "Line No.",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR);
+        if SalesLine.FindSet(false) then
             repeat
                 if (SalesLine."Cod. Retencion ITBIS_DXR" <> SalesLine."DXCod. Retencion ITBIS") or
                    (SalesLine."Cod. Retencion ISR_DXR" <> SalesLine."DXCod. Retencion ISR") or
                    (SalesLine.ImporteRetenidoITBIS_DXR <> SalesLine.DXImporteRetenidoITBIS) or
                    (SalesLine.ImporteRetenidoISR_DXR <> SalesLine.DXImporteRetenidoISR)
-                then begin
-                    SalesLine."Cod. Retencion ITBIS_DXR" := SalesLine."DXCod. Retencion ITBIS";
-                    SalesLine."Cod. Retencion ISR_DXR" := SalesLine."DXCod. Retencion ISR";
-                    SalesLine.ImporteRetenidoITBIS_DXR := SalesLine.DXImporteRetenidoITBIS;
-                    SalesLine.ImporteRetenidoISR_DXR := SalesLine.DXImporteRetenidoISR;
-                    SalesLine.Modify(false);
-                end;
+                then
+                    if SalesLineToUpdate.Get(SalesLine."Document Type", SalesLine."Document No.", SalesLine."Line No.") then begin
+                        SalesLineToUpdate."Cod. Retencion ITBIS_DXR" := SalesLineToUpdate."DXCod. Retencion ITBIS";
+                        SalesLineToUpdate."Cod. Retencion ISR_DXR" := SalesLineToUpdate."DXCod. Retencion ISR";
+                        SalesLineToUpdate.ImporteRetenidoITBIS_DXR := SalesLineToUpdate.DXImporteRetenidoITBIS;
+                        SalesLineToUpdate.ImporteRetenidoISR_DXR := SalesLineToUpdate.DXImporteRetenidoISR;
+                        SalesLineToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesLine.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq32: Sales Invoice Header field restore =====
@@ -413,9 +466,30 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     local procedure MigrateSalesInvoiceHeaderFields()
     var
         SalesInvoiceHeader: Record "Sales Invoice Header";
+        SalesInvoiceHeaderToUpdate: Record "Sales Invoice Header";
         BatchCount: Integer;
     begin
-        if SalesInvoiceHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        SalesInvoiceHeader.SetLoadFields(
+            "No.",
+            "Tipo NCF Cliente_DXR", "DXTipo NCF Cliente",
+            "No. Series NCF Fact._DXR", "DXNo. Series NCF Fact.",
+            "No. Series NCF Cr._DXR", "DXNo. Series NCF Cr.",
+            NCF_DXR, DXNCF,
+            "Mult Tipos Ingresos_DXR_V2", "DXMultiples Tipos de Ingresos",
+            "Tipo NCF_DXR_V2", "DXTipo NCF",
+            "Fecha Expiracion NCF_DXR_V2", "DXFecha Expiracion NCF",
+            "Is Debit Note_DXR", "DX Is Debit Note",
+            "Puerto_DXR_V2", DXPuerto,
+            "NCF Expiration Date_DXR_V2", "DX NCF Expiration Date",
+            "Correccion Int._DXR", "DXCorreccion Int.",
+            "Utiliza Retencion_DXR_V2", "DXUtiliza Retencion",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR_V2", "DXCod. Retencion ISR",
+            "Tipo Retencion_DXR_V2", "DXTipo Retencion");
+        if SalesInvoiceHeader.FindSet(false) then
             repeat
                 if (SalesInvoiceHeader."Tipo NCF Cliente_DXR" <> SalesInvoiceHeader."DXTipo NCF Cliente") or
                    (SalesInvoiceHeader."No. Series NCF Fact._DXR" <> SalesInvoiceHeader."DXNo. Series NCF Fact.") or
@@ -432,31 +506,35 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
                    (SalesInvoiceHeader."Cod. Retencion ITBIS_DXR" <> SalesInvoiceHeader."DXCod. Retencion ITBIS") or
                    (SalesInvoiceHeader."Cod. Retencion ISR_DXR_V2" <> SalesInvoiceHeader."DXCod. Retencion ISR") or
                    (SalesInvoiceHeader."Tipo Retencion_DXR_V2" <> SalesInvoiceHeader."DXTipo Retencion")
-                then begin
-                    SalesInvoiceHeader."Tipo NCF Cliente_DXR" := SalesInvoiceHeader."DXTipo NCF Cliente";
-                    SalesInvoiceHeader."No. Series NCF Fact._DXR" := SalesInvoiceHeader."DXNo. Series NCF Fact.";
-                    SalesInvoiceHeader."No. Series NCF Cr._DXR" := SalesInvoiceHeader."DXNo. Series NCF Cr.";
-                    SalesInvoiceHeader.NCF_DXR := SalesInvoiceHeader.DXNCF;
-                    SalesInvoiceHeader."Mult Tipos Ingresos_DXR_V2" := SalesInvoiceHeader."DXMultiples Tipos de Ingresos";
-                    SalesInvoiceHeader."Tipo NCF_DXR_V2" := SalesInvoiceHeader."DXTipo NCF";
-                    SalesInvoiceHeader."Fecha Expiracion NCF_DXR_V2" := SalesInvoiceHeader."DXFecha Expiracion NCF";
-                    SalesInvoiceHeader."Is Debit Note_DXR" := SalesInvoiceHeader."DX Is Debit Note";
-                    SalesInvoiceHeader."Puerto_DXR_V2" := SalesInvoiceHeader.DXPuerto;
-                    SalesInvoiceHeader."NCF Expiration Date_DXR_V2" := SalesInvoiceHeader."DX NCF Expiration Date";
-                    SalesInvoiceHeader."Correccion Int._DXR" := SalesInvoiceHeader."DXCorreccion Int.";
-                    SalesInvoiceHeader."Utiliza Retencion_DXR_V2" := SalesInvoiceHeader."DXUtiliza Retencion";
-                    SalesInvoiceHeader."Cod. Retencion ITBIS_DXR" := SalesInvoiceHeader."DXCod. Retencion ITBIS";
-                    SalesInvoiceHeader."Cod. Retencion ISR_DXR_V2" := SalesInvoiceHeader."DXCod. Retencion ISR";
-                    SalesInvoiceHeader."Tipo Retencion_DXR_V2" := SalesInvoiceHeader."DXTipo Retencion";
-                    SalesInvoiceHeader.Modify(false);
-                end;
+                then
+                    if SalesInvoiceHeaderToUpdate.Get(SalesInvoiceHeader."No.") then begin
+                        SalesInvoiceHeaderToUpdate."Tipo NCF Cliente_DXR" := SalesInvoiceHeaderToUpdate."DXTipo NCF Cliente";
+                        SalesInvoiceHeaderToUpdate."No. Series NCF Fact._DXR" := SalesInvoiceHeaderToUpdate."DXNo. Series NCF Fact.";
+                        SalesInvoiceHeaderToUpdate."No. Series NCF Cr._DXR" := SalesInvoiceHeaderToUpdate."DXNo. Series NCF Cr.";
+                        SalesInvoiceHeaderToUpdate.NCF_DXR := SalesInvoiceHeaderToUpdate.DXNCF;
+                        SalesInvoiceHeaderToUpdate."Mult Tipos Ingresos_DXR_V2" := SalesInvoiceHeaderToUpdate."DXMultiples Tipos de Ingresos";
+                        SalesInvoiceHeaderToUpdate."Tipo NCF_DXR_V2" := SalesInvoiceHeaderToUpdate."DXTipo NCF";
+                        SalesInvoiceHeaderToUpdate."Fecha Expiracion NCF_DXR_V2" := SalesInvoiceHeaderToUpdate."DXFecha Expiracion NCF";
+                        SalesInvoiceHeaderToUpdate."Is Debit Note_DXR" := SalesInvoiceHeaderToUpdate."DX Is Debit Note";
+                        SalesInvoiceHeaderToUpdate."Puerto_DXR_V2" := SalesInvoiceHeaderToUpdate.DXPuerto;
+                        SalesInvoiceHeaderToUpdate."NCF Expiration Date_DXR_V2" := SalesInvoiceHeaderToUpdate."DX NCF Expiration Date";
+                        SalesInvoiceHeaderToUpdate."Correccion Int._DXR" := SalesInvoiceHeaderToUpdate."DXCorreccion Int.";
+                        SalesInvoiceHeaderToUpdate."Utiliza Retencion_DXR_V2" := SalesInvoiceHeaderToUpdate."DXUtiliza Retencion";
+                        SalesInvoiceHeaderToUpdate."Cod. Retencion ITBIS_DXR" := SalesInvoiceHeaderToUpdate."DXCod. Retencion ITBIS";
+                        SalesInvoiceHeaderToUpdate."Cod. Retencion ISR_DXR_V2" := SalesInvoiceHeaderToUpdate."DXCod. Retencion ISR";
+                        SalesInvoiceHeaderToUpdate."Tipo Retencion_DXR_V2" := SalesInvoiceHeaderToUpdate."DXTipo Retencion";
+                        SalesInvoiceHeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesInvoiceHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq32: Sales Invoice Line field restore =====
@@ -480,28 +558,42 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     local procedure MigrateSalesInvoiceLineFields()
     var
         SalesInvoiceLine: Record "Sales Invoice Line";
+        SalesInvoiceLineToUpdate: Record "Sales Invoice Line";
         BatchCount: Integer;
     begin
-        if SalesInvoiceLine.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        SalesInvoiceLine.SetLoadFields(
+            "Document No.", "Line No.",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            ImporteRetenidoITBIS_DXR, DXImporteRetenidoITBIS,
+            ImporteRetenidoISR_DXR, DXImporteRetenidoISR);
+        if SalesInvoiceLine.FindSet(false) then
             repeat
                 if (SalesInvoiceLine."Cod. Retencion ITBIS_DXR" <> SalesInvoiceLine."DXCod. Retencion ITBIS") or
                    (SalesInvoiceLine."Cod. Retencion ISR_DXR" <> SalesInvoiceLine."DXCod. Retencion ISR") or
                    (SalesInvoiceLine.ImporteRetenidoITBIS_DXR <> SalesInvoiceLine.DXImporteRetenidoITBIS) or
                    (SalesInvoiceLine.ImporteRetenidoISR_DXR <> SalesInvoiceLine.DXImporteRetenidoISR)
-                then begin
-                    SalesInvoiceLine."Cod. Retencion ITBIS_DXR" := SalesInvoiceLine."DXCod. Retencion ITBIS";
-                    SalesInvoiceLine."Cod. Retencion ISR_DXR" := SalesInvoiceLine."DXCod. Retencion ISR";
-                    SalesInvoiceLine.ImporteRetenidoITBIS_DXR := SalesInvoiceLine.DXImporteRetenidoITBIS;
-                    SalesInvoiceLine.ImporteRetenidoISR_DXR := SalesInvoiceLine.DXImporteRetenidoISR;
-                    SalesInvoiceLine.Modify(false);
-                end;
+                then
+                    if SalesInvoiceLineToUpdate.Get(SalesInvoiceLine."Document No.", SalesInvoiceLine."Line No.") then begin
+                        SalesInvoiceLineToUpdate."Cod. Retencion ITBIS_DXR" := SalesInvoiceLineToUpdate."DXCod. Retencion ITBIS";
+                        SalesInvoiceLineToUpdate."Cod. Retencion ISR_DXR" := SalesInvoiceLineToUpdate."DXCod. Retencion ISR";
+                        SalesInvoiceLineToUpdate.ImporteRetenidoITBIS_DXR := SalesInvoiceLineToUpdate.DXImporteRetenidoITBIS;
+                        SalesInvoiceLineToUpdate.ImporteRetenidoISR_DXR := SalesInvoiceLineToUpdate.DXImporteRetenidoISR;
+                        SalesInvoiceLineToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesInvoiceLine.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq33: Sales Cr.Memo Header field restore =====
@@ -526,9 +618,25 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
     local procedure MigrateSalesCrMemoHeaderFields()
     var
         SalesCrMemoHeader: Record "Sales Cr.Memo Header";
+        SalesCrMemoHeaderToUpdate: Record "Sales Cr.Memo Header";
         BatchCount: Integer;
     begin
-        if SalesCrMemoHeader.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole ever-growing posted-
+        // document table for the run and, with no SetLoadFields, joined every tableextension companion
+        // table per row. Partial unlocked scan + Get()/lock only on changed rows + Commit per MODIFIED row.
+        SalesCrMemoHeader.SetLoadFields(
+            "No.",
+            NCF_DXR, DXNCF,
+            "Mult Tipos Ingresos_DXR_V2", "DXMultiples Tipos de Ingresos",
+            "Tipo NCF_DXR", "DXTipo NCF",
+            "Fecha Expiracion NCF_DXR_V2", "DXFecha Expiracion NCF",
+            "Tipo NCF Cliente_DXR", "DXTipo NCF Cliente",
+            "Correccion Int._DXR_V2", "DXCorreccion Int.",
+            "Utiliza Retencion_DXR_V2", "DXUtiliza Retencion",
+            "Cod. Retencion ITBIS_DXR_V2", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR_V2", "DXCod. Retencion ISR",
+            "Tipo Retencion_DXR_V2", "DXTipo Retencion");
+        if SalesCrMemoHeader.FindSet(false) then
             repeat
                 if (SalesCrMemoHeader.NCF_DXR <> SalesCrMemoHeader.DXNCF) or
                    (SalesCrMemoHeader."Mult Tipos Ingresos_DXR_V2" <> SalesCrMemoHeader."DXMultiples Tipos de Ingresos") or
@@ -540,26 +648,30 @@ codeunit 60168 "DXR MCC DRLOC Migr Phase4"
                    (SalesCrMemoHeader."Cod. Retencion ITBIS_DXR_V2" <> SalesCrMemoHeader."DXCod. Retencion ITBIS") or
                    (SalesCrMemoHeader."Cod. Retencion ISR_DXR_V2" <> SalesCrMemoHeader."DXCod. Retencion ISR") or
                    (SalesCrMemoHeader."Tipo Retencion_DXR_V2" <> SalesCrMemoHeader."DXTipo Retencion")
-                then begin
-                    SalesCrMemoHeader.NCF_DXR := SalesCrMemoHeader.DXNCF;
-                    SalesCrMemoHeader."Mult Tipos Ingresos_DXR_V2" := SalesCrMemoHeader."DXMultiples Tipos de Ingresos";
-                    SalesCrMemoHeader."Tipo NCF_DXR" := SalesCrMemoHeader."DXTipo NCF";
-                    SalesCrMemoHeader."Fecha Expiracion NCF_DXR_V2" := SalesCrMemoHeader."DXFecha Expiracion NCF";
-                    SalesCrMemoHeader."Tipo NCF Cliente_DXR" := SalesCrMemoHeader."DXTipo NCF Cliente";
-                    SalesCrMemoHeader."Correccion Int._DXR_V2" := SalesCrMemoHeader."DXCorreccion Int.";
-                    SalesCrMemoHeader."Utiliza Retencion_DXR_V2" := SalesCrMemoHeader."DXUtiliza Retencion";
-                    SalesCrMemoHeader."Cod. Retencion ITBIS_DXR_V2" := SalesCrMemoHeader."DXCod. Retencion ITBIS";
-                    SalesCrMemoHeader."Cod. Retencion ISR_DXR_V2" := SalesCrMemoHeader."DXCod. Retencion ISR";
-                    SalesCrMemoHeader."Tipo Retencion_DXR_V2" := SalesCrMemoHeader."DXTipo Retencion";
-                    SalesCrMemoHeader.Modify(false);
-                end;
+                then
+                    if SalesCrMemoHeaderToUpdate.Get(SalesCrMemoHeader."No.") then begin
+                        SalesCrMemoHeaderToUpdate.NCF_DXR := SalesCrMemoHeaderToUpdate.DXNCF;
+                        SalesCrMemoHeaderToUpdate."Mult Tipos Ingresos_DXR_V2" := SalesCrMemoHeaderToUpdate."DXMultiples Tipos de Ingresos";
+                        SalesCrMemoHeaderToUpdate."Tipo NCF_DXR" := SalesCrMemoHeaderToUpdate."DXTipo NCF";
+                        SalesCrMemoHeaderToUpdate."Fecha Expiracion NCF_DXR_V2" := SalesCrMemoHeaderToUpdate."DXFecha Expiracion NCF";
+                        SalesCrMemoHeaderToUpdate."Tipo NCF Cliente_DXR" := SalesCrMemoHeaderToUpdate."DXTipo NCF Cliente";
+                        SalesCrMemoHeaderToUpdate."Correccion Int._DXR_V2" := SalesCrMemoHeaderToUpdate."DXCorreccion Int.";
+                        SalesCrMemoHeaderToUpdate."Utiliza Retencion_DXR_V2" := SalesCrMemoHeaderToUpdate."DXUtiliza Retencion";
+                        SalesCrMemoHeaderToUpdate."Cod. Retencion ITBIS_DXR_V2" := SalesCrMemoHeaderToUpdate."DXCod. Retencion ITBIS";
+                        SalesCrMemoHeaderToUpdate."Cod. Retencion ISR_DXR_V2" := SalesCrMemoHeaderToUpdate."DXCod. Retencion ISR";
+                        SalesCrMemoHeaderToUpdate."Tipo Retencion_DXR_V2" := SalesCrMemoHeaderToUpdate."DXTipo Retencion";
+                        SalesCrMemoHeaderToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesCrMemoHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== seq35: Archived Sales 607 whole-table clone =====

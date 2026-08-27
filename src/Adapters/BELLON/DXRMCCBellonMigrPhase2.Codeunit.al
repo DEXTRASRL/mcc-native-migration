@@ -231,7 +231,202 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata "User Setup" = RM,
         tabledata "Value Entry" = RM,
         tabledata Vendor = RM,
-        tabledata "Warehouse Receipt Line" = RM;
+        tabledata "Warehouse Receipt Line" = RM,
+        // Added 2026-08-27 (A3): permissionset 60000 "DXR MCC" grants no tabledata of foreign
+        // tables at all, so a per-object Permissions entry is the ONLY runtime access path, and
+        // this codeunit runs in a background TaskScheduler session. The entries below close the
+        // "much larger pre-existing gap" this file's own header comment flagged on 2026-08-24 and
+        // left open: every typed Record actually touched by MigrateAllNormalizedTables(),
+        // MigrateAllNormalizedTables_Batch2() and the remaining tableextension field groups.
+        // Level is the exact set of operations each table really gets: R = only FindSet/Next/Get,
+        // RI = Get + Insert (destination clones, never modified), RM = FindSet/Get + Modify
+        // (field-group procedures that rewrite the same row). No RIMD "just in case".
+        tabledata "AGR Setup" = R,
+        tabledata "DXR_AGR Setup" = RI,
+        tabledata "Ajuste Inventario Config" = R,
+        tabledata "DXR_Ajuste Inventario Config" = RI,
+        tabledata "Area de Trabajo" = R,
+        tabledata "DXR_Area de Trabajo" = RI,
+        tabledata "Categoria Servicios" = R,
+        tabledata "DXR_Categoria Servicios" = RI,
+        tabledata "Cilindros - Setup" = R,
+        tabledata "DXR_Cilindros - Setup" = RI,
+        tabledata "Codigos de Auditoria" = R,
+        tabledata "DXR_Codigos de Auditoria." = RI,
+        tabledata "Conf. Extracto Bancario" = R,
+        tabledata "DXR_Conf. Extracto Bancario" = RI,
+        tabledata "Config. NCF Ventas" = R,
+        tabledata "DXR_Config. NCF Ventas" = RI,
+        tabledata "Config. NCF Ventas STD" = R,
+        tabledata "DXR_Config. NCF Ventas STD" = RI,
+        tabledata "Config. Polizas" = R,
+        tabledata "DXR_Config. Polizas" = RI,
+        tabledata "Configuracion CB" = R,
+        tabledata "DXR_Configuracion CB" = RI,
+        tabledata "Configuracion - Discrepancias" = R,
+        tabledata "DXR_Config - Discr" = RI,
+        tabledata "Configuracion Encuestas - POS" = R,
+        tabledata "DXR_Config Encuestas - POS" = RI,
+        tabledata "Configuraciones Requisicion" = R,
+        tabledata "DXR_Config Req" = RI,
+        tabledata "Configuracion - MEDALLIA" = R,
+        tabledata "DXR_Configuracion - MEDALLIA" = RI,
+        tabledata "Conf. Pagos Ecommerce Azul" = R,
+        tabledata "DXR_Conf. Pagos Ecommerce Azul" = RI,
+        tabledata "Control Procesos por Almacen" = R,
+        tabledata "DXR_Control Proc por Almacen" = RI,
+        tabledata "Draw Setup" = R,
+        tabledata "DXR_Draw Setup" = RI,
+        tabledata "Email Source Template Relation" = R,
+        tabledata "DXR_Email Source Tmpl Rel" = RI,
+        tabledata "EPagos Setup" = R,
+        tabledata "DXR_EPagos Setup" = RI,
+        tabledata "Exclude Filter Journal" = R,
+        tabledata "DXR_Exclude Filter Journal" = RI,
+        tabledata "Excluir Terminos  - ItemSearch" = R,
+        tabledata "DXR_Excluir Term - ItemSearch" = RI,
+        tabledata "File Structure" = R,
+        tabledata "DXR_File Structure" = RI,
+        tabledata "Forma de Pago" = R,
+        tabledata "DXR_Forma de Pago" = RI,
+        tabledata "BE Inventory Masks" = R,
+        tabledata "DXR_Inventory Masks" = RI,
+        tabledata "Marcas" = R,
+        tabledata "DXR_Marcas" = RI,
+        tabledata "Member Management Setup" = R,
+        tabledata "DXR_Member Management Setup" = RI,
+        tabledata "Motivo Cierre - Discrepancias" = R,
+        tabledata "DXR_Motivo Cierre - Discr" = RI,
+        tabledata "Motivo Discrepancia" = R,
+        tabledata "DXR_Motivo Discrepancia" = RI,
+        tabledata "Profesion" = R,
+        tabledata "DXR_Profesion" = RI,
+        tabledata "Promotion Setup" = R,
+        tabledata "DXR_Promotion Setup" = RI,
+        tabledata "Provincia" = R,
+        tabledata "DXR_Provincia" = RI,
+        tabledata "Sales Dept" = R,
+        tabledata "DXR_Sales Dept" = RI,
+        tabledata "Sales Groups" = R,
+        tabledata "DXR_Sales Groups" = RI,
+        tabledata "Sales SubGroups" = R,
+        tabledata "DXR_Sales SubGroups" = RI,
+        tabledata "Standard POS DASCOM Paymt Eqv" = R,
+        tabledata "DXR_Std POS DASCOM Paymt Eqv" = RI,
+        tabledata "Standard POS Gen. Comments" = R,
+        tabledata "DXR_Standard POS Gen. Comments" = RI,
+        tabledata "Standard POS Users" = R,
+        tabledata "DXR_Standard POS Users" = RI,
+        tabledata "Summary Reconciliation Setup" = R,
+        tabledata "DXR_Summary Recon Setup" = RI,
+        tabledata "Tasas BC" = R,
+        tabledata "DXR_Tasas BC" = RI,
+        tabledata "Tipo de Contenedor" = R,
+        tabledata "DXR_Tipo de Contenedor" = RI,
+        tabledata "Tipo Gas" = R,
+        tabledata "DXR_Tipo Gas" = RI,
+        tabledata "Tipos o Agentes" = R,
+        tabledata "DXR_Tipos o Agentes" = RI,
+        tabledata "Tratados Arancelarios" = R,
+        tabledata "DXR_Tratados Arancelarios" = RI,
+        tabledata "UserApproverByBuyerGroup" = R,
+        tabledata "DXR_UserApproverByBuyerGroup" = RI,
+        tabledata "UserByBuyerGroup" = R,
+        tabledata "DXR_UserByBuyerGroup" = RI,
+        tabledata "VAT Bus. Settings" = R,
+        tabledata "DXR_VAT Bus. Settings" = RI,
+        tabledata "Operaciones Tipo Comprobante2" = R,
+        tabledata "DXR_Operaciones Tipo Comprob2" = RI,
+        tabledata "LSC Barcodes" = RM,
+        tabledata "Check Ledger Entry" = RM,
+        tabledata "Company Information" = RM,
+        tabledata "Country/Region" = RM,
+        tabledata "Gen. Journal Batch" = RM,
+        tabledata "Gen. Journal Line" = RM,
+        tabledata "Gen. Product Posting Group" = RM,
+        tabledata "General Ledger Setup" = RM,
+        tabledata "Reason Code" = RM,
+        tabledata "LSC Replen. Journal Lines" = RM,
+        tabledata "LSC Replen. Template" = RM,
+        tabledata "LSC Retail User" = RM,
+        tabledata "Sales Price" = RM,
+        tabledata "Sales & Receivables Setup" = RM,
+        tabledata "LSC Sales Type" = RM,
+        tabledata "Salesperson/Purchaser" = RM,
+        // Added 2026-08-27 (A3): the 34 generic restores still routed through
+        // MigrateLegacyTableData() open their source/destination by ID via RecordRef.Open(), which
+        // needs a tabledata entry exactly like a typed Record does. Source = R (Open + FindSet +
+        // Next), destination = RI (Open + IsEmpty + Init + Insert; never Modify). Every table name
+        // below was verified against Dextra_Bellon Customization_28.3.4.20.app's SymbolReference
+        // (table id -> name), not taken from the call-site comments.
+        tabledata "Agente" = R,
+        tabledata "DXR_Agente" = RI,
+        tabledata "AGR Log" = R,
+        tabledata "DXR_AGR Log" = RI,
+        tabledata "Archivo - Discrepancias" = R,
+        tabledata "DXR_Archivo - Discrepancias" = RI,
+        tabledata "Black List Promotion" = R,
+        tabledata "DXR_Black List Promotion" = RI,
+        tabledata "Cabecera Discrepancia" = R,
+        tabledata "DXR_Cabecera Discrepancia" = RI,
+        tabledata "Comentario - Discrepancias" = R,
+        tabledata "DXR_Comentario - Discrepancias" = RI,
+        tabledata "Departamento - Discrepancias" = R,
+        tabledata "DXR_Departamento - Discr" = RI,
+        tabledata "HisCargaMasivaBeneficiariosBPD" = R,
+        tabledata "DXR_HisCargaMasivaBenefBPD" = RI,
+        tabledata "HisLineasCargaMasivaBenefBPD" = R,
+        tabledata "DXR_HisLinCargaMasivaBenefBPD" = RI,
+        tabledata "Hist. Beneficiarios BPD" = R,
+        tabledata "DXR_Hist. Beneficiarios BPD" = RI,
+        tabledata "Hist. Cabecera Discrepancia" = R,
+        tabledata "DXR_Hist. Cabecera Discr" = RI,
+        tabledata "Hist. de Ganadores" = R,
+        tabledata "DXR_Hist. de Ganadores" = RI,
+        tabledata "Hist. Internal Consump. Header" = R,
+        tabledata "DXR_Hist. Int Consump. Header" = RI,
+        tabledata "Hist. Internal Consump. Line" = R,
+        tabledata "DXR_Hist. Int Consump. Line" = RI,
+        tabledata "Hist. Linea Discrepancia" = R,
+        tabledata "DXR_Hist. Linea Discrepancia" = RI,
+        tabledata "Historico Enc Requisicion" = R,
+        tabledata "DXR_Historico Enc Requisicion" = RI,
+        tabledata "Historico - Extracto Bancario" = R,
+        tabledata "DXR_Historico - Extr Bancario" = RI,
+        tabledata "Historico Requisicion Line" = R,
+        tabledata "DXR_Historico Requisicion Line" = RI,
+        tabledata "Hist Pre-Requisicion" = R,
+        tabledata "DXR_Hist Pre-Requisicion" = RI,
+        tabledata "Hist Pre-Requisicion Line" = R,
+        tabledata "DXR_Hist Pre-Requisicion Line" = RI,
+        tabledata "Internal Consumption Log" = R,
+        tabledata "DXR_Internal Consumption Log" = RI,
+        tabledata "Linea Discrepancia" = R,
+        tabledata "DXR_Linea Discrepancia" = RI,
+        tabledata "LineRQBuffer" = R,
+        tabledata "DXR_LineRQBuffer" = RI,
+        tabledata "Log - Bank Statement" = R,
+        tabledata "DXR_Log - Bank Statement" = RI,
+        tabledata "Log Email" = R,
+        tabledata "DXR_Log Email" = RI,
+        tabledata "Log Transaccion Azul" = R,
+        tabledata "DXR_Log Transaccion Azul" = RI,
+        tabledata "Log Transaccion Medallia" = R,
+        tabledata "DXR_Log Transaccion Medallia" = RI,
+        tabledata "Log Transfer error" = R,
+        tabledata "DXR_Log Transfer error" = RI,
+        tabledata "Posted Jnl Promotion Tickets" = R,
+        tabledata "DXR_Posted Jnl Promo Tickets" = RI,
+        tabledata "Printing Invoice Log" = R,
+        tabledata "DXR_Printing Invoice Log" = RI,
+        tabledata "Send Email Log" = R,
+        tabledata "DXR_Send Email Log" = RI,
+        tabledata "Trans. Archive Line" = R,
+        tabledata "DXR_Trans. Archive Line" = RI,
+        tabledata "UserLogs" = R,
+        tabledata "DXR_UserLogs" = RI,
+        tabledata "Printing Invoice Log BO" = R,
+        tabledata "DXR_Printing Invoice Log BO" = RI;
 
     trigger OnRun()
     var
@@ -1192,6 +1387,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "AGR Setup";
         New: Record "DXR_AGR Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Primary Key") then begin
@@ -1215,8 +1414,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.AsmOrderChoice := Legacy.AsmOrderChoice;
                     New."Auto Refresh Production Order" := Legacy."Auto Refresh Production Order";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq19: Ajuste Inventario Config (50006) -> DXR_Ajuste Inventario Config (53304).
@@ -1226,6 +1427,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Ajuste Inventario Config";
         New: Record "DXR_Ajuste Inventario Config";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Item Padre", Legacy."Item Padre UM") then begin
@@ -1236,8 +1441,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Item Hijo UM" := Legacy."Item Hijo UM";
                     New."Cant. x UM Padre" := Legacy."Cant. x UM Padre";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq21: Area de Trabajo (50008) -> DXR_Area de Trabajo (53306). PK = "Code".
@@ -1246,6 +1453,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Area de Trabajo";
         New: Record "DXR_Area de Trabajo";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1254,8 +1465,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Estado := Legacy.Estado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq28: Categoria Servicios (50020) -> DXR_Categoria Servicios (53313). PK = "ID Services".
@@ -1264,6 +1477,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Categoria Servicios";
         New: Record "DXR_Categoria Servicios";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."ID Services") then begin
@@ -1271,8 +1488,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."ID Services" := Legacy."ID Services";
                     New."Type Services" := Legacy."Type Services";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq30: Cilindros - Setup (50022) -> DXR_Cilindros - Setup (53315). PK = "Key".
@@ -1281,6 +1500,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Cilindros - Setup";
         New: Record "DXR_Cilindros - Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1289,8 +1512,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Cilindros No. Series" := Legacy."Cilindros No. Series";
                     New."Mov. Cilindros No. Series" := Legacy."Mov. Cilindros No. Series";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq31: Codigos de Auditoria (50024) -> DXR_Codigos de Auditoria. (53316, trailing period is
@@ -1300,6 +1525,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Codigos de Auditoria";
         New: Record "DXR_Codigos de Auditoria.";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Code) then begin
@@ -1311,8 +1540,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Tipo Proceso" := Legacy."Tipo Proceso";
                     New."Key" := Legacy."Key";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq33: Conf. Extracto Bancario (50029) -> DXR_Conf. Extracto Bancario (53318). PK = "Key".
@@ -1321,6 +1552,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Conf. Extracto Bancario";
         New: Record "DXR_Conf. Extracto Bancario";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1331,8 +1566,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Days Run" := Legacy."Days Run";
                     New."Date Tolerance" := Legacy."Date Tolerance";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq34: Config. NCF Ventas (50032) -> DXR_Config. NCF Ventas (53319). PK = "Código".
@@ -1344,6 +1581,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Config. NCF Ventas";
         New: Record "DXR_Config. NCF Ventas";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Código") then begin
@@ -1357,8 +1598,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Alternal No. Series_DXR" := Legacy."EF Alternal No. Series";
                     New."EF Alternal No. Series NC" := Legacy."EF Alternal No. Series NC";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq35: Config. NCF Ventas STD (50033) -> DXR_Config. NCF Ventas STD (53320).
@@ -1368,6 +1611,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Config. NCF Ventas STD";
         New: Record "DXR_Config. NCF Ventas STD";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Código", Legacy."Terminal No.") then begin
@@ -1383,8 +1630,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Alternal No. Series_DXR" := Legacy."EF Alternal No. Series";
                     New."EF Alternal No. Series NC" := Legacy."EF Alternal No. Series NC";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq36: Config. Polizas (50034) -> DXR_Config. Polizas (53321).
@@ -1394,6 +1643,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Config. Polizas";
         New: Record "DXR_Config. Polizas";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Fecha Desde", Legacy."Fecha Hasta", Legacy."Monto Minimo", Legacy."Monto Maximo") then begin
@@ -1404,8 +1657,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Monto Maximo" := Legacy."Monto Maximo";
                     New."Cantidad Cilindros" := Legacy."Cantidad Cilindros";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq37: Configuracion CB (50035) -> DXR_Configuracion CB (53322).
@@ -1415,6 +1670,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Configuracion CB";
         New: Record "DXR_Configuracion CB";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Bloque, Legacy."Reason Codes Filter", Legacy.Orden) then begin
@@ -1426,8 +1685,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Orientacion := Legacy.Orientacion;
                     New.Transito := Legacy.Transito;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq38: Configuracion - Discrepancias (50036) -> DXR_Config - Discr (53323). PK = "key".
@@ -1436,6 +1697,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Configuracion - Discrepancias";
         New: Record "DXR_Config - Discr";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."key") then begin
@@ -1454,8 +1719,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Reg Prod. in Discre." := Legacy."Reg Prod. in Discre.";
                     New."Control Disc. sin Attch" := Legacy."Control Disc. sin Attch";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq39: Configuracion Encuestas - POS (50037) -> DXR_Config Encuestas - POS (53324).
@@ -1465,6 +1732,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Configuracion Encuestas - POS";
         New: Record "DXR_Config Encuestas - POS";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Store No.", Legacy."Pos Terminal No.", Legacy."Transacction No.") then begin
@@ -1473,8 +1744,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Pos Terminal No." := Legacy."Pos Terminal No.";
                     New."Transacction No." := Legacy."Transacction No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq40: Configuraciones Requisicion (50038) -> DXR_Config Req (53325). PK = "Key".
@@ -1483,6 +1756,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Configuraciones Requisicion";
         New: Record "DXR_Config Req";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1492,8 +1769,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."No Serie Req" := Legacy."No Serie Req";
                     New."No Serie Pre-Req No Stock" := Legacy."No Serie Pre-Req No Stock";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq41: Configuracion - MEDALLIA (50039) -> DXR_Configuracion - MEDALLIA (53326). PK = "Key".
@@ -1502,6 +1781,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Configuracion - MEDALLIA";
         New: Record "DXR_Configuracion - MEDALLIA";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1516,8 +1799,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Transportacion := Legacy.Transportacion;
                     New."Facturas POS" := Legacy."Facturas POS";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq42: Conf. Pagos Ecommerce Azul (50040) -> DXR_Conf. Pagos Ecommerce Azul (53327).
@@ -1527,6 +1812,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Conf. Pagos Ecommerce Azul";
         New: Record "DXR_Conf. Pagos Ecommerce Azul";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1546,8 +1835,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.PaymentPageUrl := Legacy.PaymentPageUrl;
                     New."Key" := Legacy."Key";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq43: Control Procesos por Almacen (50042) -> DXR_Control Proc por Almacen (53328).
@@ -1557,6 +1848,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Control Procesos por Almacen";
         New: Record "DXR_Control Proc por Almacen";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Location Code") then begin
@@ -1567,8 +1862,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Ajustes := Legacy.Ajustes;
                     New.Ensamblados := Legacy.Ensamblados;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq47: Draw Setup (50052) -> DXR_Draw Setup (53332). PK = "Entry No.".
@@ -1579,6 +1876,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Draw Setup";
         New: Record "DXR_Draw Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Entry No.") then begin
@@ -1591,8 +1892,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Entry No." := Legacy."Entry No.";
                     New.Done := Legacy.Done;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq48: Email Source Template Relation (50055) -> DXR_Email Source Tmpl Rel (53333).
@@ -1603,6 +1906,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Email Source Template Relation";
         New: Record "DXR_Email Source Tmpl Rel";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Email Template ID", Legacy."Email Source Table ID", Legacy."Field Email No.") then begin
@@ -1614,8 +1921,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.CC := Legacy.CC;
                     New."Requerir Correo" := Legacy."Requerir Correo";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // ===== 1c) 19 more SETUP-category whole-table restores converted to native typed logic =====
@@ -1634,6 +1943,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "EPagos Setup";
         New: Record "DXR_EPagos Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Primary Key") then begin
@@ -1672,8 +1985,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Use Status LOG" := Legacy."Use Status LOG";
                     New."Max Days  Allow Payment" := Legacy."Max Days  Allow Payment";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq52: Exclude Filter Journal (50063) -> DXR_Exclude Filter Journal (53337).
@@ -1683,6 +1998,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Exclude Filter Journal";
         New: Record "DXR_Exclude Filter Journal";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Journal Template", Legacy."Journal Batch") then begin
@@ -1692,8 +2011,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Excluir := Legacy.Excluir;
                     New.Type := Legacy.Type;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq53: Excluir Terminos  - ItemSearch (50064) -> DXR_Excluir Term - ItemSearch (53338).
@@ -1704,14 +2025,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Excluir Terminos  - ItemSearch";
         New: Record "DXR_Excluir Term - ItemSearch";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Termino) then begin
                     New.Init();
                     New.Termino := Legacy.Termino;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq54: File Structure (50065) -> DXR_File Structure (53339). PK = (Bank, "Field No").
@@ -1720,6 +2047,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "File Structure";
         New: Record "DXR_File Structure";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Bank, Legacy."Field No") then begin
@@ -1730,8 +2061,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."From Field" := Legacy."From Field";
                     New.Bank := Legacy.Bank;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq55: Forma de Pago (50068) -> DXR_Forma de Pago (53340). PK = "Code".
@@ -1740,6 +2073,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Forma de Pago";
         New: Record "DXR_Forma de Pago";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1747,8 +2084,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Code" := Legacy."Code";
                     New.Description := Legacy.Description;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq73: BE Inventory Masks (50096) -> DXR_Inventory Masks (53358). PK = "Seq. No.".
@@ -1757,6 +2096,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "BE Inventory Masks";
         New: Record "DXR_Inventory Masks";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Seq. No.") then begin
@@ -1821,8 +2164,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Document Group" := Legacy."Document Group";
                     New.ID := Legacy.ID;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq86: Marcas (50118) -> DXR_Marcas (53371). PK = ID.
@@ -1831,6 +2176,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Marcas;
         New: Record "DXR_Marcas";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.ID) then begin
@@ -1840,8 +2189,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Comision_Venta := Legacy.Comision_Venta;
                     New.Comision_Cobro := Legacy.Comision_Cobro;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq87: Member Management Setup (50119) -> DXR_Member Management Setup (53372). PK = "Code".
@@ -1850,6 +2201,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Member Management Setup";
         New: Record "DXR_Member Management Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1867,8 +2222,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Min. Point Balance" := Legacy."Min. Point Balance";
                     New."Min. Point Qty. in Redemption" := Legacy."Min. Point Qty. in Redemption";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq88: Motivo Cierre - Discrepancias (50121) -> DXR_Motivo Cierre - Discr (53373). PK = "Code".
@@ -1877,6 +2234,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Motivo Cierre - Discrepancias";
         New: Record "DXR_Motivo Cierre - Discr";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1885,8 +2246,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Anular := Legacy.Anular;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq89: Motivo Discrepancia (50122) -> DXR_Motivo Discrepancia (53374). PK = "Code".
@@ -1895,6 +2258,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Motivo Discrepancia";
         New: Record "DXR_Motivo Discrepancia";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1903,8 +2270,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Description := Legacy.Description;
                     New.Habilitado := Legacy.Habilitado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq100: Profesion (50142) -> DXR_Profesion (53385). PK = "Code".
@@ -1913,6 +2282,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Profesion;
         New: Record "DXR_Profesion";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1921,8 +2294,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Estado := Legacy.Estado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq101: Promotion Setup (50143) -> DXR_Promotion Setup (53386). PK = "Key".
@@ -1931,6 +2306,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Promotion Setup";
         New: Record "DXR_Promotion Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Key") then begin
@@ -1948,8 +2327,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Max Point Change" := Legacy."Max Point Change";
                     New."Min Point Change" := Legacy."Min Point Change";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq103: Provincia (50145) -> DXR_Provincia (53388). PK = "Code".
@@ -1958,6 +2339,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Provincia;
         New: Record "DXR_Provincia";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1966,8 +2351,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Name := Legacy.Name;
                     New."Cod. BPD" := Legacy."Cod. BPD";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq107: Sales Dept (50154) -> DXR_Sales Dept (53392). PK = "Code".
@@ -1976,6 +2363,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Sales Dept";
         New: Record "DXR_Sales Dept";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -1985,8 +2376,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Visible in Webshop" := Legacy."Visible in Webshop";
                     New."Sort No." := Legacy."Sort No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq108: Sales Groups (50155) -> DXR_Sales Groups (53393). PK = "Code".
@@ -1995,6 +2388,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Sales Groups";
         New: Record "DXR_Sales Groups";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2005,8 +2402,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Sales Dept Code" := Legacy."Sales Dept Code";
                     New."Sort No." := Legacy."Sort No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq109: Sales SubGroups (50159) -> DXR_Sales SubGroups (53394). PK = "Code".
@@ -2015,6 +2414,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Sales SubGroups";
         New: Record "DXR_Sales SubGroups";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2025,8 +2428,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Sort No." := Legacy."Sort No.";
                     New."Sales Group" := Legacy."Sales Group";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq111: Standard POS DASCOM Paymt Eqv (50165) -> DXR_Std POS DASCOM Paymt Eqv (53396).
@@ -2036,6 +2441,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Standard POS DASCOM Paymt Eqv";
         New: Record "DXR_Std POS DASCOM Paymt Eqv";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Payment Code") then begin
@@ -2048,8 +2457,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."User Last Modified" := Legacy."User Last Modified";
                     New."Last Date Modified" := Legacy."Last Date Modified";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq112: Standard POS Gen. Comments (50168) -> DXR_Standard POS Gen. Comments (53397).
@@ -2059,6 +2470,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Standard POS Gen. Comments";
         New: Record "DXR_Standard POS Gen. Comments";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Fiscal Doc. Type", Legacy."Line No.") then begin
@@ -2071,8 +2486,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."User Last Modified" := Legacy."User Last Modified";
                     New."Last Date Modified" := Legacy."Last Date Modified";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq113: Standard POS Users (50172) -> DXR_Standard POS Users (53398). PK = "User Code".
@@ -2081,6 +2498,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Standard POS Users";
         New: Record "DXR_Standard POS Users";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."User Code") then begin
@@ -2096,8 +2517,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Last Date Modified" := Legacy."Last Date Modified";
                     New."Filter Reg" := Legacy."Filter Reg";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // ===== 1d) 10 more SETUP-category whole-table restores converted to native typed logic =====
@@ -2116,6 +2539,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Summary Reconciliation Setup";
         New: Record "DXR_Summary Recon Setup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Serial) then begin
@@ -2126,8 +2553,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Type Text" := Legacy."Type Text";
                     New.Grupo := Legacy.Grupo;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq116: Tasas BC (50176) -> DXR_Tasas BC (53401). PK = "Fecha Tasa".
@@ -2136,6 +2565,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tasas BC";
         New: Record "DXR_Tasas BC";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Fecha Tasa") then begin
@@ -2143,8 +2576,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Fecha Tasa" := Legacy."Fecha Tasa";
                     New.Tasa := Legacy.Tasa;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq119: Tipo de Contenedor (50180) -> DXR_Tipo de Contenedor (53404). PK = "Code".
@@ -2153,6 +2588,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tipo de Contenedor";
         New: Record "DXR_Tipo de Contenedor";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2161,8 +2600,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Estado := Legacy.Estado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq120: Tipo Gas (50181) -> DXR_Tipo Gas (53405). PK = Id.
@@ -2171,6 +2612,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tipo Gas";
         New: Record "DXR_Tipo Gas";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Id) then begin
@@ -2179,8 +2624,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Estado := Legacy.Estado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq121: Tipos o Agentes (50182) -> DXR_Tipos o Agentes (53406). PK = "Code".
@@ -2189,6 +2636,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tipos o Agentes";
         New: Record "DXR_Tipos o Agentes";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2197,8 +2648,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Descripcion := Legacy.Descripcion;
                     New.Estado := Legacy.Estado;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq123: Tratados Arancelarios (50195) -> DXR_Tratados Arancelarios (53408).
@@ -2208,6 +2661,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tratados Arancelarios";
         New: Record "DXR_Tratados Arancelarios";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Arancel, Legacy.Pais) then begin
@@ -2216,8 +2673,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Pais := Legacy.Pais;
                     New."Tasa Arancel" := Legacy."Tasa Arancel";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq124: UserApproverByBuyerGroup (50197) -> DXR_UserApproverByBuyerGroup (53409).
@@ -2227,6 +2686,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record UserApproverByBuyerGroup;
         New: Record "DXR_UserApproverByBuyerGroup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.UserID, Legacy."Buyer Group") then begin
@@ -2234,8 +2697,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.UserID := Legacy.UserID;
                     New."Buyer Group" := Legacy."Buyer Group";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq125: UserByBuyerGroup (50198) -> DXR_UserByBuyerGroup (53410).
@@ -2245,6 +2710,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record UserByBuyerGroup;
         New: Record "DXR_UserByBuyerGroup";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.UserID, Legacy."Buyer Group Code") then begin
@@ -2252,8 +2721,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.UserID := Legacy.UserID;
                     New."Buyer Group Code" := Legacy."Buyer Group Code";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq129: VAT Bus. Settings (50202) -> DXR_VAT Bus. Settings (53414). PK = "code".
@@ -2262,6 +2733,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "VAT Bus. Settings";
         New: Record "DXR_VAT Bus. Settings";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."code") then begin
@@ -2271,8 +2746,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Usar := Legacy.Usar;
                     New."Tipo NCF Cliente" := Legacy."Tipo NCF Cliente";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq134: Operaciones Tipo Comprobante2 (50126) -> DXR_Operaciones Tipo Comprob2 (55007).
@@ -2283,6 +2760,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Operaciones Tipo Comprobante2";
         New: Record "DXR_Operaciones Tipo Comprob2";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Documento) then begin
@@ -2295,8 +2776,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Monto con ITBIS" := Legacy."Monto con ITBIS";
                     New.Origen := Legacy.Origen;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // ===== 1e) 37 MA-category whole-table restores converted to native typed logic =====
@@ -2329,6 +2812,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Bancos - Extracto Bancario";
         New: Record "DXR_Bancos - Extracto Bancario";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Bank Code") then begin
@@ -2340,8 +2827,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Formato Banco" := Legacy."Formato Banco";
                     New."Format Mt940" := Legacy."Format Mt940";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq23: Bank (50010) -> DXR_Bank (53308). PK = Bank.
@@ -2350,6 +2839,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Bank;
         New: Record "DXR_Bank";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Bank) then begin
@@ -2358,8 +2851,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Bank name" := Legacy."Bank name";
                     New."Cod. BPD" := Legacy."Cod. BPD";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq24: Bank Relation (50011) -> DXR_Bank Relation (53309). PK = ("Cod. Banco", Bank). Field
@@ -2369,6 +2864,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Bank Relation";
         New: Record "DXR_Bank Relation";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Cod. Banco", Legacy.Bank) then begin
@@ -2376,8 +2875,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Cod. Banco" := Legacy."Cod. Banco";
                     New.Bank := Legacy.Bank;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq27: Carga Masiva Beneficiarios BPD (50016) -> DXR_Carga Masiva Benef BPD (53312).
@@ -2388,6 +2889,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Carga Masiva Beneficiarios BPD";
         New: Record "DXR_Carga Masiva Benef BPD";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Numero de ID") then begin
@@ -2411,8 +2916,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Tipo de cuenta contrato" := Legacy."Tipo de cuenta contrato";
                     New."Vendor No." := Legacy."Vendor No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq29: Cilindros (50021) -> DXR_Cilindros (53314). PK = Id. Fields "Nombre Gas" (8) and
@@ -2425,6 +2932,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Cilindros;
         New: Record "DXR_Cilindros";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Id) then begin
@@ -2438,8 +2949,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Id Gas" := Legacy."Id Gas";
                     New.Disponible := Legacy.Disponible;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq44: Conversion Costo (50043) -> DXR_Conversion Costo (53329). PK = Valor.
@@ -2448,6 +2961,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Conversion Costo";
         New: Record "DXR_Conversion Costo";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Valor) then begin
@@ -2455,8 +2972,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Valor := Legacy.Valor;
                     New.Equivalencia := Legacy.Equivalencia;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq46: Detalle - Extracto Bancario (50050) -> DXR_Detalle - Extr Bancario (53331).
@@ -2467,6 +2986,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Detalle - Extracto Bancario";
         New: Record "DXR_Detalle - Extr Bancario";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.EntryNo) then begin
@@ -2483,8 +3006,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Cta Banco" := Legacy."Cta Banco";
                     New.Bank := Legacy.Bank;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq49: Entrega Facturas CxC - Lines (50057) -> DXR_Entrega Fact CxC - Lines (53334).
@@ -2494,6 +3019,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Entrega Facturas CxC - Lines";
         New: Record "DXR_Entrega Fact CxC - Lines";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Document No.", Legacy."Invoices No.") then begin
@@ -2502,8 +3031,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Invoices No." := Legacy."Invoices No.";
                     New."Entregada Despacho" := Legacy."Entregada Despacho";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq50: Envio Compras (50058) -> DXR_Envio Compras (53335). PK = "Code".
@@ -2512,6 +3043,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Envio Compras";
         New: Record "DXR_Envio Compras";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2524,8 +3059,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Ship-to City" := Legacy."Ship-to City";
                     New."Ship-to Post Code" := Legacy."Ship-to Post Code";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq57: Grupo Venta (50072) -> DXR_Grupo Venta (53342). PK = "Code".
@@ -2534,6 +3071,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Grupo Venta";
         New: Record "DXR_Grupo Venta";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Code") then begin
@@ -2541,8 +3082,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Code" := Legacy."Code";
                     New.Descripcion := Legacy.Descripcion;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq70: Internal Consumption Header (50093) -> DXR_Int Consump Header (53355). PK = "No.".
@@ -2551,6 +3094,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Internal Consumption Header";
         New: Record "DXR_Int Consump Header";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."No.") then begin
@@ -2570,8 +3117,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Shortcut Dimension 1 Code" := Legacy."Shortcut Dimension 1 Code";
                     New."Responsibility Center" := Legacy."Responsibility Center";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq71: Internal Consumption Line (50094) -> DXR_Internal Consumption Line (53356).
@@ -2582,6 +3131,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Internal Consumption Line";
         New: Record "DXR_Internal Consumption Line";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Document No.", Legacy."Item No.") then begin
@@ -2591,8 +3144,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Quantity := Legacy.Quantity;
                     New."Location Code" := Legacy."Location Code";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq74: Item HTML (50098) -> DXR_Item HTML (53359). PK = "Item No.". Fields Html (20),
@@ -2608,6 +3163,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         InStr: InStream;
         OutStr: OutStream;
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Item No.") then begin
@@ -2631,8 +3190,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CopyStream(OutStr, InStr);
 
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq75: Item Image View (50099) -> DXR_Item Image View (53360). PK = "Entry No." (Integer,
@@ -2642,6 +3203,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Item Image View";
         New: Record "DXR_Item Image View";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Entry No.") then begin
@@ -2650,8 +3215,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Item No." := Legacy."Item No.";
                     New."Image Location" := Legacy."Image Location";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq76: ItemNo Desliquidacion (50100) -> DXR_ItemNo Desliquidacion (53361).
@@ -2661,6 +3228,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "ItemNo Desliquidacion";
         New: Record "DXR_ItemNo Desliquidacion";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Item No.", Legacy."Fecha Desde", Legacy."Fecha Hasta", Legacy.Almacen) then begin
@@ -2671,8 +3242,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Fecha Hasta" := Legacy."Fecha Hasta";
                     New.Almacen := Legacy.Almacen;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq77: Journal Promotion Tickets (50102) -> DXR_Journal Promotion Tickets (53362).
@@ -2683,6 +3256,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Journal Promotion Tickets";
         New: Record "DXR_Journal Promotion Tickets";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Promotions, Legacy."Member Account") then begin
@@ -2697,8 +3274,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.TimeCreated := Legacy.TimeCreated;
                     New."Member Card No." := Legacy."Member Card No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq79: Lineas Carga Masiva Ben. BPD (50107) -> DXR_Lin Carga Masiva Ben. BPD (53364).
@@ -2709,6 +3288,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Lineas Carga Masiva Ben. BPD";
         New: Record "DXR_Lin Carga Masiva Ben. BPD";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Numero de Cuenta") then begin
@@ -2726,8 +3309,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Nombre de solicitante" := Legacy."Nombre de solicitante";
                     New."Vendor No." := Legacy."Vendor No.";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq90: Movimientos de Cilindro (50123) -> DXR_Movimientos de Cilindro (53375).
@@ -2739,6 +3324,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Movimientos de Cilindro";
         New: Record "DXR_Movimientos de Cilindro";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Document No.") then begin
@@ -2751,8 +3340,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Id Cilindro" := Legacy."Id Cilindro";
                     New.Estatus := Legacy.Estatus;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq91: Order Item Status (50127) -> DXR_Order Item Status (53376). PK = ID.
@@ -2761,6 +3352,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Order Item Status";
         New: Record "DXR_Order Item Status";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.ID) then begin
@@ -2770,8 +3365,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.PROCESS := Legacy.PROCESS;
                     New.REJECTED := Legacy.REJECTED;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq93: Pre Req LineNoStockValid (50135) -> DXR_Pre Req LineNoStockValid (53378).
@@ -2782,6 +3379,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre Req LineNoStockValid";
         New: Record "DXR_Pre Req LineNoStockValid";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Doc Num", Legacy."Line Num") then begin
@@ -2799,8 +3400,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Buyer Group" := Legacy."Buyer Group";
                     New."Unit Cost" := Legacy."Unit Cost";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq94: Pre Req no Stock Valid (50136) -> DXR_Pre Req no Stock Valid (53379). PK = No.
@@ -2809,6 +3412,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre Req no Stock Valid";
         New: Record "DXR_Pre Req no Stock Valid";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.No) then begin
@@ -2822,8 +3429,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Location := Legacy.Location;
                     New.Cliente := Legacy.Cliente;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq95: Pre-Requisicion (50137) -> DXR_Pre-Requisicion (53380). PK = No.
@@ -2832,6 +3441,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre-Requisicion";
         New: Record "DXR_Pre-Requisicion";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.No) then begin
@@ -2845,8 +3458,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Location := Legacy.Location;
                     New.Cliente := Legacy.Cliente;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq96: Pre-Requisicion Line (50138) -> DXR_Pre-Requisicion Line (53381).
@@ -2856,6 +3471,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre-Requisicion Line";
         New: Record "DXR_Pre-Requisicion Line";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Doc Num", Legacy."Line Num", Legacy."No.") then begin
@@ -2871,8 +3490,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Precio Sugerido" := Legacy."Precio Sugerido";
                     New."Unit Cost" := Legacy."Unit Cost";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq97: Pre-Requisicion Line No Stock (50139) -> DXR_Pre-Req Line No Stock (53382).
@@ -2882,6 +3503,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre-Requisicion Line No Stock";
         New: Record "DXR_Pre-Req Line No Stock";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Doc Num", Legacy."Line Num") then begin
@@ -2895,8 +3520,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Location Code" := Legacy."Location Code";
                     New."Unit Cost" := Legacy."Unit Cost";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq98: Pre-Requisicion no Stock (50140) -> DXR_Pre-Requisicion no Stock (53383). PK = No.
@@ -2905,6 +3532,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Pre-Requisicion no Stock";
         New: Record "DXR_Pre-Requisicion no Stock";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.No) then begin
@@ -2918,8 +3549,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Location := Legacy.Location;
                     New.Cliente := Legacy.Cliente;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq102: Promotion Tickets Relation (50144) -> DXR_Promotion Tickets Relation (53387).
@@ -2930,6 +3563,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Promotion Tickets Relation";
         New: Record "DXR_Promotion Tickets Relation";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Promotion, Legacy."Filter Type", Legacy."Filter Code", Legacy."Scheme Filter Type", Legacy."Club/Scheme") then begin
@@ -2945,8 +3582,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Club Code" := Legacy."Club Code";
                     New.Category := Legacy.Category;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq104: Requisicion (50151) -> DXR_Requisicion (53389). PK = "No. Req".
@@ -2955,6 +3594,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Requisicion;
         New: Record "DXR_Requisicion";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."No. Req") then begin
@@ -2974,8 +3617,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Hora Aprobacion" := Legacy."Hora Aprobacion";
                     New.Cliente := Legacy.Cliente;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq105: Requisicion Comment Line (50152) -> DXR_Requisicion Comment Line (53390).
@@ -2985,6 +3630,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Requisicion Comment Line";
         New: Record "DXR_Requisicion Comment Line";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Date, Legacy."Document Line No.", Legacy."Pre-Req", Legacy."User Id") then begin
@@ -2995,8 +3644,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Pre-Req" := Legacy."Pre-Req";
                     New."User Id" := Legacy."User Id";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq106: Requisicion Line (50153) -> DXR_Requisicion Line (53391).
@@ -3006,6 +3657,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Requisicion Line";
         New: Record "DXR_Requisicion Line";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."No. Req", Legacy."Line No.", Legacy."No.") then begin
@@ -3020,8 +3675,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Precio Sugerido" := Legacy."Precio Sugerido";
                     New."Unit Cost" := Legacy."Unit Cost";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq114: Store Statement Posting (50173) -> DXR_Store Statement Posting (53399).
@@ -3031,6 +3688,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Store Statement Posting";
         New: Record "DXR_Store Statement Posting";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Store No.") then begin
@@ -3039,8 +3700,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Exclude := Legacy.Exclude;
                     New.Priority := Legacy.Priority;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq117: Tickets By Offer (50177) -> DXR_Tickets By Offer (53402). PK = ("OfferNo.",
@@ -3050,6 +3713,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tickets By Offer";
         New: Record "DXR_Tickets By Offer";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."OfferNo.", Legacy."Receipt No.") then begin
@@ -3058,8 +3725,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Receipt No." := Legacy."Receipt No.";
                     New.Qty := Legacy.Qty;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq118: Tickets Entry (50178) -> DXR_Tickets Entry (53403). PK = "Tickets No." (clustered
@@ -3071,6 +3740,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Tickets Entry";
         New: Record "DXR_Tickets Entry";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Tickets No.") then begin
@@ -3093,8 +3766,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Entry No." := Legacy."Entry No.";
                     New.Void := Legacy.Void;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq127: UserPromo Apps (50200) -> DXR_UserPromo Apps (53412). PK = UserApp.
@@ -3103,6 +3778,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "UserPromo Apps";
         New: Record "DXR_UserPromo Apps";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.UserApp) then begin
@@ -3112,8 +3791,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Consulta := Legacy.Consulta;
                     New.User_Role := Legacy.User_Role;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq128: Valoracion de Inventario (50201) -> DXR_Valoracion de Inventario (53413).
@@ -3123,6 +3804,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Valoracion de Inventario";
         New: Record "DXR_Valoracion de Inventario";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Location Code") then begin
@@ -3146,8 +3831,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Inv. Final - Inv. Inicial" := Legacy."Inv. Final - Inv. Inicial";
                     New."Ajuste de Compra" := Legacy."Ajuste de Compra";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq131: AGR Extended Item (50002) -> DXR_AGR Extended Item (55006). PK = ("Item No.",
@@ -3157,6 +3844,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "AGR Extended Item";
         New: Record "DXR_AGR Extended Item";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Item No.", Legacy."Connected Item") then begin
@@ -3172,8 +3863,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Connected Item" := Legacy."Connected Item";
                     New."Order Frequency" := Legacy."Order Frequency";
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq132: Comision_Grupo_Vendedor (50027) -> DXR_Comision_Grupo_Vendedor (55005).
@@ -3183,6 +3876,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record Comision_Grupo_Vendedor;
         New: Record "DXR_Comision_Grupo_Vendedor";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.Comision_Grupo_ID, Legacy.Vendedor_ID) then begin
@@ -3190,8 +3887,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New.Comision_Grupo_ID := Legacy.Comision_Grupo_ID;
                     New.Vendedor_ID := Legacy.Vendedor_ID;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // seq133: Inventory View (50097) -> DXR_Inventory View. (55004; the trailing period is part
@@ -3202,6 +3901,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         Legacy: Record "Inventory View";
         New: Record "DXR_Inventory View.";
     begin
+        // Fixed 2026-08-27 (A4): este bucle no confirmaba nunca, asi que la tabla legacy entera
+        // se copiaba dentro de UNA sola transaccion sin cota. CheckpointCommit/FinishBatch la
+        // acotan a 500 filas INSERTADAS; el guard "if not New.Get(...)" ya lo hace idempotente,
+        // asi que un fallo posterior solo reintenta lo que falte. Sin cambio de semantica.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy."Item No.") then begin
@@ -3210,8 +3913,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     New."Location Code" := Legacy."Location Code";
                     New.Quantity := Legacy.Quantity;
                     New.Insert(false);
+                    CheckpointCommit();
                 end;
             until Legacy.Next() = 0;
+        FinishBatch();
     end;
 
     // ===== 2) ~74 active tableextension field-copy procedures (untracked-gap logic) =====
@@ -3333,19 +4038,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ApprovalEntryFields()
     var
         ApprovalEntry: Record "Approval Entry";
+        ApprovalEntryToUpdate: Record "Approval Entry";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 52001, 52002))
         // copied "ID" into "ID_Old" (field 52002), a dead shadow field - ApprovalEntry.TableExt.al's
         // real active target, confirmed via ObsoleteReason on field 52001 (52787 is not itself
         // obsolete), is "ID_DXR." (field 52787, trailing period as declared in source). Direct
         // typed field closes that gap.
-        if ApprovalEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ApprovalEntry.SetLoadFields(SystemId, "ID_DXR.", "ID");
+        if ApprovalEntry.FindSet(false) then
             repeat
-                if ApprovalEntry."ID_DXR." <> ApprovalEntry."ID" then begin
-                    ApprovalEntry."ID_DXR." := ApprovalEntry."ID";
-                    ApprovalEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                if ApprovalEntry."ID_DXR." <> ApprovalEntry."ID" then
+                    if ApprovalEntryToUpdate.GetBySystemId(ApprovalEntry.SystemId) then begin
+                        ApprovalEntryToUpdate."ID_DXR." := ApprovalEntryToUpdate."ID";
+                        ApprovalEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ApprovalEntry.Next() = 0;
         FinishBatch();
     end;
@@ -3389,19 +4104,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_BankAccReconciliationFields()
     var
         BankAccReconciliation: Record "Bank Acc. Reconciliation";
+        BankAccReconciliationToUpdate: Record "Bank Acc. Reconciliation";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // copied "BE Extracto Bancario" into "Extracto Bancario_Old" (field 50001), a dead shadow
         // field - BankAccReconciliation.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Extracto Bancario_DXR"
         // (52787). Direct typed field closes that gap.
-        if BankAccReconciliation.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        BankAccReconciliation.SetLoadFields(SystemId, "Extracto Bancario_DXR", "BE Extracto Bancario");
+        if BankAccReconciliation.FindSet(false) then
             repeat
-                if BankAccReconciliation."Extracto Bancario_DXR" <> BankAccReconciliation."BE Extracto Bancario" then begin
-                    BankAccReconciliation."Extracto Bancario_DXR" := BankAccReconciliation."BE Extracto Bancario";
-                    BankAccReconciliation.Modify(false);
-                end;
-                CheckpointCommit();
+                if BankAccReconciliation."Extracto Bancario_DXR" <> BankAccReconciliation."BE Extracto Bancario" then
+                    if BankAccReconciliationToUpdate.GetBySystemId(BankAccReconciliation.SystemId) then begin
+                        BankAccReconciliationToUpdate."Extracto Bancario_DXR" := BankAccReconciliationToUpdate."BE Extracto Bancario";
+                        BankAccReconciliationToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until BankAccReconciliation.Next() = 0;
         FinishBatch();
     end;
@@ -3409,19 +4134,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_BankAccReconciliationLineFields()
     var
         BankAccReconciliationLine: Record "Bank Acc. Reconciliation Line";
+        BankAccReconciliationLineToUpdate: Record "Bank Acc. Reconciliation Line";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 52000, 52001))
         // copied "BE Extracto Bancario" into "Extracto Bancario_Old" (field 52001), a dead shadow
         // field - BankAccReconciliationLine.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 52000 (52787 is not itself obsolete), is "Extracto Bancario_DXR"
         // (52787). Direct typed field closes that gap.
-        if BankAccReconciliationLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        BankAccReconciliationLine.SetLoadFields(SystemId, "Extracto Bancario_DXR", "BE Extracto Bancario");
+        if BankAccReconciliationLine.FindSet(false) then
             repeat
-                if BankAccReconciliationLine."Extracto Bancario_DXR" <> BankAccReconciliationLine."BE Extracto Bancario" then begin
-                    BankAccReconciliationLine."Extracto Bancario_DXR" := BankAccReconciliationLine."BE Extracto Bancario";
-                    BankAccReconciliationLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if BankAccReconciliationLine."Extracto Bancario_DXR" <> BankAccReconciliationLine."BE Extracto Bancario" then
+                    if BankAccReconciliationLineToUpdate.GetBySystemId(BankAccReconciliationLine.SystemId) then begin
+                        BankAccReconciliationLineToUpdate."Extracto Bancario_DXR" := BankAccReconciliationLineToUpdate."BE Extracto Bancario";
+                        BankAccReconciliationLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until BankAccReconciliationLine.Next() = 0;
         FinishBatch();
     end;
@@ -3429,6 +4164,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_BankAccountFields()
     var
         BankAccount: Record "Bank Account";
+        BankAccountToUpdate: Record "Bank Account";
         Blank: Record "Bank Account";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
@@ -3437,21 +4173,32 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // obsolete), are "Cod. Proveedor Bco._BE_DXR" (52787 - name kept as originally declared,
         // it is not itself obsolete), "Account No._DXR" (52788) and "Amount In Payload_DXR"
         // (52789). Direct typed fields close that gap.
-        if BankAccount.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        BankAccount.SetLoadFields(
+            SystemId, "Cod. Proveedor Bco._BE_DXR", "Cod. Proveedor Bco.", "Account No._DXR", "Account No.",
+            "Amount In Payload_DXR", "Amount In Payload");
+        if BankAccount.FindSet(false) then
             repeat
                 if (BankAccount."Cod. Proveedor Bco._BE_DXR" <> BankAccount."Cod. Proveedor Bco.") or
                    (BankAccount."Account No._DXR" <> BankAccount."Account No.") or
                    (BankAccount."Amount In Payload_DXR" <> BankAccount."Amount In Payload")
-                then begin
-                    if BankAccount."Cod. Proveedor Bco._BE_DXR" = Blank."Cod. Proveedor Bco._BE_DXR" then
-                        BankAccount."Cod. Proveedor Bco._BE_DXR" := BankAccount."Cod. Proveedor Bco.";
-                    if BankAccount."Account No._DXR" = Blank."Account No._DXR" then
-                        BankAccount."Account No._DXR" := BankAccount."Account No.";
-                    if BankAccount."Amount In Payload_DXR" = Blank."Amount In Payload_DXR" then
-                        BankAccount."Amount In Payload_DXR" := BankAccount."Amount In Payload";
-                    BankAccount.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if BankAccountToUpdate.GetBySystemId(BankAccount.SystemId) then begin
+                        if BankAccountToUpdate."Cod. Proveedor Bco._BE_DXR" = Blank."Cod. Proveedor Bco._BE_DXR" then
+                            BankAccountToUpdate."Cod. Proveedor Bco._BE_DXR" := BankAccountToUpdate."Cod. Proveedor Bco.";
+                        if BankAccountToUpdate."Account No._DXR" = Blank."Account No._DXR" then
+                            BankAccountToUpdate."Account No._DXR" := BankAccountToUpdate."Account No.";
+                        if BankAccountToUpdate."Amount In Payload_DXR" = Blank."Amount In Payload_DXR" then
+                            BankAccountToUpdate."Amount In Payload_DXR" := BankAccountToUpdate."Amount In Payload";
+                        BankAccountToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until BankAccount.Next() = 0;
         FinishBatch();
     end;
@@ -3459,19 +4206,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_BankAccountLedgerEntryFields()
     var
         BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+        BankAccountLedgerEntryToUpdate: Record "Bank Account Ledger Entry";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // copied "Fecha Registro 2" into "Fecha Registro 2_Old" (field 50001), a dead shadow field -
         // BankAccountLedgerEntry.TableExt.al's real active target, confirmed via ObsoleteReason on
         // field 50000 (52787 is not itself obsolete), is "Fecha Registro 2_DXR" (52787). Direct
         // typed field closes that gap.
-        if BankAccountLedgerEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        BankAccountLedgerEntry.SetLoadFields(SystemId, "Fecha Registro 2_DXR", "Fecha Registro 2");
+        if BankAccountLedgerEntry.FindSet(false) then
             repeat
-                if BankAccountLedgerEntry."Fecha Registro 2_DXR" <> BankAccountLedgerEntry."Fecha Registro 2" then begin
-                    BankAccountLedgerEntry."Fecha Registro 2_DXR" := BankAccountLedgerEntry."Fecha Registro 2";
-                    BankAccountLedgerEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                if BankAccountLedgerEntry."Fecha Registro 2_DXR" <> BankAccountLedgerEntry."Fecha Registro 2" then
+                    if BankAccountLedgerEntryToUpdate.GetBySystemId(BankAccountLedgerEntry.SystemId) then begin
+                        BankAccountLedgerEntryToUpdate."Fecha Registro 2_DXR" := BankAccountLedgerEntryToUpdate."Fecha Registro 2";
+                        BankAccountLedgerEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until BankAccountLedgerEntry.Next() = 0;
         FinishBatch();
     end;
@@ -3479,22 +4236,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCBarcodesFields()
     var
         LSCBarcodes: Record "LSC Barcodes";
+        LSCBarcodesToUpdate: Record "LSC Barcodes";
     begin
         // Fixed 2026-08-24: the old RecordRef version targeted fields 50002/50003, which are not
         // defined anywhere in Barcodes.TableExt.al - CopyFieldIfExists silently no-op'd every row.
         // The real active targets, confirmed via that file's ObsoleteReason on fields 50000/50001
         // (neither the destination is itself obsolete), are "Description 2_DXR" (52787) and
         // "Cantidad Bellon_DXR" (52788). Direct typed fields close that gap.
-        if LSCBarcodes.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCBarcodes.SetLoadFields(
+            SystemId, "Description 2_DXR", "Description 2", "Cantidad Bellon_DXR", "Cantidad Bellon");
+        if LSCBarcodes.FindSet(false) then
             repeat
                 if (LSCBarcodes."Description 2_DXR" <> LSCBarcodes."Description 2") or
                    (LSCBarcodes."Cantidad Bellon_DXR" <> LSCBarcodes."Cantidad Bellon")
-                then begin
-                    LSCBarcodes."Description 2_DXR" := LSCBarcodes."Description 2";
-                    LSCBarcodes."Cantidad Bellon_DXR" := LSCBarcodes."Cantidad Bellon";
-                    LSCBarcodes.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCBarcodesToUpdate.GetBySystemId(LSCBarcodes.SystemId) then begin
+                        LSCBarcodesToUpdate."Description 2_DXR" := LSCBarcodesToUpdate."Description 2";
+                        LSCBarcodesToUpdate."Cantidad Bellon_DXR" := LSCBarcodesToUpdate."Cantidad Bellon";
+                        LSCBarcodesToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCBarcodes.Next() = 0;
         FinishBatch();
     end;
@@ -3502,26 +4270,38 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CheckLedgerEntryFields()
     var
         CheckLedgerEntry: Record "Check Ledger Entry";
+        CheckLedgerEntryToUpdate: Record "Check Ledger Entry";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all four fields into dead "_Old"
         // shadow fields (50009-50012) - CheckLedgerEntry.TableExt.al defines those alongside the
         // real active "_DXR" targets (52787-52790, confirmed via ObsoleteReason on fields
         // 50005-50008; none of the _DXR destinations are themselves obsolete), which were never
         // populated. Direct typed fields close that gap.
-        if CheckLedgerEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CheckLedgerEntry.SetLoadFields(
+            SystemId, "Recibido Por_DXR", "Recibido Por", "Recibido Por Cedula_DXR", "Recibido Por Cedula",
+            "Hora Entrega_DXR", "Hora Entrega", "No. Recibo_DXR", "No. Recibo");
+        if CheckLedgerEntry.FindSet(false) then
             repeat
                 if (CheckLedgerEntry."Recibido Por_DXR" <> CheckLedgerEntry."Recibido Por") or
                    (CheckLedgerEntry."Recibido Por Cedula_DXR" <> CheckLedgerEntry."Recibido Por Cedula") or
                    (CheckLedgerEntry."Hora Entrega_DXR" <> CheckLedgerEntry."Hora Entrega") or
                    (CheckLedgerEntry."No. Recibo_DXR" <> CheckLedgerEntry."No. Recibo")
-                then begin
-                    CheckLedgerEntry."Recibido Por_DXR" := CheckLedgerEntry."Recibido Por";
-                    CheckLedgerEntry."Recibido Por Cedula_DXR" := CheckLedgerEntry."Recibido Por Cedula";
-                    CheckLedgerEntry."Hora Entrega_DXR" := CheckLedgerEntry."Hora Entrega";
-                    CheckLedgerEntry."No. Recibo_DXR" := CheckLedgerEntry."No. Recibo";
-                    CheckLedgerEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if CheckLedgerEntryToUpdate.GetBySystemId(CheckLedgerEntry.SystemId) then begin
+                        CheckLedgerEntryToUpdate."Recibido Por_DXR" := CheckLedgerEntryToUpdate."Recibido Por";
+                        CheckLedgerEntryToUpdate."Recibido Por Cedula_DXR" := CheckLedgerEntryToUpdate."Recibido Por Cedula";
+                        CheckLedgerEntryToUpdate."Hora Entrega_DXR" := CheckLedgerEntryToUpdate."Hora Entrega";
+                        CheckLedgerEntryToUpdate."No. Recibo_DXR" := CheckLedgerEntryToUpdate."No. Recibo";
+                        CheckLedgerEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CheckLedgerEntry.Next() = 0;
         FinishBatch();
     end;
@@ -3579,24 +4359,36 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CountryRegionFields()
     var
         CountryRegion: Record "Country/Region";
+        CountryRegionToUpdate: Record "Country/Region";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
         // shadow fields (50003-50005) - CountryRegion.TableExt.al's real active targets, confirmed
         // via ObsoleteReason on fields 50000-50002 (none of the _DXR destinations are themselves
         // obsolete), are "Obsolete 11123302_DXR" (52787), "Obsolete 11123303_DXR" (52788) and
         // "2-Digit ISO Code_DXR" (52789). Direct typed fields close that gap.
-        if CountryRegion.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CountryRegion.SetLoadFields(
+            SystemId, "Obsolete 11123302_DXR", "Obsolete 11123302", "Obsolete 11123303_DXR", "Obsolete 11123303",
+            "2-Digit ISO Code_DXR", "2-Digit ISO Code");
+        if CountryRegion.FindSet(false) then
             repeat
                 if (CountryRegion."Obsolete 11123302_DXR" <> CountryRegion."Obsolete 11123302") or
                    (CountryRegion."Obsolete 11123303_DXR" <> CountryRegion."Obsolete 11123303") or
                    (CountryRegion."2-Digit ISO Code_DXR" <> CountryRegion."2-Digit ISO Code")
-                then begin
-                    CountryRegion."Obsolete 11123302_DXR" := CountryRegion."Obsolete 11123302";
-                    CountryRegion."Obsolete 11123303_DXR" := CountryRegion."Obsolete 11123303";
-                    CountryRegion."2-Digit ISO Code_DXR" := CountryRegion."2-Digit ISO Code";
-                    CountryRegion.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if CountryRegionToUpdate.GetBySystemId(CountryRegion.SystemId) then begin
+                        CountryRegionToUpdate."Obsolete 11123302_DXR" := CountryRegionToUpdate."Obsolete 11123302";
+                        CountryRegionToUpdate."Obsolete 11123303_DXR" := CountryRegionToUpdate."Obsolete 11123303";
+                        CountryRegionToUpdate."2-Digit ISO Code_DXR" := CountryRegionToUpdate."2-Digit ISO Code";
+                        CountryRegionToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CountryRegion.Next() = 0;
         FinishBatch();
     end;
@@ -3604,6 +4396,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CurrencyFields()
     var
         Currency: Record "Currency";
+        CurrencyToUpdate: Record "Currency";
         Blank: Record "Currency";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
@@ -3611,14 +4404,23 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // Currency.TableExt.al's real active target, confirmed via ObsoleteReason on field 50000
         // (52787 is not itself obsolete), is "Accepted bpd_DXR" (52787). Direct typed field closes
         // that gap.
-        if Currency.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        Currency.SetLoadFields(SystemId, "Accepted bpd_DXR", "Accepted bpd");
+        if Currency.FindSet(false) then
             repeat
-                if Currency."Accepted bpd_DXR" <> Currency."Accepted bpd" then begin
-                    if Currency."Accepted bpd_DXR" = Blank."Accepted bpd_DXR" then
-                        Currency."Accepted bpd_DXR" := Currency."Accepted bpd";
-                    Currency.Modify(false);
-                end;
-                CheckpointCommit();
+                if Currency."Accepted bpd_DXR" <> Currency."Accepted bpd" then
+                    if CurrencyToUpdate.GetBySystemId(Currency.SystemId) then begin
+                        if CurrencyToUpdate."Accepted bpd_DXR" = Blank."Accepted bpd_DXR" then
+                            CurrencyToUpdate."Accepted bpd_DXR" := CurrencyToUpdate."Accepted bpd";
+                        CurrencyToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until Currency.Next() = 0;
         FinishBatch();
     end;
@@ -3626,6 +4428,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CurrencyExchangeRateFields()
     var
         CurrencyExchangeRate: Record "Currency Exchange Rate";
+        CurrencyExchangeRateToUpdate: Record "Currency Exchange Rate";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
         // copied "Tasa Banco Central" into "Tasa Banco Central_Old" (field 50001), a dead shadow
@@ -3633,13 +4436,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Tasa Banco Central_DXR"
         // (52787), which is also live-read by this same tableextension's own
         // ExchangeRateBancoCentral() procedure. Direct typed field closes that gap.
-        if CurrencyExchangeRate.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CurrencyExchangeRate.SetLoadFields(SystemId, "Tasa Banco Central_DXR", "Tasa Banco Central");
+        if CurrencyExchangeRate.FindSet(false) then
             repeat
-                if CurrencyExchangeRate."Tasa Banco Central_DXR" <> CurrencyExchangeRate."Tasa Banco Central" then begin
-                    CurrencyExchangeRate."Tasa Banco Central_DXR" := CurrencyExchangeRate."Tasa Banco Central";
-                    CurrencyExchangeRate.Modify(false);
-                end;
-                CheckpointCommit();
+                if CurrencyExchangeRate."Tasa Banco Central_DXR" <> CurrencyExchangeRate."Tasa Banco Central" then
+                    if CurrencyExchangeRateToUpdate.GetBySystemId(CurrencyExchangeRate.SystemId) then begin
+                        CurrencyExchangeRateToUpdate."Tasa Banco Central_DXR" := CurrencyExchangeRateToUpdate."Tasa Banco Central";
+                        CurrencyExchangeRateToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CurrencyExchangeRate.Next() = 0;
         FinishBatch();
     end;
@@ -3647,6 +4459,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CustLedgerEntryFields()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        CustLedgerEntryToUpdate: Record "Cust. Ledger Entry";
     begin
         // Fixed 2026-08-24: the old RecordRef version had two pairs. (1) CopyFieldIfExists(RecRef,
         // 50000, 50003): field 50003 never existed in CustLedgerEntry.TableExt.al's schema (already
@@ -3656,13 +4469,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // copied "No. Authorizacion" into "No. Authorizacion_Old" (field 50004), a dead shadow field
         // - the real active target, confirmed via ObsoleteReason on field 50002 (52788 is not
         // itself obsolete), is "No. Authorizacion_DXR" (52788). Direct typed field closes that gap.
-        if CustLedgerEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CustLedgerEntry.SetLoadFields(SystemId, "No. Authorizacion_DXR", "No. Authorizacion");
+        if CustLedgerEntry.FindSet(false) then
             repeat
-                if CustLedgerEntry."No. Authorizacion_DXR" <> CustLedgerEntry."No. Authorizacion" then begin
-                    CustLedgerEntry."No. Authorizacion_DXR" := CustLedgerEntry."No. Authorizacion";
-                    CustLedgerEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                if CustLedgerEntry."No. Authorizacion_DXR" <> CustLedgerEntry."No. Authorizacion" then
+                    if CustLedgerEntryToUpdate.GetBySystemId(CustLedgerEntry.SystemId) then begin
+                        CustLedgerEntryToUpdate."No. Authorizacion_DXR" := CustLedgerEntryToUpdate."No. Authorizacion";
+                        CustLedgerEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CustLedgerEntry.Next() = 0;
         FinishBatch();
     end;
@@ -3683,9 +4505,40 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CustomerFields()
     var
         Customer: Record Customer;
+        CustomerToUpdate: Record Customer;
         Blank: Record Customer;
     begin
-        if Customer.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        Customer.SetLoadFields(
+            SystemId, "Dirección Representante_DXR", "Dirección Representante", "Sector Representante_DXR",
+            "Sector Representante", "Cédula Representante_DXR", "Cédula Representante", "Cumpl Representante_DXR",
+            "Cumpleaños Representante", "Celular Representante_DXR", "Celular Representante",
+            "E-Mail Representante_DXR.", "E-Mail Representante", "Código Cobrador_DXR", "Código Cobrador",
+            "Requiere OC_DXR", "Requiere OC", "Tipo de Cliente_DXR", "Tipo de Cliente", "Frecuencia Visita_DXR",
+            "Frecuencia Visita", "Secuencia Visita_DXR", "Secuencia Visita", "Días Visita_DXR", "Días Visita",
+            "Carnet DGII_DXR", "Carnet DGII", "Cobrar Interés_DXR", "Cobrar Interés", "% Interés_DXR", "% Interés",
+            "Carnet Exención ITBIS_DXR", "Carnet Exención ITBIS", "Vencimiento Carnet_DXR", "Vencimiento Carnet",
+            "Enc. Compras Nombre_DXR", "Enc. Compras Nombre", "Enc. Compras Email_DXR.", "Enc. Compras email",
+            "Enc. Compras celular_DXR", "Enc. Compras celular", "Enc. Compras Cumpleaños_DXR",
+            "Enc. Compras Cumpleaños", "Enc. Pagos Nombre_DXR", "Enc. Pagos Nombre", "Enc. Pagos Email_DXR.",
+            "Enc. Pagos email", "Enc. Pagos celular_DXR", "Enc. Pagos celular", "Enc. Pagos Cumpleaños_DXR",
+            "Enc. Pagos Cumpleaños", "Frecuencia de Pago_DXR", "Frecuencia de Pago", "Apartado Postal_DXR",
+            "Apartado Postal", "Sector_DXR", Sector, "Municipio_DXR", Municipio, "Provincia_DXR", Provincia,
+            "Comision_Tipo_ID_DXR.", Comision_Tipo_ID, "Deuda Pico_DXR", "Deuda Pico", "Fecha Deuda Pico_DXR",
+            "Fecha Deuda Pico", "Gestor_ID_DXR.", Gestor_ID, "Fecha envio edo cuenta_DXR",
+            "Fecha envio estado cuenta", "Invoice Expiration Days_DXR", "Invoice Expiration Days",
+            "Enc. Recepcion Email_DXR.", "Enc. Recepcion Email", "StoreID_DXR.", StoreId, "Tipo Segmento_DXR",
+            "Tipo Segmento", "Monto Deposito Cilindr_DXR", "Monto Deposito - Cilindros", "Cant asig - Cilindros_DXR",
+            "Cantidad asignar - Cilindros", "Cliente Cilindros_DXR", "Cliente Cilindros", "Fecha Exp Reg Merc_DXR",
+            "Fecha Expiracion Reg Mercantil", "B2C Customer_DXR", "B2C Customer", "Last Date/Time Modified_DXR",
+            "Last Date/Time Modified", "Req Fecha Reg Merc_DXR", "Requiere Fecha Reg. Mercantil");
+        if Customer.FindSet(false) then
             repeat
                 if (Customer."Dirección Representante_DXR" <> Customer."Dirección Representante") or
                    (Customer."Sector Representante_DXR" <> Customer."Sector Representante") or
@@ -3733,102 +4586,103 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Customer."B2C Customer_DXR" <> Customer."B2C Customer") or
                    (Customer."Last Date/Time Modified_DXR" <> Customer."Last Date/Time Modified") or
                    (Customer."Req Fecha Reg Merc_DXR" <> Customer."Requiere Fecha Reg. Mercantil")
-                then begin
-                    if Customer."Dirección Representante_DXR" = Blank."Dirección Representante_DXR" then
-                        Customer."Dirección Representante_DXR" := Customer."Dirección Representante";
-                    if Customer."Sector Representante_DXR" = Blank."Sector Representante_DXR" then
-                        Customer."Sector Representante_DXR" := Customer."Sector Representante";
-                    if Customer."Cédula Representante_DXR" = Blank."Cédula Representante_DXR" then
-                        Customer."Cédula Representante_DXR" := Customer."Cédula Representante";
-                    if Customer."Cumpl Representante_DXR" = Blank."Cumpl Representante_DXR" then
-                        Customer."Cumpl Representante_DXR" := Customer."Cumpleaños Representante";
-                    if Customer."Celular Representante_DXR" = Blank."Celular Representante_DXR" then
-                        Customer."Celular Representante_DXR" := Customer."Celular Representante";
-                    if Customer."E-Mail Representante_DXR." = Blank."E-Mail Representante_DXR." then
-                        Customer."E-Mail Representante_DXR." := Customer."E-Mail Representante";
-                    if Customer."Código Cobrador_DXR" = Blank."Código Cobrador_DXR" then
-                        Customer."Código Cobrador_DXR" := Customer."Código Cobrador";
-                    if Customer."Requiere OC_DXR" = Blank."Requiere OC_DXR" then
-                        Customer."Requiere OC_DXR" := Customer."Requiere OC";
-                    if Customer."Tipo de Cliente_DXR" = Blank."Tipo de Cliente_DXR" then
-                        Customer."Tipo de Cliente_DXR" := Customer."Tipo de Cliente";
-                    if Customer."Frecuencia Visita_DXR" = Blank."Frecuencia Visita_DXR" then
-                        Customer."Frecuencia Visita_DXR" := Customer."Frecuencia Visita";
-                    if Customer."Secuencia Visita_DXR" = Blank."Secuencia Visita_DXR" then
-                        Customer."Secuencia Visita_DXR" := Customer."Secuencia Visita";
-                    if Customer."Días Visita_DXR" = Blank."Días Visita_DXR" then
-                        Customer."Días Visita_DXR" := Customer."Días Visita";
-                    if Customer."Carnet DGII_DXR" = Blank."Carnet DGII_DXR" then
-                        Customer."Carnet DGII_DXR" := Customer."Carnet DGII";
-                    if Customer."Cobrar Interés_DXR" = Blank."Cobrar Interés_DXR" then
-                        Customer."Cobrar Interés_DXR" := Customer."Cobrar Interés";
-                    if Customer."% Interés_DXR" = Blank."% Interés_DXR" then
-                        Customer."% Interés_DXR" := Customer."% Interés";
-                    if Customer."Carnet Exención ITBIS_DXR" = Blank."Carnet Exención ITBIS_DXR" then
-                        Customer."Carnet Exención ITBIS_DXR" := Customer."Carnet Exención ITBIS";
-                    if Customer."Vencimiento Carnet_DXR" = Blank."Vencimiento Carnet_DXR" then
-                        Customer."Vencimiento Carnet_DXR" := Customer."Vencimiento Carnet";
-                    if Customer."Enc. Compras Nombre_DXR" = Blank."Enc. Compras Nombre_DXR" then
-                        Customer."Enc. Compras Nombre_DXR" := Customer."Enc. Compras Nombre";
-                    if Customer."Enc. Compras Email_DXR." = Blank."Enc. Compras Email_DXR." then
-                        Customer."Enc. Compras Email_DXR." := Customer."Enc. Compras email";
-                    if Customer."Enc. Compras celular_DXR" = Blank."Enc. Compras celular_DXR" then
-                        Customer."Enc. Compras celular_DXR" := Customer."Enc. Compras celular";
-                    if Customer."Enc. Compras Cumpleaños_DXR" = Blank."Enc. Compras Cumpleaños_DXR" then
-                        Customer."Enc. Compras Cumpleaños_DXR" := Customer."Enc. Compras Cumpleaños";
-                    if Customer."Enc. Pagos Nombre_DXR" = Blank."Enc. Pagos Nombre_DXR" then
-                        Customer."Enc. Pagos Nombre_DXR" := Customer."Enc. Pagos Nombre";
-                    if Customer."Enc. Pagos Email_DXR." = Blank."Enc. Pagos Email_DXR." then
-                        Customer."Enc. Pagos Email_DXR." := Customer."Enc. Pagos email";
-                    if Customer."Enc. Pagos celular_DXR" = Blank."Enc. Pagos celular_DXR" then
-                        Customer."Enc. Pagos celular_DXR" := Customer."Enc. Pagos celular";
-                    if Customer."Enc. Pagos Cumpleaños_DXR" = Blank."Enc. Pagos Cumpleaños_DXR" then
-                        Customer."Enc. Pagos Cumpleaños_DXR" := Customer."Enc. Pagos Cumpleaños";
-                    if Customer."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
-                        Customer."Frecuencia de Pago_DXR" := Customer."Frecuencia de Pago";
-                    if Customer."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
-                        Customer."Apartado Postal_DXR" := Customer."Apartado Postal";
-                    if Customer."Sector_DXR" = Blank."Sector_DXR" then
-                        Customer."Sector_DXR" := Customer.Sector;
-                    if Customer."Municipio_DXR" = Blank."Municipio_DXR" then
-                        Customer."Municipio_DXR" := Customer.Municipio;
-                    if Customer."Provincia_DXR" = Blank."Provincia_DXR" then
-                        Customer."Provincia_DXR" := Customer.Provincia;
-                    if Customer."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
-                        Customer."Comision_Tipo_ID_DXR." := Customer.Comision_Tipo_ID;
-                    if Customer."Deuda Pico_DXR" = Blank."Deuda Pico_DXR" then
-                        Customer."Deuda Pico_DXR" := Customer."Deuda Pico";
-                    if Customer."Fecha Deuda Pico_DXR" = Blank."Fecha Deuda Pico_DXR" then
-                        Customer."Fecha Deuda Pico_DXR" := Customer."Fecha Deuda Pico";
-                    if Customer."Gestor_ID_DXR." = Blank."Gestor_ID_DXR." then
-                        Customer."Gestor_ID_DXR." := Customer.Gestor_ID;
-                    if Customer."Fecha envio edo cuenta_DXR" = Blank."Fecha envio edo cuenta_DXR" then
-                        Customer."Fecha envio edo cuenta_DXR" := Customer."Fecha envio estado cuenta";
-                    if Customer."Invoice Expiration Days_DXR" = Blank."Invoice Expiration Days_DXR" then
-                        Customer."Invoice Expiration Days_DXR" := Customer."Invoice Expiration Days";
-                    if Customer."Enc. Recepcion Email_DXR." = Blank."Enc. Recepcion Email_DXR." then
-                        Customer."Enc. Recepcion Email_DXR." := Customer."Enc. Recepcion Email";
-                    if Customer."StoreID_DXR." = Blank."StoreID_DXR." then
-                        Customer."StoreID_DXR." := Customer.StoreId;
-                    if Customer."Tipo Segmento_DXR" = Blank."Tipo Segmento_DXR" then
-                        Customer."Tipo Segmento_DXR" := Customer."Tipo Segmento";
-                    if Customer."Monto Deposito Cilindr_DXR" = Blank."Monto Deposito Cilindr_DXR" then
-                        Customer."Monto Deposito Cilindr_DXR" := Customer."Monto Deposito - Cilindros";
-                    if Customer."Cant asig - Cilindros_DXR" = Blank."Cant asig - Cilindros_DXR" then
-                        Customer."Cant asig - Cilindros_DXR" := Customer."Cantidad asignar - Cilindros";
-                    if Customer."Cliente Cilindros_DXR" = Blank."Cliente Cilindros_DXR" then
-                        Customer."Cliente Cilindros_DXR" := Customer."Cliente Cilindros";
-                    if Customer."Fecha Exp Reg Merc_DXR" = Blank."Fecha Exp Reg Merc_DXR" then
-                        Customer."Fecha Exp Reg Merc_DXR" := Customer."Fecha Expiracion Reg Mercantil";
-                    if Customer."B2C Customer_DXR" = Blank."B2C Customer_DXR" then
-                        Customer."B2C Customer_DXR" := Customer."B2C Customer";
-                    if Customer."Last Date/Time Modified_DXR" = Blank."Last Date/Time Modified_DXR" then
-                        Customer."Last Date/Time Modified_DXR" := Customer."Last Date/Time Modified";
-                    if Customer."Req Fecha Reg Merc_DXR" = Blank."Req Fecha Reg Merc_DXR" then
-                        Customer."Req Fecha Reg Merc_DXR" := Customer."Requiere Fecha Reg. Mercantil";
-                    Customer.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if CustomerToUpdate.GetBySystemId(Customer.SystemId) then begin
+                        if CustomerToUpdate."Dirección Representante_DXR" = Blank."Dirección Representante_DXR" then
+                            CustomerToUpdate."Dirección Representante_DXR" := CustomerToUpdate."Dirección Representante";
+                        if CustomerToUpdate."Sector Representante_DXR" = Blank."Sector Representante_DXR" then
+                            CustomerToUpdate."Sector Representante_DXR" := CustomerToUpdate."Sector Representante";
+                        if CustomerToUpdate."Cédula Representante_DXR" = Blank."Cédula Representante_DXR" then
+                            CustomerToUpdate."Cédula Representante_DXR" := CustomerToUpdate."Cédula Representante";
+                        if CustomerToUpdate."Cumpl Representante_DXR" = Blank."Cumpl Representante_DXR" then
+                            CustomerToUpdate."Cumpl Representante_DXR" := CustomerToUpdate."Cumpleaños Representante";
+                        if CustomerToUpdate."Celular Representante_DXR" = Blank."Celular Representante_DXR" then
+                            CustomerToUpdate."Celular Representante_DXR" := CustomerToUpdate."Celular Representante";
+                        if CustomerToUpdate."E-Mail Representante_DXR." = Blank."E-Mail Representante_DXR." then
+                            CustomerToUpdate."E-Mail Representante_DXR." := CustomerToUpdate."E-Mail Representante";
+                        if CustomerToUpdate."Código Cobrador_DXR" = Blank."Código Cobrador_DXR" then
+                            CustomerToUpdate."Código Cobrador_DXR" := CustomerToUpdate."Código Cobrador";
+                        if CustomerToUpdate."Requiere OC_DXR" = Blank."Requiere OC_DXR" then
+                            CustomerToUpdate."Requiere OC_DXR" := CustomerToUpdate."Requiere OC";
+                        if CustomerToUpdate."Tipo de Cliente_DXR" = Blank."Tipo de Cliente_DXR" then
+                            CustomerToUpdate."Tipo de Cliente_DXR" := CustomerToUpdate."Tipo de Cliente";
+                        if CustomerToUpdate."Frecuencia Visita_DXR" = Blank."Frecuencia Visita_DXR" then
+                            CustomerToUpdate."Frecuencia Visita_DXR" := CustomerToUpdate."Frecuencia Visita";
+                        if CustomerToUpdate."Secuencia Visita_DXR" = Blank."Secuencia Visita_DXR" then
+                            CustomerToUpdate."Secuencia Visita_DXR" := CustomerToUpdate."Secuencia Visita";
+                        if CustomerToUpdate."Días Visita_DXR" = Blank."Días Visita_DXR" then
+                            CustomerToUpdate."Días Visita_DXR" := CustomerToUpdate."Días Visita";
+                        if CustomerToUpdate."Carnet DGII_DXR" = Blank."Carnet DGII_DXR" then
+                            CustomerToUpdate."Carnet DGII_DXR" := CustomerToUpdate."Carnet DGII";
+                        if CustomerToUpdate."Cobrar Interés_DXR" = Blank."Cobrar Interés_DXR" then
+                            CustomerToUpdate."Cobrar Interés_DXR" := CustomerToUpdate."Cobrar Interés";
+                        if CustomerToUpdate."% Interés_DXR" = Blank."% Interés_DXR" then
+                            CustomerToUpdate."% Interés_DXR" := CustomerToUpdate."% Interés";
+                        if CustomerToUpdate."Carnet Exención ITBIS_DXR" = Blank."Carnet Exención ITBIS_DXR" then
+                            CustomerToUpdate."Carnet Exención ITBIS_DXR" := CustomerToUpdate."Carnet Exención ITBIS";
+                        if CustomerToUpdate."Vencimiento Carnet_DXR" = Blank."Vencimiento Carnet_DXR" then
+                            CustomerToUpdate."Vencimiento Carnet_DXR" := CustomerToUpdate."Vencimiento Carnet";
+                        if CustomerToUpdate."Enc. Compras Nombre_DXR" = Blank."Enc. Compras Nombre_DXR" then
+                            CustomerToUpdate."Enc. Compras Nombre_DXR" := CustomerToUpdate."Enc. Compras Nombre";
+                        if CustomerToUpdate."Enc. Compras Email_DXR." = Blank."Enc. Compras Email_DXR." then
+                            CustomerToUpdate."Enc. Compras Email_DXR." := CustomerToUpdate."Enc. Compras email";
+                        if CustomerToUpdate."Enc. Compras celular_DXR" = Blank."Enc. Compras celular_DXR" then
+                            CustomerToUpdate."Enc. Compras celular_DXR" := CustomerToUpdate."Enc. Compras celular";
+                        if CustomerToUpdate."Enc. Compras Cumpleaños_DXR" = Blank."Enc. Compras Cumpleaños_DXR" then
+                            CustomerToUpdate."Enc. Compras Cumpleaños_DXR" := CustomerToUpdate."Enc. Compras Cumpleaños";
+                        if CustomerToUpdate."Enc. Pagos Nombre_DXR" = Blank."Enc. Pagos Nombre_DXR" then
+                            CustomerToUpdate."Enc. Pagos Nombre_DXR" := CustomerToUpdate."Enc. Pagos Nombre";
+                        if CustomerToUpdate."Enc. Pagos Email_DXR." = Blank."Enc. Pagos Email_DXR." then
+                            CustomerToUpdate."Enc. Pagos Email_DXR." := CustomerToUpdate."Enc. Pagos email";
+                        if CustomerToUpdate."Enc. Pagos celular_DXR" = Blank."Enc. Pagos celular_DXR" then
+                            CustomerToUpdate."Enc. Pagos celular_DXR" := CustomerToUpdate."Enc. Pagos celular";
+                        if CustomerToUpdate."Enc. Pagos Cumpleaños_DXR" = Blank."Enc. Pagos Cumpleaños_DXR" then
+                            CustomerToUpdate."Enc. Pagos Cumpleaños_DXR" := CustomerToUpdate."Enc. Pagos Cumpleaños";
+                        if CustomerToUpdate."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
+                            CustomerToUpdate."Frecuencia de Pago_DXR" := CustomerToUpdate."Frecuencia de Pago";
+                        if CustomerToUpdate."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
+                            CustomerToUpdate."Apartado Postal_DXR" := CustomerToUpdate."Apartado Postal";
+                        if CustomerToUpdate."Sector_DXR" = Blank."Sector_DXR" then
+                            CustomerToUpdate."Sector_DXR" := CustomerToUpdate.Sector;
+                        if CustomerToUpdate."Municipio_DXR" = Blank."Municipio_DXR" then
+                            CustomerToUpdate."Municipio_DXR" := CustomerToUpdate.Municipio;
+                        if CustomerToUpdate."Provincia_DXR" = Blank."Provincia_DXR" then
+                            CustomerToUpdate."Provincia_DXR" := CustomerToUpdate.Provincia;
+                        if CustomerToUpdate."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
+                            CustomerToUpdate."Comision_Tipo_ID_DXR." := CustomerToUpdate.Comision_Tipo_ID;
+                        if CustomerToUpdate."Deuda Pico_DXR" = Blank."Deuda Pico_DXR" then
+                            CustomerToUpdate."Deuda Pico_DXR" := CustomerToUpdate."Deuda Pico";
+                        if CustomerToUpdate."Fecha Deuda Pico_DXR" = Blank."Fecha Deuda Pico_DXR" then
+                            CustomerToUpdate."Fecha Deuda Pico_DXR" := CustomerToUpdate."Fecha Deuda Pico";
+                        if CustomerToUpdate."Gestor_ID_DXR." = Blank."Gestor_ID_DXR." then
+                            CustomerToUpdate."Gestor_ID_DXR." := CustomerToUpdate.Gestor_ID;
+                        if CustomerToUpdate."Fecha envio edo cuenta_DXR" = Blank."Fecha envio edo cuenta_DXR" then
+                            CustomerToUpdate."Fecha envio edo cuenta_DXR" := CustomerToUpdate."Fecha envio estado cuenta";
+                        if CustomerToUpdate."Invoice Expiration Days_DXR" = Blank."Invoice Expiration Days_DXR" then
+                            CustomerToUpdate."Invoice Expiration Days_DXR" := CustomerToUpdate."Invoice Expiration Days";
+                        if CustomerToUpdate."Enc. Recepcion Email_DXR." = Blank."Enc. Recepcion Email_DXR." then
+                            CustomerToUpdate."Enc. Recepcion Email_DXR." := CustomerToUpdate."Enc. Recepcion Email";
+                        if CustomerToUpdate."StoreID_DXR." = Blank."StoreID_DXR." then
+                            CustomerToUpdate."StoreID_DXR." := CustomerToUpdate.StoreId;
+                        if CustomerToUpdate."Tipo Segmento_DXR" = Blank."Tipo Segmento_DXR" then
+                            CustomerToUpdate."Tipo Segmento_DXR" := CustomerToUpdate."Tipo Segmento";
+                        if CustomerToUpdate."Monto Deposito Cilindr_DXR" = Blank."Monto Deposito Cilindr_DXR" then
+                            CustomerToUpdate."Monto Deposito Cilindr_DXR" := CustomerToUpdate."Monto Deposito - Cilindros";
+                        if CustomerToUpdate."Cant asig - Cilindros_DXR" = Blank."Cant asig - Cilindros_DXR" then
+                            CustomerToUpdate."Cant asig - Cilindros_DXR" := CustomerToUpdate."Cantidad asignar - Cilindros";
+                        if CustomerToUpdate."Cliente Cilindros_DXR" = Blank."Cliente Cilindros_DXR" then
+                            CustomerToUpdate."Cliente Cilindros_DXR" := CustomerToUpdate."Cliente Cilindros";
+                        if CustomerToUpdate."Fecha Exp Reg Merc_DXR" = Blank."Fecha Exp Reg Merc_DXR" then
+                            CustomerToUpdate."Fecha Exp Reg Merc_DXR" := CustomerToUpdate."Fecha Expiracion Reg Mercantil";
+                        if CustomerToUpdate."B2C Customer_DXR" = Blank."B2C Customer_DXR" then
+                            CustomerToUpdate."B2C Customer_DXR" := CustomerToUpdate."B2C Customer";
+                        if CustomerToUpdate."Last Date/Time Modified_DXR" = Blank."Last Date/Time Modified_DXR" then
+                            CustomerToUpdate."Last Date/Time Modified_DXR" := CustomerToUpdate."Last Date/Time Modified";
+                        if CustomerToUpdate."Req Fecha Reg Merc_DXR" = Blank."Req Fecha Reg Merc_DXR" then
+                            CustomerToUpdate."Req Fecha Reg Merc_DXR" := CustomerToUpdate."Requiere Fecha Reg. Mercantil";
+                        CustomerToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until Customer.Next() = 0;
         FinishBatch();
     end;
@@ -3836,6 +4690,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_CustomerPriceGroupFields()
     var
         CustomerPriceGroup: Record "Customer Price Group";
+        CustomerPriceGroupToUpdate: Record "Customer Price Group";
         Blank: Record "Customer Price Group";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
@@ -3844,14 +4699,23 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // field. The actual dead shadow field is 50002 "Global Sales Code_Old"; the real active
         // target, confirmed via ObsoleteReason on field 50000 (52787 is not itself obsolete), is
         // "Global Sales Code_DXR" (52787). Direct typed field closes both gaps.
-        if CustomerPriceGroup.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CustomerPriceGroup.SetLoadFields(SystemId, "Global Sales Code_DXR", "Global Sales Code");
+        if CustomerPriceGroup.FindSet(false) then
             repeat
-                if CustomerPriceGroup."Global Sales Code_DXR" <> CustomerPriceGroup."Global Sales Code" then begin
-                    if CustomerPriceGroup."Global Sales Code_DXR" = Blank."Global Sales Code_DXR" then
-                        CustomerPriceGroup."Global Sales Code_DXR" := CustomerPriceGroup."Global Sales Code";
-                    CustomerPriceGroup.Modify(false);
-                end;
-                CheckpointCommit();
+                if CustomerPriceGroup."Global Sales Code_DXR" <> CustomerPriceGroup."Global Sales Code" then
+                    if CustomerPriceGroupToUpdate.GetBySystemId(CustomerPriceGroup.SystemId) then begin
+                        if CustomerPriceGroupToUpdate."Global Sales Code_DXR" = Blank."Global Sales Code_DXR" then
+                            CustomerPriceGroupToUpdate."Global Sales Code_DXR" := CustomerPriceGroupToUpdate."Global Sales Code";
+                        CustomerPriceGroupToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CustomerPriceGroup.Next() = 0;
         FinishBatch();
     end;
@@ -3859,6 +4723,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_GenJournalBatchFields()
     var
         GenJournalBatch: Record "Gen. Journal Batch";
+        GenJournalBatchToUpdate: Record "Gen. Journal Batch";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "Pago Electronico" into the dead
         // "_Old" shadow field (50004) - GenJournalBatch.TableExt.al's real active target,
@@ -3868,13 +4733,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // "DXR_Exclude Filter Journal", already DXR_-normalized) - there is no stored value to
         // migrate for a FlowField, so that pair is intentionally omitted, matching the fact that
         // the old code's destination (50005) never existed in the schema either.
-        if GenJournalBatch.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        GenJournalBatch.SetLoadFields(SystemId, "Pago Electronico_DXR", "Pago Electronico");
+        if GenJournalBatch.FindSet(false) then
             repeat
-                if GenJournalBatch."Pago Electronico_DXR" <> GenJournalBatch."Pago Electronico" then begin
-                    GenJournalBatch."Pago Electronico_DXR" := GenJournalBatch."Pago Electronico";
-                    GenJournalBatch.Modify(false);
-                end;
-                CheckpointCommit();
+                if GenJournalBatch."Pago Electronico_DXR" <> GenJournalBatch."Pago Electronico" then
+                    if GenJournalBatchToUpdate.GetBySystemId(GenJournalBatch.SystemId) then begin
+                        GenJournalBatchToUpdate."Pago Electronico_DXR" := GenJournalBatchToUpdate."Pago Electronico";
+                        GenJournalBatchToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until GenJournalBatch.Next() = 0;
         FinishBatch();
     end;
@@ -3882,6 +4756,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_GenJournalLineFields()
     var
         GenJournalLine: Record "Gen. Journal Line";
+        GenJournalLineToUpdate: Record "Gen. Journal Line";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all nine fields into dead "_Old"
         // shadow fields (50055-50063) - GenJournalLine.TableExt.al's real active targets,
@@ -3889,7 +4764,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // are themselves obsolete; "Posting Exch. Entry No._DXR"/"Posting Exch. Line No._DXR" are
         // also live-read by this same tableextension's own ClearPostExchangeEntries()), are
         // 52787-52795. Direct typed fields close that gap.
-        if GenJournalLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        GenJournalLine.SetLoadFields(
+            SystemId, "Pago Electronico_DXR", "Pago Electronico", "IsRecaudo_DXR", IsRecaudo, "ePAGOS_DXR", ePAGOS,
+            "VendorPay No._DXR", "VendorPay No.", "Only Two Dimensions_DXR", "Only Two Dimensions",
+            "No. Authorizacion_DXR", "No. Authorizacion", "Fecha Registro2_DXR", "Fecha Registro2",
+            "Posting Exch. Entry No._DXR", "Posting Exch. Entry No.", "Posting Exch. Line No._DXR",
+            "Posting Exch. Line No.");
+        if GenJournalLine.FindSet(false) then
             repeat
                 if (GenJournalLine."Pago Electronico_DXR" <> GenJournalLine."Pago Electronico") or
                    (GenJournalLine."IsRecaudo_DXR" <> GenJournalLine.IsRecaudo) or
@@ -3900,19 +4788,20 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (GenJournalLine."Fecha Registro2_DXR" <> GenJournalLine."Fecha Registro2") or
                    (GenJournalLine."Posting Exch. Entry No._DXR" <> GenJournalLine."Posting Exch. Entry No.") or
                    (GenJournalLine."Posting Exch. Line No._DXR" <> GenJournalLine."Posting Exch. Line No.")
-                then begin
-                    GenJournalLine."Pago Electronico_DXR" := GenJournalLine."Pago Electronico";
-                    GenJournalLine."IsRecaudo_DXR" := GenJournalLine.IsRecaudo;
-                    GenJournalLine."ePAGOS_DXR" := GenJournalLine.ePAGOS;
-                    GenJournalLine."VendorPay No._DXR" := GenJournalLine."VendorPay No.";
-                    GenJournalLine."Only Two Dimensions_DXR" := GenJournalLine."Only Two Dimensions";
-                    GenJournalLine."No. Authorizacion_DXR" := GenJournalLine."No. Authorizacion";
-                    GenJournalLine."Fecha Registro2_DXR" := GenJournalLine."Fecha Registro2";
-                    GenJournalLine."Posting Exch. Entry No._DXR" := GenJournalLine."Posting Exch. Entry No.";
-                    GenJournalLine."Posting Exch. Line No._DXR" := GenJournalLine."Posting Exch. Line No.";
-                    GenJournalLine.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if GenJournalLineToUpdate.GetBySystemId(GenJournalLine.SystemId) then begin
+                        GenJournalLineToUpdate."Pago Electronico_DXR" := GenJournalLineToUpdate."Pago Electronico";
+                        GenJournalLineToUpdate."IsRecaudo_DXR" := GenJournalLineToUpdate.IsRecaudo;
+                        GenJournalLineToUpdate."ePAGOS_DXR" := GenJournalLineToUpdate.ePAGOS;
+                        GenJournalLineToUpdate."VendorPay No._DXR" := GenJournalLineToUpdate."VendorPay No.";
+                        GenJournalLineToUpdate."Only Two Dimensions_DXR" := GenJournalLineToUpdate."Only Two Dimensions";
+                        GenJournalLineToUpdate."No. Authorizacion_DXR" := GenJournalLineToUpdate."No. Authorizacion";
+                        GenJournalLineToUpdate."Fecha Registro2_DXR" := GenJournalLineToUpdate."Fecha Registro2";
+                        GenJournalLineToUpdate."Posting Exch. Entry No._DXR" := GenJournalLineToUpdate."Posting Exch. Entry No.";
+                        GenJournalLineToUpdate."Posting Exch. Line No._DXR" := GenJournalLineToUpdate."Posting Exch. Line No.";
+                        GenJournalLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until GenJournalLine.Next() = 0;
         FinishBatch();
     end;
@@ -3920,18 +4809,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_GenProductPostingGroupFields()
     var
         GenProductPostingGroup: Record "Gen. Product Posting Group";
+        GenProductPostingGroupToUpdate: Record "Gen. Product Posting Group";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "Internal Consumption" into the dead
         // "_Old" shadow field (50001) - GenProductPostingGroup.TableExt.al's real active target,
         // confirmed via ObsoleteReason on field 50000 (52787 is not itself obsolete), is
         // "Internal Consumption_DXR" (52787). Direct typed field closes that gap.
-        if GenProductPostingGroup.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        GenProductPostingGroup.SetLoadFields(SystemId, "Internal Consumption_DXR", "Internal Consumption");
+        if GenProductPostingGroup.FindSet(false) then
             repeat
-                if GenProductPostingGroup."Internal Consumption_DXR" <> GenProductPostingGroup."Internal Consumption" then begin
-                    GenProductPostingGroup."Internal Consumption_DXR" := GenProductPostingGroup."Internal Consumption";
-                    GenProductPostingGroup.Modify(false);
-                end;
-                CheckpointCommit();
+                if GenProductPostingGroup."Internal Consumption_DXR" <> GenProductPostingGroup."Internal Consumption" then
+                    if GenProductPostingGroupToUpdate.GetBySystemId(GenProductPostingGroup.SystemId) then begin
+                        GenProductPostingGroupToUpdate."Internal Consumption_DXR" := GenProductPostingGroupToUpdate."Internal Consumption";
+                        GenProductPostingGroupToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until GenProductPostingGroup.Next() = 0;
         FinishBatch();
     end;
@@ -3955,6 +4854,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_IssuedReminderHeaderFields()
     var
         IssuedReminderHeader: Record "Issued Reminder Header";
+        IssuedReminderHeaderToUpdate: Record "Issued Reminder Header";
     begin
         // Fixed 2026-08-24: the old RecordRef version had three pairs. (1) CopyFieldIfExists(RecRef,
         // 50000, 50003): destination 50003 never existed in IssuedReminderHeader.TableExt.al's
@@ -3967,13 +4867,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // either (guaranteed no-op) - source field 50002 "Cust Post Group Ficha Cliente" is also a
         // FlowField, replaced by FlowField 52789, no stored value; correctly dropped. Direct typed
         // field for pair (2) closes that one real gap.
-        if IssuedReminderHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        IssuedReminderHeader.SetLoadFields(SystemId, "Remaining Amount 2_DXR", "Remaining Amount 2");
+        if IssuedReminderHeader.FindSet(false) then
             repeat
-                if IssuedReminderHeader."Remaining Amount 2_DXR" <> IssuedReminderHeader."Remaining Amount 2" then begin
-                    IssuedReminderHeader."Remaining Amount 2_DXR" := IssuedReminderHeader."Remaining Amount 2";
-                    IssuedReminderHeader.Modify(false);
-                end;
-                CheckpointCommit();
+                if IssuedReminderHeader."Remaining Amount 2_DXR" <> IssuedReminderHeader."Remaining Amount 2" then
+                    if IssuedReminderHeaderToUpdate.GetBySystemId(IssuedReminderHeader.SystemId) then begin
+                        IssuedReminderHeaderToUpdate."Remaining Amount 2_DXR" := IssuedReminderHeaderToUpdate."Remaining Amount 2";
+                        IssuedReminderHeaderToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until IssuedReminderHeader.Next() = 0;
         FinishBatch();
     end;
@@ -4005,9 +4914,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemFields()
     var
         Item: Record Item;
+        ItemToUpdate: Record Item;
         Blank: Record Item;
     begin
-        if Item.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        Item.SetLoadFields(
+            SystemId, "Modelo_DXR", Modelo, "Marca_DXR", Marca, "Se Detalla_DXR", "Se Detalla", "Producido_DXR",
+            Producido, "Carga % Tarjeta_DXR", "Carga % Tarjeta", "Consignación_DXR", "Consignación",
+            "Internal Use_DXR", "Internal Use", "Acepta Decimales_DXR", "Acepta Decimales", "Exhibición_DXR",
+            "Exhibición", "Precio Sugerido_DXR", "Precio Sugerido", "Kit_DXR", Kit, "Empaque_DXR", Empaque,
+            "Empaque Maestro_DXR", "Empaque Maestro", "Venta por Mayor_DXR", "Venta por Mayor",
+            "% Comisión Venta_DXR", "% Comisión Venta", "% Comisión Cobro_DXR", "% Comisión Cobro",
+            "Márgen Plaza_DXR", "Márgen Plaza", "Márgen Importación_DXR", "Márgen Importación",
+            "Descripcion_Bellon_DXR", "Descripcion Bellon", "Costo Liquidacion_DXR", "Costo Liquidacion",
+            "Comision_Tipo_ID_DXR.", Comision_Tipo_ID, "Ultimo Costo Bellon_DXR", "Ultimo Costo Bellon",
+            "Costo Unitario Bellon_DXR", "Costo Unitario Bellon", "SANA Info Adicionales_DXR",
+            "SANA - Info. Adicionales", "Sales Group_DXR", "Sales Group", "Sales SubGroup_DXR", "Sales SubGroup",
+            "Sales Dept Code_DXR", "Sales Dept Code", "Codigo Producto Aduana_DXR", "Codigo Producto Aduana",
+            "ExclFromDiscountCoupons_DXR", ExcludedFromDiscountCoupons, "ExclFromFreeShipCoupons_DXR",
+            ExcludedFromFreeShipCoupons, "Disponible para Ventas_DXR", "Disponible para Ventas", "Item Status_DXR",
+            "Item Status", "Control Existencia_DXR", "Control Existencia");
+        if Item.FindSet(false) then
             repeat
                 if (Item."Modelo_DXR" <> Item.Modelo) or
                    (Item."Marca_DXR" <> Item.Marca) or
@@ -4042,76 +4975,77 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Item."Disponible para Ventas_DXR" <> Item."Disponible para Ventas") or
                    (Item."Item Status_DXR" <> Item."Item Status") or
                    (Item."Control Existencia_DXR" <> Item."Control Existencia")
-                then begin
-                    if Item."Modelo_DXR" = Blank."Modelo_DXR" then
-                        Item."Modelo_DXR" := Item.Modelo;
-                    if Item."Marca_DXR" = Blank."Marca_DXR" then
-                        Item."Marca_DXR" := Item.Marca;
-                    if Item."Se Detalla_DXR" = Blank."Se Detalla_DXR" then
-                        Item."Se Detalla_DXR" := Item."Se Detalla";
-                    if Item."Producido_DXR" = Blank."Producido_DXR" then
-                        Item."Producido_DXR" := Item.Producido;
-                    if Item."Carga % Tarjeta_DXR" = Blank."Carga % Tarjeta_DXR" then
-                        Item."Carga % Tarjeta_DXR" := Item."Carga % Tarjeta";
-                    if Item."Consignación_DXR" = Blank."Consignación_DXR" then
-                        Item."Consignación_DXR" := Item."Consignación";
-                    if Item."Internal Use_DXR" = Blank."Internal Use_DXR" then
-                        Item."Internal Use_DXR" := Item."Internal Use";
-                    if Item."Acepta Decimales_DXR" = Blank."Acepta Decimales_DXR" then
-                        Item."Acepta Decimales_DXR" := Item."Acepta Decimales";
-                    if Item."Exhibición_DXR" = Blank."Exhibición_DXR" then
-                        Item."Exhibición_DXR" := Item."Exhibición";
-                    if Item."Precio Sugerido_DXR" = Blank."Precio Sugerido_DXR" then
-                        Item."Precio Sugerido_DXR" := Item."Precio Sugerido";
-                    if Item."Kit_DXR" = Blank."Kit_DXR" then
-                        Item."Kit_DXR" := Item.Kit;
-                    if Item."Empaque_DXR" = Blank."Empaque_DXR" then
-                        Item."Empaque_DXR" := Item.Empaque;
-                    if Item."Empaque Maestro_DXR" = Blank."Empaque Maestro_DXR" then
-                        Item."Empaque Maestro_DXR" := Item."Empaque Maestro";
-                    if Item."Venta por Mayor_DXR" = Blank."Venta por Mayor_DXR" then
-                        Item."Venta por Mayor_DXR" := Item."Venta por Mayor";
-                    if Item."% Comisión Venta_DXR" = Blank."% Comisión Venta_DXR" then
-                        Item."% Comisión Venta_DXR" := Item."% Comisión Venta";
-                    if Item."% Comisión Cobro_DXR" = Blank."% Comisión Cobro_DXR" then
-                        Item."% Comisión Cobro_DXR" := Item."% Comisión Cobro";
-                    if Item."Márgen Plaza_DXR" = Blank."Márgen Plaza_DXR" then
-                        Item."Márgen Plaza_DXR" := Item."Márgen Plaza";
-                    if Item."Márgen Importación_DXR" = Blank."Márgen Importación_DXR" then
-                        Item."Márgen Importación_DXR" := Item."Márgen Importación";
-                    if Item."Descripcion_Bellon_DXR" = Blank."Descripcion_Bellon_DXR" then
-                        Item."Descripcion_Bellon_DXR" := Item."Descripcion Bellon";
-                    if Item."Costo Liquidacion_DXR" = Blank."Costo Liquidacion_DXR" then
-                        Item."Costo Liquidacion_DXR" := Item."Costo Liquidacion";
-                    if Item."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
-                        Item."Comision_Tipo_ID_DXR." := Item.Comision_Tipo_ID;
-                    if Item."Ultimo Costo Bellon_DXR" = Blank."Ultimo Costo Bellon_DXR" then
-                        Item."Ultimo Costo Bellon_DXR" := Item."Ultimo Costo Bellon";
-                    if Item."Costo Unitario Bellon_DXR" = Blank."Costo Unitario Bellon_DXR" then
-                        Item."Costo Unitario Bellon_DXR" := Item."Costo Unitario Bellon";
-                    if Item."SANA Info Adicionales_DXR" = Blank."SANA Info Adicionales_DXR" then
-                        Item."SANA Info Adicionales_DXR" := Item."SANA - Info. Adicionales";
-                    if Item."Sales Group_DXR" = Blank."Sales Group_DXR" then
-                        Item."Sales Group_DXR" := Item."Sales Group";
-                    if Item."Sales SubGroup_DXR" = Blank."Sales SubGroup_DXR" then
-                        Item."Sales SubGroup_DXR" := Item."Sales SubGroup";
-                    if Item."Sales Dept Code_DXR" = Blank."Sales Dept Code_DXR" then
-                        Item."Sales Dept Code_DXR" := Item."Sales Dept Code";
-                    if Item."Codigo Producto Aduana_DXR" = Blank."Codigo Producto Aduana_DXR" then
-                        Item."Codigo Producto Aduana_DXR" := Item."Codigo Producto Aduana";
-                    if Item."ExclFromDiscountCoupons_DXR" = Blank."ExclFromDiscountCoupons_DXR" then
-                        Item."ExclFromDiscountCoupons_DXR" := Item.ExcludedFromDiscountCoupons;
-                    if Item."ExclFromFreeShipCoupons_DXR" = Blank."ExclFromFreeShipCoupons_DXR" then
-                        Item."ExclFromFreeShipCoupons_DXR" := Item.ExcludedFromFreeShipCoupons;
-                    if Item."Disponible para Ventas_DXR" = Blank."Disponible para Ventas_DXR" then
-                        Item."Disponible para Ventas_DXR" := Item."Disponible para Ventas";
-                    if Item."Item Status_DXR" = Blank."Item Status_DXR" then
-                        Item."Item Status_DXR" := Item."Item Status";
-                    if Item."Control Existencia_DXR" = Blank."Control Existencia_DXR" then
-                        Item."Control Existencia_DXR" := Item."Control Existencia";
-                    Item.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if ItemToUpdate.GetBySystemId(Item.SystemId) then begin
+                        if ItemToUpdate."Modelo_DXR" = Blank."Modelo_DXR" then
+                            ItemToUpdate."Modelo_DXR" := ItemToUpdate.Modelo;
+                        if ItemToUpdate."Marca_DXR" = Blank."Marca_DXR" then
+                            ItemToUpdate."Marca_DXR" := ItemToUpdate.Marca;
+                        if ItemToUpdate."Se Detalla_DXR" = Blank."Se Detalla_DXR" then
+                            ItemToUpdate."Se Detalla_DXR" := ItemToUpdate."Se Detalla";
+                        if ItemToUpdate."Producido_DXR" = Blank."Producido_DXR" then
+                            ItemToUpdate."Producido_DXR" := ItemToUpdate.Producido;
+                        if ItemToUpdate."Carga % Tarjeta_DXR" = Blank."Carga % Tarjeta_DXR" then
+                            ItemToUpdate."Carga % Tarjeta_DXR" := ItemToUpdate."Carga % Tarjeta";
+                        if ItemToUpdate."Consignación_DXR" = Blank."Consignación_DXR" then
+                            ItemToUpdate."Consignación_DXR" := ItemToUpdate."Consignación";
+                        if ItemToUpdate."Internal Use_DXR" = Blank."Internal Use_DXR" then
+                            ItemToUpdate."Internal Use_DXR" := ItemToUpdate."Internal Use";
+                        if ItemToUpdate."Acepta Decimales_DXR" = Blank."Acepta Decimales_DXR" then
+                            ItemToUpdate."Acepta Decimales_DXR" := ItemToUpdate."Acepta Decimales";
+                        if ItemToUpdate."Exhibición_DXR" = Blank."Exhibición_DXR" then
+                            ItemToUpdate."Exhibición_DXR" := ItemToUpdate."Exhibición";
+                        if ItemToUpdate."Precio Sugerido_DXR" = Blank."Precio Sugerido_DXR" then
+                            ItemToUpdate."Precio Sugerido_DXR" := ItemToUpdate."Precio Sugerido";
+                        if ItemToUpdate."Kit_DXR" = Blank."Kit_DXR" then
+                            ItemToUpdate."Kit_DXR" := ItemToUpdate.Kit;
+                        if ItemToUpdate."Empaque_DXR" = Blank."Empaque_DXR" then
+                            ItemToUpdate."Empaque_DXR" := ItemToUpdate.Empaque;
+                        if ItemToUpdate."Empaque Maestro_DXR" = Blank."Empaque Maestro_DXR" then
+                            ItemToUpdate."Empaque Maestro_DXR" := ItemToUpdate."Empaque Maestro";
+                        if ItemToUpdate."Venta por Mayor_DXR" = Blank."Venta por Mayor_DXR" then
+                            ItemToUpdate."Venta por Mayor_DXR" := ItemToUpdate."Venta por Mayor";
+                        if ItemToUpdate."% Comisión Venta_DXR" = Blank."% Comisión Venta_DXR" then
+                            ItemToUpdate."% Comisión Venta_DXR" := ItemToUpdate."% Comisión Venta";
+                        if ItemToUpdate."% Comisión Cobro_DXR" = Blank."% Comisión Cobro_DXR" then
+                            ItemToUpdate."% Comisión Cobro_DXR" := ItemToUpdate."% Comisión Cobro";
+                        if ItemToUpdate."Márgen Plaza_DXR" = Blank."Márgen Plaza_DXR" then
+                            ItemToUpdate."Márgen Plaza_DXR" := ItemToUpdate."Márgen Plaza";
+                        if ItemToUpdate."Márgen Importación_DXR" = Blank."Márgen Importación_DXR" then
+                            ItemToUpdate."Márgen Importación_DXR" := ItemToUpdate."Márgen Importación";
+                        if ItemToUpdate."Descripcion_Bellon_DXR" = Blank."Descripcion_Bellon_DXR" then
+                            ItemToUpdate."Descripcion_Bellon_DXR" := ItemToUpdate."Descripcion Bellon";
+                        if ItemToUpdate."Costo Liquidacion_DXR" = Blank."Costo Liquidacion_DXR" then
+                            ItemToUpdate."Costo Liquidacion_DXR" := ItemToUpdate."Costo Liquidacion";
+                        if ItemToUpdate."Comision_Tipo_ID_DXR." = Blank."Comision_Tipo_ID_DXR." then
+                            ItemToUpdate."Comision_Tipo_ID_DXR." := ItemToUpdate.Comision_Tipo_ID;
+                        if ItemToUpdate."Ultimo Costo Bellon_DXR" = Blank."Ultimo Costo Bellon_DXR" then
+                            ItemToUpdate."Ultimo Costo Bellon_DXR" := ItemToUpdate."Ultimo Costo Bellon";
+                        if ItemToUpdate."Costo Unitario Bellon_DXR" = Blank."Costo Unitario Bellon_DXR" then
+                            ItemToUpdate."Costo Unitario Bellon_DXR" := ItemToUpdate."Costo Unitario Bellon";
+                        if ItemToUpdate."SANA Info Adicionales_DXR" = Blank."SANA Info Adicionales_DXR" then
+                            ItemToUpdate."SANA Info Adicionales_DXR" := ItemToUpdate."SANA - Info. Adicionales";
+                        if ItemToUpdate."Sales Group_DXR" = Blank."Sales Group_DXR" then
+                            ItemToUpdate."Sales Group_DXR" := ItemToUpdate."Sales Group";
+                        if ItemToUpdate."Sales SubGroup_DXR" = Blank."Sales SubGroup_DXR" then
+                            ItemToUpdate."Sales SubGroup_DXR" := ItemToUpdate."Sales SubGroup";
+                        if ItemToUpdate."Sales Dept Code_DXR" = Blank."Sales Dept Code_DXR" then
+                            ItemToUpdate."Sales Dept Code_DXR" := ItemToUpdate."Sales Dept Code";
+                        if ItemToUpdate."Codigo Producto Aduana_DXR" = Blank."Codigo Producto Aduana_DXR" then
+                            ItemToUpdate."Codigo Producto Aduana_DXR" := ItemToUpdate."Codigo Producto Aduana";
+                        if ItemToUpdate."ExclFromDiscountCoupons_DXR" = Blank."ExclFromDiscountCoupons_DXR" then
+                            ItemToUpdate."ExclFromDiscountCoupons_DXR" := ItemToUpdate.ExcludedFromDiscountCoupons;
+                        if ItemToUpdate."ExclFromFreeShipCoupons_DXR" = Blank."ExclFromFreeShipCoupons_DXR" then
+                            ItemToUpdate."ExclFromFreeShipCoupons_DXR" := ItemToUpdate.ExcludedFromFreeShipCoupons;
+                        if ItemToUpdate."Disponible para Ventas_DXR" = Blank."Disponible para Ventas_DXR" then
+                            ItemToUpdate."Disponible para Ventas_DXR" := ItemToUpdate."Disponible para Ventas";
+                        if ItemToUpdate."Item Status_DXR" = Blank."Item Status_DXR" then
+                            ItemToUpdate."Item Status_DXR" := ItemToUpdate."Item Status";
+                        if ItemToUpdate."Control Existencia_DXR" = Blank."Control Existencia_DXR" then
+                            ItemToUpdate."Control Existencia_DXR" := ItemToUpdate."Control Existencia";
+                        ItemToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until Item.Next() = 0;
         FinishBatch();
     end;
@@ -4119,6 +5053,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemCategoryFields()
     var
         ItemCategory: Record "Item Category";
+        ItemCategoryToUpdate: Record "Item Category";
         Blank: Record "Item Category";
     begin
         // Fixed 2026-08-24: the old RecordRef version (CopyFieldIfExists(RecRef, 50000, 50001))
@@ -4126,14 +5061,23 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // ItemCategory.TableExt.al's real active target, confirmed via ObsoleteReason on field 50000
         // (52787 is not itself obsolete), is "% Comision_DXR" (52787). Direct typed field closes
         // that gap.
-        if ItemCategory.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ItemCategory.SetLoadFields(SystemId, "% Comision_DXR", "% Comision");
+        if ItemCategory.FindSet(false) then
             repeat
-                if ItemCategory."% Comision_DXR" <> ItemCategory."% Comision" then begin
-                    if ItemCategory."% Comision_DXR" = Blank."% Comision_DXR" then
-                        ItemCategory."% Comision_DXR" := ItemCategory."% Comision";
-                    ItemCategory.Modify(false);
-                end;
-                CheckpointCommit();
+                if ItemCategory."% Comision_DXR" <> ItemCategory."% Comision" then
+                    if ItemCategoryToUpdate.GetBySystemId(ItemCategory.SystemId) then begin
+                        if ItemCategoryToUpdate."% Comision_DXR" = Blank."% Comision_DXR" then
+                            ItemCategoryToUpdate."% Comision_DXR" := ItemCategoryToUpdate."% Comision";
+                        ItemCategoryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ItemCategory.Next() = 0;
         FinishBatch();
     end;
@@ -4141,18 +5085,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemChargeAssignmentPurchFields()
     var
         ItemChargeAssignmentPurch: Record "Item Charge Assignment (Purch)";
+        ItemChargeAssignmentPurchToUpdate: Record "Item Charge Assignment (Purch)";
     begin
         // Fixed 2026-08-24: ItemChargeAssignmentPurch.TableExt.al's real active target, confirmed
         // via ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Monto Cargo
         // Liq._DXR" (52787) - not the dead "Monto Cargo Liq._Old" shadow field (50001) the old
         // RecordRef code wrote into.
-        if ItemChargeAssignmentPurch.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ItemChargeAssignmentPurch.SetLoadFields(SystemId, "Monto Cargo Liq._DXR", "Monto Cargo Liq.");
+        if ItemChargeAssignmentPurch.FindSet(false) then
             repeat
-                if ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" <> ItemChargeAssignmentPurch."Monto Cargo Liq." then begin
-                    ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" := ItemChargeAssignmentPurch."Monto Cargo Liq.";
-                    ItemChargeAssignmentPurch.Modify(false);
-                end;
-                CheckpointCommit();
+                if ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" <> ItemChargeAssignmentPurch."Monto Cargo Liq." then
+                    if ItemChargeAssignmentPurchToUpdate.GetBySystemId(ItemChargeAssignmentPurch.SystemId) then begin
+                        ItemChargeAssignmentPurchToUpdate."Monto Cargo Liq._DXR" := ItemChargeAssignmentPurchToUpdate."Monto Cargo Liq.";
+                        ItemChargeAssignmentPurchToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ItemChargeAssignmentPurch.Next() = 0;
         FinishBatch();
     end;
@@ -4170,18 +5124,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ItemJournalLineFields()
     var
         ItemJournalLine: Record "Item Journal Line";
+        ItemJournalLineToUpdate: Record "Item Journal Line";
     begin
         // Fixed 2026-08-24: ItemJournalLine.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50003 (52787 is not itself obsolete), is "No. Discrepancia_DXR"
         // (52787) - the old RecordRef code's destination (50004) never existed in the schema at
         // all (CopyFieldIfExists was already a guaranteed no-op on every row).
-        if ItemJournalLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ItemJournalLine.SetLoadFields(SystemId, "No. Discrepancia_DXR", "No. Discrepancia");
+        if ItemJournalLine.FindSet(false) then
             repeat
-                if ItemJournalLine."No. Discrepancia_DXR" <> ItemJournalLine."No. Discrepancia" then begin
-                    ItemJournalLine."No. Discrepancia_DXR" := ItemJournalLine."No. Discrepancia";
-                    ItemJournalLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if ItemJournalLine."No. Discrepancia_DXR" <> ItemJournalLine."No. Discrepancia" then
+                    if ItemJournalLineToUpdate.GetBySystemId(ItemJournalLine.SystemId) then begin
+                        ItemJournalLineToUpdate."No. Discrepancia_DXR" := ItemJournalLineToUpdate."No. Discrepancia";
+                        ItemJournalLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ItemJournalLine.Next() = 0;
         FinishBatch();
     end;
@@ -4199,18 +5163,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCItemSpecialGroupsFields()
     var
         LSCItemSpecialGroups: Record "LSC Item Special Groups";
+        LSCItemSpecialGroupsToUpdate: Record "LSC Item Special Groups";
     begin
         // Fixed 2026-08-24: ItemSpecialGroups.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "% Comision_DXR"
         // (52787) - not the dead "% Comision_Old" shadow field (50001) the old RecordRef code
         // wrote into.
-        if LSCItemSpecialGroups.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCItemSpecialGroups.SetLoadFields(SystemId, "% Comision_DXR", "% Comision");
+        if LSCItemSpecialGroups.FindSet(false) then
             repeat
-                if LSCItemSpecialGroups."% Comision_DXR" <> LSCItemSpecialGroups."% Comision" then begin
-                    LSCItemSpecialGroups."% Comision_DXR" := LSCItemSpecialGroups."% Comision";
-                    LSCItemSpecialGroups.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCItemSpecialGroups."% Comision_DXR" <> LSCItemSpecialGroups."% Comision" then
+                    if LSCItemSpecialGroupsToUpdate.GetBySystemId(LSCItemSpecialGroups.SystemId) then begin
+                        LSCItemSpecialGroupsToUpdate."% Comision_DXR" := LSCItemSpecialGroupsToUpdate."% Comision";
+                        LSCItemSpecialGroupsToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCItemSpecialGroups.Next() = 0;
         FinishBatch();
     end;
@@ -4218,6 +5192,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_DXCashJournalReceiptListFields()
     var
         CashJournalReceiptList: Record "DXR_Cash Journal Receipt List";
+        CashJournalReceiptListToUpdate: Record "DXR_Cash Journal Receipt List";
     begin
         // Retrofitted 2026-08-24 (bridge retirement): "DXR_Cash Journal Receipt List" (table
         // 52132, DR-Localization) is declared Access = Internal there, but DR-Localization now
@@ -4239,20 +5214,31 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         //     FlowFields (CalcFormula lookups onto Customer) - no stored value to migrate, so those
         //     two field pairs are dropped entirely (the old code's destinations 50007/50009 never
         //     existed in the schema either, so they were already guaranteed no-ops).
-        if CashJournalReceiptList.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        CashJournalReceiptList.SetLoadFields(
+            SystemId, "Documento Registrado_DXR", "Documento Registrado", "Fecha Vencimiento_DXR",
+            "Fecha Vencimiento", "IsRecaudo_DXR", IsRecaudo, "No. Authorizacion_DXR", "No. Authorizacion");
+        if CashJournalReceiptList.FindSet(false) then
             repeat
                 if (CashJournalReceiptList."Documento Registrado_DXR" <> CashJournalReceiptList."Documento Registrado") or
                    (CashJournalReceiptList."Fecha Vencimiento_DXR" <> CashJournalReceiptList."Fecha Vencimiento") or
                    (CashJournalReceiptList."IsRecaudo_DXR" <> CashJournalReceiptList.IsRecaudo) or
                    (CashJournalReceiptList."No. Authorizacion_DXR" <> CashJournalReceiptList."No. Authorizacion")
-                then begin
-                    CashJournalReceiptList."Documento Registrado_DXR" := CashJournalReceiptList."Documento Registrado";
-                    CashJournalReceiptList."Fecha Vencimiento_DXR" := CashJournalReceiptList."Fecha Vencimiento";
-                    CashJournalReceiptList."IsRecaudo_DXR" := CashJournalReceiptList.IsRecaudo;
-                    CashJournalReceiptList."No. Authorizacion_DXR" := CashJournalReceiptList."No. Authorizacion";
-                    CashJournalReceiptList.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if CashJournalReceiptListToUpdate.GetBySystemId(CashJournalReceiptList.SystemId) then begin
+                        CashJournalReceiptListToUpdate."Documento Registrado_DXR" := CashJournalReceiptListToUpdate."Documento Registrado";
+                        CashJournalReceiptListToUpdate."Fecha Vencimiento_DXR" := CashJournalReceiptListToUpdate."Fecha Vencimiento";
+                        CashJournalReceiptListToUpdate."IsRecaudo_DXR" := CashJournalReceiptListToUpdate.IsRecaudo;
+                        CashJournalReceiptListToUpdate."No. Authorizacion_DXR" := CashJournalReceiptListToUpdate."No. Authorizacion";
+                        CashJournalReceiptListToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until CashJournalReceiptList.Next() = 0;
         FinishBatch();
     end;
@@ -4260,13 +5246,26 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LocationFields()
     var
         Location: Record Location;
+        LocationToUpdate: Record Location;
         Blank: Record Location;
     begin
         // Fixed 2026-08-24: Location.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (none of the _DXR replacements are themselves
         // obsolete), are the 52787-52792 fields - not the dead "..._Old" shadow fields
         // (50006-50011) the old RecordRef code wrote into.
-        if Location.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        Location.SetLoadFields(
+            SystemId, "Req._Transport_DXR", "Req. Transport", "Existencia Ventas_DXR", "Existencia Ventas",
+            "Transito Internacional_DXR", "Transito Internacional", "Req. Cod. Audit Transf_DXR",
+            "Req. Cod. Auditoria Transf.", "Visible in Trafico_DXR", "Visible in Trafico",
+            "Req. Cod. Pos. & Neg._DXR", "Req. Cod. Pos. & Neg.");
+        if Location.FindSet(false) then
             repeat
                 if (Location."Req._Transport_DXR" <> Location."Req. Transport") or
                    (Location."Existencia Ventas_DXR" <> Location."Existencia Ventas") or
@@ -4274,22 +5273,23 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Location."Req. Cod. Audit Transf_DXR" <> Location."Req. Cod. Auditoria Transf.") or
                    (Location."Visible in Trafico_DXR" <> Location."Visible in Trafico") or
                    (Location."Req. Cod. Pos. & Neg._DXR" <> Location."Req. Cod. Pos. & Neg.")
-                then begin
-                    if Location."Req._Transport_DXR" = Blank."Req._Transport_DXR" then
-                        Location."Req._Transport_DXR" := Location."Req. Transport";
-                    if Location."Existencia Ventas_DXR" = Blank."Existencia Ventas_DXR" then
-                        Location."Existencia Ventas_DXR" := Location."Existencia Ventas";
-                    if Location."Transito Internacional_DXR" = Blank."Transito Internacional_DXR" then
-                        Location."Transito Internacional_DXR" := Location."Transito Internacional";
-                    if Location."Req. Cod. Audit Transf_DXR" = Blank."Req. Cod. Audit Transf_DXR" then
-                        Location."Req. Cod. Audit Transf_DXR" := Location."Req. Cod. Auditoria Transf.";
-                    if Location."Visible in Trafico_DXR" = Blank."Visible in Trafico_DXR" then
-                        Location."Visible in Trafico_DXR" := Location."Visible in Trafico";
-                    if Location."Req. Cod. Pos. & Neg._DXR" = Blank."Req. Cod. Pos. & Neg._DXR" then
-                        Location."Req. Cod. Pos. & Neg._DXR" := Location."Req. Cod. Pos. & Neg.";
-                    Location.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LocationToUpdate.GetBySystemId(Location.SystemId) then begin
+                        if LocationToUpdate."Req._Transport_DXR" = Blank."Req._Transport_DXR" then
+                            LocationToUpdate."Req._Transport_DXR" := LocationToUpdate."Req. Transport";
+                        if LocationToUpdate."Existencia Ventas_DXR" = Blank."Existencia Ventas_DXR" then
+                            LocationToUpdate."Existencia Ventas_DXR" := LocationToUpdate."Existencia Ventas";
+                        if LocationToUpdate."Transito Internacional_DXR" = Blank."Transito Internacional_DXR" then
+                            LocationToUpdate."Transito Internacional_DXR" := LocationToUpdate."Transito Internacional";
+                        if LocationToUpdate."Req. Cod. Audit Transf_DXR" = Blank."Req. Cod. Audit Transf_DXR" then
+                            LocationToUpdate."Req. Cod. Audit Transf_DXR" := LocationToUpdate."Req. Cod. Auditoria Transf.";
+                        if LocationToUpdate."Visible in Trafico_DXR" = Blank."Visible in Trafico_DXR" then
+                            LocationToUpdate."Visible in Trafico_DXR" := LocationToUpdate."Visible in Trafico";
+                        if LocationToUpdate."Req. Cod. Pos. & Neg._DXR" = Blank."Req. Cod. Pos. & Neg._DXR" then
+                            LocationToUpdate."Req. Cod. Pos. & Neg._DXR" := LocationToUpdate."Req. Cod. Pos. & Neg.";
+                        LocationToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until Location.Next() = 0;
         FinishBatch();
     end;
@@ -4297,12 +5297,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCMemberContactFields()
     var
         LSCMemberContact: Record "LSC Member Contact";
+        LSCMemberContactToUpdate: Record "LSC Member Contact";
     begin
         // Fixed 2026-08-24: MemberContact.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (none of the _DXR replacements are themselves
         // obsolete), are the 52787-52792 fields - not the dead "..._Old" shadow fields
         // (50006-50011) the old RecordRef code wrote into.
-        if LSCMemberContact.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCMemberContact.SetLoadFields(
+            SystemId, "Cedula_DXR", Cedula, "Newsletter_DXR", Newsletter, "Profesion_DXR", Profesion,
+            "Area de Trabajo_DXR", "Area de Trabajo", "Cantidad De Hijos_DXR", "Cantidad De Hijos",
+            "Sucursal Preferida_DXR", "Sucursal Preferida");
+        if LSCMemberContact.FindSet(false) then
             repeat
                 if (LSCMemberContact."Cedula_DXR" <> LSCMemberContact.Cedula) or
                    (LSCMemberContact."Newsletter_DXR" <> LSCMemberContact.Newsletter) or
@@ -4310,16 +5322,17 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (LSCMemberContact."Area de Trabajo_DXR" <> LSCMemberContact."Area de Trabajo") or
                    (LSCMemberContact."Cantidad De Hijos_DXR" <> LSCMemberContact."Cantidad De Hijos") or
                    (LSCMemberContact."Sucursal Preferida_DXR" <> LSCMemberContact."Sucursal Preferida")
-                then begin
-                    LSCMemberContact."Cedula_DXR" := LSCMemberContact.Cedula;
-                    LSCMemberContact."Newsletter_DXR" := LSCMemberContact.Newsletter;
-                    LSCMemberContact."Profesion_DXR" := LSCMemberContact.Profesion;
-                    LSCMemberContact."Area de Trabajo_DXR" := LSCMemberContact."Area de Trabajo";
-                    LSCMemberContact."Cantidad De Hijos_DXR" := LSCMemberContact."Cantidad De Hijos";
-                    LSCMemberContact."Sucursal Preferida_DXR" := LSCMemberContact."Sucursal Preferida";
-                    LSCMemberContact.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCMemberContactToUpdate.GetBySystemId(LSCMemberContact.SystemId) then begin
+                        LSCMemberContactToUpdate."Cedula_DXR" := LSCMemberContactToUpdate.Cedula;
+                        LSCMemberContactToUpdate."Newsletter_DXR" := LSCMemberContactToUpdate.Newsletter;
+                        LSCMemberContactToUpdate."Profesion_DXR" := LSCMemberContactToUpdate.Profesion;
+                        LSCMemberContactToUpdate."Area de Trabajo_DXR" := LSCMemberContactToUpdate."Area de Trabajo";
+                        LSCMemberContactToUpdate."Cantidad De Hijos_DXR" := LSCMemberContactToUpdate."Cantidad De Hijos";
+                        LSCMemberContactToUpdate."Sucursal Preferida_DXR" := LSCMemberContactToUpdate."Sucursal Preferida";
+                        LSCMemberContactToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCMemberContact.Next() = 0;
         FinishBatch();
     end;
@@ -4327,25 +5340,37 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCMemberPointOfferFields()
     var
         LSCMemberPointOffer: Record "LSC Member Point Offer";
+        LSCMemberPointOfferToUpdate: Record "LSC Member Point Offer";
     begin
         // Fixed 2026-08-24: MemberPointOffer.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (none of the _DXR replacements are themselves
         // obsolete), are the 52787-52790 fields - not the dead "..._Old" shadow fields
         // (50004-50007) the old RecordRef code wrote into.
-        if LSCMemberPointOffer.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCMemberPointOffer.SetLoadFields(
+            SystemId, "isTickets_DXR", isTickets, "Promotion Status_DXR", "Promotion Status",
+            "Multiplier for members_DXR", "Multiplier for members", "Calc. Type_DXR", "Calc. Type");
+        if LSCMemberPointOffer.FindSet(false) then
             repeat
                 if (LSCMemberPointOffer."isTickets_DXR" <> LSCMemberPointOffer.isTickets) or
                    (LSCMemberPointOffer."Promotion Status_DXR" <> LSCMemberPointOffer."Promotion Status") or
                    (LSCMemberPointOffer."Multiplier for members_DXR" <> LSCMemberPointOffer."Multiplier for members") or
                    (LSCMemberPointOffer."Calc. Type_DXR" <> LSCMemberPointOffer."Calc. Type")
-                then begin
-                    LSCMemberPointOffer."isTickets_DXR" := LSCMemberPointOffer.isTickets;
-                    LSCMemberPointOffer."Promotion Status_DXR" := LSCMemberPointOffer."Promotion Status";
-                    LSCMemberPointOffer."Multiplier for members_DXR" := LSCMemberPointOffer."Multiplier for members";
-                    LSCMemberPointOffer."Calc. Type_DXR" := LSCMemberPointOffer."Calc. Type";
-                    LSCMemberPointOffer.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCMemberPointOfferToUpdate.GetBySystemId(LSCMemberPointOffer.SystemId) then begin
+                        LSCMemberPointOfferToUpdate."isTickets_DXR" := LSCMemberPointOfferToUpdate.isTickets;
+                        LSCMemberPointOfferToUpdate."Promotion Status_DXR" := LSCMemberPointOfferToUpdate."Promotion Status";
+                        LSCMemberPointOfferToUpdate."Multiplier for members_DXR" := LSCMemberPointOfferToUpdate."Multiplier for members";
+                        LSCMemberPointOfferToUpdate."Calc. Type_DXR" := LSCMemberPointOfferToUpdate."Calc. Type";
+                        LSCMemberPointOfferToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCMemberPointOffer.Next() = 0;
         FinishBatch();
     end;
@@ -4409,21 +5434,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCPOSTransLineFields()
     var
         LSCPOSTransLine: Record "LSC POS Trans. Line";
+        LSCPOSTransLineToUpdate: Record "LSC POS Trans. Line";
     begin
-        if LSCPOSTransLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCPOSTransLine.SetLoadFields(
+            SystemId, "Offer No._DXR", "Offer No.", "Orig. Trans. Date_DXR", "Orig. Trans. Date",
+            "PedidoBackOffice_DXR", PedidoBackOffice, "Autorizador_DXR", Autorizador);
+        if LSCPOSTransLine.FindSet(false) then
             repeat
                 if (LSCPOSTransLine."Offer No._DXR" <> LSCPOSTransLine."Offer No.") or
                    (LSCPOSTransLine."Orig. Trans. Date_DXR" <> LSCPOSTransLine."Orig. Trans. Date") or
                    (LSCPOSTransLine."PedidoBackOffice_DXR" <> LSCPOSTransLine.PedidoBackOffice) or
                    (LSCPOSTransLine."Autorizador_DXR" <> LSCPOSTransLine.Autorizador)
-                then begin
-                    LSCPOSTransLine."Offer No._DXR" := LSCPOSTransLine."Offer No.";
-                    LSCPOSTransLine."Orig. Trans. Date_DXR" := LSCPOSTransLine."Orig. Trans. Date";
-                    LSCPOSTransLine."PedidoBackOffice_DXR" := LSCPOSTransLine.PedidoBackOffice;
-                    LSCPOSTransLine."Autorizador_DXR" := LSCPOSTransLine.Autorizador;
-                    LSCPOSTransLine.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCPOSTransLineToUpdate.GetBySystemId(LSCPOSTransLine.SystemId) then begin
+                        LSCPOSTransLineToUpdate."Offer No._DXR" := LSCPOSTransLineToUpdate."Offer No.";
+                        LSCPOSTransLineToUpdate."Orig. Trans. Date_DXR" := LSCPOSTransLineToUpdate."Orig. Trans. Date";
+                        LSCPOSTransLineToUpdate."PedidoBackOffice_DXR" := LSCPOSTransLineToUpdate.PedidoBackOffice;
+                        LSCPOSTransLineToUpdate."Autorizador_DXR" := LSCPOSTransLineToUpdate.Autorizador;
+                        LSCPOSTransLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCPOSTransLine.Next() = 0;
         FinishBatch();
     end;
@@ -4441,23 +5478,35 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCPOSTransactionFields()
     var
         LSCPOSTransaction: Record "LSC POS Transaction";
+        LSCPOSTransactionToUpdate: Record "LSC POS Transaction";
     begin
-        if LSCPOSTransaction.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCPOSTransaction.SetLoadFields(
+            SystemId, "Autorizador_DXR", Autorizador, "PedidoBackOffice_DXR", PedidoBackOffice, "Sell-to Contact_DXR",
+            "Sell-to Contact", "PanelCRF_DXR", PanelCRF, "Qty Tickets_DXR", "Qty Tickets");
+        if LSCPOSTransaction.FindSet(false) then
             repeat
                 if (LSCPOSTransaction."Autorizador_DXR" <> LSCPOSTransaction.Autorizador) or
                    (LSCPOSTransaction."PedidoBackOffice_DXR" <> LSCPOSTransaction.PedidoBackOffice) or
                    (LSCPOSTransaction."Sell-to Contact_DXR" <> LSCPOSTransaction."Sell-to Contact") or
                    (LSCPOSTransaction."PanelCRF_DXR" <> LSCPOSTransaction.PanelCRF) or
                    (LSCPOSTransaction."Qty Tickets_DXR" <> LSCPOSTransaction."Qty Tickets")
-                then begin
-                    LSCPOSTransaction."Autorizador_DXR" := LSCPOSTransaction.Autorizador;
-                    LSCPOSTransaction."PedidoBackOffice_DXR" := LSCPOSTransaction.PedidoBackOffice;
-                    LSCPOSTransaction."Sell-to Contact_DXR" := LSCPOSTransaction."Sell-to Contact";
-                    LSCPOSTransaction."PanelCRF_DXR" := LSCPOSTransaction.PanelCRF;
-                    LSCPOSTransaction."Qty Tickets_DXR" := LSCPOSTransaction."Qty Tickets";
-                    LSCPOSTransaction.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCPOSTransactionToUpdate.GetBySystemId(LSCPOSTransaction.SystemId) then begin
+                        LSCPOSTransactionToUpdate."Autorizador_DXR" := LSCPOSTransactionToUpdate.Autorizador;
+                        LSCPOSTransactionToUpdate."PedidoBackOffice_DXR" := LSCPOSTransactionToUpdate.PedidoBackOffice;
+                        LSCPOSTransactionToUpdate."Sell-to Contact_DXR" := LSCPOSTransactionToUpdate."Sell-to Contact";
+                        LSCPOSTransactionToUpdate."PanelCRF_DXR" := LSCPOSTransactionToUpdate.PanelCRF;
+                        LSCPOSTransactionToUpdate."Qty Tickets_DXR" := LSCPOSTransactionToUpdate."Qty Tickets";
+                        LSCPOSTransactionToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCPOSTransaction.Next() = 0;
         FinishBatch();
     end;
@@ -4477,21 +5526,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_PaymentMethodFields()
     var
         PaymentMethod: Record "Payment Method";
+        PaymentMethodToUpdate: Record "Payment Method";
     begin
-        if PaymentMethod.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        PaymentMethod.SetLoadFields(
+            SystemId, "Payment Processor_DXR", "Payment Processor", "Prioridad_DXR.", Prioridad, "Contado_DXR",
+            Contado, "Tipo Venta_DXR", "Tipo Venta");
+        if PaymentMethod.FindSet(false) then
             repeat
                 if (PaymentMethod."Payment Processor_DXR" <> PaymentMethod."Payment Processor") or
                    (PaymentMethod."Prioridad_DXR." <> PaymentMethod.Prioridad) or
                    (PaymentMethod."Contado_DXR" <> PaymentMethod.Contado) or
                    (PaymentMethod."Tipo Venta_DXR" <> PaymentMethod."Tipo Venta")
-                then begin
-                    PaymentMethod."Payment Processor_DXR" := PaymentMethod."Payment Processor";
-                    PaymentMethod."Prioridad_DXR." := PaymentMethod.Prioridad;
-                    PaymentMethod."Contado_DXR" := PaymentMethod.Contado;
-                    PaymentMethod."Tipo Venta_DXR" := PaymentMethod."Tipo Venta";
-                    PaymentMethod.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if PaymentMethodToUpdate.GetBySystemId(PaymentMethod.SystemId) then begin
+                        PaymentMethodToUpdate."Payment Processor_DXR" := PaymentMethodToUpdate."Payment Processor";
+                        PaymentMethodToUpdate."Prioridad_DXR." := PaymentMethodToUpdate.Prioridad;
+                        PaymentMethodToUpdate."Contado_DXR" := PaymentMethodToUpdate.Contado;
+                        PaymentMethodToUpdate."Tipo Venta_DXR" := PaymentMethodToUpdate."Tipo Venta";
+                        PaymentMethodToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until PaymentMethod.Next() = 0;
         FinishBatch();
     end;
@@ -4499,6 +5560,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCPeriodicDiscountFields()
     var
         LSCPeriodicDiscount: Record "LSC Periodic Discount";
+        LSCPeriodicDiscountToUpdate: Record "LSC Periodic Discount";
     begin
         // Fixed 2026-08-24: PeriodicDiscount.TableExt.al defines 8 Bellon field pairs; 7 of them
         // (source fields 50000-50006, "Item Offers"/"BackOffice ..." metrics) are FlowField pairs
@@ -4510,13 +5572,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // "Global_DXR" (52794) - the old code instead wrote into the dead-but-real "Global_Old"
         // field (50018), which DOES exist in the schema (unlike the other 7 dead destinations), so
         // that copy was silently succeeding into the wrong field on every run.
-        if LSCPeriodicDiscount.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCPeriodicDiscount.SetLoadFields(SystemId, "Global_DXR", Global);
+        if LSCPeriodicDiscount.FindSet(false) then
             repeat
-                if LSCPeriodicDiscount."Global_DXR" <> LSCPeriodicDiscount.Global then begin
-                    LSCPeriodicDiscount."Global_DXR" := LSCPeriodicDiscount.Global;
-                    LSCPeriodicDiscount.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCPeriodicDiscount."Global_DXR" <> LSCPeriodicDiscount.Global then
+                    if LSCPeriodicDiscountToUpdate.GetBySystemId(LSCPeriodicDiscount.SystemId) then begin
+                        LSCPeriodicDiscountToUpdate."Global_DXR" := LSCPeriodicDiscountToUpdate.Global;
+                        LSCPeriodicDiscountToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCPeriodicDiscount.Next() = 0;
         FinishBatch();
     end;
@@ -4533,18 +5604,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCPostedStatementFields()
     var
         LSCPostedStatement: Record "LSC Posted Statement";
+        LSCPostedStatementToUpdate: Record "LSC Posted Statement";
     begin
         // Fixed 2026-08-24: PostedStatement.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Listo para
         // Registrar_DXR" (52787) - not the dead "Listo para Registrar_Old" shadow field (50001) the
         // old RecordRef code wrote into.
-        if LSCPostedStatement.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCPostedStatement.SetLoadFields(SystemId, "Listo para Registrar_DXR", "Listo para Registrar");
+        if LSCPostedStatement.FindSet(false) then
             repeat
-                if LSCPostedStatement."Listo para Registrar_DXR" <> LSCPostedStatement."Listo para Registrar" then begin
-                    LSCPostedStatement."Listo para Registrar_DXR" := LSCPostedStatement."Listo para Registrar";
-                    LSCPostedStatement.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCPostedStatement."Listo para Registrar_DXR" <> LSCPostedStatement."Listo para Registrar" then
+                    if LSCPostedStatementToUpdate.GetBySystemId(LSCPostedStatement.SystemId) then begin
+                        LSCPostedStatementToUpdate."Listo para Registrar_DXR" := LSCPostedStatementToUpdate."Listo para Registrar";
+                        LSCPostedStatementToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCPostedStatement.Next() = 0;
         FinishBatch();
     end;
@@ -4552,22 +5633,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCRetailProductGroupFields()
     var
         LSCRetailProductGroup: Record "LSC Retail Product Group";
+        LSCRetailProductGroupToUpdate: Record "LSC Retail Product Group";
     begin
         // Fixed 2026-08-24: ProductGroup.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on each source field (neither _DXR replacement is itself obsolete), are
         // "Block, Sand And Cement_DXR" (52787) and "Comision_Cobro_DXR." (52788, field name
         // includes a trailing period as declared in source) - not the dead "..._Old" shadow fields
         // (50002/50003) the old RecordRef code wrote into.
-        if LSCRetailProductGroup.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCRetailProductGroup.SetLoadFields(
+            SystemId, "Block, Sand And Cement_DXR", "Block, Sand And Cement", "Comision_Cobro_DXR.", "Comision_Cobro");
+        if LSCRetailProductGroup.FindSet(false) then
             repeat
                 if (LSCRetailProductGroup."Block, Sand And Cement_DXR" <> LSCRetailProductGroup."Block, Sand And Cement") or
                    (LSCRetailProductGroup."Comision_Cobro_DXR." <> LSCRetailProductGroup."Comision_Cobro")
-                then begin
-                    LSCRetailProductGroup."Block, Sand And Cement_DXR" := LSCRetailProductGroup."Block, Sand And Cement";
-                    LSCRetailProductGroup."Comision_Cobro_DXR." := LSCRetailProductGroup."Comision_Cobro";
-                    LSCRetailProductGroup.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCRetailProductGroupToUpdate.GetBySystemId(LSCRetailProductGroup.SystemId) then begin
+                        LSCRetailProductGroupToUpdate."Block, Sand And Cement_DXR" := LSCRetailProductGroupToUpdate."Block, Sand And Cement";
+                        LSCRetailProductGroupToUpdate."Comision_Cobro_DXR." := LSCRetailProductGroupToUpdate."Comision_Cobro";
+                        LSCRetailProductGroupToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCRetailProductGroup.Next() = 0;
         FinishBatch();
     end;
@@ -4575,18 +5667,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_PurchCommentLineFields()
     var
         PurchCommentLine: Record "Purch. Comment Line";
+        PurchCommentLineToUpdate: Record "Purch. Comment Line";
     begin
         // Fixed 2026-08-24: PurchCommentLine.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Comentario
         // Extendido_DXR" (52787) - not the dead "Comentario Extendido_Old" shadow field (50001) the
         // old RecordRef code wrote into.
-        if PurchCommentLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        PurchCommentLine.SetLoadFields(SystemId, "Comentario Extendido_DXR", "Comentario Extendido");
+        if PurchCommentLine.FindSet(false) then
             repeat
-                if PurchCommentLine."Comentario Extendido_DXR" <> PurchCommentLine."Comentario Extendido" then begin
-                    PurchCommentLine."Comentario Extendido_DXR" := PurchCommentLine."Comentario Extendido";
-                    PurchCommentLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if PurchCommentLine."Comentario Extendido_DXR" <> PurchCommentLine."Comentario Extendido" then
+                    if PurchCommentLineToUpdate.GetBySystemId(PurchCommentLine.SystemId) then begin
+                        PurchCommentLineToUpdate."Comentario Extendido_DXR" := PurchCommentLineToUpdate."Comentario Extendido";
+                        PurchCommentLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until PurchCommentLine.Next() = 0;
         FinishBatch();
     end;
@@ -4594,18 +5696,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_PurchCommentLineArchiveFields()
     var
         PurchCommentLineArchive: Record "Purch. Comment Line Archive";
+        PurchCommentLineArchiveToUpdate: Record "Purch. Comment Line Archive";
     begin
         // Fixed 2026-08-24: PurchCommentLineArchive.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Comentario
         // Extendido_DXR" (52787) - not the dead "Comentario Extendido_Old" shadow field (50001) the
         // old RecordRef code wrote into.
-        if PurchCommentLineArchive.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        PurchCommentLineArchive.SetLoadFields(SystemId, "Comentario Extendido_DXR", "Comentario Extendido");
+        if PurchCommentLineArchive.FindSet(false) then
             repeat
-                if PurchCommentLineArchive."Comentario Extendido_DXR" <> PurchCommentLineArchive."Comentario Extendido" then begin
-                    PurchCommentLineArchive."Comentario Extendido_DXR" := PurchCommentLineArchive."Comentario Extendido";
-                    PurchCommentLineArchive.Modify(false);
-                end;
-                CheckpointCommit();
+                if PurchCommentLineArchive."Comentario Extendido_DXR" <> PurchCommentLineArchive."Comentario Extendido" then
+                    if PurchCommentLineArchiveToUpdate.GetBySystemId(PurchCommentLineArchive.SystemId) then begin
+                        PurchCommentLineArchiveToUpdate."Comentario Extendido_DXR" := PurchCommentLineArchiveToUpdate."Comentario Extendido";
+                        PurchCommentLineArchiveToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until PurchCommentLineArchive.Next() = 0;
         FinishBatch();
     end;
@@ -4613,18 +5725,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_PurchInvLineFields()
     var
         PurchInvLine: Record "Purch. Inv. Line";
+        PurchInvLineToUpdate: Record "Purch. Inv. Line";
     begin
         // Fixed 2026-08-24: PurchInvLine.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50017 (52787 is not itself obsolete), is "Liquidacion_DXR"
         // (52787) - not the dead "Liquidacion_Old" shadow field (50018) the old RecordRef code
         // wrote into.
-        if PurchInvLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        PurchInvLine.SetLoadFields(SystemId, "Liquidacion_DXR", Liquidacion);
+        if PurchInvLine.FindSet(false) then
             repeat
-                if PurchInvLine."Liquidacion_DXR" <> PurchInvLine.Liquidacion then begin
-                    PurchInvLine."Liquidacion_DXR" := PurchInvLine.Liquidacion;
-                    PurchInvLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if PurchInvLine."Liquidacion_DXR" <> PurchInvLine.Liquidacion then
+                    if PurchInvLineToUpdate.GetBySystemId(PurchInvLine.SystemId) then begin
+                        PurchInvLineToUpdate."Liquidacion_DXR" := PurchInvLineToUpdate.Liquidacion;
+                        PurchInvLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until PurchInvLine.Next() = 0;
         FinishBatch();
     end;
@@ -4632,19 +5754,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ReasonCodeFields()
     var
         ReasonCode: Record "Reason Code";
+        ReasonCodeToUpdate: Record "Reason Code";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "GroupTransport" into the dead "_Old"
         // shadow field (50001) - ReasonCodeTableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is the literal field
         // "GroupTransport_DXR." (field name includes a trailing period as declared in source).
         // Direct typed field closes that gap.
-        if ReasonCode.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ReasonCode.SetLoadFields(SystemId, "GroupTransport_DXR.", GroupTransport);
+        if ReasonCode.FindSet(false) then
             repeat
-                if ReasonCode."GroupTransport_DXR." <> ReasonCode.GroupTransport then begin
-                    ReasonCode."GroupTransport_DXR." := ReasonCode.GroupTransport;
-                    ReasonCode.Modify(false);
-                end;
-                CheckpointCommit();
+                if ReasonCode."GroupTransport_DXR." <> ReasonCode.GroupTransport then
+                    if ReasonCodeToUpdate.GetBySystemId(ReasonCode.SystemId) then begin
+                        ReasonCodeToUpdate."GroupTransport_DXR." := ReasonCodeToUpdate.GroupTransport;
+                        ReasonCodeToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ReasonCode.Next() = 0;
         FinishBatch();
     end;
@@ -4652,6 +5784,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCReplenJournalLinesFields()
     var
         LSCReplenJournalLines: Record "LSC Replen. Journal Lines";
+        LSCReplenJournalLinesToUpdate: Record "LSC Replen. Journal Lines";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "Almacen Destino" into the dead
         // "_Old" shadow field (50032) - ReplenJournalLines.TableExt.al's real active target,
@@ -4661,13 +5794,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // WHERE(...)) against the respective "Almacen Destino"/"Almacen Destino_DXR" source field)
         // - there is no stored value to migrate for a FlowField, matching the fact that the old
         // code's destination (50033) never existed in the schema either.
-        if LSCReplenJournalLines.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCReplenJournalLines.SetLoadFields(SystemId, "Almacen Destino_DXR", "Almacen Destino");
+        if LSCReplenJournalLines.FindSet(false) then
             repeat
-                if LSCReplenJournalLines."Almacen Destino_DXR" <> LSCReplenJournalLines."Almacen Destino" then begin
-                    LSCReplenJournalLines."Almacen Destino_DXR" := LSCReplenJournalLines."Almacen Destino";
-                    LSCReplenJournalLines.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCReplenJournalLines."Almacen Destino_DXR" <> LSCReplenJournalLines."Almacen Destino" then
+                    if LSCReplenJournalLinesToUpdate.GetBySystemId(LSCReplenJournalLines.SystemId) then begin
+                        LSCReplenJournalLinesToUpdate."Almacen Destino_DXR" := LSCReplenJournalLinesToUpdate."Almacen Destino";
+                        LSCReplenJournalLinesToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCReplenJournalLines.Next() = 0;
         FinishBatch();
     end;
@@ -4675,6 +5817,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCReplenTemplateFields()
     var
         LSCReplenTemplate: Record "LSC Replen. Template";
+        LSCReplenTemplateToUpdate: Record "LSC Replen. Template";
     begin
         // Fixed 2026-08-24: same shadow-field bug and same FlowField exemption as
         // MigrateTableExt_LSCReplenJournalLinesFields() above (ReplenTemplate.TableExt.al declares
@@ -4683,13 +5826,22 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         // ObsoleteReason on field 50016 (52787 is not itself obsolete), is "Almacen Destino_DXR"
         // (52787). Field 50031 "AlmacenDestino Name" -> 50033 is a FlowField pair on both sides -
         // nothing stored to migrate.
-        if LSCReplenTemplate.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCReplenTemplate.SetLoadFields(SystemId, "Almacen Destino_DXR", "Almacen Destino");
+        if LSCReplenTemplate.FindSet(false) then
             repeat
-                if LSCReplenTemplate."Almacen Destino_DXR" <> LSCReplenTemplate."Almacen Destino" then begin
-                    LSCReplenTemplate."Almacen Destino_DXR" := LSCReplenTemplate."Almacen Destino";
-                    LSCReplenTemplate.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCReplenTemplate."Almacen Destino_DXR" <> LSCReplenTemplate."Almacen Destino" then
+                    if LSCReplenTemplateToUpdate.GetBySystemId(LSCReplenTemplate.SystemId) then begin
+                        LSCReplenTemplateToUpdate."Almacen Destino_DXR" := LSCReplenTemplateToUpdate."Almacen Destino";
+                        LSCReplenTemplateToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCReplenTemplate.Next() = 0;
         FinishBatch();
     end;
@@ -4771,22 +5923,34 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCRetailUserFields()
     var
         LSCRetailUser: Record "LSC Retail User";
+        LSCRetailUserToUpdate: Record "LSC Retail User";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied both fields into dead "_Old" shadow
         // fields (50002/50003) - RetailUser.TableExt.al's real active targets, confirmed via
         // ObsoleteReason on fields 50000/50001 (neither destination is itself obsolete), are the
         // literal fields "Almacen Despacho_DXR." (52787, trailing period as declared in source)
         // and "Filtrar Exist Ventas_DXR" (52788). Direct typed fields close that gap.
-        if LSCRetailUser.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCRetailUser.SetLoadFields(
+            SystemId, "Almacen Despacho_DXR.", "Almacen Despacho", "Filtrar Exist Ventas_DXR",
+            "Filtrar Existencia Ventas");
+        if LSCRetailUser.FindSet(false) then
             repeat
                 if (LSCRetailUser."Almacen Despacho_DXR." <> LSCRetailUser."Almacen Despacho") or
                    (LSCRetailUser."Filtrar Exist Ventas_DXR" <> LSCRetailUser."Filtrar Existencia Ventas")
-                then begin
-                    LSCRetailUser."Almacen Despacho_DXR." := LSCRetailUser."Almacen Despacho";
-                    LSCRetailUser."Filtrar Exist Ventas_DXR" := LSCRetailUser."Filtrar Existencia Ventas";
-                    LSCRetailUser.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCRetailUserToUpdate.GetBySystemId(LSCRetailUser.SystemId) then begin
+                        LSCRetailUserToUpdate."Almacen Despacho_DXR." := LSCRetailUserToUpdate."Almacen Despacho";
+                        LSCRetailUserToUpdate."Filtrar Exist Ventas_DXR" := LSCRetailUserToUpdate."Filtrar Existencia Ventas";
+                        LSCRetailUserToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCRetailUser.Next() = 0;
         FinishBatch();
     end;
@@ -4794,6 +5958,7 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_SalesPriceFields()
     var
         SalesPrice: Record "Sales Price";
+        SalesPriceToUpdate: Record "Sales Price";
     begin
         // Fixed 2026-08-24: the old RecordRef version targeted destination fields 50053-50057,
         // none of which are defined anywhere in SalesPrice.TableExt.al - CopyFieldIfExists
@@ -4807,18 +5972,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         //    field (none of the _DXR destinations are themselves obsolete), are
         //    "Markup % Without TAX_DXR" (52788), "Markup % CP_DXR" (52789) and
         //    "Visible in Webshop_DXR" (52790). Direct typed fields close that gap.
-        if SalesPrice.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        SalesPrice.SetLoadFields(
+            SystemId, "Markup % Without TAX_DXR", "Markup % Without TAX", "Markup % CP_DXR", "Markup % CP",
+            "Visible in Webshop_DXR", "Visible in Webshop");
+        if SalesPrice.FindSet(false) then
             repeat
                 if (SalesPrice."Markup % Without TAX_DXR" <> SalesPrice."Markup % Without TAX") or
                    (SalesPrice."Markup % CP_DXR" <> SalesPrice."Markup % CP") or
                    (SalesPrice."Visible in Webshop_DXR" <> SalesPrice."Visible in Webshop")
-                then begin
-                    SalesPrice."Markup % Without TAX_DXR" := SalesPrice."Markup % Without TAX";
-                    SalesPrice."Markup % CP_DXR" := SalesPrice."Markup % CP";
-                    SalesPrice."Visible in Webshop_DXR" := SalesPrice."Visible in Webshop";
-                    SalesPrice.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if SalesPriceToUpdate.GetBySystemId(SalesPrice.SystemId) then begin
+                        SalesPriceToUpdate."Markup % Without TAX_DXR" := SalesPriceToUpdate."Markup % Without TAX";
+                        SalesPriceToUpdate."Markup % CP_DXR" := SalesPriceToUpdate."Markup % CP";
+                        SalesPriceToUpdate."Visible in Webshop_DXR" := SalesPriceToUpdate."Visible in Webshop";
+                        SalesPriceToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until SalesPrice.Next() = 0;
         FinishBatch();
     end;
@@ -4857,18 +6033,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCSalesTypeFields()
     var
         LSCSalesType: Record "LSC Sales Type";
+        LSCSalesTypeToUpdate: Record "LSC Sales Type";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied "Venta Ex. ITBIS" into the dead
         // "_Old" shadow field (50001) - SalesType.TableExt.al's real active target, confirmed via
         // ObsoleteReason on field 50000 (52787 is not itself obsolete), is "Venta Ex. ITBIS_DXR"
         // (52787). Direct typed field closes that gap.
-        if LSCSalesType.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCSalesType.SetLoadFields(SystemId, "Venta Ex. ITBIS_DXR", "Venta Ex. ITBIS");
+        if LSCSalesType.FindSet(false) then
             repeat
-                if LSCSalesType."Venta Ex. ITBIS_DXR" <> LSCSalesType."Venta Ex. ITBIS" then begin
-                    LSCSalesType."Venta Ex. ITBIS_DXR" := LSCSalesType."Venta Ex. ITBIS";
-                    LSCSalesType.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCSalesType."Venta Ex. ITBIS_DXR" <> LSCSalesType."Venta Ex. ITBIS" then
+                    if LSCSalesTypeToUpdate.GetBySystemId(LSCSalesType.SystemId) then begin
+                        LSCSalesTypeToUpdate."Venta Ex. ITBIS_DXR" := LSCSalesTypeToUpdate."Venta Ex. ITBIS";
+                        LSCSalesTypeToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCSalesType.Next() = 0;
         FinishBatch();
     end;
@@ -4876,24 +6062,35 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_SalespersonPurchaserFields()
     var
         SalespersonPurchaser: Record "Salesperson/Purchaser";
+        SalespersonPurchaserToUpdate: Record "Salesperson/Purchaser";
     begin
         // Fixed 2026-08-24: the old RecordRef version copied all three fields into dead "_Old"
         // shadow fields (50007-50009) - SalespersonPurchaser.TableExt.al's real active targets,
         // confirmed via ObsoleteReason on fields 50004-50006 (none of the _DXR destinations are
         // themselves obsolete), are "Gestor_CXP_DXR" (52787), "Comisiona_DXR" (52788) and
         // "Tipo Comision_DXR" (52789). Direct typed fields close that gap.
-        if SalespersonPurchaser.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        SalespersonPurchaser.SetLoadFields(
+            SystemId, "Gestor_CXP_DXR", Gestor_CXP, "Comisiona_DXR", Comisiona, "Tipo Comision_DXR", "Tipo Comision");
+        if SalespersonPurchaser.FindSet(false) then
             repeat
                 if (SalespersonPurchaser."Gestor_CXP_DXR" <> SalespersonPurchaser.Gestor_CXP) or
                    (SalespersonPurchaser."Comisiona_DXR" <> SalespersonPurchaser.Comisiona) or
                    (SalespersonPurchaser."Tipo Comision_DXR" <> SalespersonPurchaser."Tipo Comision")
-                then begin
-                    SalespersonPurchaser."Gestor_CXP_DXR" := SalespersonPurchaser.Gestor_CXP;
-                    SalespersonPurchaser."Comisiona_DXR" := SalespersonPurchaser.Comisiona;
-                    SalespersonPurchaser."Tipo Comision_DXR" := SalespersonPurchaser."Tipo Comision";
-                    SalespersonPurchaser.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if SalespersonPurchaserToUpdate.GetBySystemId(SalespersonPurchaser.SystemId) then begin
+                        SalespersonPurchaserToUpdate."Gestor_CXP_DXR" := SalespersonPurchaserToUpdate.Gestor_CXP;
+                        SalespersonPurchaserToUpdate."Comisiona_DXR" := SalespersonPurchaserToUpdate.Comisiona;
+                        SalespersonPurchaserToUpdate."Tipo Comision_DXR" := SalespersonPurchaserToUpdate."Tipo Comision";
+                        SalespersonPurchaserToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until SalespersonPurchaser.Next() = 0;
         FinishBatch();
     end;
@@ -4906,20 +6103,30 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ShiptoAddressFields()
     var
         ShiptoAddress: Record "Ship-to Address";
+        ShiptoAddressToUpdate: Record "Ship-to Address";
         Blank: Record "Ship-to Address";
     begin
-        if ShiptoAddress.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ShiptoAddress.SetLoadFields(SystemId, "Latitud_DXR.", Latitud, "Longitud_DXR.", Longitud);
+        if ShiptoAddress.FindSet(false) then
             repeat
                 if (ShiptoAddress."Latitud_DXR." <> ShiptoAddress.Latitud) or
                    (ShiptoAddress."Longitud_DXR." <> ShiptoAddress.Longitud)
-                then begin
-                    if ShiptoAddress."Latitud_DXR." = Blank."Latitud_DXR." then
-                        ShiptoAddress."Latitud_DXR." := ShiptoAddress.Latitud;
-                    if ShiptoAddress."Longitud_DXR." = Blank."Longitud_DXR." then
-                        ShiptoAddress."Longitud_DXR." := ShiptoAddress.Longitud;
-                    ShiptoAddress.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if ShiptoAddressToUpdate.GetBySystemId(ShiptoAddress.SystemId) then begin
+                        if ShiptoAddressToUpdate."Latitud_DXR." = Blank."Latitud_DXR." then
+                            ShiptoAddressToUpdate."Latitud_DXR." := ShiptoAddressToUpdate.Latitud;
+                        if ShiptoAddressToUpdate."Longitud_DXR." = Blank."Longitud_DXR." then
+                            ShiptoAddressToUpdate."Longitud_DXR." := ShiptoAddressToUpdate.Longitud;
+                        ShiptoAddressToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ShiptoAddress.Next() = 0;
         FinishBatch();
     end;
@@ -4931,14 +6138,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCStatementFields()
     var
         LSCStatement: Record "LSC Statement";
+        LSCStatementToUpdate: Record "LSC Statement";
     begin
-        if LSCStatement.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCStatement.SetLoadFields(SystemId, "Listo para Registrar_DXR", "Listo para Registrar");
+        if LSCStatement.FindSet(false) then
             repeat
-                if LSCStatement."Listo para Registrar_DXR" <> LSCStatement."Listo para Registrar" then begin
-                    LSCStatement."Listo para Registrar_DXR" := LSCStatement."Listo para Registrar";
-                    LSCStatement.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCStatement."Listo para Registrar_DXR" <> LSCStatement."Listo para Registrar" then
+                    if LSCStatementToUpdate.GetBySystemId(LSCStatement.SystemId) then begin
+                        LSCStatementToUpdate."Listo para Registrar_DXR" := LSCStatementToUpdate."Listo para Registrar";
+                        LSCStatementToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCStatement.Next() = 0;
         FinishBatch();
     end;
@@ -4953,29 +6170,42 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCSTOREFields()
     var
         LSCStore: Record "LSC STORE";
+        LSCStoreToUpdate: Record "LSC STORE";
         Blank: Record "LSC STORE";
     begin
-        if LSCStore.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCStore.SetLoadFields(
+            SystemId, "Cod. Cliente Contado_BE_DXR", "Cod. Cliente Contado", "No Serie 3er Party Item_DXR",
+            "No. Serie 3er. Party Item", "Address 3_BE_DXR", "Address 3", "Utiliza NCF Unico_BE_DXR",
+            "Utiliza NCF Unico", "Print Header Doc._DXR.", "Print Header Doc.");
+        if LSCStore.FindSet(false) then
             repeat
                 if (LSCStore."Cod. Cliente Contado_BE_DXR" <> LSCStore."Cod. Cliente Contado") or
                    (LSCStore."No Serie 3er Party Item_DXR" <> LSCStore."No. Serie 3er. Party Item") or
                    (LSCStore."Address 3_BE_DXR" <> LSCStore."Address 3") or
                    (LSCStore."Utiliza NCF Unico_BE_DXR" <> LSCStore."Utiliza NCF Unico") or
                    (LSCStore."Print Header Doc._DXR." <> LSCStore."Print Header Doc.")
-                then begin
-                    if LSCStore."Cod. Cliente Contado_BE_DXR" = Blank."Cod. Cliente Contado_BE_DXR" then
-                        LSCStore."Cod. Cliente Contado_BE_DXR" := LSCStore."Cod. Cliente Contado";
-                    if LSCStore."No Serie 3er Party Item_DXR" = Blank."No Serie 3er Party Item_DXR" then
-                        LSCStore."No Serie 3er Party Item_DXR" := LSCStore."No. Serie 3er. Party Item";
-                    if LSCStore."Address 3_BE_DXR" = Blank."Address 3_BE_DXR" then
-                        LSCStore."Address 3_BE_DXR" := LSCStore."Address 3";
-                    if LSCStore."Utiliza NCF Unico_BE_DXR" = Blank."Utiliza NCF Unico_BE_DXR" then
-                        LSCStore."Utiliza NCF Unico_BE_DXR" := LSCStore."Utiliza NCF Unico";
-                    if LSCStore."Print Header Doc._DXR." = Blank."Print Header Doc._DXR." then
-                        LSCStore."Print Header Doc._DXR." := LSCStore."Print Header Doc.";
-                    LSCStore.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCStoreToUpdate.GetBySystemId(LSCStore.SystemId) then begin
+                        if LSCStoreToUpdate."Cod. Cliente Contado_BE_DXR" = Blank."Cod. Cliente Contado_BE_DXR" then
+                            LSCStoreToUpdate."Cod. Cliente Contado_BE_DXR" := LSCStoreToUpdate."Cod. Cliente Contado";
+                        if LSCStoreToUpdate."No Serie 3er Party Item_DXR" = Blank."No Serie 3er Party Item_DXR" then
+                            LSCStoreToUpdate."No Serie 3er Party Item_DXR" := LSCStoreToUpdate."No. Serie 3er. Party Item";
+                        if LSCStoreToUpdate."Address 3_BE_DXR" = Blank."Address 3_BE_DXR" then
+                            LSCStoreToUpdate."Address 3_BE_DXR" := LSCStoreToUpdate."Address 3";
+                        if LSCStoreToUpdate."Utiliza NCF Unico_BE_DXR" = Blank."Utiliza NCF Unico_BE_DXR" then
+                            LSCStoreToUpdate."Utiliza NCF Unico_BE_DXR" := LSCStoreToUpdate."Utiliza NCF Unico";
+                        if LSCStoreToUpdate."Print Header Doc._DXR." = Blank."Print Header Doc._DXR." then
+                            LSCStoreToUpdate."Print Header Doc._DXR." := LSCStoreToUpdate."Print Header Doc.";
+                        LSCStoreToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCStore.Next() = 0;
         FinishBatch();
     end;
@@ -4987,19 +6217,30 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_TariffNumberFields()
     var
         TariffNumber: Record "Tariff Number";
+        TariffNumberToUpdate: Record "Tariff Number";
     begin
-        if TariffNumber.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        TariffNumber.SetLoadFields(
+            SystemId, "% Arancel_DXR", "% Arancel", "ISC_DXR", ISC, "% Selectivo_DXR", "% Selectivo");
+        if TariffNumber.FindSet(false) then
             repeat
                 if (TariffNumber."% Arancel_DXR" <> TariffNumber."% Arancel") or
                    (TariffNumber."ISC_DXR" <> TariffNumber.ISC) or
                    (TariffNumber."% Selectivo_DXR" <> TariffNumber."% Selectivo")
-                then begin
-                    TariffNumber."% Arancel_DXR" := TariffNumber."% Arancel";
-                    TariffNumber."ISC_DXR" := TariffNumber.ISC;
-                    TariffNumber."% Selectivo_DXR" := TariffNumber."% Selectivo";
-                    TariffNumber.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if TariffNumberToUpdate.GetBySystemId(TariffNumber.SystemId) then begin
+                        TariffNumberToUpdate."% Arancel_DXR" := TariffNumberToUpdate."% Arancel";
+                        TariffNumberToUpdate."ISC_DXR" := TariffNumberToUpdate.ISC;
+                        TariffNumberToUpdate."% Selectivo_DXR" := TariffNumberToUpdate."% Selectivo";
+                        TariffNumberToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until TariffNumber.Next() = 0;
         FinishBatch();
     end;
@@ -5011,14 +6252,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCTenderTypeFields()
     var
         LSCTenderType: Record "LSC Tender Type";
+        LSCTenderTypeToUpdate: Record "LSC Tender Type";
     begin
-        if LSCTenderType.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCTenderType.SetLoadFields(SystemId, "IsCreditMemo_DXR", IsCreditMemo);
+        if LSCTenderType.FindSet(false) then
             repeat
-                if LSCTenderType."IsCreditMemo_DXR" <> LSCTenderType.IsCreditMemo then begin
-                    LSCTenderType."IsCreditMemo_DXR" := LSCTenderType.IsCreditMemo;
-                    LSCTenderType.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCTenderType."IsCreditMemo_DXR" <> LSCTenderType.IsCreditMemo then
+                    if LSCTenderTypeToUpdate.GetBySystemId(LSCTenderType.SystemId) then begin
+                        LSCTenderTypeToUpdate."IsCreditMemo_DXR" := LSCTenderTypeToUpdate.IsCreditMemo;
+                        LSCTenderTypeToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCTenderType.Next() = 0;
         FinishBatch();
     end;
@@ -5030,14 +6281,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCTransSalesEntryFields()
     var
         LSCTransSalesEntry: Record "LSC Trans. Sales Entry";
+        LSCTransSalesEntryToUpdate: Record "LSC Trans. Sales Entry";
     begin
-        if LSCTransSalesEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCTransSalesEntry.SetLoadFields(SystemId, "Autorizador_DXR", "Autorizador");
+        if LSCTransSalesEntry.FindSet(false) then
             repeat
-                if LSCTransSalesEntry."Autorizador_DXR" <> LSCTransSalesEntry."Autorizador" then begin
-                    LSCTransSalesEntry."Autorizador_DXR" := LSCTransSalesEntry."Autorizador";
-                    LSCTransSalesEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                if LSCTransSalesEntry."Autorizador_DXR" <> LSCTransSalesEntry."Autorizador" then
+                    if LSCTransSalesEntryToUpdate.GetBySystemId(LSCTransSalesEntry.SystemId) then begin
+                        LSCTransSalesEntryToUpdate."Autorizador_DXR" := LSCTransSalesEntryToUpdate."Autorizador";
+                        LSCTransSalesEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCTransSalesEntry.Next() = 0;
         FinishBatch();
     end;
@@ -5051,8 +6312,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_LSCTransactionHeaderFields()
     var
         LSCTransactionHeader: Record "LSC Transaction Header";
+        LSCTransactionHeaderToUpdate: Record "LSC Transaction Header";
     begin
-        if LSCTransactionHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        LSCTransactionHeader.SetLoadFields(
+            SystemId, "No. Ticket_BE_DXR", "No. Ticket", "Email Transaction_DXR", "Email Transaction",
+            "Fecha Expiracion NCF_BE_DXR", "Fecha Expiracion NCF", "Tipo Identificacion_BE_DXR",
+            "Tipo Identificacion", "Sell-to Contact_DXR", "Sell-to Contact", "Aplica Transportacion_DXR",
+            "Aplica Transportacion", "Addl Currency Code_DXR", "Additional Currency Code", "Addl Currency Factor_DXR",
+            "Additional Currency Factor", "Print Header Doc_DXR", "Print Header Doc", "Banco Central Cur Fctr_DXR",
+            "Banco Central Currency Factor", "Qty Tickets_DXR", "Qty Tickets", "Promotion Tickets_DXR",
+            "Promotion Tickets", "Order No._DXR", "Order No.");
+        if LSCTransactionHeader.FindSet(false) then
             repeat
                 if (LSCTransactionHeader."No. Ticket_BE_DXR" <> LSCTransactionHeader."No. Ticket") or
                    (LSCTransactionHeader."Email Transaction_DXR" <> LSCTransactionHeader."Email Transaction") or
@@ -5067,23 +6344,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (LSCTransactionHeader."Qty Tickets_DXR" <> LSCTransactionHeader."Qty Tickets") or
                    (LSCTransactionHeader."Promotion Tickets_DXR" <> LSCTransactionHeader."Promotion Tickets") or
                    (LSCTransactionHeader."Order No._DXR" <> LSCTransactionHeader."Order No.")
-                then begin
-                    LSCTransactionHeader."No. Ticket_BE_DXR" := LSCTransactionHeader."No. Ticket";
-                    LSCTransactionHeader."Email Transaction_DXR" := LSCTransactionHeader."Email Transaction";
-                    LSCTransactionHeader."Fecha Expiracion NCF_BE_DXR" := LSCTransactionHeader."Fecha Expiracion NCF";
-                    LSCTransactionHeader."Tipo Identificacion_BE_DXR" := LSCTransactionHeader."Tipo Identificacion";
-                    LSCTransactionHeader."Sell-to Contact_DXR" := LSCTransactionHeader."Sell-to Contact";
-                    LSCTransactionHeader."Aplica Transportacion_DXR" := LSCTransactionHeader."Aplica Transportacion";
-                    LSCTransactionHeader."Addl Currency Code_DXR" := LSCTransactionHeader."Additional Currency Code";
-                    LSCTransactionHeader."Addl Currency Factor_DXR" := LSCTransactionHeader."Additional Currency Factor";
-                    LSCTransactionHeader."Print Header Doc_DXR" := LSCTransactionHeader."Print Header Doc";
-                    LSCTransactionHeader."Banco Central Cur Fctr_DXR" := LSCTransactionHeader."Banco Central Currency Factor";
-                    LSCTransactionHeader."Qty Tickets_DXR" := LSCTransactionHeader."Qty Tickets";
-                    LSCTransactionHeader."Promotion Tickets_DXR" := LSCTransactionHeader."Promotion Tickets";
-                    LSCTransactionHeader."Order No._DXR" := LSCTransactionHeader."Order No.";
-                    LSCTransactionHeader.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if LSCTransactionHeaderToUpdate.GetBySystemId(LSCTransactionHeader.SystemId) then begin
+                        LSCTransactionHeaderToUpdate."No. Ticket_BE_DXR" := LSCTransactionHeaderToUpdate."No. Ticket";
+                        LSCTransactionHeaderToUpdate."Email Transaction_DXR" := LSCTransactionHeaderToUpdate."Email Transaction";
+                        LSCTransactionHeaderToUpdate."Fecha Expiracion NCF_BE_DXR" := LSCTransactionHeaderToUpdate."Fecha Expiracion NCF";
+                        LSCTransactionHeaderToUpdate."Tipo Identificacion_BE_DXR" := LSCTransactionHeaderToUpdate."Tipo Identificacion";
+                        LSCTransactionHeaderToUpdate."Sell-to Contact_DXR" := LSCTransactionHeaderToUpdate."Sell-to Contact";
+                        LSCTransactionHeaderToUpdate."Aplica Transportacion_DXR" := LSCTransactionHeaderToUpdate."Aplica Transportacion";
+                        LSCTransactionHeaderToUpdate."Addl Currency Code_DXR" := LSCTransactionHeaderToUpdate."Additional Currency Code";
+                        LSCTransactionHeaderToUpdate."Addl Currency Factor_DXR" := LSCTransactionHeaderToUpdate."Additional Currency Factor";
+                        LSCTransactionHeaderToUpdate."Print Header Doc_DXR" := LSCTransactionHeaderToUpdate."Print Header Doc";
+                        LSCTransactionHeaderToUpdate."Banco Central Cur Fctr_DXR" := LSCTransactionHeaderToUpdate."Banco Central Currency Factor";
+                        LSCTransactionHeaderToUpdate."Qty Tickets_DXR" := LSCTransactionHeaderToUpdate."Qty Tickets";
+                        LSCTransactionHeaderToUpdate."Promotion Tickets_DXR" := LSCTransactionHeaderToUpdate."Promotion Tickets";
+                        LSCTransactionHeaderToUpdate."Order No._DXR" := LSCTransactionHeaderToUpdate."Order No.";
+                        LSCTransactionHeaderToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until LSCTransactionHeader.Next() = 0;
         FinishBatch();
     end;
@@ -5113,14 +6391,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_TransferLineFields()
     var
         TransferLine: Record "Transfer Line";
+        TransferLineToUpdate: Record "Transfer Line";
     begin
-        if TransferLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        TransferLine.SetLoadFields(SystemId, "Almacen Destino_DXR", "Almacen Destino");
+        if TransferLine.FindSet(false) then
             repeat
-                if TransferLine."Almacen Destino_DXR" <> TransferLine."Almacen Destino" then begin
-                    TransferLine."Almacen Destino_DXR" := TransferLine."Almacen Destino";
-                    TransferLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if TransferLine."Almacen Destino_DXR" <> TransferLine."Almacen Destino" then
+                    if TransferLineToUpdate.GetBySystemId(TransferLine.SystemId) then begin
+                        TransferLineToUpdate."Almacen Destino_DXR" := TransferLineToUpdate."Almacen Destino";
+                        TransferLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until TransferLine.Next() = 0;
         FinishBatch();
     end;
@@ -5135,21 +6423,33 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_TransferReceiptHeaderFields()
     var
         TransferReceiptHeader: Record "Transfer Receipt Header";
+        TransferReceiptHeaderToUpdate: Record "Transfer Receipt Header";
     begin
-        if TransferReceiptHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        TransferReceiptHeader.SetLoadFields(
+            SystemId, "Order User ID_DXR.", "Order User Id", "Order Date Created_DXR.", "Order Date Created",
+            "Receipt User ID_DXR.", "Receipt User ID", "Pre Receive Ref No_DXR", "Pre Receive Reference No.");
+        if TransferReceiptHeader.FindSet(false) then
             repeat
                 if (TransferReceiptHeader."Order User ID_DXR." <> TransferReceiptHeader."Order User Id") or
                    (TransferReceiptHeader."Order Date Created_DXR." <> TransferReceiptHeader."Order Date Created") or
                    (TransferReceiptHeader."Receipt User ID_DXR." <> TransferReceiptHeader."Receipt User ID") or
                    (TransferReceiptHeader."Pre Receive Ref No_DXR" <> TransferReceiptHeader."Pre Receive Reference No.")
-                then begin
-                    TransferReceiptHeader."Order User ID_DXR." := TransferReceiptHeader."Order User Id";
-                    TransferReceiptHeader."Order Date Created_DXR." := TransferReceiptHeader."Order Date Created";
-                    TransferReceiptHeader."Receipt User ID_DXR." := TransferReceiptHeader."Receipt User ID";
-                    TransferReceiptHeader."Pre Receive Ref No_DXR" := TransferReceiptHeader."Pre Receive Reference No.";
-                    TransferReceiptHeader.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if TransferReceiptHeaderToUpdate.GetBySystemId(TransferReceiptHeader.SystemId) then begin
+                        TransferReceiptHeaderToUpdate."Order User ID_DXR." := TransferReceiptHeaderToUpdate."Order User Id";
+                        TransferReceiptHeaderToUpdate."Order Date Created_DXR." := TransferReceiptHeaderToUpdate."Order Date Created";
+                        TransferReceiptHeaderToUpdate."Receipt User ID_DXR." := TransferReceiptHeaderToUpdate."Receipt User ID";
+                        TransferReceiptHeaderToUpdate."Pre Receive Ref No_DXR" := TransferReceiptHeaderToUpdate."Pre Receive Reference No.";
+                        TransferReceiptHeaderToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until TransferReceiptHeader.Next() = 0;
         FinishBatch();
     end;
@@ -5163,19 +6463,31 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_TransferShipmentHeaderFields()
     var
         TransferShipmentHeader: Record "Transfer Shipment Header";
+        TransferShipmentHeaderToUpdate: Record "Transfer Shipment Header";
     begin
-        if TransferShipmentHeader.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        TransferShipmentHeader.SetLoadFields(
+            SystemId, "Order User ID_DXR.", "Order User Id", "Order Date Created_DXR.", "Order Date Created",
+            "Shipment User ID_DXR.", "Shipment User ID");
+        if TransferShipmentHeader.FindSet(false) then
             repeat
                 if (TransferShipmentHeader."Order User ID_DXR." <> TransferShipmentHeader."Order User Id") or
                    (TransferShipmentHeader."Order Date Created_DXR." <> TransferShipmentHeader."Order Date Created") or
                    (TransferShipmentHeader."Shipment User ID_DXR." <> TransferShipmentHeader."Shipment User ID")
-                then begin
-                    TransferShipmentHeader."Order User ID_DXR." := TransferShipmentHeader."Order User Id";
-                    TransferShipmentHeader."Order Date Created_DXR." := TransferShipmentHeader."Order Date Created";
-                    TransferShipmentHeader."Shipment User ID_DXR." := TransferShipmentHeader."Shipment User ID";
-                    TransferShipmentHeader.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if TransferShipmentHeaderToUpdate.GetBySystemId(TransferShipmentHeader.SystemId) then begin
+                        TransferShipmentHeaderToUpdate."Order User ID_DXR." := TransferShipmentHeaderToUpdate."Order User Id";
+                        TransferShipmentHeaderToUpdate."Order Date Created_DXR." := TransferShipmentHeaderToUpdate."Order Date Created";
+                        TransferShipmentHeaderToUpdate."Shipment User ID_DXR." := TransferShipmentHeaderToUpdate."Shipment User ID";
+                        TransferShipmentHeaderToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until TransferShipmentHeader.Next() = 0;
         FinishBatch();
     end;
@@ -5192,8 +6504,29 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_UserSetupFields()
     var
         UserSetup: Record "User Setup";
+        UserSetupToUpdate: Record "User Setup";
     begin
-        if UserSetup.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        UserSetup.SetLoadFields(
+            SystemId, "Entrega Cheques_BE_DXR", "Entrega Cheques", "Grupo Precios Tope_DXR.", "Grupo Precios Tope",
+            "Ilimitado_DXR", Ilimitado, "Filtrar Por Vendedor_DXR", "Filtrar Por Vendedor", "Create_Shipments_DXR",
+            "Create Shipments", "Invoice Shipments_DXR", "Invoice Shipments", "User Hierarchy_DXR", "User Hierarchy",
+            "Filtrar Cartera Cte_DXR.", "Filtrar Cartera Cte", "Permit Tienda Dif a IF_DXR",
+            "Permitir Tienda Diferente a IF", "Tipo Segmento_DXR", "Tipo Segmento", "Aprrove Int Consump_DXR",
+            "Aprrove Internal Consumption", "Create Int Consump_DXR", "Create Internal Consumption",
+            "Almacen Consumo Interno_DXR", "Almacen Consumo Interno", "Departamento - Discr_DXR",
+            "Departamento - Discrepancia", "Crear Ajustes - Discr_DXR", "Crear Ajustes - Discrepancia",
+            "Post Int Consumption_DXR", "Post Internal Consumption", "Excl Filtro DptoDiscr_DXR",
+            "Excluir Filtro Dpto. - Discrep", "Filtrar Usu Reimpresion_DXR", "Filtrar Usuario Reimpresion",
+            "Modify Int Consump_DXR", "Modify Internal Consumption", "SendAppr  Int Consump_DXR",
+            "SendAppr  Internal Consumption", "Order to Retail Order_DXR", "Order to Retail Order");
+        if UserSetup.FindSet(false) then
             repeat
                 if (UserSetup."Entrega Cheques_BE_DXR" <> UserSetup."Entrega Cheques") or
                    (UserSetup."Grupo Precios Tope_DXR." <> UserSetup."Grupo Precios Tope") or
@@ -5216,31 +6549,32 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (UserSetup."Modify Int Consump_DXR" <> UserSetup."Modify Internal Consumption") or
                    (UserSetup."SendAppr  Int Consump_DXR" <> UserSetup."SendAppr  Internal Consumption") or
                    (UserSetup."Order to Retail Order_DXR" <> UserSetup."Order to Retail Order")
-                then begin
-                    UserSetup."Entrega Cheques_BE_DXR" := UserSetup."Entrega Cheques";
-                    UserSetup."Grupo Precios Tope_DXR." := UserSetup."Grupo Precios Tope";
-                    UserSetup."Ilimitado_DXR" := UserSetup.Ilimitado;
-                    UserSetup."Filtrar Por Vendedor_DXR" := UserSetup."Filtrar Por Vendedor";
-                    UserSetup."Create_Shipments_DXR" := UserSetup."Create Shipments";
-                    UserSetup."Invoice Shipments_DXR" := UserSetup."Invoice Shipments";
-                    UserSetup."User Hierarchy_DXR" := UserSetup."User Hierarchy";
-                    UserSetup."Filtrar Cartera Cte_DXR." := UserSetup."Filtrar Cartera Cte";
-                    UserSetup."Permit Tienda Dif a IF_DXR" := UserSetup."Permitir Tienda Diferente a IF";
-                    UserSetup."Tipo Segmento_DXR" := UserSetup."Tipo Segmento";
-                    UserSetup."Aprrove Int Consump_DXR" := UserSetup."Aprrove Internal Consumption";
-                    UserSetup."Create Int Consump_DXR" := UserSetup."Create Internal Consumption";
-                    UserSetup."Almacen Consumo Interno_DXR" := UserSetup."Almacen Consumo Interno";
-                    UserSetup."Departamento - Discr_DXR" := UserSetup."Departamento - Discrepancia";
-                    UserSetup."Crear Ajustes - Discr_DXR" := UserSetup."Crear Ajustes - Discrepancia";
-                    UserSetup."Post Int Consumption_DXR" := UserSetup."Post Internal Consumption";
-                    UserSetup."Excl Filtro DptoDiscr_DXR" := UserSetup."Excluir Filtro Dpto. - Discrep";
-                    UserSetup."Filtrar Usu Reimpresion_DXR" := UserSetup."Filtrar Usuario Reimpresion";
-                    UserSetup."Modify Int Consump_DXR" := UserSetup."Modify Internal Consumption";
-                    UserSetup."SendAppr  Int Consump_DXR" := UserSetup."SendAppr  Internal Consumption";
-                    UserSetup."Order to Retail Order_DXR" := UserSetup."Order to Retail Order";
-                    UserSetup.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if UserSetupToUpdate.GetBySystemId(UserSetup.SystemId) then begin
+                        UserSetupToUpdate."Entrega Cheques_BE_DXR" := UserSetupToUpdate."Entrega Cheques";
+                        UserSetupToUpdate."Grupo Precios Tope_DXR." := UserSetupToUpdate."Grupo Precios Tope";
+                        UserSetupToUpdate."Ilimitado_DXR" := UserSetupToUpdate.Ilimitado;
+                        UserSetupToUpdate."Filtrar Por Vendedor_DXR" := UserSetupToUpdate."Filtrar Por Vendedor";
+                        UserSetupToUpdate."Create_Shipments_DXR" := UserSetupToUpdate."Create Shipments";
+                        UserSetupToUpdate."Invoice Shipments_DXR" := UserSetupToUpdate."Invoice Shipments";
+                        UserSetupToUpdate."User Hierarchy_DXR" := UserSetupToUpdate."User Hierarchy";
+                        UserSetupToUpdate."Filtrar Cartera Cte_DXR." := UserSetupToUpdate."Filtrar Cartera Cte";
+                        UserSetupToUpdate."Permit Tienda Dif a IF_DXR" := UserSetupToUpdate."Permitir Tienda Diferente a IF";
+                        UserSetupToUpdate."Tipo Segmento_DXR" := UserSetupToUpdate."Tipo Segmento";
+                        UserSetupToUpdate."Aprrove Int Consump_DXR" := UserSetupToUpdate."Aprrove Internal Consumption";
+                        UserSetupToUpdate."Create Int Consump_DXR" := UserSetupToUpdate."Create Internal Consumption";
+                        UserSetupToUpdate."Almacen Consumo Interno_DXR" := UserSetupToUpdate."Almacen Consumo Interno";
+                        UserSetupToUpdate."Departamento - Discr_DXR" := UserSetupToUpdate."Departamento - Discrepancia";
+                        UserSetupToUpdate."Crear Ajustes - Discr_DXR" := UserSetupToUpdate."Crear Ajustes - Discrepancia";
+                        UserSetupToUpdate."Post Int Consumption_DXR" := UserSetupToUpdate."Post Internal Consumption";
+                        UserSetupToUpdate."Excl Filtro DptoDiscr_DXR" := UserSetupToUpdate."Excluir Filtro Dpto. - Discrep";
+                        UserSetupToUpdate."Filtrar Usu Reimpresion_DXR" := UserSetupToUpdate."Filtrar Usuario Reimpresion";
+                        UserSetupToUpdate."Modify Int Consump_DXR" := UserSetupToUpdate."Modify Internal Consumption";
+                        UserSetupToUpdate."SendAppr  Int Consump_DXR" := UserSetupToUpdate."SendAppr  Internal Consumption";
+                        UserSetupToUpdate."Order to Retail Order_DXR" := UserSetupToUpdate."Order to Retail Order";
+                        UserSetupToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until UserSetup.Next() = 0;
         FinishBatch();
     end;
@@ -5252,14 +6586,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_ValueEntryFields()
     var
         ValueEntry: Record "Value Entry";
+        ValueEntryToUpdate: Record "Value Entry";
     begin
-        if ValueEntry.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        ValueEntry.SetLoadFields(SystemId, "Correccion Int._DXR", "Correccion Int.");
+        if ValueEntry.FindSet(false) then
             repeat
-                if ValueEntry."Correccion Int._DXR" <> ValueEntry."Correccion Int." then begin
-                    ValueEntry."Correccion Int._DXR" := ValueEntry."Correccion Int.";
-                    ValueEntry.Modify(false);
-                end;
-                CheckpointCommit();
+                if ValueEntry."Correccion Int._DXR" <> ValueEntry."Correccion Int." then
+                    if ValueEntryToUpdate.GetBySystemId(ValueEntry.SystemId) then begin
+                        ValueEntryToUpdate."Correccion Int._DXR" := ValueEntryToUpdate."Correccion Int.";
+                        ValueEntryToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until ValueEntry.Next() = 0;
         FinishBatch();
     end;
@@ -5280,9 +6624,28 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_VendorFields()
     var
         Vendor: Record Vendor;
+        VendorToUpdate: Record Vendor;
         Blank: Record Vendor;
     begin
-        if Vendor.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        Vendor.SetLoadFields(
+            SystemId, "Teléfono 2_DXR", "BE Teléfono 2", "Vendedor_DXR", "BE Vendedor", "Vendedor Email_DXR.",
+            "BE Vendedor email", "Vendedor Celular_DXR", "BE Vendedor Celular", "Tipo Servicio_DXR",
+            "BE Tipo Servicio", "Clasificación ABC_DXR", "BE Clasificación ABC", "Enc. Cobros Nombre_DXR",
+            "BE Enc. Cobros Nombre", "Enc. Cobros Email_DXR.", "BE Enc. Cobros email", "Enc. Cobros celular_DXR",
+            "BE Enc. Cobros celular", "Enc. Cobros Cumpleaños_DXR", "BE Enc. Cobros Cumpleaños",
+            "Frecuencia de Pago_DXR", "BE Frecuencia de Pago", "Límite de Crédito_DXR", "BE Límite de Crédito",
+            "Apartado Postal_DXR", "BE Apartado Postal", "Sector_DXR", "BE Sector", "Municipio_DXR", "BE Municipio",
+            "Provincia_DXR", "BE Provincia", "Despachador Email_DX.R", "BE Despachador Email",
+            "Proveedor Cilindros_DXR", "BE Proveedor Cilindros", "Gestor_CXP_ID_DXR.", "BE Gestor_CXP_ID",
+            "FechaCreacion_DXR", "BE FechaCreacion");
+        if Vendor.FindSet(false) then
             repeat
                 if (Vendor."Teléfono 2_DXR" <> Vendor."BE Teléfono 2") or
                    (Vendor."Vendedor_DXR" <> Vendor."BE Vendedor") or
@@ -5304,50 +6667,51 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                    (Vendor."Proveedor Cilindros_DXR" <> Vendor."BE Proveedor Cilindros") or
                    (Vendor."Gestor_CXP_ID_DXR." <> Vendor."BE Gestor_CXP_ID") or
                    (Vendor."FechaCreacion_DXR" <> Vendor."BE FechaCreacion")
-                then begin
-                    if Vendor."Teléfono 2_DXR" = Blank."Teléfono 2_DXR" then
-                        Vendor."Teléfono 2_DXR" := Vendor."BE Teléfono 2";
-                    if Vendor."Vendedor_DXR" = Blank."Vendedor_DXR" then
-                        Vendor."Vendedor_DXR" := Vendor."BE Vendedor";
-                    if Vendor."Vendedor Email_DXR." = Blank."Vendedor Email_DXR." then
-                        Vendor."Vendedor Email_DXR." := Vendor."BE Vendedor email";
-                    if Vendor."Vendedor Celular_DXR" = Blank."Vendedor Celular_DXR" then
-                        Vendor."Vendedor Celular_DXR" := Vendor."BE Vendedor Celular";
-                    if Vendor."Tipo Servicio_DXR" = Blank."Tipo Servicio_DXR" then
-                        Vendor."Tipo Servicio_DXR" := Vendor."BE Tipo Servicio";
-                    if Vendor."Clasificación ABC_DXR" = Blank."Clasificación ABC_DXR" then
-                        Vendor."Clasificación ABC_DXR" := Vendor."BE Clasificación ABC";
-                    if Vendor."Enc. Cobros Nombre_DXR" = Blank."Enc. Cobros Nombre_DXR" then
-                        Vendor."Enc. Cobros Nombre_DXR" := Vendor."BE Enc. Cobros Nombre";
-                    if Vendor."Enc. Cobros Email_DXR." = Blank."Enc. Cobros Email_DXR." then
-                        Vendor."Enc. Cobros Email_DXR." := Vendor."BE Enc. Cobros email";
-                    if Vendor."Enc. Cobros celular_DXR" = Blank."Enc. Cobros celular_DXR" then
-                        Vendor."Enc. Cobros celular_DXR" := Vendor."BE Enc. Cobros celular";
-                    if Vendor."Enc. Cobros Cumpleaños_DXR" = Blank."Enc. Cobros Cumpleaños_DXR" then
-                        Vendor."Enc. Cobros Cumpleaños_DXR" := Vendor."BE Enc. Cobros Cumpleaños";
-                    if Vendor."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
-                        Vendor."Frecuencia de Pago_DXR" := Vendor."BE Frecuencia de Pago";
-                    if Vendor."Límite de Crédito_DXR" = Blank."Límite de Crédito_DXR" then
-                        Vendor."Límite de Crédito_DXR" := Vendor."BE Límite de Crédito";
-                    if Vendor."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
-                        Vendor."Apartado Postal_DXR" := Vendor."BE Apartado Postal";
-                    if Vendor."Sector_DXR" = Blank."Sector_DXR" then
-                        Vendor."Sector_DXR" := Vendor."BE Sector";
-                    if Vendor."Municipio_DXR" = Blank."Municipio_DXR" then
-                        Vendor."Municipio_DXR" := Vendor."BE Municipio";
-                    if Vendor."Provincia_DXR" = Blank."Provincia_DXR" then
-                        Vendor."Provincia_DXR" := Vendor."BE Provincia";
-                    if Vendor."Despachador Email_DX.R" = Blank."Despachador Email_DX.R" then
-                        Vendor."Despachador Email_DX.R" := Vendor."BE Despachador Email";
-                    if Vendor."Proveedor Cilindros_DXR" = Blank."Proveedor Cilindros_DXR" then
-                        Vendor."Proveedor Cilindros_DXR" := Vendor."BE Proveedor Cilindros";
-                    if Vendor."Gestor_CXP_ID_DXR." = Blank."Gestor_CXP_ID_DXR." then
-                        Vendor."Gestor_CXP_ID_DXR." := Vendor."BE Gestor_CXP_ID";
-                    if Vendor."FechaCreacion_DXR" = Blank."FechaCreacion_DXR" then
-                        Vendor."FechaCreacion_DXR" := Vendor."BE FechaCreacion";
-                    Vendor.Modify(false);
-                end;
-                CheckpointCommit();
+                then
+                    if VendorToUpdate.GetBySystemId(Vendor.SystemId) then begin
+                        if VendorToUpdate."Teléfono 2_DXR" = Blank."Teléfono 2_DXR" then
+                            VendorToUpdate."Teléfono 2_DXR" := VendorToUpdate."BE Teléfono 2";
+                        if VendorToUpdate."Vendedor_DXR" = Blank."Vendedor_DXR" then
+                            VendorToUpdate."Vendedor_DXR" := VendorToUpdate."BE Vendedor";
+                        if VendorToUpdate."Vendedor Email_DXR." = Blank."Vendedor Email_DXR." then
+                            VendorToUpdate."Vendedor Email_DXR." := VendorToUpdate."BE Vendedor email";
+                        if VendorToUpdate."Vendedor Celular_DXR" = Blank."Vendedor Celular_DXR" then
+                            VendorToUpdate."Vendedor Celular_DXR" := VendorToUpdate."BE Vendedor Celular";
+                        if VendorToUpdate."Tipo Servicio_DXR" = Blank."Tipo Servicio_DXR" then
+                            VendorToUpdate."Tipo Servicio_DXR" := VendorToUpdate."BE Tipo Servicio";
+                        if VendorToUpdate."Clasificación ABC_DXR" = Blank."Clasificación ABC_DXR" then
+                            VendorToUpdate."Clasificación ABC_DXR" := VendorToUpdate."BE Clasificación ABC";
+                        if VendorToUpdate."Enc. Cobros Nombre_DXR" = Blank."Enc. Cobros Nombre_DXR" then
+                            VendorToUpdate."Enc. Cobros Nombre_DXR" := VendorToUpdate."BE Enc. Cobros Nombre";
+                        if VendorToUpdate."Enc. Cobros Email_DXR." = Blank."Enc. Cobros Email_DXR." then
+                            VendorToUpdate."Enc. Cobros Email_DXR." := VendorToUpdate."BE Enc. Cobros email";
+                        if VendorToUpdate."Enc. Cobros celular_DXR" = Blank."Enc. Cobros celular_DXR" then
+                            VendorToUpdate."Enc. Cobros celular_DXR" := VendorToUpdate."BE Enc. Cobros celular";
+                        if VendorToUpdate."Enc. Cobros Cumpleaños_DXR" = Blank."Enc. Cobros Cumpleaños_DXR" then
+                            VendorToUpdate."Enc. Cobros Cumpleaños_DXR" := VendorToUpdate."BE Enc. Cobros Cumpleaños";
+                        if VendorToUpdate."Frecuencia de Pago_DXR" = Blank."Frecuencia de Pago_DXR" then
+                            VendorToUpdate."Frecuencia de Pago_DXR" := VendorToUpdate."BE Frecuencia de Pago";
+                        if VendorToUpdate."Límite de Crédito_DXR" = Blank."Límite de Crédito_DXR" then
+                            VendorToUpdate."Límite de Crédito_DXR" := VendorToUpdate."BE Límite de Crédito";
+                        if VendorToUpdate."Apartado Postal_DXR" = Blank."Apartado Postal_DXR" then
+                            VendorToUpdate."Apartado Postal_DXR" := VendorToUpdate."BE Apartado Postal";
+                        if VendorToUpdate."Sector_DXR" = Blank."Sector_DXR" then
+                            VendorToUpdate."Sector_DXR" := VendorToUpdate."BE Sector";
+                        if VendorToUpdate."Municipio_DXR" = Blank."Municipio_DXR" then
+                            VendorToUpdate."Municipio_DXR" := VendorToUpdate."BE Municipio";
+                        if VendorToUpdate."Provincia_DXR" = Blank."Provincia_DXR" then
+                            VendorToUpdate."Provincia_DXR" := VendorToUpdate."BE Provincia";
+                        if VendorToUpdate."Despachador Email_DX.R" = Blank."Despachador Email_DX.R" then
+                            VendorToUpdate."Despachador Email_DX.R" := VendorToUpdate."BE Despachador Email";
+                        if VendorToUpdate."Proveedor Cilindros_DXR" = Blank."Proveedor Cilindros_DXR" then
+                            VendorToUpdate."Proveedor Cilindros_DXR" := VendorToUpdate."BE Proveedor Cilindros";
+                        if VendorToUpdate."Gestor_CXP_ID_DXR." = Blank."Gestor_CXP_ID_DXR." then
+                            VendorToUpdate."Gestor_CXP_ID_DXR." := VendorToUpdate."BE Gestor_CXP_ID";
+                        if VendorToUpdate."FechaCreacion_DXR" = Blank."FechaCreacion_DXR" then
+                            VendorToUpdate."FechaCreacion_DXR" := VendorToUpdate."BE FechaCreacion";
+                        VendorToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until Vendor.Next() = 0;
         FinishBatch();
     end;
@@ -5359,14 +6723,24 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     local procedure MigrateTableExt_WarehouseReceiptLineFields()
     var
         WarehouseReceiptLine: Record "Warehouse Receipt Line";
+        WarehouseReceiptLineToUpdate: Record "Warehouse Receipt Line";
     begin
-        if WarehouseReceiptLine.FindSet(true) then
+        // Fixed 2026-08-27 (A1): FindSet(true) over the whole table took a SQL UPDLOCK on every
+        // row - including the vast majority with nothing to migrate - and held it for the whole
+        // run; without SetLoadFields every tableextension companion table was joined per row.
+        // Now: partial read of only the fields this loop touches, FindSet(false) (no UPDLOCK),
+        // the row re-read/locked via a second Record only when it genuinely changes, and the
+        // commit counter advanced per MODIFIED row instead of per scanned row. Same fields, same
+        // guards, same copy order - no migration semantics change.
+        WarehouseReceiptLine.SetLoadFields(SystemId, "Almacen Destino_DXR", "Almacen Destino");
+        if WarehouseReceiptLine.FindSet(false) then
             repeat
-                if WarehouseReceiptLine."Almacen Destino_DXR" <> WarehouseReceiptLine."Almacen Destino" then begin
-                    WarehouseReceiptLine."Almacen Destino_DXR" := WarehouseReceiptLine."Almacen Destino";
-                    WarehouseReceiptLine.Modify(false);
-                end;
-                CheckpointCommit();
+                if WarehouseReceiptLine."Almacen Destino_DXR" <> WarehouseReceiptLine."Almacen Destino" then
+                    if WarehouseReceiptLineToUpdate.GetBySystemId(WarehouseReceiptLine.SystemId) then begin
+                        WarehouseReceiptLineToUpdate."Almacen Destino_DXR" := WarehouseReceiptLineToUpdate."Almacen Destino";
+                        WarehouseReceiptLineToUpdate.Modify(false);
+                        CheckpointCommit();
+                    end;
             until WarehouseReceiptLine.Next() = 0;
         FinishBatch();
     end;
