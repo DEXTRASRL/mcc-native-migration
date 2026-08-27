@@ -621,90 +621,80 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     // Generic standalone-table reconciliation used by the remaining FE-P11 table pairs. Tables
     // are opened by object ID, but primary keys and stored values are matched by exact field name
     // and type; field IDs are never used to infer cross-table identity.
+    /// <summary>
+    /// Fixed 2026-08-27 (B2 + B3). Two independent silent-data-loss defects in the same helper, and
+    /// this helper migrates the 18 e-invoicing tables of this phase - including
+    /// "DXR_Archived E Documents", "DXR_Response Documents", "DXR_Receipt Acknowledgement" and
+    /// "DXR_Log Message", i.e. the stored e-CF XML itself.
+    ///
+    /// B2 - BLOB fields were migrated EMPTY. Every field was copied with
+    /// `TargetFieldRef.Value := SourceFieldRef.Value` and nothing ever calculated the BLOBs. A BLOB
+    /// read through a FieldRef without a preceding calculation returns empty, and BLOB is
+    /// FieldClass::Normal, so it passed every filter and wrote a blank in silence: no error, and the
+    /// row count still reconciled, which is why this never surfaced. Learn (FieldRef.CalcField):
+    /// "You can also use the CalcFields method to calculate binary large objects (BLOBs)". Each BLOB
+    /// is now calculated on the source row before it is read.
+    ///
+    /// B3 - fields and primary keys were resolved BY NAME ONLY. The DXR normalization renames
+    /// destination fields with a "_DXR" suffix, so a renamed field was skipped without warning, and
+    /// - far worse - if a PRIMARY KEY field did not resolve, the old code did Close/Close/exit on
+    /// the FIRST row, returning as if the source table were empty: zero rows migrated, no error,
+    /// phase reported success. That is exactly the defect already confirmed and fixed in
+    /// "DXR MCC LSLOC Migr ToDXRLS". Resolution is now name -> name + "_DXR" -> same field number,
+    /// each candidate still validated on Class = Normal and on type, built ONCE per table pair
+    /// instead of per field per row; and an unmappable primary key now raises a real error instead
+    /// of silently returning.
+    ///
+    /// The two duplicated copy loops (insert branch / modify branch) were identical and are now one.
+    /// No change to which tables are copied, in what order, or under which upgrade tag.
+    /// </summary>
     local procedure CopyStandaloneTable(SourceTableId: Integer; TargetTableId: Integer)
     var
         SourceRecordRef: RecordRef;
         TargetRecordRef: RecordRef;
         SourceKeyRef: KeyRef;
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
         SourcePkFieldRef: FieldRef;
         TargetPkFieldRef: FieldRef;
-        FieldIndex: Integer;
+        FieldMap: Dictionary of [Integer, Integer];
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
-        AllKeyFieldsMapped: Boolean;
         BatchCount: Integer;
     begin
         SourceRecordRef.Open(SourceTableId);
         TargetRecordRef.Open(TargetTableId);
+        BuildFieldMap(SourceRecordRef, TargetRecordRef, FieldMap);
 
         SourceKeyRef := SourceRecordRef.KeyIndex(1);
+        for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
+            SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
+            if not FieldMap.ContainsKey(SourcePkFieldRef.Number) then begin
+                TargetRecordRef.Close();
+                SourceRecordRef.Close();
+                Error(
+                    'No se pudo mapear el campo de clave primaria "%1" (No. %2) de la tabla %3 hacia la tabla %4: no existe ahí con ese nombre, ni con sufijo _DXR, ni con ese mismo número y tipo. La copia se detiene en vez de reportar éxito habiendo migrado 0 filas.',
+                    SourcePkFieldRef.Name, SourcePkFieldRef.Number, SourceTableId, TargetTableId);
+            end;
+        end;
 
         if SourceRecordRef.FindSet(false) then
             repeat
                 TargetRecordRef.Reset();
-                AllKeyFieldsMapped := true;
-
                 for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
                     SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    if TargetRecordRef.FieldExist(SourcePkFieldRef.Name) then begin
-                        TargetPkFieldRef := TargetRecordRef.Field(SourcePkFieldRef.Name);
-                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
-                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
-                        else
-                            AllKeyFieldsMapped := false;
-                    end else
-                        AllKeyFieldsMapped := false;
+                    TargetPkFieldRef := TargetRecordRef.Field(FieldMap.Get(SourcePkFieldRef.Number));
+                    TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
                 end;
 
-                TargetExists := AllKeyFieldsMapped and TargetRecordRef.FindFirst();
-
-                if not AllKeyFieldsMapped then begin
-                    TargetRecordRef.Close();
-                    SourceRecordRef.Close();
-                    exit;
-                end;
-
-                if TargetExists then begin
-                    for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
-                        SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
-
-                        if (SourceFieldRef.Number < 2000000000) and
-                           (SourceFieldRef.Class = FieldClass::Normal) and
-                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
-                        then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
-
-                            if (TargetFieldRef.Class = FieldClass::Normal) and
-                               (SourceFieldRef.Type = TargetFieldRef.Type)
-                            then
-                                TargetFieldRef.Value := SourceFieldRef.Value;
-                        end;
-                    end;
-
-                    TargetRecordRef.Modify(false);
-                end else begin
+                TargetExists := TargetRecordRef.FindFirst();
+                if not TargetExists then
                     TargetRecordRef.Init();
 
-                    for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
-                        SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+                CopyMappedFields(SourceRecordRef, TargetRecordRef, FieldMap);
 
-                        if (SourceFieldRef.Number < 2000000000) and
-                           (SourceFieldRef.Class = FieldClass::Normal) and
-                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
-                        then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
-
-                            if (TargetFieldRef.Class = FieldClass::Normal) and
-                               (SourceFieldRef.Type = TargetFieldRef.Type)
-                            then
-                                TargetFieldRef.Value := SourceFieldRef.Value;
-                        end;
-                    end;
-
+                if TargetExists then
+                    TargetRecordRef.Modify(false)
+                else
                     TargetRecordRef.Insert(false);
-                end;
 
                 BatchCount += 1;
                 if BatchCount >= 100 then begin
@@ -715,6 +705,76 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
 
         TargetRecordRef.Close();
         SourceRecordRef.Close();
+    end;
+
+    /// <summary>
+    /// Copies every mapped field of the current source row onto the current target row. BLOB fields
+    /// are calculated on the source first - without that they read back empty (see
+    /// CopyStandaloneTable's own header, defect B2).
+    /// </summary>
+    local procedure CopyMappedFields(var SourceRecordRef: RecordRef; var TargetRecordRef: RecordRef; var FieldMap: Dictionary of [Integer, Integer])
+    var
+        SourceFieldRef: FieldRef;
+        TargetFieldRef: FieldRef;
+        FieldIndex: Integer;
+    begin
+        for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
+            SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+            if FieldMap.ContainsKey(SourceFieldRef.Number) then begin
+                if SourceFieldRef.Type = FieldType::Blob then
+                    SourceFieldRef.CalcField();
+                TargetFieldRef := TargetRecordRef.Field(FieldMap.Get(SourceFieldRef.Number));
+                TargetFieldRef.Value := SourceFieldRef.Value;
+            end;
+        end;
+    end;
+
+    /// <summary>
+    /// Resolves source field number -> target field number once per table pair. Tries the exact name
+    /// first (unrenamed fields), then the "_DXR"-suffixed name (the DXR normalization's actual rename
+    /// pattern), and only then the same field number as a last resort. Every candidate must agree on
+    /// Class = Normal and on type, so a coincidentally reused field number can never write a value
+    /// into an unrelated destination field.
+    /// </summary>
+    local procedure BuildFieldMap(var SourceRecordRef: RecordRef; var TargetRecordRef: RecordRef; var FieldMap: Dictionary of [Integer, Integer])
+    var
+        SourceFieldRef: FieldRef;
+        TargetFieldRef: FieldRef;
+        TargetNoByName: Dictionary of [Text, Integer];
+        TargetTypeByNo: Dictionary of [Integer, Text];
+        FieldIndex: Integer;
+        TargetNo: Integer;
+        SourceName: Text;
+    begin
+        Clear(FieldMap);
+
+        for FieldIndex := 1 to TargetRecordRef.FieldCount() do begin
+            TargetFieldRef := TargetRecordRef.FieldIndex(FieldIndex);
+            if (TargetFieldRef.Number < 2000000000) and (TargetFieldRef.Class = FieldClass::Normal) then begin
+                TargetNoByName.Set(UpperCase(TargetFieldRef.Name), TargetFieldRef.Number);
+                TargetTypeByNo.Set(TargetFieldRef.Number, Format(TargetFieldRef.Type));
+            end;
+        end;
+
+        for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
+            SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+            if (SourceFieldRef.Number < 2000000000) and (SourceFieldRef.Class = FieldClass::Normal) then begin
+                SourceName := UpperCase(SourceFieldRef.Name);
+                TargetNo := 0;
+                if TargetNoByName.ContainsKey(SourceName) then
+                    TargetNo := TargetNoByName.Get(SourceName)
+                else
+                    if TargetNoByName.ContainsKey(SourceName + '_DXR') then
+                        TargetNo := TargetNoByName.Get(SourceName + '_DXR')
+                    else
+                        if TargetTypeByNo.ContainsKey(SourceFieldRef.Number) then
+                            TargetNo := SourceFieldRef.Number;
+
+                if TargetNo <> 0 then
+                    if TargetTypeByNo.Get(TargetNo) = Format(SourceFieldRef.Type) then
+                        FieldMap.Set(SourceFieldRef.Number, TargetNo);
+            end;
+        end;
     end;
 
     local procedure MigrateArchivedSentRequest()
@@ -791,6 +851,11 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         // BLOB fields copy via plain FieldRef.Value assignment (same mechanism
         // CopyStandaloneTable already uses for every field, BLOBs included) rather than explicit
         // stream APIs, which this AL/compiler version does not expose on FieldRef.
+        // Fixed 2026-08-27 (B2): the source BLOB was never calculated, so this assignment copied an
+        // EMPTY value and every archived e-CF arrived without its XML, silently. Learn
+        // (FieldRef.CalcField): "You can also use the CalcFields method to calculate binary large
+        // objects (BLOBs)".
+        XMLFileFld.CalcField();
         TargetRef.GetTable(TargetArchivedSentRequest);
         TargetXMLFileFld := ResolveField(TargetRef, 'XML File');
         TargetXMLFileFld.Value := XMLFileFld.Value;
@@ -802,6 +867,9 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         BlobFld: FieldRef;
     begin
         BlobFld := ResolveField(SourceRef, BlobFieldName);
+        // Fixed 2026-08-27 (B2): Length() on a BLOB that was never calculated reports 0, so this
+        // guard answered "no XML here" for every row and the block it gates never ran at all.
+        BlobFld.CalcField();
         exit(BlobFld.Length() > 0);
     end;
 

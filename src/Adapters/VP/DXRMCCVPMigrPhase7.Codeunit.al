@@ -187,6 +187,8 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         SourceFieldRef: FieldRef;
         DestFieldRef: FieldRef;
         BatchCount: Integer;
+        FailedRowCount: Integer;
+        LastFailureText: Text;
     begin
         SourceField.SetRange(TableNo, SourceTableNo);
         SourceField.SetRange(Class, SourceField.Class::Normal);
@@ -211,11 +213,32 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                             DestFieldRef.Value := SourceFieldRef.Value;
                     end;
                 end;
-                TryInsertRow(DestRecRef);
+
+                // Fixed 2026-08-27 (B3): TryInsertRow's [TryFunction] result was never checked, so ANY
+                // insert failure - a validation error, a TableRelation violation, a value too long, a
+                // missing related record - was swallowed exactly like an expected duplicate-key hit,
+                // and the step still reported success. If the insert fails, RowAlreadyExistsByKey()
+                // now checks (by the destination table's own primary key, read straight off DestRecRef
+                // after the failed attempt) whether a row with that key genuinely already exists - if
+                // so, this really is the harmless "already there" case the comment above describes; if
+                // not, the failure is real and is accumulated instead of discarded, then raised once via
+                // Error() after the whole source table has been scanned, so one bad row does not stop
+                // the rest of the table from being merged. No change to which rows are considered
+                // "missing", their field values, or the insert/commit order.
+                if not TryInsertRow(DestRecRef) then
+                    if not RowAlreadyExistsByKey(DestRecRef) then begin
+                        FailedRowCount += 1;
+                        LastFailureText := CopyStr(GetLastErrorText(), 1, 2048);
+                    end;
                 DestRecRef.Close();
                 CommitBatch(BatchCount);
             until SourceRecRef.Next() = 0;
         SourceRecRef.Close();
+
+        if FailedRowCount > 0 then
+            Error(
+                'No se pudieron insertar %1 fila(s) en la tabla %2 al copiar filas faltantes desde la tabla %3 (el fallo no fue por clave duplicada). Último error: %4',
+                FailedRowCount, DestTableNo, SourceTableNo, LastFailureText);
     end;
 
     local procedure CommitBatch(var BatchCount: Integer)
@@ -231,6 +254,29 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     local procedure TryInsertRow(var DestRecRef: RecordRef)
     begin
         DestRecRef.Insert(false);
+    end;
+
+    // Fixed 2026-08-27 (B3): used only after TryInsertRow already failed, to tell apart the expected
+    // "already there" duplicate-key case from a genuine insert failure. Matches by the destination
+    // table's own primary key, read directly off DestRecRef's buffer (still holding the values the
+    // failed Insert attempted to write), the same KeyRef/FieldRef technique already used by
+    // CopyStandaloneTable in this portfolio's other adapters.
+    local procedure RowAlreadyExistsByKey(var DestRecRef: RecordRef): Boolean
+    var
+        DestKeyRef: KeyRef;
+        DestPkFieldRef: FieldRef;
+        KeyFieldIndex: Integer;
+        Found: Boolean;
+    begin
+        DestRecRef.Reset();
+        DestKeyRef := DestRecRef.KeyIndex(1);
+        for KeyFieldIndex := 1 to DestKeyRef.FieldCount() do begin
+            DestPkFieldRef := DestKeyRef.FieldIndex(KeyFieldIndex);
+            DestPkFieldRef.SetRange(DestPkFieldRef.Value);
+        end;
+        Found := DestRecRef.FindFirst();
+        DestRecRef.Reset();
+        exit(Found);
     end;
 
     // VP-P7 concepts 1/4/13/19 (Category=SETUP): typed, zero-RecordRef, zero-TransferFields

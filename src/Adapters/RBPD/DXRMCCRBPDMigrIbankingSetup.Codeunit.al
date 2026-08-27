@@ -11,8 +11,34 @@ codeunit 60107 "DXR MCC RBPD Migr IBSetup"
 
     trigger OnRun()
     begin
-        DeduplicateLegacySetup();
+        DeduplicateLegacySetupIfNeeded();
         MigrateSetup();
+    end;
+
+    /// <summary>
+    /// Fixed 2026-08-27 (CONFIRMED reproducible failure): DeduplicateLegacySetup() was called with
+    /// NO upgrade-tag guard, which is a regression introduced by this port. Recaudo BPD's own
+    /// dispatcher runs the equivalent Update_Setup() exactly ONCE, behind the tag
+    /// 'DXR-IB-Update_Setup-15-08-2025-10-1'. MCC, by design, is re-runnable from its control page
+    /// and the Executor adds no guard of its own, so this ran on every single run.
+    /// It inserts a row with Code = ' ' and then deletes the source row. On the SECOND run - and on
+    /// the first run of any tenant where the Ibanking configuration page had ever been opened, since
+    /// that page's OnOpenPage does Init/Insert on the LEGACY table and creates a blank-Code row -
+    /// the Insert collides on the primary key, the error aborts OnRun, and MigrateSetup() below
+    /// NEVER EXECUTES. Net effect: "DXR_IbankingSetup" stays empty and the whole phase fails, every
+    /// time, with no partial progress.
+    /// Guarded with its own tag so it runs once per company, matching upstream's own contract.
+    /// </summary>
+    local procedure DeduplicateLegacySetupIfNeeded()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag('DXR-MCC-RBPD-IBSETUP-DEDUP-20260827') then
+            exit;
+
+        DeduplicateLegacySetup();
+
+        UpgradeTag.SetUpgradeTag('DXR-MCC-RBPD-IBSETUP-DEDUP-20260827');
     end;
 
     local procedure DeduplicateLegacySetup()
@@ -20,6 +46,11 @@ codeunit 60107 "DXR MCC RBPD Migr IBSetup"
         IbankingSetup: Record "DXR-IB IbankingSetup";
         IbankingSetup2: Record "DXR-IB IbankingSetup";
     begin
+        // Fixed 2026-08-27: skip when a blank-Code row already exists, so the deduplication is
+        // idempotent even if the tag above is ever cleared. Without this the Insert below collides.
+        if IbankingSetup2.Get(' ') then
+            exit;
+
         if IbankingSetup.FindFirst() then begin
             IbankingSetup2.Init();
             IbankingSetup2.Code := ' ';

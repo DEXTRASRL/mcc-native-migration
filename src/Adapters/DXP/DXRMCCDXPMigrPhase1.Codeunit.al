@@ -21,7 +21,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
                   tabledata "DXR_Payment Setup" = RIM,
                   tabledata "DX Promotion Bin Card" = R,
                   tabledata "DXR_Promotion Bin Card" = RIM,
-                  tabledata "Store Payments DX" = R,
+                  tabledata "Store Payments DX 54213" = R,
                   tabledata "DXR_Store Payments" = RIM,
                   tabledata "Payment Process Logs" = R,
                   tabledata "DXR_Payment Process Logs" = RIM,
@@ -101,7 +101,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
 
     local procedure MigrateStorePayments()
     var
-        Source: Record "Store Payments DX";
+        Source: Record "Store Payments DX 54213";
         Dest: Record "DXR_Store Payments";
         BatchCount: Integer;
     begin
@@ -263,7 +263,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest.Active := Source.Active;
     end;
 
-    local procedure CopyStorePaymentsFields(Source: Record "Store Payments DX"; var Dest: Record "DXR_Store Payments"; IncludePrimaryKey: Boolean)
+    local procedure CopyStorePaymentsFields(Source: Record "Store Payments DX 54213"; var Dest: Record "DXR_Store Payments"; IncludePrimaryKey: Boolean)
     var
         SourceStream: InStream;
         DestStream: OutStream;

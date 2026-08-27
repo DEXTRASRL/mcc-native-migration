@@ -92,23 +92,15 @@ codeunit 60082 "DXR MCC DXP Migr Phase3"
     var
         Source: Record "DXR_Store Payments 54222";
         Dest: Record "DXR_Store Payments";
-        BatchCount: Integer;
     begin
-        // Fixed 2026-08-27: this loop copies a transactional store-payments table (one BLOB per row)
-        // and had no Commit at all, so the whole pass ran as one unbounded transaction. Batched with
-        // the same CommitBatch helper the log loops use; counter advances per INSERTED row.
-        if Source.FindSet() then begin
+        if Source.FindSet() then
             repeat
                 if not Dest.Get(Source."DX Store No.", Source."DX Pos Terminal No.", Source."DX Receipt No.", Source."DX Approval") then begin
                     Dest.Init();
                     CopyStorePaymentsFields(Source, Dest, true);
                     Dest.Insert(true);
-                    CommitBatch(BatchCount);
                 end;
             until Source.Next() = 0;
-            if BatchCount > 0 then
-                Commit();
-        end;
     end;
 
     local procedure MigratePaymentProcessLogs()
@@ -117,21 +109,15 @@ codeunit 60082 "DXR MCC DXP Migr Phase3"
         Dest: Record "DXR_Payment Process Logs";
         BatchCount: Integer;
     begin
-        // Fixed 2026-08-27: the commit counter advanced per SCANNED row, so an idempotent re-run that
-        // inserts nothing still issued a Commit every 500 rows; and the remainder never got a final
-        // Commit. Counter now advances per INSERTED row plus a trailing Commit for the remainder.
-        if Source.FindSet(false) then begin
+        if Source.FindSet(false) then
             repeat
                 if not Dest.Get(Source."Entry No.") then begin
                     Dest.Init();
                     CopyPaymentProcessLogFields(Source, Dest, true);
                     Dest.Insert(false);
-                    CommitBatch(BatchCount);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
-            if BatchCount > 0 then
-                Commit();
-        end;
     end;
 
     local procedure MigratePromoBinHeader()
@@ -201,20 +187,15 @@ codeunit 60082 "DXR MCC DXP Migr Phase3"
         Dest: Record "DXR_Error Audit Log";
         BatchCount: Integer;
     begin
-        // Fixed 2026-08-27: same as MigratePaymentProcessLogs - commit counter per INSERTED row plus a
-        // trailing Commit for the remainder.
-        if Source.FindSet(false) then begin
+        if Source.FindSet(false) then
             repeat
                 if not Dest.Get(Source."Entry No.") then begin
                     Dest.Init();
                     CopyErrorAuditLogFields(Source, Dest, true);
                     Dest.Insert(false);
-                    CommitBatch(BatchCount);
                 end;
+                CommitBatch(BatchCount);
             until Source.Next() = 0;
-            if BatchCount > 0 then
-                Commit();
-        end;
     end;
 
     local procedure CommitBatch(var BatchCount: Integer)

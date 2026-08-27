@@ -336,6 +336,11 @@ codeunit 60127 "DXR MCC DESB Migr Worker"
                     NewRec."Processed" := OldRec."Processed";
                     NewRec."Processed DateTime" := OldRec."Processed DateTime";
                     NewRec."Error Message" := OldRec."Error Message";
+                    // Fixed 2026-08-27 (B2): "Payload" is a Blob field (confirmed in Despacho
+                    // Base's own SymbolReference.json for table 50851). A plain field-to-field
+                    // assignment on an un-CalcFields'd record reads the BLOB as empty, silently
+                    // writing an empty Payload with no error and a matching row count.
+                    OldRec.CalcFields("Payload");
                     NewRec."Payload" := OldRec."Payload";
                     NewRec."Emails Sent" := OldRec."Emails Sent";
                     NewRec.Insert(false);

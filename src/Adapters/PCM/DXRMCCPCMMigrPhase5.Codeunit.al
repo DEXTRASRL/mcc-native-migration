@@ -573,191 +573,176 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
             "PRC Snapshot Exempt Price", "PRC Snap ExemptPrc_DXR");
         if SalesLine.FindSet(false) then
             repeat
-                Modified := false;
+                // Fixed 2026-08-27 (2/2, corregido tras revision adversarial): la version anterior
+                // evaluaba los guards sobre la copia SIN bloqueo y despues copiaba los 32 campos _DXR
+                // de ese snapshot a la fila bloqueada, a ciegas. Eso es una perdida de actualizacion:
+                // si otra sesion escribia cualquiera de esos 32 campos entre la lectura sin lock y el
+                // Get(), su valor se revertia al snapshot viejo - y quitar el UPDLOCK asume
+                // precisamente que hay actividad de ventas concurrente. Ahora los MISMOS guards se
+                // reevaluan sobre la fila releida bajo bloqueo (ApplySalesLineMigration se llama dos
+                // veces: una para detectar sobre la copia libre, otra para aplicar sobre la bloqueada),
+                // asi que solo se escribe lo que sigue haciendo falta en la fila real.
+                if ApplySalesLineMigration(SalesLine) then
+                    if SalesLineToUpdate.Get(SalesLine."Document Type", SalesLine."Document No.", SalesLine."Line No.") then
+                        if ApplySalesLineMigration(SalesLineToUpdate) then begin
+                            SalesLineToUpdate.Modify(false);
 
-                if SalesLine."Precio Menor A PrecioFijado" and not SalesLine."PrecMenorFijado_DXR" then begin
-                    SalesLine."PrecMenorFijado_DXR" := true;
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Exempt Price" <> 0) and (SalesLine."PRC Exempt Price_DXR" = 0) then begin
-                    SalesLine."PRC Exempt Price_DXR" := SalesLine."PRC Exempt Price";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Store From Customer" <> '') and (SalesLine."PRC StoreFrmCust_DXR" = '') then begin
-                    SalesLine."PRC StoreFrmCust_DXR" := SalesLine."PRC Store From Customer";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Line Style" <> '') and (SalesLine."PRC Line Style_DXR" = '') then begin
-                    SalesLine."PRC Line Style_DXR" := SalesLine."PRC Line Style";
-                    Modified := true;
-                end;
-                if SalesLine."PRC Requires Price Approval" and not SalesLine."PRC ReqPrcAppr_DXR" then begin
-                    SalesLine."PRC ReqPrcAppr_DXR" := true;
-                    Modified := true;
-                end;
-                if SalesLine."PRC Customer Price Applied" and not SalesLine."PRC CustPrcAppl_DXR" then begin
-                    SalesLine."PRC CustPrcAppl_DXR" := true;
-                    Modified := true;
-                end;
-                if SalesLine."PRC Store Price Applied" and not SalesLine."PRC StorePrcAppl_DXR" then begin
-                    SalesLine."PRC StorePrcAppl_DXR" := true;
-                    Modified := true;
-                end;
-                if (SalesLine."PRC LSC Original Unit Price" <> 0) and (SalesLine."PRC LSC OrigUP_DXR" = 0) then begin
-                    SalesLine."PRC LSC OrigUP_DXR" := SalesLine."PRC LSC Original Unit Price";
-                    Modified := true;
-                end;
-                if SalesLine."PRC LSC Price Manual Change" and not SalesLine."PRC LSC Price Man Chg_DXR" then begin
-                    SalesLine."PRC LSC Price Man Chg_DXR" := true;
-                    Modified := true;
-                end;
-                if SalesLine."PRC LSC Disc Manual Change" and not SalesLine."PRC LSC Disc Man Chg_DXR" then begin
-                    SalesLine."PRC LSC Disc Man Chg_DXR" := true;
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Approval Reason" <> '') and (SalesLine."PRC Approval Reason_DXR" = '') then begin
-                    SalesLine."PRC Approval Reason_DXR" := SalesLine."PRC Approval Reason";
-                    Modified := true;
-                end;
-                if SalesLine."PRC VAT Exempt" and not SalesLine."PRC VAT Exempt_DXR" then begin
-                    SalesLine."PRC VAT Exempt_DXR" := true;
-                    Modified := true;
-                end;
-
-                if (SalesLine."PRC Original Item No." <> '') and (SalesLine."PRC Orig Item No._DXR" = '') then begin
-                    SalesLine."PRC Orig Item No._DXR" := SalesLine."PRC Original Item No.";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Quantity" <> 0) and (SalesLine."PRC Orig Quantity_DXR" = 0) then begin
-                    SalesLine."PRC Orig Quantity_DXR" := SalesLine."PRC Original Quantity";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Unit Price" <> 0) and (SalesLine."PRC Orig Unit Price_DXR" = 0) then begin
-                    SalesLine."PRC Orig Unit Price_DXR" := SalesLine."PRC Original Unit Price";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Amount Incl VAT" <> 0) and (SalesLine."PRC Orig AmtInclVAT_DXR" = 0) then begin
-                    SalesLine."PRC Orig AmtInclVAT_DXR" := SalesLine."PRC Original Amount Incl VAT";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original VAT Percent" <> 0) and (SalesLine."PRC Orig VAT Pct_DXR" = 0) then begin
-                    SalesLine."PRC Orig VAT Pct_DXR" := SalesLine."PRC Original VAT Percent";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Customer Price" <> 0) and (SalesLine."PRC Snap Cust Price_DXR" = 0) then begin
-                    SalesLine."PRC Snap Cust Price_DXR" := SalesLine."PRC Snapshot Customer Price";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Store Price" <> 0) and (SalesLine."PRC Snap Store Price_DXR" = 0) then begin
-                    SalesLine."PRC Snap Store Price_DXR" := SalesLine."PRC Snapshot Store Price";
-                    Modified := true;
-                end;
-                if SalesLine."PRC Snapshot Line Approved" and not SalesLine."PRC Snap Line Appr_DXR" then begin
-                    SalesLine."PRC Snap Line Appr_DXR" := true;
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Source Quote No." <> '') and (SalesLine."PRC Src Quote No._DXR" = '') then begin
-                    SalesLine."PRC Src Quote No._DXR" := SalesLine."PRC Source Quote No.";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Timestamp" <> 0DT) and (SalesLine."PRC Snap Timestamp_DXR" = 0DT) then begin
-                    SalesLine."PRC Snap Timestamp_DXR" := SalesLine."PRC Snapshot Timestamp";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Line Count" <> 0) and (SalesLine."PRC Snap Line Count_DXR" = 0) then begin
-                    SalesLine."PRC Snap Line Count_DXR" := SalesLine."PRC Snapshot Line Count";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Quote Doc Date" <> 0D) and (SalesLine."PRC Snap QuoteDocDt_DXR" = 0D) then begin
-                    SalesLine."PRC Snap QuoteDocDt_DXR" := SalesLine."PRC Snapshot Quote Doc Date";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Quote Post Date" <> 0D) and (SalesLine."PRC Snap QuotePostDt_DXR" = 0D) then begin
-                    SalesLine."PRC Snap QuotePostDt_DXR" := SalesLine."PRC Snapshot Quote Post Date";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snap MakeOrder WorkDate" <> 0D) and (SalesLine."PRC Snap MkOrd WD_DXR" = 0D) then begin
-                    SalesLine."PRC Snap MkOrd WD_DXR" := SalesLine."PRC Snap MakeOrder WorkDate";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snap MakeOrder Today" <> 0D) and (SalesLine."PRC Snap MkOrdToday_DXR" = 0D) then begin
-                    SalesLine."PRC Snap MkOrdToday_DXR" := SalesLine."PRC Snap MakeOrder Today";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Net Amount" <> 0) and (SalesLine."PRC Orig Net Amt_DXR" = 0) then begin
-                    SalesLine."PRC Orig Net Amt_DXR" := SalesLine."PRC Original Net Amount";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Line Disc. %" <> 0) and (SalesLine."PRC Orig LinDisc %_DXR" = 0) then begin
-                    SalesLine."PRC Orig LinDisc %_DXR" := SalesLine."PRC Original Line Disc. %";
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Original Line Disc. Amt" <> 0) and (SalesLine."PRC Orig LinDisc Amt_DXR" = 0) then begin
-                    SalesLine."PRC Orig LinDisc Amt_DXR" := SalesLine."PRC Original Line Disc. Amt";
-                    Modified := true;
-                end;
-                if SalesLine."PRC Snapshot VAT Exempt" and not SalesLine."PRC Snap VAT Exempt_DXR" then begin
-                    SalesLine."PRC Snap VAT Exempt_DXR" := true;
-                    Modified := true;
-                end;
-                if (SalesLine."PRC Snapshot Exempt Price" <> 0) and (SalesLine."PRC Snap ExemptPrc_DXR" = 0) then begin
-                    SalesLine."PRC Snap ExemptPrc_DXR" := SalesLine."PRC Snapshot Exempt Price";
-                    Modified := true;
-                end;
-
-                // Fixed 2026-08-27 (2/2): the guarded assignments above now run on the UNLOCKED read
-                // copy and act as the "does this row need anything" detector. The actual write goes to
-                // a second Record re-read under lock with Get(), receiving exactly the _DXR values the
-                // block above computed - identical resulting row, but only the rows that really change
-                // are ever locked, and the commit counter advances per MODIFIED row.
-                if Modified then
-                    if SalesLineToUpdate.Get(SalesLine."Document Type", SalesLine."Document No.", SalesLine."Line No.") then begin
-                        SalesLineToUpdate."PrecMenorFijado_DXR" := SalesLine."PrecMenorFijado_DXR";
-                        SalesLineToUpdate."PRC Exempt Price_DXR" := SalesLine."PRC Exempt Price_DXR";
-                        SalesLineToUpdate."PRC StoreFrmCust_DXR" := SalesLine."PRC StoreFrmCust_DXR";
-                        SalesLineToUpdate."PRC Line Style_DXR" := SalesLine."PRC Line Style_DXR";
-                        SalesLineToUpdate."PRC ReqPrcAppr_DXR" := SalesLine."PRC ReqPrcAppr_DXR";
-                        SalesLineToUpdate."PRC CustPrcAppl_DXR" := SalesLine."PRC CustPrcAppl_DXR";
-                        SalesLineToUpdate."PRC StorePrcAppl_DXR" := SalesLine."PRC StorePrcAppl_DXR";
-                        SalesLineToUpdate."PRC LSC OrigUP_DXR" := SalesLine."PRC LSC OrigUP_DXR";
-                        SalesLineToUpdate."PRC LSC Price Man Chg_DXR" := SalesLine."PRC LSC Price Man Chg_DXR";
-                        SalesLineToUpdate."PRC LSC Disc Man Chg_DXR" := SalesLine."PRC LSC Disc Man Chg_DXR";
-                        SalesLineToUpdate."PRC Approval Reason_DXR" := SalesLine."PRC Approval Reason_DXR";
-                        SalesLineToUpdate."PRC VAT Exempt_DXR" := SalesLine."PRC VAT Exempt_DXR";
-                        SalesLineToUpdate."PRC Orig Item No._DXR" := SalesLine."PRC Orig Item No._DXR";
-                        SalesLineToUpdate."PRC Orig Quantity_DXR" := SalesLine."PRC Orig Quantity_DXR";
-                        SalesLineToUpdate."PRC Orig Unit Price_DXR" := SalesLine."PRC Orig Unit Price_DXR";
-                        SalesLineToUpdate."PRC Orig AmtInclVAT_DXR" := SalesLine."PRC Orig AmtInclVAT_DXR";
-                        SalesLineToUpdate."PRC Orig VAT Pct_DXR" := SalesLine."PRC Orig VAT Pct_DXR";
-                        SalesLineToUpdate."PRC Snap Cust Price_DXR" := SalesLine."PRC Snap Cust Price_DXR";
-                        SalesLineToUpdate."PRC Snap Store Price_DXR" := SalesLine."PRC Snap Store Price_DXR";
-                        SalesLineToUpdate."PRC Snap Line Appr_DXR" := SalesLine."PRC Snap Line Appr_DXR";
-                        SalesLineToUpdate."PRC Src Quote No._DXR" := SalesLine."PRC Src Quote No._DXR";
-                        SalesLineToUpdate."PRC Snap Timestamp_DXR" := SalesLine."PRC Snap Timestamp_DXR";
-                        SalesLineToUpdate."PRC Snap Line Count_DXR" := SalesLine."PRC Snap Line Count_DXR";
-                        SalesLineToUpdate."PRC Snap QuoteDocDt_DXR" := SalesLine."PRC Snap QuoteDocDt_DXR";
-                        SalesLineToUpdate."PRC Snap QuotePostDt_DXR" := SalesLine."PRC Snap QuotePostDt_DXR";
-                        SalesLineToUpdate."PRC Snap MkOrd WD_DXR" := SalesLine."PRC Snap MkOrd WD_DXR";
-                        SalesLineToUpdate."PRC Snap MkOrdToday_DXR" := SalesLine."PRC Snap MkOrdToday_DXR";
-                        SalesLineToUpdate."PRC Orig Net Amt_DXR" := SalesLine."PRC Orig Net Amt_DXR";
-                        SalesLineToUpdate."PRC Orig LinDisc %_DXR" := SalesLine."PRC Orig LinDisc %_DXR";
-                        SalesLineToUpdate."PRC Orig LinDisc Amt_DXR" := SalesLine."PRC Orig LinDisc Amt_DXR";
-                        SalesLineToUpdate."PRC Snap VAT Exempt_DXR" := SalesLine."PRC Snap VAT Exempt_DXR";
-                        SalesLineToUpdate."PRC Snap ExemptPrc_DXR" := SalesLine."PRC Snap ExemptPrc_DXR";
-                        SalesLineToUpdate.Modify(false);
-
-                        RowCounter += 1;
-                        if RowCounter >= BatchSize() then begin
-                            Commit();
-                            RowCounter := 0;
+                            RowCounter += 1;
+                            if RowCounter >= BatchSize() then begin
+                                Commit();
+                                RowCounter := 0;
+                            end;
                         end;
-                    end;
             until SalesLine.Next() = 0;
 
         if RowCounter > 0 then
             Commit();
 
         UpgradeTag.SetUpgradeTag(Step8Tag());
+    end;
+
+    /// <summary>
+    /// Aplica los guards de migracion de "Sales Line" sobre el registro recibido y devuelve true si
+    /// cambio algo. Se llama DOS veces por fila: sobre la copia leida sin bloqueo (para detectar si
+    /// la fila necesita trabajo, sin bloquear nada) y sobre la misma fila releida bajo bloqueo con
+    /// Get() (para aplicar). Extraido 2026-08-27 para que ambas evaluaciones usen literalmente la
+    /// misma logica y no pueda divergir una copia del snapshot.
+    /// </summary>
+    local procedure ApplySalesLineMigration(var SalesLine: Record "Sales Line"): Boolean
+    var
+        Modified: Boolean;
+    begin
+
+                    if SalesLine."Precio Menor A PrecioFijado" and not SalesLine."PrecMenorFijado_DXR" then begin
+                        SalesLine."PrecMenorFijado_DXR" := true;
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Exempt Price" <> 0) and (SalesLine."PRC Exempt Price_DXR" = 0) then begin
+                        SalesLine."PRC Exempt Price_DXR" := SalesLine."PRC Exempt Price";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Store From Customer" <> '') and (SalesLine."PRC StoreFrmCust_DXR" = '') then begin
+                        SalesLine."PRC StoreFrmCust_DXR" := SalesLine."PRC Store From Customer";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Line Style" <> '') and (SalesLine."PRC Line Style_DXR" = '') then begin
+                        SalesLine."PRC Line Style_DXR" := SalesLine."PRC Line Style";
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC Requires Price Approval" and not SalesLine."PRC ReqPrcAppr_DXR" then begin
+                        SalesLine."PRC ReqPrcAppr_DXR" := true;
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC Customer Price Applied" and not SalesLine."PRC CustPrcAppl_DXR" then begin
+                        SalesLine."PRC CustPrcAppl_DXR" := true;
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC Store Price Applied" and not SalesLine."PRC StorePrcAppl_DXR" then begin
+                        SalesLine."PRC StorePrcAppl_DXR" := true;
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC LSC Original Unit Price" <> 0) and (SalesLine."PRC LSC OrigUP_DXR" = 0) then begin
+                        SalesLine."PRC LSC OrigUP_DXR" := SalesLine."PRC LSC Original Unit Price";
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC LSC Price Manual Change" and not SalesLine."PRC LSC Price Man Chg_DXR" then begin
+                        SalesLine."PRC LSC Price Man Chg_DXR" := true;
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC LSC Disc Manual Change" and not SalesLine."PRC LSC Disc Man Chg_DXR" then begin
+                        SalesLine."PRC LSC Disc Man Chg_DXR" := true;
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Approval Reason" <> '') and (SalesLine."PRC Approval Reason_DXR" = '') then begin
+                        SalesLine."PRC Approval Reason_DXR" := SalesLine."PRC Approval Reason";
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC VAT Exempt" and not SalesLine."PRC VAT Exempt_DXR" then begin
+                        SalesLine."PRC VAT Exempt_DXR" := true;
+                        Modified := true;
+                    end;
+
+                    if (SalesLine."PRC Original Item No." <> '') and (SalesLine."PRC Orig Item No._DXR" = '') then begin
+                        SalesLine."PRC Orig Item No._DXR" := SalesLine."PRC Original Item No.";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Quantity" <> 0) and (SalesLine."PRC Orig Quantity_DXR" = 0) then begin
+                        SalesLine."PRC Orig Quantity_DXR" := SalesLine."PRC Original Quantity";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Unit Price" <> 0) and (SalesLine."PRC Orig Unit Price_DXR" = 0) then begin
+                        SalesLine."PRC Orig Unit Price_DXR" := SalesLine."PRC Original Unit Price";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Amount Incl VAT" <> 0) and (SalesLine."PRC Orig AmtInclVAT_DXR" = 0) then begin
+                        SalesLine."PRC Orig AmtInclVAT_DXR" := SalesLine."PRC Original Amount Incl VAT";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original VAT Percent" <> 0) and (SalesLine."PRC Orig VAT Pct_DXR" = 0) then begin
+                        SalesLine."PRC Orig VAT Pct_DXR" := SalesLine."PRC Original VAT Percent";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Customer Price" <> 0) and (SalesLine."PRC Snap Cust Price_DXR" = 0) then begin
+                        SalesLine."PRC Snap Cust Price_DXR" := SalesLine."PRC Snapshot Customer Price";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Store Price" <> 0) and (SalesLine."PRC Snap Store Price_DXR" = 0) then begin
+                        SalesLine."PRC Snap Store Price_DXR" := SalesLine."PRC Snapshot Store Price";
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC Snapshot Line Approved" and not SalesLine."PRC Snap Line Appr_DXR" then begin
+                        SalesLine."PRC Snap Line Appr_DXR" := true;
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Source Quote No." <> '') and (SalesLine."PRC Src Quote No._DXR" = '') then begin
+                        SalesLine."PRC Src Quote No._DXR" := SalesLine."PRC Source Quote No.";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Timestamp" <> 0DT) and (SalesLine."PRC Snap Timestamp_DXR" = 0DT) then begin
+                        SalesLine."PRC Snap Timestamp_DXR" := SalesLine."PRC Snapshot Timestamp";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Line Count" <> 0) and (SalesLine."PRC Snap Line Count_DXR" = 0) then begin
+                        SalesLine."PRC Snap Line Count_DXR" := SalesLine."PRC Snapshot Line Count";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Quote Doc Date" <> 0D) and (SalesLine."PRC Snap QuoteDocDt_DXR" = 0D) then begin
+                        SalesLine."PRC Snap QuoteDocDt_DXR" := SalesLine."PRC Snapshot Quote Doc Date";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Quote Post Date" <> 0D) and (SalesLine."PRC Snap QuotePostDt_DXR" = 0D) then begin
+                        SalesLine."PRC Snap QuotePostDt_DXR" := SalesLine."PRC Snapshot Quote Post Date";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snap MakeOrder WorkDate" <> 0D) and (SalesLine."PRC Snap MkOrd WD_DXR" = 0D) then begin
+                        SalesLine."PRC Snap MkOrd WD_DXR" := SalesLine."PRC Snap MakeOrder WorkDate";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snap MakeOrder Today" <> 0D) and (SalesLine."PRC Snap MkOrdToday_DXR" = 0D) then begin
+                        SalesLine."PRC Snap MkOrdToday_DXR" := SalesLine."PRC Snap MakeOrder Today";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Net Amount" <> 0) and (SalesLine."PRC Orig Net Amt_DXR" = 0) then begin
+                        SalesLine."PRC Orig Net Amt_DXR" := SalesLine."PRC Original Net Amount";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Line Disc. %" <> 0) and (SalesLine."PRC Orig LinDisc %_DXR" = 0) then begin
+                        SalesLine."PRC Orig LinDisc %_DXR" := SalesLine."PRC Original Line Disc. %";
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Original Line Disc. Amt" <> 0) and (SalesLine."PRC Orig LinDisc Amt_DXR" = 0) then begin
+                        SalesLine."PRC Orig LinDisc Amt_DXR" := SalesLine."PRC Original Line Disc. Amt";
+                        Modified := true;
+                    end;
+                    if SalesLine."PRC Snapshot VAT Exempt" and not SalesLine."PRC Snap VAT Exempt_DXR" then begin
+                        SalesLine."PRC Snap VAT Exempt_DXR" := true;
+                        Modified := true;
+                    end;
+                    if (SalesLine."PRC Snapshot Exempt Price" <> 0) and (SalesLine."PRC Snap ExemptPrc_DXR" = 0) then begin
+                        SalesLine."PRC Snap ExemptPrc_DXR" := SalesLine."PRC Snapshot Exempt Price";
+                        Modified := true;
+                    end;
+        exit(Modified);
     end;
 #pragma warning restore AL0432
 

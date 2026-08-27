@@ -85,10 +85,27 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     // (53602) are field-for-field identical (same IDs/names/types on both sides, confirmed against
     // TU's own real table sources). "Mensajes" (field 13 on the Header pair) is a FlowField and is
     // excluded, matching TransferFields' own behavior.
+    /// <summary>
+    /// Fixed 2026-08-27 (CONFIRMED silent module shutdown): this was INSERT-ONLY - if the
+    /// destination row already existed, Get() succeeded and the three legacy values were never
+    /// copied, yet RunSetup() still set SetupTableMigrationTag() so it was never retried.
+    /// That path is not hypothetical, it ships inside TransUnion itself: page 53598
+    /// "DXR_Transunion Setup" is UsageCategory = Administration (any user can open it) and its
+    /// OnOpenPage does `if not Rec.Get() then begin Rec.Init(); Rec.Insert(); end`, creating a row
+    /// with Code = '' and everything else at default. And that blank-code row IS the operative one:
+    /// TransUnion's own IsModuleActive() calls Setup.Get() with no argument.
+    /// So on any tenant where someone had ever opened that page, migration left Active = false and
+    /// the TransUnion module silently switched off with no error anywhere.
+    /// Now an upsert: an existing row gets the legacy values filled in. Fill-only-if-still-default,
+    /// so a value an operator already configured post-publish is never overwritten - the same
+    /// never-overwrite policy used across this portfolio's master migrations.
+    /// </summary>
     local procedure MigrateLegacySetup()
     var
         OldSetup: Record "Transunion Setup";
         NewSetup: Record "DXR_Transunion Setup";
+        Blank: Record "DXR_Transunion Setup";
+        Changed: Boolean;
     begin
         if OldSetup.FindSet() then
             repeat
@@ -99,6 +116,26 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                     NewSetup."Directorio Archivo Transunion" := OldSetup."Directorio Archivo Transunion";
                     NewSetup."Limite Credito %" := OldSetup."Limite Credito %";
                     NewSetup.Insert(false);
+                end else begin
+                    Changed := false;
+                    if (NewSetup.Active = Blank.Active) and (OldSetup.Active <> Blank.Active) then begin
+                        NewSetup.Active := OldSetup.Active;
+                        Changed := true;
+                    end;
+                    if (NewSetup."Directorio Archivo Transunion" = Blank."Directorio Archivo Transunion") and
+                       (OldSetup."Directorio Archivo Transunion" <> Blank."Directorio Archivo Transunion")
+                    then begin
+                        NewSetup."Directorio Archivo Transunion" := OldSetup."Directorio Archivo Transunion";
+                        Changed := true;
+                    end;
+                    if (NewSetup."Limite Credito %" = Blank."Limite Credito %") and
+                       (OldSetup."Limite Credito %" <> Blank."Limite Credito %")
+                    then begin
+                        NewSetup."Limite Credito %" := OldSetup."Limite Credito %";
+                        Changed := true;
+                    end;
+                    if Changed then
+                        NewSetup.Modify(false);
                 end;
             until OldSetup.Next() = 0;
     end;
