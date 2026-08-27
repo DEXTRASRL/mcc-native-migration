@@ -48,8 +48,16 @@ def git_show(ref, f):
     # fallido (ref invalido, ruta rota, etc.) devolvia stdout vacio -- IDENTICO
     # al caso legitimo "archivo nuevo, no existia en ese ref" -- y una perdida
     # real quedaba silenciada porque `old` salia vacio por error tecnico.
+    # encoding="utf-8" explicito: sin esto, text=True deja que Python decodifique
+    # la salida de git con la locale del SO (cp1252 en Windows), y los .al de
+    # este repo estan llenos de identificadores acentuados ("Comision Venta_DXR",
+    # "Descripcion", etc.). Con cp1252 esos acentos llegan corruptos del lado
+    # "old" y no coinciden con los del lado "new" (leido con encoding="utf-8"
+    # mas abajo), produciendo falsos PERDIDA/NUEVA. errors="replace" evita que
+    # un byte suelto invalido tumbe el proceso con UnicodeDecodeError.
     result = subprocess.run(["git", "show", "%s:%s" % (ref, f)],
-                             capture_output=True, text=True)
+                             capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
     if result.returncode != 0:
         stderr = result.stderr or ""
         if "does not exist in" in stderr or "exists on disk, but not in" in stderr:
