@@ -9,12 +9,25 @@ codeunit 60074 "DXR MCC SD Migr SalesShipHdr"
     trigger OnRun()
     var
         SalesShptHeader: Record "Sales Shipment Header";
+        RowsSinceCommit: Integer;
     begin
         if SalesShptHeader.FindSet(true) then
             repeat
-                SalesShptHeader."Special Dispatch_DXR" := SalesShptHeader."Special Dispatch DXR";
-                SalesShptHeader.Modify(false);
+                if SalesShptHeader."Special Dispatch_DXR" <> SalesShptHeader."Special Dispatch DXR" then begin
+                    SalesShptHeader."Special Dispatch_DXR" := SalesShptHeader."Special Dispatch DXR";
+                    SalesShptHeader.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until SalesShptHeader.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

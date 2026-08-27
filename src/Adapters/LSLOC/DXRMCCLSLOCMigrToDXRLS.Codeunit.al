@@ -109,11 +109,8 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 
     procedure RunOtherFields()
     begin
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54300, 54500, 1);
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5);
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2);
+        CopyPOSTransactionOtherFields();
+        CopyTransactionHeaderOtherFields();
     end;
 
     procedure RunHistoricTables()
@@ -132,14 +129,11 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         CopyLSCLabelFunctionsFields(); // seq7, SETUP
         CopyLSCPOSPrintSetupHeaderFields(); // seq8, SETUP
         CopyLSCPOSTerminalFields(); // seq9, SETUP (2 ranges)
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54300, 54500, 1); // seq10, OTHER - out of scope
-        CopySameTableFieldRange(Database::"LSC POS Transaction", 54302, 54502, 4); // seq10, OTHER - out of scope
+        CopyPOSTransactionOtherFields(); // seq10, OTHER (2 ranges)
         CopyLSCSalesTypeFields(); // seq11, SETUP
         CopyLSCStoreFields(); // seq12, SETUP
         CopyLSCStoreInventoryLineFields(); // seq13, MA
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54300, 54500, 8); // seq14, OTHER - out of scope
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54309, 54509, 5); // seq14, OTHER - out of scope
-        CopySameTableFieldRange(Database::"LSC Transaction Header", 54315, 54515, 2); // seq14, OTHER - out of scope
+        CopyTransactionHeaderOtherFields(); // seq14, OTHER (3 ranges)
 
         MigrateSameTableEnumFields(); // already typed (no RecordRef/FieldRef) - untouched
     end;
@@ -200,20 +194,36 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."No. Serie NCF Gubern._DXR" := Rec."LSDXNo. Serie NCF Gubern.";
-                Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDXNo. Serie NCF Reg. Esp.";
-                Rec."No. Serie NCF Cred. Fiscal_DXR" := Rec."LSDXNo. Serie NCF Cred. Fiscal";
-                Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" := Rec."LSDXExt. Cmd. NCF Cr. Fiscal";
-                Rec."External Cmd. NCF Guvern_DXR" := Rec."LSDXExternal Cmd. NCF Guvern";
-                Rec."Ext. Cmd. NCF Reg. Esp._DXR" := Rec."LSDXExt. Cmd. NCF Reg. Esp.";
-                Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDXNo. Serie NCF Cons. Final";
-                Rec."Ext. Cmd. NCF Cons. Final_DXR" := Rec."LSDXExt. Cmd. NCF Cons. Final";
-                Rec."NCF Nota de Credito_DXR" := Rec."LSDXNCF Nota de Credito";
-                Rec."NCF Credito U. Final_DXR" := Rec."LSDXNCF Credito U. Final";
-                Rec."NCF Credito Gubernamental_DXR" := Rec."LSDXNCF Credito Gubernamental";
-                Rec."NCF Credito Reg Especiales_DXR" := Rec."LSDXNCF Credito Reg Especiales";
-                Rec."Ext. Cmd. Nota de Credito_DXR" := Rec."LSDXExt. Cmd. Nota de Credito";
-                Rec.Modify(false);
+                if (Rec."No. Serie NCF Gubern._DXR" <> Rec."LSDXNo. Serie NCF Gubern.") or
+                   (Rec."No. Serie NCF Reg. Esp._DXR" <> Rec."LSDXNo. Serie NCF Reg. Esp.") or
+                   (Rec."No. Serie NCF Cred. Fiscal_DXR" <> Rec."LSDXNo. Serie NCF Cred. Fiscal") or
+                   (Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" <> Rec."LSDXExt. Cmd. NCF Cr. Fiscal") or
+                   (Rec."External Cmd. NCF Guvern_DXR" <> Rec."LSDXExternal Cmd. NCF Guvern") or
+                   (Rec."Ext. Cmd. NCF Reg. Esp._DXR" <> Rec."LSDXExt. Cmd. NCF Reg. Esp.") or
+                   (Rec."No. Serie NCF Cons. Final_DXR" <> Rec."LSDXNo. Serie NCF Cons. Final") or
+                   (Rec."Ext. Cmd. NCF Cons. Final_DXR" <> Rec."LSDXExt. Cmd. NCF Cons. Final") or
+                   (Rec."NCF Nota de Credito_DXR" <> Rec."LSDXNCF Nota de Credito") or
+                   (Rec."NCF Credito U. Final_DXR" <> Rec."LSDXNCF Credito U. Final") or
+                   (Rec."NCF Credito Gubernamental_DXR" <> Rec."LSDXNCF Credito Gubernamental") or
+                   (Rec."NCF Credito Reg Especiales_DXR" <> Rec."LSDXNCF Credito Reg Especiales") or
+                   (Rec."Ext. Cmd. Nota de Credito_DXR" <> Rec."LSDXExt. Cmd. Nota de Credito")
+                then begin
+                    Rec."No. Serie NCF Gubern._DXR" := Rec."LSDXNo. Serie NCF Gubern.";
+                    Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDXNo. Serie NCF Reg. Esp.";
+                    Rec."No. Serie NCF Cred. Fiscal_DXR" := Rec."LSDXNo. Serie NCF Cred. Fiscal";
+                    Rec."Ext. Cmd. NCF Cr. Fiscal_DXR" := Rec."LSDXExt. Cmd. NCF Cr. Fiscal";
+                    Rec."External Cmd. NCF Guvern_DXR" := Rec."LSDXExternal Cmd. NCF Guvern";
+                    Rec."Ext. Cmd. NCF Reg. Esp._DXR" := Rec."LSDXExt. Cmd. NCF Reg. Esp.";
+                    Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDXNo. Serie NCF Cons. Final";
+                    Rec."Ext. Cmd. NCF Cons. Final_DXR" := Rec."LSDXExt. Cmd. NCF Cons. Final";
+                    Rec."NCF Nota de Credito_DXR" := Rec."LSDXNCF Nota de Credito";
+                    Rec."NCF Credito U. Final_DXR" := Rec."LSDXNCF Credito U. Final";
+                    Rec."NCF Credito Gubernamental_DXR" := Rec."LSDXNCF Credito Gubernamental";
+                    Rec."NCF Credito Reg Especiales_DXR" := Rec."LSDXNCF Credito Reg Especiales";
+                    Rec."Ext. Cmd. Nota de Credito_DXR" := Rec."LSDXExt. Cmd. Nota de Credito";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -223,9 +233,14 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."Exento ITBIS_DXR" := Rec."LSDX Exento ITBIS";
-                Rec."POS VAT Exento_DXR" := Rec."LSDX POS VAT Exento";
-                Rec.Modify(false);
+                if (Rec."Exento ITBIS_DXR" <> Rec."LSDX Exento ITBIS") or
+                   (Rec."POS VAT Exento_DXR" <> Rec."LSDX POS VAT Exento")
+                then begin
+                    Rec."Exento ITBIS_DXR" := Rec."LSDX Exento ITBIS";
+                    Rec."POS VAT Exento_DXR" := Rec."LSDX POS VAT Exento";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -235,16 +250,28 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."Cod. Cliente Contado_DXR" := Rec."LSDX Cod. Cliente Contado";
-                Rec."No. Serie 3er. Party Item_DXR" := Rec."LSDX No. Serie 3er. Party Item";
-                Rec."No. Serie NCF Unico_DXR" := Rec."LSDX No. Serie NCF Unico";
-                Rec."No. Serie NCF Gubern._DXR" := Rec."LSDX No. Serie NCF Gubern.";
-                Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDX No. Serie NCF Reg. Esp.";
-                Rec."No. Serie NCF Cr. Fiscal_DXR" := Rec."LSDX No. Serie NCF Cr. Fiscal";
-                Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
-                Rec."Address 3_DXR" := Rec."LSDX Address 3";
-                Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
-                Rec.Modify(false);
+                if (Rec."Cod. Cliente Contado_DXR" <> Rec."LSDX Cod. Cliente Contado") or
+                   (Rec."No. Serie 3er. Party Item_DXR" <> Rec."LSDX No. Serie 3er. Party Item") or
+                   (Rec."No. Serie NCF Unico_DXR" <> Rec."LSDX No. Serie NCF Unico") or
+                   (Rec."No. Serie NCF Gubern._DXR" <> Rec."LSDX No. Serie NCF Gubern.") or
+                   (Rec."No. Serie NCF Reg. Esp._DXR" <> Rec."LSDX No. Serie NCF Reg. Esp.") or
+                   (Rec."No. Serie NCF Cr. Fiscal_DXR" <> Rec."LSDX No. Serie NCF Cr. Fiscal") or
+                   (Rec."No. Serie NCF Cons. Final_DXR" <> Rec."LSDX No. Serie NCF Cons. Final") or
+                   (Rec."Address 3_DXR" <> Rec."LSDX Address 3") or
+                   (Rec."Utiliza NCF Unico_DXR" <> Rec."LSDX Utiliza NCF Unico")
+                then begin
+                    Rec."Cod. Cliente Contado_DXR" := Rec."LSDX Cod. Cliente Contado";
+                    Rec."No. Serie 3er. Party Item_DXR" := Rec."LSDX No. Serie 3er. Party Item";
+                    Rec."No. Serie NCF Unico_DXR" := Rec."LSDX No. Serie NCF Unico";
+                    Rec."No. Serie NCF Gubern._DXR" := Rec."LSDX No. Serie NCF Gubern.";
+                    Rec."No. Serie NCF Reg. Esp._DXR" := Rec."LSDX No. Serie NCF Reg. Esp.";
+                    Rec."No. Serie NCF Cr. Fiscal_DXR" := Rec."LSDX No. Serie NCF Cr. Fiscal";
+                    Rec."No. Serie NCF Cons. Final_DXR" := Rec."LSDX No. Serie NCF Cons. Final";
+                    Rec."Address 3_DXR" := Rec."LSDX Address 3";
+                    Rec."Utiliza NCF Unico_DXR" := Rec."LSDX Utiliza NCF Unico";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -259,8 +286,11 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."No. Ticket_DXR" := Rec."LSDX No. Ticket";
-                Rec.Modify(false);
+                if Rec."No. Ticket_DXR" <> Rec."LSDX No. Ticket" then begin
+                    Rec."No. Ticket_DXR" := Rec."LSDX No. Ticket";
+                    Rec.Modify(false);
+                    Commit();
+                end;
             until Rec.Next() = 0;
     end;
 
@@ -274,53 +304,119 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
             repeat
                 RecRef.GetTable(Rec);
                 if MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Factor_DXR', 'Factor') then
-                    RecRef.Modify(false);
+                    RecordChanged := true;
+                PersistChangedRecord(RecRef);
             until Rec.Next() = 0;
+        Commit();
+        RowsSinceCommit := 0;
     end;
 
     local procedure CopyLSCStoreInventoryLineFields()
     var
         Rec: Record "LSC Store Inventory Line";
+        RowsSinceLineCommit: Integer;
     begin
         if Rec.FindSet(true) then
             repeat
-                Rec."Recalculate Time_DXR" := Rec."DX Recalculate Time";
-                Rec.Modify(false);
+                if Rec."Recalculate Time_DXR" <> Rec."DX Recalculate Time" then begin
+                    Rec."Recalculate Time_DXR" := Rec."DX Recalculate Time";
+                    Rec.Modify(false);
+                end;
+
+                RowsSinceLineCommit += 1;
+                if RowsSinceLineCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceLineCommit := 0;
+                end;
             until Rec.Next() = 0;
+        Commit();
     end;
 
-    local procedure CopySameTableFieldRange(TableId: Integer; SourceStartFieldNo: Integer; TargetStartFieldNo: Integer; FieldCount: Integer)
+    // ===== In-scope OTHER same-table field-range restores (LSLOC-TOLOC seq10/14) =====
+    // Was previously RecordRef.Field(<literal field number>) over a numeric range - converted to
+    // explicit name-based pairs (via the shared MCC Master Field Resolver) so it no longer depends
+    // on the source/target fields staying at consecutive field numbers. Pairs confirmed against the
+    // real compiled symbols (LS Central DR Localization's own "LSDX POS Transaction"/"LSDXTransaction
+    // Header" (old) and "DXR_LS POS Transaction"/"DXR_LS Transaction Header" (new) tableextensions);
+    // the two Enum fields on each table (Tipo Doc. Fiscal/Tipo Identificacion) are intentionally
+    // excluded here - they are handled by MigratePOSTransactionEnumFields/
+    // MigrateTransactionHeaderEnumFields, which convert between the distinct LSDX/DXR_LS enum types.
+    local procedure CopyPOSTransactionOtherFields()
     var
         RecRef: RecordRef;
-        FieldOffset: Integer;
     begin
-        RecRef.Open(TableId);
+        RecRef.Open(Database::"LSC POS Transaction");
         if RecRef.FindSet(true) then
             repeat
-                for FieldOffset := 0 to FieldCount - 1 do
-                    CopyFieldIfExists(RecRef, SourceStartFieldNo + FieldOffset, TargetStartFieldNo + FieldOffset);
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'RNC/Cedula_DXR', 'LSDX RNC/Cedula');
+                CopyFieldIfExists(RecRef, 'No. Serie NCF_DXR', 'LSDX No. Serie NCF');
+                CopyFieldIfExists(RecRef, 'Razon Social_DXR', 'LSDX Razon Social');
+                CopyFieldIfExists(RecRef, 'VAT Amount_DXR', 'LSDX VAT Amount');
+                CopyFieldIfExists(RecRef, 'Nombre Cliente_DXR', 'LSDX Nombre Cliente');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
+        FinishTable(RecRef);
+    end;
+
+    local procedure CopyTransactionHeaderOtherFields()
+    var
+        RecRef: RecordRef;
+    begin
+        RecRef.Open(Database::"LSC Transaction Header");
+        if RecRef.FindSet(true) then
+            repeat
+                CopyFieldIfExists(RecRef, 'Tipo NCF_DXR', 'LSDXTipo NCF');
+                CopyFieldIfExists(RecRef, 'NCF_DXR', 'LSDX NCF');
+                CopyFieldIfExists(RecRef, 'NCF Afectado_DXR', 'LSDX NCF Afectado');
+                CopyFieldIfExists(RecRef, 'Nombre_DXR', 'LSDX Nombre');
+                CopyFieldIfExists(RecRef, 'RNC/Cedula_DXR', 'LSDX RNC/Cedula');
+                CopyFieldIfExists(RecRef, 'NCF Unico_DXR', 'LSDX NCF Unico');
+                CopyFieldIfExists(RecRef, 'NCF No Serie_DXR', 'LSDX NCF No Serie');
+                CopyFieldIfExists(RecRef, 'NCF Unico Devolucion_DXR', 'LSDX NCF Unico Devolucion');
+                CopyFieldIfExists(RecRef, 'No. Serie NCF_DXR', 'LSDX No. Serie NCF');
+                CopyFieldIfExists(RecRef, 'Razon Social_DXR', 'LSDX Razon Social');
+                CopyFieldIfExists(RecRef, 'Monto Propina_DXR', 'LSDX Monto Propina');
+                CopyFieldIfExists(RecRef, 'No. Ticket_DXR', 'LSDX No. Ticket');
+                CopyFieldIfExists(RecRef, 'Fecha Expiracion NCF_DXR', 'LSDX Fecha Expiracion NCF');
+                CopyFieldIfExists(RecRef, 'Fiscal Printed_DXR', 'LSDX Fiscal Printed');
+                CopyFieldIfExists(RecRef, 'Location Code_DXR', 'LSDX Location Code');
+                PersistChangedRecord(RecRef);
+            until RecRef.Next() = 0;
+        FinishTable(RecRef);
+    end;
+
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
+    var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
+    begin
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
+    end;
+
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
         RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; SourceFieldNo: Integer; TargetFieldNo: Integer)
-    var
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
+    local procedure BatchSize(): Integer
     begin
-        if not FieldNoExists(RecRef.Number, SourceFieldNo) then
-            exit;
-        SourceFieldRef := RecRef.Field(SourceFieldNo);
-        TargetFieldRef := RecRef.Field(TargetFieldNo);
-        TargetFieldRef.Value := SourceFieldRef.Value;
-    end;
-
-    local procedure FieldNoExists(TableNo: Integer; FieldNo: Integer): Boolean
-    var
-        FieldRec: Record Field;
-    begin
-        exit(FieldRec.Get(TableNo, FieldNo));
+        exit(500);
     end;
 
     local procedure MigrateSameTableEnumFields()
@@ -553,26 +649,9 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         SourceRef.Close();
     end;
 
-    local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldNo: Integer; TargetFieldNo: Integer)
     var
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
-        EnumOrdinal: Integer;
-    begin
-        if not SourceRef.FieldExist(SourceFieldNo) or not TargetRef.FieldExist(TargetFieldNo) then
-            exit;
-
-        SourceFieldRef := SourceRef.Field(SourceFieldNo);
-        TargetFieldRef := TargetRef.Field(TargetFieldNo);
-        if TargetFieldRef.Class <> FieldClass::Normal then
-            exit;
-
-        if TargetFieldRef.Type = FieldType::Option then begin
-            if Evaluate(EnumOrdinal, Format(SourceFieldRef.Value, 0, 2)) then
-                TargetFieldRef.Value := EnumOrdinal;
-        end else
-            TargetFieldRef.Value := SourceFieldRef.Value;
-    end;
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

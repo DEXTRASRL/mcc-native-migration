@@ -14,8 +14,10 @@ codeunit 60077 "DXR MCC SD Migr UserSetup"
     begin
         if UserSetup.FindSet(true) then
             repeat
-                UserSetup."Invoice Permission_DXR" := UserSetup."Invoice Permission DXR";
-                UserSetup.Modify(false);
+                if UserSetup."Invoice Permission_DXR" <> UserSetup."Invoice Permission DXR" then begin
+                    UserSetup."Invoice Permission_DXR" := UserSetup."Invoice Permission DXR";
+                    UserSetup.Modify(false);
+                end;
             until UserSetup.Next() = 0;
     end;
 }

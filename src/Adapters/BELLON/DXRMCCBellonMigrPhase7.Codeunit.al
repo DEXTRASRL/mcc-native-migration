@@ -14,47 +14,56 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if UpgradeTag.HasUpgradeTag('DXR-TableExtIdRestore283') then
+        if UpgradeTag.HasUpgradeTag('DXR-TableExtIdRestore283-NAME-FALLBACK-20260826') then
             exit;
 
         MigrateAllTableExtIdRestore283();
 
-        UpgradeTag.SetUpgradeTag('DXR-TableExtIdRestore283');
+        UpgradeTag.SetUpgradeTag('DXR-TableExtIdRestore283-NAME-FALLBACK-20260826');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
+        // Field numbers remain in the published schema to keep BC's RecordRef mechanisms (Field(),
+        // FieldExist()) compatible, but migration lookup itself is entirely name based - same
+        // resolver as Phase3 (DXR MCC Master Field Resolver), skip-if-target-already-populated.
+        // Unlike Phase3 (which derives legacy-alias candidates automatically from the "_DXR"
+        // suffix), every call site here passes the exact "_Old" source field name recovered from
+        // this table's own tableextension source (src/Extentions/tables/*.TableExt.al in the
+        // Bellon Customization app): several targets here use a "_BE_DXR" suffix instead of
+        // "_DXR", or carry a trailing "." in their declared Name, so Phase3's generic
+        // suffix-stripping derivation would not reliably reconstruct the matching source name for
+        // every field in this codeunit's much larger and more irregular table set.
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
+    end;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure MigrateAllTableExtIdRestore283()
@@ -123,10 +132,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Approval Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52002, 52787); // ID_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'ID_DXR.', 'ID_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_AssemblySetupIdRestore()
@@ -136,10 +145,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Assembly Setup");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52001, 52787); // Tolerance%_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Tolerance%_DXR', 'Tolerance%_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_BankAccReconciliationIdRestore()
@@ -149,10 +158,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Bank Acc. Reconciliation");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Extracto Bancario_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Extracto Bancario_DXR', 'Extracto Bancario_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_BankAccReconciliationLineIdRestore()
@@ -162,10 +171,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Bank Acc. Reconciliation Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 52001, 52787); // Extracto Bancario_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Extracto Bancario_DXR', 'Extracto Bancario_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_BankAccountIdRestore()
@@ -175,12 +184,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Bank Account");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 52787); // Cod. Proveedor Bco._Old
-                CopyFieldIfExists(RecRef, 50004, 52788); // Account No._Old
-                CopyFieldIfExists(RecRef, 50005, 52789); // Amount In Payload_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Cod. Proveedor Bco._BE_DXR', 'Cod. Proveedor Bco._Old');
+                CopyFieldIfExists(RecRef, 'Account No._DXR', 'Account No._Old');
+                CopyFieldIfExists(RecRef, 'Amount In Payload_DXR', 'Amount In Payload_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_BankAccountLedgerEntryIdRestore()
@@ -190,10 +199,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Bank Account Ledger Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Fecha Registro 2_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Fecha Registro 2_DXR', 'Fecha Registro 2_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CheckLedgerEntryIdRestore()
@@ -203,13 +212,13 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Check Ledger Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50009, 52787); // Recibido Por_Old
-                CopyFieldIfExists(RecRef, 50010, 52788); // Recibido Por Cedula_Old
-                CopyFieldIfExists(RecRef, 50011, 52789); // Hora Entrega_Old
-                CopyFieldIfExists(RecRef, 50012, 52790); // No. Recibo_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Recibido Por_DXR', 'Recibido Por_Old');
+                CopyFieldIfExists(RecRef, 'Recibido Por Cedula_DXR', 'Recibido Por Cedula_Old');
+                CopyFieldIfExists(RecRef, 'Hora Entrega_DXR', 'Hora Entrega_Old');
+                CopyFieldIfExists(RecRef, 'No. Recibo_DXR', 'No. Recibo_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CompanyInformationIdRestore()
@@ -219,11 +228,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Company Information");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Encargado Retenciones_Old
-                CopyFieldIfExists(RecRef, 50003, 52788); // Posicion Encargado Ret._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Encargado Retenciones_DXR', 'Encargado Retenciones_Old');
+                CopyFieldIfExists(RecRef, 'Posicion Encargado Ret._DXR', 'Posicion Encargado Ret._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CountryRegionIdRestore()
@@ -233,12 +242,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Country/Region");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 52787); // Obsolete 11123302_Old
-                CopyFieldIfExists(RecRef, 50004, 52788); // Obsolete 11123303_Old
-                CopyFieldIfExists(RecRef, 50005, 52789); // 2-Digit ISO Code_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Obsolete 11123302_DXR', 'Obsolete 11123302_Old');
+                CopyFieldIfExists(RecRef, 'Obsolete 11123303_DXR', 'Obsolete 11123303_Old');
+                CopyFieldIfExists(RecRef, '2-Digit ISO Code_DXR', '2-Digit ISO Code_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CurrencyIdRestore()
@@ -248,10 +257,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Currency");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Accepted bpd_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Accepted bpd_DXR', 'Accepted bpd_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CurrencyExchangeRateIdRestore()
@@ -261,10 +270,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Currency Exchange Rate");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Tasa Banco Central_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Tasa Banco Central_DXR', 'Tasa Banco Central_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CustLedgerEntryIdRestore()
@@ -274,10 +283,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Cust. Ledger Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50004, 52788); // No. Authorizacion_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'No. Authorizacion_DXR', 'No. Authorizacion_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_CustomerPriceGroupIdRestore()
@@ -287,10 +296,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Customer Price Group");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Global Sales Code_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Global Sales Code_DXR', 'Global Sales Code_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_GenJournalBatchIdRestore()
@@ -300,10 +309,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Gen. Journal Batch");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50004, 52787); // Pago Electronico_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Pago Electronico_DXR', 'Pago Electronico_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_GenJournalLineIdRestore()
@@ -313,18 +322,18 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Gen. Journal Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50055, 52787); // Pago Electronico_Old
-                CopyFieldIfExists(RecRef, 50056, 52788); // IsRecaudo_Old
-                CopyFieldIfExists(RecRef, 50057, 52789); // ePAGOS_Old
-                CopyFieldIfExists(RecRef, 50058, 52790); // VendorPay No._Old
-                CopyFieldIfExists(RecRef, 50059, 52791); // Only Two Dimensions_Old
-                CopyFieldIfExists(RecRef, 50060, 52792); // No. Authorizacion_Old
-                CopyFieldIfExists(RecRef, 50061, 52793); // Fecha Registro2_Old
-                CopyFieldIfExists(RecRef, 50062, 52794); // Posting Exch. Entry No._Old
-                CopyFieldIfExists(RecRef, 50063, 52795); // Posting Exch. Line No._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Pago Electronico_DXR', 'Pago Electronico_Old');
+                CopyFieldIfExists(RecRef, 'IsRecaudo_DXR', 'IsRecaudo_Old');
+                CopyFieldIfExists(RecRef, 'ePAGOS_DXR', 'ePAGOS_Old');
+                CopyFieldIfExists(RecRef, 'VendorPay No._DXR', 'VendorPay No._Old');
+                CopyFieldIfExists(RecRef, 'Only Two Dimensions_DXR', 'Only Two Dimensions_Old');
+                CopyFieldIfExists(RecRef, 'No. Authorizacion_DXR', 'No. Authorizacion_Old');
+                CopyFieldIfExists(RecRef, 'Fecha Registro2_DXR', 'Fecha Registro2_Old');
+                CopyFieldIfExists(RecRef, 'Posting Exch. Entry No._DXR', 'Posting Exch. Entry No._Old');
+                CopyFieldIfExists(RecRef, 'Posting Exch. Line No._DXR', 'Posting Exch. Line No._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_GenProductPostingGroupIdRestore()
@@ -334,10 +343,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Gen. Product Posting Group");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Internal Consumption_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Internal Consumption_DXR', 'Internal Consumption_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_GeneralLedgerSetupIdRestore()
@@ -347,10 +356,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"General Ledger Setup");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Fecha Inicio AJCOSTO_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Fecha Inicio AJCOSTO_DXR', 'Fecha Inicio AJCOSTO_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_IssuedReminderHeaderIdRestore()
@@ -360,10 +369,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Issued Reminder Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50004, 52788); // Remaining Amount 2_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Remaining Amount 2_DXR', 'Remaining Amount 2_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ItemCategoryIdRestore()
@@ -373,10 +382,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Item Category");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // % Comision_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, '% Comision_DXR', '% Comision_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ItemChargeAssignmentPurchIdRestore()
@@ -386,10 +395,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Item Charge Assignment (Purch)");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Monto Cargo Liq._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Monto Cargo Liq._DXR', 'Monto Cargo Liq._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ItemSpecialGroupsIdRestore()
@@ -399,10 +408,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Item Special Groups");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // % Comision_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, '% Comision_DXR', '% Comision_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ListadoRecibodeIngresoIdRestore()
@@ -412,13 +421,13 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(52132); // DXR_Cash Journal Receipt List (Access = Internal in DR-Localization)
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50006, 52787); // Documento Registrado_Old
-                CopyFieldIfExists(RecRef, 50008, 52789); // Fecha Vencimiento_Old
-                CopyFieldIfExists(RecRef, 50010, 52791); // IsRecaudo_Old
-                CopyFieldIfExists(RecRef, 50011, 52792); // No. Authorizacion_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Documento Registrado_DXR', 'Documento Registrado_Old');
+                CopyFieldIfExists(RecRef, 'Fecha Vencimiento_DXR', 'Fecha Vencimiento_Old');
+                CopyFieldIfExists(RecRef, 'IsRecaudo_DXR', 'IsRecaudo_Old');
+                CopyFieldIfExists(RecRef, 'No. Authorizacion_DXR', 'No. Authorizacion_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_LocationIdRestore()
@@ -428,15 +437,15 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Location");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50006, 52787); // Req. Transport_Old
-                CopyFieldIfExists(RecRef, 50007, 52788); // Existencia Ventas_Old
-                CopyFieldIfExists(RecRef, 50008, 52789); // Transito Internacional_Old
-                CopyFieldIfExists(RecRef, 50009, 52790); // Req. Cod. Audit Transf_Old
-                CopyFieldIfExists(RecRef, 50010, 52791); // Visible in Trafico_Old
-                CopyFieldIfExists(RecRef, 50011, 52792); // Req. Cod. Pos. & Neg._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Req._Transport_DXR', 'Req. Transport_Old');
+                CopyFieldIfExists(RecRef, 'Existencia Ventas_DXR', 'Existencia Ventas_Old');
+                CopyFieldIfExists(RecRef, 'Transito Internacional_DXR', 'Transito Internacional_Old');
+                CopyFieldIfExists(RecRef, 'Req. Cod. Audit Transf_DXR', 'Req. Cod. Audit Transf_Old');
+                CopyFieldIfExists(RecRef, 'Visible in Trafico_DXR', 'Visible in Trafico_Old');
+                CopyFieldIfExists(RecRef, 'Req. Cod. Pos. & Neg._DXR', 'Req. Cod. Pos. & Neg._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_MemberContactIdRestore()
@@ -446,15 +455,15 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Member Contact");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50006, 52787); // Cedula_Old
-                CopyFieldIfExists(RecRef, 50007, 52788); // Newsletter_Old
-                CopyFieldIfExists(RecRef, 50008, 52789); // Profesion_Old
-                CopyFieldIfExists(RecRef, 50009, 52790); // Area de Trabajo_Old
-                CopyFieldIfExists(RecRef, 50010, 52791); // Cantidad De Hijos_Old
-                CopyFieldIfExists(RecRef, 50011, 52792); // Sucursal Preferida_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Cedula_DXR', 'Cedula_Old');
+                CopyFieldIfExists(RecRef, 'Newsletter_DXR', 'Newsletter_Old');
+                CopyFieldIfExists(RecRef, 'Profesion_DXR', 'Profesion_Old');
+                CopyFieldIfExists(RecRef, 'Area de Trabajo_DXR', 'Area de Trabajo_Old');
+                CopyFieldIfExists(RecRef, 'Cantidad De Hijos_DXR', 'Cantidad De Hijos_Old');
+                CopyFieldIfExists(RecRef, 'Sucursal Preferida_DXR', 'Sucursal Preferida_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_MemberPointOfferIdRestore()
@@ -464,13 +473,13 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Member Point Offer");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50004, 52787); // isTickets_Old
-                CopyFieldIfExists(RecRef, 50005, 52788); // Promotion Status_Old
-                CopyFieldIfExists(RecRef, 50006, 52789); // Multiplier for members_Old
-                CopyFieldIfExists(RecRef, 50007, 52790); // Calc. Type_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'isTickets_DXR', 'isTickets_Old');
+                CopyFieldIfExists(RecRef, 'Promotion Status_DXR', 'Promotion Status_Old');
+                CopyFieldIfExists(RecRef, 'Multiplier for members_DXR', 'Multiplier for members_Old');
+                CopyFieldIfExists(RecRef, 'Calc. Type_DXR', 'Calc. Type_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_NCFSetupIdRestore()
@@ -480,11 +489,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(52179); // DXR_NCF Setup (Access = Internal in DR-Localization)
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 52787); // Grupo Contable BS_Old
-                CopyFieldIfExists(RecRef, 50004, 52788); // Legal Tip %_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Grupo Contable BS_DXR', 'Grupo Contable BS_Old');
+                CopyFieldIfExists(RecRef, 'Legal Tip %_DXR', 'Legal Tip %_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PaymentMethodIdRestore()
@@ -494,13 +503,13 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Payment Method");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50006, 52787); // Payment Processor_Old
-                CopyFieldIfExists(RecRef, 50007, 52788); // Prioridad_Old
-                CopyFieldIfExists(RecRef, 50008, 52789); // Contado_Old
-                CopyFieldIfExists(RecRef, 50009, 52790); // Tipo Venta_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Payment Processor_DXR', 'Payment Processor_Old');
+                CopyFieldIfExists(RecRef, 'Prioridad_DXR.', 'Prioridad_Old');
+                CopyFieldIfExists(RecRef, 'Contado_DXR', 'Contado_Old');
+                CopyFieldIfExists(RecRef, 'Tipo Venta_DXR', 'Tipo Venta_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PeriodicDiscountIdRestore()
@@ -510,10 +519,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Periodic Discount");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50018, 52794); // Global_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Global_DXR', 'Global_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PostedStatementIdRestore()
@@ -523,10 +532,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Posted Statement");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Listo para Registrar_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Listo para Registrar_DXR', 'Listo para Registrar_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ProductGroupIdRestore()
@@ -536,11 +545,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Retail Product Group");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Block, Sand And Cement_Old
-                CopyFieldIfExists(RecRef, 50003, 52788); // Comision_Cobro_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Block, Sand And Cement_DXR', 'Block, Sand And Cement_Old');
+                CopyFieldIfExists(RecRef, 'Comision_Cobro_DXR.', 'Comision_Cobro_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchCommentLineIdRestore()
@@ -550,10 +559,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Purch. Comment Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Comentario Extendido_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Comentario Extendido_DXR', 'Comentario Extendido_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchCommentLineArchiveIdRestore()
@@ -563,10 +572,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Purch. Comment Line Archive");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Comentario Extendido_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Comentario Extendido_DXR', 'Comentario Extendido_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_PurchInvLineIdRestore()
@@ -576,10 +585,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Purch. Inv. Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50018, 52787); // Liquidacion_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Liquidacion_DXR', 'Liquidacion_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ReasonCodeTableExtIdRestore()
@@ -589,10 +598,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Reason Code");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // GroupTransport_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'GroupTransport_DXR.', 'GroupTransport_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ReplenJournalLinesIdRestore()
@@ -602,10 +611,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Replen. Journal Lines");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50032, 52787); // Almacen Destino_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Almacen Destino_DXR', 'Almacen Destino_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ReplenTemplateIdRestore()
@@ -615,10 +624,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Replen. Template");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50032, 52787); // Almacen Destino_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Almacen Destino_DXR', 'Almacen Destino_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_RetailSetupIdRestore()
@@ -628,33 +637,33 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Retail Setup");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50027, 52787); // Withhold VAT Refund_Old
-                CopyFieldIfExists(RecRef, 50028, 52788); // VAT Bus. Posting Group_Old
-                CopyFieldIfExists(RecRef, 50029, 52789); // VAT Prod. Posting Group_Old
-                CopyFieldIfExists(RecRef, 50030, 52790); // Days Limit_Old
-                CopyFieldIfExists(RecRef, 50031, 52791); // Sales Type_Old
-                CopyFieldIfExists(RecRef, 50032, 52792); // Validar Salida POS_Old
-                CopyFieldIfExists(RecRef, 50033, 52793); // Bloq camb de lin MKP_Old
-                CopyFieldIfExists(RecRef, 50034, 52794); // Impr por Descripcion_Old
-                CopyFieldIfExists(RecRef, 50035, 52795); // Cod Barras en Copias_Old
-                CopyFieldIfExists(RecRef, 50036, 52796); // No Valid Prec Cliente_Old
-                CopyFieldIfExists(RecRef, 50037, 52797); // Permitir Descuentos N/C_Old
-                CopyFieldIfExists(RecRef, 50038, 52798); // Send Trans. Sales Entry_Old
-                CopyFieldIfExists(RecRef, 50039, 52799); // Control SPO Cte Exon_Old
-                CopyFieldIfExists(RecRef, 50040, 52800); // Cantidades Barcodes_Old
-                CopyFieldIfExists(RecRef, 50041, 52801); // Env correo Ventas/Devol_Old
-                CopyFieldIfExists(RecRef, 50042, 52802); // Terminos Devoluciones_Old
-                CopyFieldIfExists(RecRef, 50043, 52803); // Prefijo Pedidos POS TMP_Old
-                CopyFieldIfExists(RecRef, 50044, 52804); // Proveedor_Old
-                CopyFieldIfExists(RecRef, 50045, 52805); // USD Currency Code_Old
-                CopyFieldIfExists(RecRef, 50046, 52806); // Days to Reprint_Old
-                CopyFieldIfExists(RecRef, 50047, 52807); // Allow Days to Reprint_Old
-                CopyFieldIfExists(RecRef, 50048, 52808); // Ruta Api Email_Old
-                CopyFieldIfExists(RecRef, 50049, 52809); // FileServerName_Old
-                CopyFieldIfExists(RecRef, 50050, 52810); // NotAllowReprintReturn_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Withhold VAT Refund_DXR', 'Withhold VAT Refund_Old');
+                CopyFieldIfExists(RecRef, 'VAT Bus. Posting Group_DXR', 'VAT Bus. Posting Group_Old');
+                CopyFieldIfExists(RecRef, 'VAT Prod. Posting Group_DXR', 'VAT Prod. Posting Group_Old');
+                CopyFieldIfExists(RecRef, 'Days Limit_DXR', 'Days Limit_Old');
+                CopyFieldIfExists(RecRef, 'Sales Type_DXR', 'Sales Type_Old');
+                CopyFieldIfExists(RecRef, 'Validar Salida POS_DXR', 'Validar Salida POS_Old');
+                CopyFieldIfExists(RecRef, 'Bloq camb de lin MKP_DXR', 'Bloq camb de lin MKP_Old');
+                CopyFieldIfExists(RecRef, 'Impr por Descripcion_DXR', 'Impr por Descripcion_Old');
+                CopyFieldIfExists(RecRef, 'Cod Barras en Copias_DXR', 'Cod Barras en Copias_Old');
+                CopyFieldIfExists(RecRef, 'No Valid Prec Cliente_DXR', 'No Valid Prec Cliente_Old');
+                CopyFieldIfExists(RecRef, 'Permitir Descuentos N/C_DXR', 'Permitir Descuentos N/C_Old');
+                CopyFieldIfExists(RecRef, 'Send Trans. Sales Entry_DXR', 'Send Trans. Sales Entry_Old');
+                CopyFieldIfExists(RecRef, 'Control SPO Cte Exon_DXR', 'Control SPO Cte Exon_Old');
+                CopyFieldIfExists(RecRef, 'Cantidades Barcodes_DXR', 'Cantidades Barcodes_Old');
+                CopyFieldIfExists(RecRef, 'Env correo Ventas/Devol_DXR', 'Env correo Ventas/Devol_Old');
+                CopyFieldIfExists(RecRef, 'Terminos Devoluciones_DXR', 'Terminos Devoluciones_Old');
+                CopyFieldIfExists(RecRef, 'Prefijo Pedidos POS TMP_DXR', 'Prefijo Pedidos POS TMP_Old');
+                CopyFieldIfExists(RecRef, 'Proveedor_DXR', 'Proveedor_Old');
+                CopyFieldIfExists(RecRef, 'USD Currency Code_DXR', 'USD Currency Code_Old');
+                CopyFieldIfExists(RecRef, 'Days to Reprint_DXR', 'Days to Reprint_Old');
+                CopyFieldIfExists(RecRef, 'Allow Days to Reprint_DXR', 'Allow Days to Reprint_Old');
+                CopyFieldIfExists(RecRef, 'Ruta Api Email_DXR', 'Ruta Api Email_Old');
+                CopyFieldIfExists(RecRef, 'FileServerName_DXR', 'FileServerName_Old');
+                CopyFieldIfExists(RecRef, 'NotAllowReprintReturn_DXR', 'NotAllowReprintReturn_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_RetailUserIdRestore()
@@ -664,11 +673,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Retail User");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Almacen Despacho_Old
-                CopyFieldIfExists(RecRef, 50003, 52788); // Filtrar Exist Ventas_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Almacen Despacho_DXR.', 'Almacen Despacho_Old');
+                CopyFieldIfExists(RecRef, 'Filtrar Exist Ventas_DXR', 'Filtrar Exist Ventas_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesPriceIdRestore()
@@ -678,12 +687,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Sales Price");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50054, 52788); // Markup % Without TAX_Old
-                CopyFieldIfExists(RecRef, 50055, 52789); // Markup % CP_Old
-                CopyFieldIfExists(RecRef, 50056, 52790); // Visible in Webshop_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Markup % Without TAX_DXR', 'Markup % Without TAX_Old');
+                CopyFieldIfExists(RecRef, 'Markup % CP_DXR', 'Markup % CP_Old');
+                CopyFieldIfExists(RecRef, 'Visible in Webshop_DXR', 'Visible in Webshop_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesReceivablesSetupIdRestore()
@@ -693,11 +702,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Sales & Receivables Setup");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // STD POS VAT Bus Pst Grp_Old
-                CopyFieldIfExists(RecRef, 50003, 52788); // STD POS Dflt Doc Copies_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'STD POS VAT Bus Pst Grp_DXR', 'STD POS VAT Bus Pst Grp_Old');
+                CopyFieldIfExists(RecRef, 'STD POS Dflt Doc Copies_DXR', 'STD POS Dflt Doc Copies_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalesTypeIdRestore()
@@ -707,10 +716,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Sales Type");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Venta Ex. ITBIS_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Venta Ex. ITBIS_DXR', 'Venta Ex. ITBIS_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_SalespersonPurchaserIdRestore()
@@ -720,12 +729,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Salesperson/Purchaser");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50007, 52787); // Gestor_CXP_Old
-                CopyFieldIfExists(RecRef, 50008, 52788); // Comisiona_Old
-                CopyFieldIfExists(RecRef, 50009, 52789); // Tipo Comision_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Gestor_CXP_DXR', 'Gestor_CXP_Old');
+                CopyFieldIfExists(RecRef, 'Comisiona_DXR', 'Comisiona_Old');
+                CopyFieldIfExists(RecRef, 'Tipo Comision_DXR', 'Tipo Comision_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ShiptoAddressIdRestore()
@@ -735,11 +744,11 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Ship-to Address");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Latitud_Old
-                CopyFieldIfExists(RecRef, 50003, 52788); // Longitud_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Latitud_DXR.', 'Latitud_Old');
+                CopyFieldIfExists(RecRef, 'Longitud_DXR.', 'Longitud_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_StatementIdRestore()
@@ -749,10 +758,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Statement");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50001, 52787); // Listo para Registrar_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Listo para Registrar_DXR', 'Listo para Registrar_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_StoreIdRestore()
@@ -762,14 +771,14 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC STORE");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50010, 52787); // Cod. Cliente Contado_Old
-                CopyFieldIfExists(RecRef, 50011, 52788); // No Serie 3er Party Item_Old
-                CopyFieldIfExists(RecRef, 50012, 52789); // Address 3_Old
-                CopyFieldIfExists(RecRef, 50013, 52790); // Utiliza NCF Unico_Old
-                CopyFieldIfExists(RecRef, 50014, 52791); // Print Header Doc._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Cod. Cliente Contado_BE_DXR', 'Cod. Cliente Contado_Old');
+                CopyFieldIfExists(RecRef, 'No Serie 3er Party Item_DXR', 'No Serie 3er Party Item_Old');
+                CopyFieldIfExists(RecRef, 'Address 3_BE_DXR', 'Address 3_Old');
+                CopyFieldIfExists(RecRef, 'Utiliza NCF Unico_BE_DXR', 'Utiliza NCF Unico_Old');
+                CopyFieldIfExists(RecRef, 'Print Header Doc._DXR.', 'Print Header Doc._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TariffNumberIdRestore()
@@ -779,12 +788,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Tariff Number");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 52787); // % Arancel_Old
-                CopyFieldIfExists(RecRef, 50004, 52788); // ISC_Old
-                CopyFieldIfExists(RecRef, 50005, 52789); // % Selectivo_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, '% Arancel_DXR', '% Arancel_Old');
+                CopyFieldIfExists(RecRef, 'ISC_DXR', 'ISC_Old');
+                CopyFieldIfExists(RecRef, '% Selectivo_DXR', '% Selectivo_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TenderTypeIdRestore()
@@ -794,10 +803,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Tender Type");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50008, 52787); // IsCreditMemo_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'IsCreditMemo_DXR', 'IsCreditMemo_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TransSalesEntryIdRestore()
@@ -807,10 +816,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Trans. Sales Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Autorizador_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Autorizador_DXR', 'Autorizador_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TransactionHeaderIdRestore()
@@ -820,22 +829,22 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"LSC Transaction Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50037, 52787); // No. Ticket_Old
-                CopyFieldIfExists(RecRef, 50038, 52788); // Email Transaction_Old
-                CopyFieldIfExists(RecRef, 50039, 52789); // Fecha Expiracion NCF_Old
-                CopyFieldIfExists(RecRef, 50040, 52790); // Tipo Identificacion_Old
-                CopyFieldIfExists(RecRef, 50041, 52791); // Sell-to Contact_Old
-                CopyFieldIfExists(RecRef, 50042, 52792); // Aplica Transportacion_Old
-                CopyFieldIfExists(RecRef, 50043, 52793); // Addl Currency Code_Old
-                CopyFieldIfExists(RecRef, 50044, 52794); // Addl Currency Factor_Old
-                CopyFieldIfExists(RecRef, 50045, 52795); // Print Header Doc_Old
-                CopyFieldIfExists(RecRef, 50046, 52796); // Banco Central Cur Fctr_Old
-                CopyFieldIfExists(RecRef, 50047, 52797); // Qty Tickets_Old
-                CopyFieldIfExists(RecRef, 50048, 52798); // Promotion Tickets_Old
-                CopyFieldIfExists(RecRef, 50049, 52799); // Order No._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'No. Ticket_BE_DXR', 'No. Ticket_Old');
+                CopyFieldIfExists(RecRef, 'Email Transaction_DXR', 'Email Transaction_Old');
+                CopyFieldIfExists(RecRef, 'Fecha Expiracion NCF_BE_DXR', 'Fecha Expiracion NCF_Old');
+                CopyFieldIfExists(RecRef, 'Tipo Identificacion_BE_DXR', 'Tipo Identificacion_Old');
+                CopyFieldIfExists(RecRef, 'Sell-to Contact_DXR', 'Sell-to Contact_Old');
+                CopyFieldIfExists(RecRef, 'Aplica Transportacion_DXR', 'Aplica Transportacion_Old');
+                CopyFieldIfExists(RecRef, 'Addl Currency Code_DXR', 'Addl Currency Code_Old');
+                CopyFieldIfExists(RecRef, 'Addl Currency Factor_DXR', 'Addl Currency Factor_Old');
+                CopyFieldIfExists(RecRef, 'Print Header Doc_DXR', 'Print Header Doc_Old');
+                CopyFieldIfExists(RecRef, 'Banco Central Cur Fctr_DXR', 'Banco Central Cur Fctr_Old');
+                CopyFieldIfExists(RecRef, 'Qty Tickets_DXR', 'Qty Tickets_Old');
+                CopyFieldIfExists(RecRef, 'Promotion Tickets_DXR', 'Promotion Tickets_Old');
+                CopyFieldIfExists(RecRef, 'Order No._DXR', 'Order No._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TransferReceiptHeaderIdRestore()
@@ -845,13 +854,13 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Transfer Receipt Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50011, 52787); // Order User Id_Old
-                CopyFieldIfExists(RecRef, 50012, 52788); // Order Date Created_Old
-                CopyFieldIfExists(RecRef, 50013, 52789); // Receipt User ID_Old
-                CopyFieldIfExists(RecRef, 50014, 52790); // Pre Receive Ref No_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Order User ID_DXR.', 'Order User Id_Old');
+                CopyFieldIfExists(RecRef, 'Order Date Created_DXR.', 'Order Date Created_Old');
+                CopyFieldIfExists(RecRef, 'Receipt User ID_DXR.', 'Receipt User ID_Old');
+                CopyFieldIfExists(RecRef, 'Pre Receive Ref No_DXR', 'Pre Receive Ref No_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_TransferShipmentHeaderIdRestore()
@@ -861,12 +870,12 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Transfer Shipment Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50009, 52787); // Order User Id_Old
-                CopyFieldIfExists(RecRef, 50010, 52788); // Order Date Created_Old
-                CopyFieldIfExists(RecRef, 50011, 52789); // Shipment User ID_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Order User ID_DXR.', 'Order User Id_Old');
+                CopyFieldIfExists(RecRef, 'Order Date Created_DXR.', 'Order Date Created_Old');
+                CopyFieldIfExists(RecRef, 'Shipment User ID_DXR.', 'Shipment User ID_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_UserSetupIdRestore()
@@ -876,30 +885,30 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"User Setup");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50025, 52787); // Entrega Cheques_Old
-                CopyFieldIfExists(RecRef, 50026, 52788); // Grupo Precios Tope_Old
-                CopyFieldIfExists(RecRef, 50027, 52789); // Ilimitado_Old
-                CopyFieldIfExists(RecRef, 50028, 52790); // Filtrar Por Vendedor_Old
-                CopyFieldIfExists(RecRef, 50029, 52791); // Create Shipments_Old
-                CopyFieldIfExists(RecRef, 50030, 52792); // Invoice Shipments_Old
-                CopyFieldIfExists(RecRef, 50031, 52793); // User Hierarchy_Old
-                CopyFieldIfExists(RecRef, 50033, 52795); // Filtrar Cartera Cte_Old
-                CopyFieldIfExists(RecRef, 50034, 52796); // Permit Tienda Dif a IF_Old
-                CopyFieldIfExists(RecRef, 50035, 52797); // Tipo Segmento_Old
-                CopyFieldIfExists(RecRef, 50036, 52798); // Aprrove Int Consump_Old
-                CopyFieldIfExists(RecRef, 50037, 52799); // Create Int Consump_Old
-                CopyFieldIfExists(RecRef, 50038, 52800); // Almacen Consumo Interno_Old
-                CopyFieldIfExists(RecRef, 50039, 52801); // Departamento - Discr_Old
-                CopyFieldIfExists(RecRef, 50040, 52802); // Crear Ajustes - Discr_Old
-                CopyFieldIfExists(RecRef, 50041, 52803); // Post Int Consumption_Old
-                CopyFieldIfExists(RecRef, 50042, 52804); // Excl Filtro DptoDiscr_Old
-                CopyFieldIfExists(RecRef, 50043, 52805); // Filtrar Usu Reimpresion_Old
-                CopyFieldIfExists(RecRef, 50044, 52806); // Modify Int Consump_Old
-                CopyFieldIfExists(RecRef, 50045, 52807); // SendAppr  Int Consump_Old
-                CopyFieldIfExists(RecRef, 50046, 52808); // Order to Retail Order_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Entrega Cheques_BE_DXR', 'Entrega Cheques_Old');
+                CopyFieldIfExists(RecRef, 'Grupo Precios Tope_DXR.', 'Grupo Precios Tope_Old');
+                CopyFieldIfExists(RecRef, 'Ilimitado_DXR', 'Ilimitado_Old');
+                CopyFieldIfExists(RecRef, 'Filtrar Por Vendedor_DXR', 'Filtrar Por Vendedor_Old');
+                CopyFieldIfExists(RecRef, 'Create_Shipments_DXR', 'Create Shipments_Old');
+                CopyFieldIfExists(RecRef, 'Invoice Shipments_DXR', 'Invoice Shipments_Old');
+                CopyFieldIfExists(RecRef, 'User Hierarchy_DXR', 'User Hierarchy_Old');
+                CopyFieldIfExists(RecRef, 'Filtrar Cartera Cte_DXR.', 'Filtrar Cartera Cte_Old');
+                CopyFieldIfExists(RecRef, 'Permit Tienda Dif a IF_DXR', 'Permit Tienda Dif a IF_Old');
+                CopyFieldIfExists(RecRef, 'Tipo Segmento_DXR', 'Tipo Segmento_Old');
+                CopyFieldIfExists(RecRef, 'Aprrove Int Consump_DXR', 'Aprrove Int Consump_Old');
+                CopyFieldIfExists(RecRef, 'Create Int Consump_DXR', 'Create Int Consump_Old');
+                CopyFieldIfExists(RecRef, 'Almacen Consumo Interno_DXR', 'Almacen Consumo Interno_Old');
+                CopyFieldIfExists(RecRef, 'Departamento - Discr_DXR', 'Departamento - Discr_Old');
+                CopyFieldIfExists(RecRef, 'Crear Ajustes - Discr_DXR', 'Crear Ajustes - Discr_Old');
+                CopyFieldIfExists(RecRef, 'Post Int Consumption_DXR', 'Post Int Consumption_Old');
+                CopyFieldIfExists(RecRef, 'Excl Filtro DptoDiscr_DXR', 'Excl Filtro DptoDiscr_Old');
+                CopyFieldIfExists(RecRef, 'Filtrar Usu Reimpresion_DXR', 'Filtrar Usu Reimpresion_Old');
+                CopyFieldIfExists(RecRef, 'Modify Int Consump_DXR', 'Modify Int Consump_Old');
+                CopyFieldIfExists(RecRef, 'SendAppr  Int Consump_DXR', 'SendAppr  Int Consump_Old');
+                CopyFieldIfExists(RecRef, 'Order to Retail Order_DXR', 'Order to Retail Order_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_ValueEntryIdRestore()
@@ -909,10 +918,10 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Value Entry");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50003, 52787); // Correccion Int._Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Correccion Int._DXR', 'Correccion Int._Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_VendorIdRestore()
@@ -922,16 +931,16 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Vendor");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50034, 52787); // Teléfono 2_Old
-                CopyFieldIfExists(RecRef, 50035, 52788); // Vendedor_Old
-                CopyFieldIfExists(RecRef, 50036, 52789); // Vendedor email_Old
-                CopyFieldIfExists(RecRef, 50037, 52790); // Vendedor Celular_Old
-                CopyFieldIfExists(RecRef, 50046, 52799); // Apartado Postal_Old
-                CopyFieldIfExists(RecRef, 50047, 52800); // Sector_Old
-                CopyFieldIfExists(RecRef, 50053, 52806); // FechaCreacion_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Teléfono 2_DXR', 'Teléfono 2_Old');
+                CopyFieldIfExists(RecRef, 'Vendedor_DXR', 'Vendedor_Old');
+                CopyFieldIfExists(RecRef, 'Vendedor Email_DXR.', 'Vendedor email_Old');
+                CopyFieldIfExists(RecRef, 'Vendedor Celular_DXR', 'Vendedor Celular_Old');
+                CopyFieldIfExists(RecRef, 'Apartado Postal_DXR', 'Apartado Postal_Old');
+                CopyFieldIfExists(RecRef, 'Sector_DXR', 'Sector_Old');
+                CopyFieldIfExists(RecRef, 'FechaCreacion_DXR', 'FechaCreacion_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure MigrateTableExt_WarehouseReceiptLineIdRestore()
@@ -941,11 +950,15 @@ codeunit 60151 "DXR MCC Bellon Migr Phase7"
         RecRef.Open(Database::"Warehouse Receipt Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50002, 52787); // Almacen Destino_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Almacen Destino_DXR', 'Almacen Destino_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

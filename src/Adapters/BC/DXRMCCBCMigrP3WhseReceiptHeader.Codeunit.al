@@ -10,6 +10,7 @@ codeunit 60102 "DXR MCC BC Migr P3 WhseRcptHd"
     var
         WhseReceiptHeaderRec: Record "Warehouse Receipt Header";
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if not WhseReceiptHeaderRec.FindSet(true) then
             exit;
@@ -38,7 +39,14 @@ codeunit 60102 "DXR MCC BC Migr P3 WhseRcptHd"
 
             if Modified then
                 WhseReceiptHeaderRec.Modify(false);
+
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= 500 then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
         until WhseReceiptHeaderRec.Next() = 0;
+        Commit();
     end;
 }
 

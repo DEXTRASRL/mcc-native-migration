@@ -9,12 +9,25 @@ codeunit 60073 "DXR MCC SD Migr SalesInvHdr"
     trigger OnRun()
     var
         SalesInvHeader: Record "Sales Invoice Header";
+        RowsSinceCommit: Integer;
     begin
         if SalesInvHeader.FindSet(true) then
             repeat
-                SalesInvHeader."Special Dispatch_DXR" := SalesInvHeader."Special Dispatch DXR";
-                SalesInvHeader.Modify(false);
+                if SalesInvHeader."Special Dispatch_DXR" <> SalesInvHeader."Special Dispatch DXR" then begin
+                    SalesInvHeader."Special Dispatch_DXR" := SalesInvHeader."Special Dispatch DXR";
+                    SalesInvHeader.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until SalesInvHeader.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

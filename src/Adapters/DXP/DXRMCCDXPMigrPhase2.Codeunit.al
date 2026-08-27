@@ -87,15 +87,37 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     local procedure CopyPOSTransLineFields()
     var
         PosTransLine: Record "LSC POS Trans. Line";
+        RowsSinceCommit: Integer;
+        RecordChanged: Boolean;
     begin
         if PosTransLine.FindSet(true) then
             repeat
-                PosTransLine."VP Approved_DXR" := PosTransLine."DXVP Approved";
-                PosTransLine."VP Authorization No._DXR" := PosTransLine."DXVP Authorization No.";
-                PosTransLine."VP Lot No._DXR" := PosTransLine."DXVP Lot No.";
-                PosTransLine."Cuota Quantity_DXR" := PosTransLine."DXCuota Quantity";
-                PosTransLine.Modify(false);
+                RecordChanged := false;
+                if PosTransLine."VP Approved_DXR" <> PosTransLine."DXVP Approved" then begin
+                    PosTransLine."VP Approved_DXR" := PosTransLine."DXVP Approved";
+                    RecordChanged := true;
+                end;
+                if PosTransLine."VP Authorization No._DXR" <> PosTransLine."DXVP Authorization No." then begin
+                    PosTransLine."VP Authorization No._DXR" := PosTransLine."DXVP Authorization No.";
+                    RecordChanged := true;
+                end;
+                if PosTransLine."VP Lot No._DXR" <> PosTransLine."DXVP Lot No." then begin
+                    PosTransLine."VP Lot No._DXR" := PosTransLine."DXVP Lot No.";
+                    RecordChanged := true;
+                end;
+                if PosTransLine."Cuota Quantity_DXR" <> PosTransLine."DXCuota Quantity" then begin
+                    PosTransLine."Cuota Quantity_DXR" := PosTransLine."DXCuota Quantity";
+                    RecordChanged := true;
+                end;
+                if RecordChanged then
+                    PosTransLine.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until PosTransLine.Next() = 0;
+        Commit();
     end;
 
     local procedure CopyTenderTypeFields()
@@ -116,15 +138,37 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     local procedure CopyTransPaymentEntryFields()
     var
         TransPaymentEntry: Record "LSC Trans. Payment Entry";
+        RowsSinceCommit: Integer;
+        RecordChanged: Boolean;
     begin
         if TransPaymentEntry.FindSet(true) then
             repeat
-                TransPaymentEntry."VP Approved_DXR" := TransPaymentEntry."DXVP Approved";
-                TransPaymentEntry."VP Authorization No._DXR" := TransPaymentEntry."DXVP Authorization No.";
-                TransPaymentEntry."VP Lot No._DXR" := TransPaymentEntry."DXVP Lot No.";
-                TransPaymentEntry."Cuota Quantity_DXR" := TransPaymentEntry."DXCuota Quantity";
-                TransPaymentEntry.Modify(false);
+                RecordChanged := false;
+                if TransPaymentEntry."VP Approved_DXR" <> TransPaymentEntry."DXVP Approved" then begin
+                    TransPaymentEntry."VP Approved_DXR" := TransPaymentEntry."DXVP Approved";
+                    RecordChanged := true;
+                end;
+                if TransPaymentEntry."VP Authorization No._DXR" <> TransPaymentEntry."DXVP Authorization No." then begin
+                    TransPaymentEntry."VP Authorization No._DXR" := TransPaymentEntry."DXVP Authorization No.";
+                    RecordChanged := true;
+                end;
+                if TransPaymentEntry."VP Lot No._DXR" <> TransPaymentEntry."DXVP Lot No." then begin
+                    TransPaymentEntry."VP Lot No._DXR" := TransPaymentEntry."DXVP Lot No.";
+                    RecordChanged := true;
+                end;
+                if TransPaymentEntry."Cuota Quantity_DXR" <> TransPaymentEntry."DXCuota Quantity" then begin
+                    TransPaymentEntry."Cuota Quantity_DXR" := TransPaymentEntry."DXCuota Quantity";
+                    RecordChanged := true;
+                end;
+                if RecordChanged then
+                    TransPaymentEntry.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= 500 then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until TransPaymentEntry.Next() = 0;
+        Commit();
     end;
 }
 

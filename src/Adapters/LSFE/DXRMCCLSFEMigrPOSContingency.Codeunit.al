@@ -63,6 +63,7 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
     var
         TransactionHeader: Record "LSC Transaction Header";
         Changed: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if TransactionHeader.FindSet(true) then
             repeat
@@ -105,7 +106,13 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
                 end;
                 if Changed then
                     TransactionHeader.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until TransactionHeader.Next() = 0;
+        Commit();
     end;
 
     local procedure MigrateAdministrationSetup()
@@ -284,6 +291,11 @@ codeunit 60145 "DXR MCC LSFE Migr POS Cont."
             Target := Source;
             Changed := true;
         end;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

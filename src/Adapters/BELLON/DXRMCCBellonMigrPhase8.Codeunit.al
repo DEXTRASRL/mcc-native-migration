@@ -24,39 +24,43 @@ codeunit 60152 "DXR MCC Bellon Migr Phase8"
         UpgradeTag.SetUpgradeTag('DXR-ContactIdRestore283');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
+        // Field numbers remain in the published schema to keep BC's RecordRef mechanisms (Field(),
+        // FieldExist()) compatible, but migration lookup itself is entirely name based - same
+        // resolver as Phase3/Phase7 (DXR MCC Master Field Resolver), skip-if-target-already-
+        // populated. Names recovered from this table's own tableextension source
+        // (src/Extentions/tables/Contact.TableExt.al in the Bellon Customization app).
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
+    end;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure MigrateTableExt_ContactIdRestore()
@@ -66,29 +70,31 @@ codeunit 60152 "DXR MCC Bellon Migr Phase8"
         RecRef.Open(Database::Contact);
         if RecRef.FindSet(true) then
             repeat
-                // 52787 (Next To-do Date_DXR) is a FlowField - no physical data to copy.
-                // 52788 (To-do Entry Exists_DXR) is a FlowField - no physical data to copy.
-                // 52789 (To-do Status Filter_DXR) is a FlowFilter - no physical data to copy.
-                // 52790 (To-do Closed Filter_DXR) is a FlowFilter - no physical data to copy.
-                CopyFieldIfExists(RecRef, 50083, 52791); // Next Order Selection_Old
-                CopyFieldIfExists(RecRef, 50084, 52792); // Next Order Restaurant_Old
-                CopyFieldIfExists(RecRef, 50085, 52793); // Next Order Date_Old
-                CopyFieldIfExists(RecRef, 50086, 52794); // Next Order Time_Old
-                CopyFieldIfExists(RecRef, 50087, 52795); // Next Delivery Tender_Old
-                CopyFieldIfExists(RecRef, 50088, 52796); // Recall Order_Old
-                CopyFieldIfExists(RecRef, 50089, 52797); // Next Ord Rest Temp_Old
-                CopyFieldIfExists(RecRef, 50090, 52798); // Date Created_Old
-                // 52799 (No. of Open Orders_DXR) is a FlowField - no physical data to copy.
-                // 52800 (No. of Posted Orders_DXR) is a FlowField - no physical data to copy.
-                CopyFieldIfExists(RecRef, 50093, 52801); // Pre-Ord Print DateTime_Old
-                CopyFieldIfExists(RecRef, 50094, 52802); // Next Est Prod Time_Old
-                CopyFieldIfExists(RecRef, 50095, 52803); // External No._Old
-                CopyFieldIfExists(RecRef, 50096, 52804); // Last Date/Time Modified_Old
-                CopyFieldIfExists(RecRef, 50097, 52805); // Customer Template Code_Old
-                RecRef.Modify(false);
+                // Next To-do Date_DXR, To-do Entry Exists_DXR, To-do Status Filter_DXR and To-do
+                // Closed Filter_DXR (52787-52790) are FlowField/FlowFilter - no physical data to copy.
+                CopyFieldIfExists(RecRef, 'Next Order Selection_DXR', 'Next Order Selection_Old');
+                CopyFieldIfExists(RecRef, 'Next Order Restaurant_DXR', 'Next Order Restaurant_Old');
+                CopyFieldIfExists(RecRef, 'Next Order Date_DXR', 'Next Order Date_Old');
+                CopyFieldIfExists(RecRef, 'Next Order Time_DXR', 'Next Order Time_Old');
+                CopyFieldIfExists(RecRef, 'Next Delivery Tender_DXR', 'Next Delivery Tender_Old');
+                CopyFieldIfExists(RecRef, 'Recall Order_DXR', 'Recall Order_Old');
+                CopyFieldIfExists(RecRef, 'Next Ord Rest Temp_DXR', 'Next Ord Rest Temp_Old');
+                CopyFieldIfExists(RecRef, 'Date Created_DXR', 'Date Created_Old');
+                // No. of Open Orders_DXR and No. of Posted Orders_DXR (52799/52800) are FlowFields -
+                // no physical data to copy.
+                CopyFieldIfExists(RecRef, 'Pre-Ord Print DateTime_DXR', 'Pre-Ord Print DateTime_Old');
+                CopyFieldIfExists(RecRef, 'Next Est Prod Time_DXR', 'Next Est Prod Time_Old');
+                CopyFieldIfExists(RecRef, 'External No._DXR', 'External No._Old');
+                CopyFieldIfExists(RecRef, 'Last Date/Time Modified_DXR', 'Last Date/Time Modified_Old');
+                CopyFieldIfExists(RecRef, 'Customer Template Code_DXR', 'Customer Template Code_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

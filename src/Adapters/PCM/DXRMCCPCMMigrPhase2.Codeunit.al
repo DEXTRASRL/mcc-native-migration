@@ -35,6 +35,7 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
         RetryMgt: Codeunit 54617;
         Customer: Record Customer;
         AttemptNo: Integer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(CustomerFieldsMigratedTag()) then
             exit;
@@ -51,7 +52,17 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
                             Error(GetLastErrorText());
                     end;
                 end;
+
+                // Batching commit only runs after the retry-on-lock loop above has fully resolved
+                // (TryModifyCustomer succeeded, or ShouldRetry gave up and Error() already aborted
+                // the whole procedure) - never mid-retry, so it cannot mask/roll back a pending retry.
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until Customer.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(CustomerFieldsMigratedTag());
     end;
@@ -69,6 +80,7 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
         StorePriceGroup: Record "LSC Store Price Group";
         Modified: Boolean;
         AttemptNo: Integer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(StorePriceGroupFieldsMigratedTag()) then
             exit;
@@ -100,7 +112,16 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
                             Error(GetLastErrorText());
                     end;
                 end;
+
+                // Same rationale as MigrateCustomerFields: only reached once the retry-on-lock loop
+                // above has fully resolved, never mid-retry.
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until StorePriceGroup.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(StorePriceGroupFieldsMigratedTag());
     end;
@@ -109,6 +130,11 @@ codeunit 60122 "DXR MCC PCM Migr Phase2"
     local procedure TryModifyStorePriceGroup(var StorePriceGroup: Record "LSC Store Price Group")
     begin
         StorePriceGroup.Modify(false);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure CustomerFieldsMigratedTag(): Code[250]

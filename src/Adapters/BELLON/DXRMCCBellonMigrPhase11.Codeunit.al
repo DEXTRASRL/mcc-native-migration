@@ -68,38 +68,23 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
     begin
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldName: Text; NewFieldName: Text)
     var
-        CandidateField: FieldRef;
         SourceField: FieldRef;
         TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
+        // Resolution is entirely name based (metadata lookup + type validation), never a raw
+        // Field(ID) numeric dereference.
+        if not RecRef.FieldExist(OldFieldName) or not RecRef.FieldExist(NewFieldName) then
             exit;
+        SourceField := RecRef.Field(OldFieldName);
+        TargetField := RecRef.Field(NewFieldName);
         if (SourceField.Class() <> FieldClass::Normal) or
            (TargetField.Class() <> FieldClass::Normal) or
            (SourceField.Type() <> TargetField.Type())
         then
             exit;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
         TargetField.Value := SourceField.Value();
     end;
 
@@ -121,7 +106,7 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         RecRef.Open(Database::SalesHeaderOrderListFromBo);
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 54100, 54101);
+                CopyFieldIfExists(RecRef, 'Tipo NCF Cliente_DXR', 'DXTipo NCF Cliente'); // Tipo NCF Cliente_DXR -> DXTipo NCF Cliente (54100 -> 54101)
                 RecRef.Modify(false);
             until RecRef.Next() = 0;
         RecRef.Close();
@@ -193,10 +178,10 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
                         // Fields 50001 (Cobrador) / 50002 (Gestor) on the old side are FlowFields -
                         // no physical data to copy; their _DXR equivalents (52788/52790) are
                         // FlowFields too.
-                        CopyFieldValueIfExists(OldRef, NewRef, 50000, 52787); // Documento Registrado -> _DXR
-                        CopyFieldValueIfExists(OldRef, NewRef, 50005, 52789); // Fecha Vencimiento -> _DXR
-                        CopyFieldValueIfExists(OldRef, NewRef, 50003, 52791); // IsRecaudo -> _DXR
-                        CopyFieldValueIfExists(OldRef, NewRef, 50004, 52792); // No. Authorizacion -> _DXR
+                        CopyFieldValueIfExists(OldRef, NewRef, 'Documento Registrado', 'Documento Registrado_DXR'); // 50000 -> 52787
+                        CopyFieldValueIfExists(OldRef, NewRef, 'Fecha Vencimiento', 'Fecha Vencimiento_DXR'); // 50005 -> 52789
+                        CopyFieldValueIfExists(OldRef, NewRef, 'IsRecaudo', 'IsRecaudo_DXR'); // 50003 -> 52791
+                        CopyFieldValueIfExists(OldRef, NewRef, 'No. Authorizacion', 'No. Authorizacion_DXR'); // 50004 -> 52792
                         NewRef.Modify(false);
                     end;
             until OldRef.Next() = 0;
@@ -205,13 +190,24 @@ codeunit 60155 "DXR MCC Bellon Migr Phase11"
         OldRef.Close();
     end;
 
-    local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldNo: Integer; TargetFieldNo: Integer)
+    local procedure CopyFieldValueIfExists(SourceRef: RecordRef; var TargetRef: RecordRef; SourceFieldName: Text; TargetFieldName: Text)
+    var
+        SourceField: FieldRef;
+        TargetField: FieldRef;
     begin
-        if not SourceRef.FieldExist(SourceFieldNo) then
+        // Name-based resolution with metadata type validation - no raw Field(ID) numeric
+        // dereference across the two (different) tables involved.
+        if not SourceRef.FieldExist(SourceFieldName) or not TargetRef.FieldExist(TargetFieldName) then
             exit;
-        if not TargetRef.FieldExist(TargetFieldNo) then
+        SourceField := SourceRef.Field(SourceFieldName);
+        TargetField := TargetRef.Field(TargetFieldName);
+        if (SourceField.Class() <> FieldClass::Normal) or
+           (TargetField.Class() <> FieldClass::Normal) or
+           (SourceField.Type() <> TargetField.Type())
+        then
             exit;
-        TargetRef.Field(TargetFieldNo).Value := SourceRef.Field(SourceFieldNo).Value;
+
+        TargetField.Value := SourceField.Value();
     end;
 }
 

@@ -223,7 +223,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     var
         Infocode: Record "LSC Infocode";
     begin
-        if Infocode.FindSet(true) then
+        if Infocode.Findset(false) then
             repeat
                 Infocode."Refund Card_DXR" := Infocode."DX Refund Card";
                 Infocode.Modify(false);
@@ -234,7 +234,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     var
         PosTerminal: Record "LSC POS Terminal";
     begin
-        if PosTerminal.FindSet(true) then
+        if PosTerminal.Findset(false) then
             repeat
                 PosTerminal."Uses VeriPhone_DXR" := PosTerminal."DX Uses VeriPhone";
                 PosTerminal.Puerto_DXR := PosTerminal.DXPuerto;
@@ -268,7 +268,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     var
         PosTransLine: Record "LSC POS Trans. Line";
     begin
-        if PosTransLine.FindSet(true) then
+        if PosTransLine.Findset(false) then
             repeat
                 PosTransLine."VP Approved_DXR" := PosTransLine."DXVP Approved";
                 PosTransLine."VP Authorization No._DXR" := PosTransLine."DXVP Authorization No.";
@@ -282,7 +282,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     var
         TenderType: Record "LSC Tender Type";
     begin
-        if TenderType.FindSet(true) then
+        if TenderType.Findset(false) then
             repeat
                 TenderType."ReqVeriphoneProcessing_DXR" := TenderType."DXRequiredVeriphoneProcessing";
                 TenderType.tPayment_DXR := TenderType.DXtPayment;
@@ -297,7 +297,7 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
     var
         TransPaymentEntry: Record "LSC Trans. Payment Entry";
     begin
-        if TransPaymentEntry.FindSet(true) then
+        if TransPaymentEntry.Findset(false) then
             repeat
                 TransPaymentEntry."VP Approved_DXR" := TransPaymentEntry."DXVP Approved";
                 TransPaymentEntry."VP Authorization No._DXR" := TransPaymentEntry."DXVP Authorization No.";

@@ -13,12 +13,25 @@ codeunit 60070 "DXR MCC SD Migr Customer"
     trigger OnRun()
     var
         Cust: Record Customer;
+        RowsSinceCommit: Integer;
     begin
         if Cust.FindSet(true) then
             repeat
-                Cust."Special Dispatch_DXR" := Cust."Special Dispatch DXR";
-                Cust.Modify(false);
+                if Cust."Special Dispatch_DXR" <> Cust."Special Dispatch DXR" then begin
+                    Cust."Special Dispatch_DXR" := Cust."Special Dispatch DXR";
+                    Cust.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until Cust.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

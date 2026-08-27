@@ -54,39 +54,44 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
         UpgradeTag.SetUpgradeTag('DXR-BellonP14XCollFixAccountingCompleted');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
+        // Field numbers remain in the published schema to keep BC's RecordRef mechanisms (Field(),
+        // FieldExist()) compatible, but migration lookup itself is entirely name based - same
+        // resolver as Phase3/Phase7 (DXR MCC Master Field Resolver) and this codeunit's own
+        // MigrateContactCollisionBridge() below, skip-if-target-already-populated. Names recovered
+        // from each table's own tableextension source (src/Extentions/tables/*.TableExt.al in the
+        // Bellon Customization app).
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
+    end;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     // Bridges the 13 physical Contact fields confirmed live on deploy (50060-50078 range) to
@@ -116,10 +121,10 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'External No._DXR.', 'External No.|External No._Old|External No._Old_DXR|External No._DXR') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Last Date/Time Modified_DXR.', 'Last Date/Time Modified|Last Date/Time Modified_Old|Last Date/Time Mod_Old_DXR|Last Date/Time Modified_DXR') or Modified;
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cust Template Code_DXR', 'Customer Template Code|Customer Template Code_Old|Cust Template Code_Old_DXR|Customer Template Code_DXR') or Modified;
-                if Modified then
-                    RecRef.Modify(false);
+                RecordChanged := Modified;
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     // Bridges the 3 physical Transfer Header fields confirmed live on deploy (50008-50010,
@@ -132,12 +137,12 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
         RecRef.Open(Database::"Transfer Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50008, 58100); // Original Trans. Date -> _DXR.
-                CopyFieldIfExists(RecRef, 50009, 58101); // Tipo Request -> _DXR.
-                CopyFieldIfExists(RecRef, 50010, 58102); // Transfer Status -> _DXR.
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Original Trans. Date_DXRV2', 'Original Trans. Date');
+                CopyFieldIfExists(RecRef, 'Tipo Request_DXR2.', 'Tipo Request');
+                CopyFieldIfExists(RecRef, 'Transfer Status_DXR2.', 'Transfer Status');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     // Bridges the 1 physical Sales Header field confirmed live on deploy (50019
@@ -149,10 +154,10 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
         RecRef.Open(Database::"Sales Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50019, 58110); // PriceReleaseControlFlag -> _DXR.
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'PriceReleaseControlFlag_DXR.', 'PriceReleaseControlFlag');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     // Bridges the 1 physical Purchase Line field confirmed live on deploy (50018 "Transito",
@@ -164,11 +169,15 @@ codeunit 60158 "DXR MCC Bellon Migr Phase14"
         RecRef.Open(Database::"Purchase Line");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50018, 58121); // Transito -> _DXR.
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Transito_DXR.', 'Transito');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

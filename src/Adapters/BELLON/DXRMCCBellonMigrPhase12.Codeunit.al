@@ -41,50 +41,58 @@ codeunit 60156 "DXR MCC Bellon Migr Phase12"
         RecRef.Open(Database::"Purchase Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 57800); // Fecha Estimada Llegada Bellon -> _DXR.
-                CopyFieldIfExists(RecRef, 50004, 57801); // Priority -> _DXR.
-                CopyFieldIfExists(RecRef, 50005, 57802); // FechaEstimadaEntregaSuplidor -> _DXR.
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Fecha Est Lleg Bellon_DXR.', 'Fecha Estimada Llegada Bellon');
+                CopyFieldIfExists(RecRef, 'Priority_DXR.', 'Priority');
+                CopyFieldIfExists(RecRef, 'FechaEstEntregaSuplidor_DXR.', 'FechaEstimadaEntregaSuplidor');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
 
         UpgradeTag.SetUpgradeTag('DXR-BellonP12PHFixCompleted');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
-
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+        // Field numbers remain in the published schema to keep BC's RecordRef mechanisms (Field(),
+        // FieldExist()) compatible, but migration lookup itself is entirely name based - same
+        // resolver as Phase3/Phase7 (DXR MCC Master Field Resolver), skip-if-target-already-
+        // populated. Names recovered from this table's own tableextension source
+        // (src/Extentions/tables/PurchaseHeader.TableExt.al in the Bellon Customization app).
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
     end;
+
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
+    end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

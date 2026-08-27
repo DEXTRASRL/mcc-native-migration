@@ -29,6 +29,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         BankAccount: Record "Bank Account";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('BANK-ACCOUNT')) then
             exit;
@@ -37,7 +38,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
             repeat
                 BankAccount."VP Account Type_DXR" := Enum::"DXR_VP Account Type Bank".FromInteger(BankAccount."VP Account Type".AsInteger());
                 BankAccount.Modify(false);
+                CommitBatch(BatchCount);
             until BankAccount.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('BANK-ACCOUNT'));
     end;
@@ -46,6 +49,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         GenJournalLine: Record "Gen. Journal Line";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('GEN-JOURNAL-LINE')) then
             exit;
@@ -55,7 +59,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
                 GenJournalLine."VP From VP_DXR" := GenJournalLine."VP From VP";
                 GenJournalLine."VP VendorPay No._DXR" := GenJournalLine."VP VendorPay No.";
                 GenJournalLine.Modify(false);
+                CommitBatch(BatchCount);
             until GenJournalLine.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('GEN-JOURNAL-LINE'));
     end;
@@ -64,6 +70,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PostCode: Record "Post Code";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('POST-CODE')) then
             exit;
@@ -72,7 +79,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
             repeat
                 PostCode."VP Cod. Province_DXR" := PostCode."VP Cod. Province";
                 PostCode.Modify(false);
+                CommitBatch(BatchCount);
             until PostCode.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('POST-CODE'));
     end;
@@ -81,6 +90,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         UserSetup: Record "User Setup";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('USER-SETUP')) then
             exit;
@@ -94,7 +104,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
                 UserSetup."VP Reprint TXT_DXR" := UserSetup."VP Reprint TXT";
                 UserSetup."VP Allow Reopen_DXR" := UserSetup."VP Allow Reopen";
                 UserSetup.Modify(false);
+                CommitBatch(BatchCount);
             until UserSetup.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('USER-SETUP'));
     end;
@@ -103,6 +115,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Vendor: Record Vendor;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('VENDOR')) then
             exit;
@@ -120,7 +133,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
                 Vendor."Business Partnert Id 1_DXR" := Vendor."Business Partnert Id 1";
                 Vendor."Business Partnert Id 2_DXR" := Vendor."Business Partnert Id 2";
                 Vendor.Modify(false);
+                CommitBatch(BatchCount);
             until Vendor.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('VENDOR'));
     end;
@@ -129,6 +144,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         VendorBankAccount: Record "Vendor Bank Account";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('VENDOR-BANK-ACCOUNT')) then
             exit;
@@ -146,7 +162,9 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
                 VendorBankAccount."VP Date Sent BPD_DXR" := VendorBankAccount."VP Date Sent BPD";
                 VendorBankAccount."VP Default Currency_DXR" := VendorBankAccount."VP Default Currency";
                 VendorBankAccount.Modify(false);
+                CommitBatch(BatchCount);
             until VendorBankAccount.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('VENDOR-BANK-ACCOUNT'));
     end;
@@ -155,6 +173,7 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PurchaseHeader: Record "Purchase Header";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('PURCHASE-HEADER')) then
             exit;
@@ -163,9 +182,30 @@ codeunit 60120 "DXR MCC VP Migr Phase6"
             repeat
                 PurchaseHeader.VPAmountCredit_DXR := PurchaseHeader.VPAmountCredit;
                 PurchaseHeader.Modify(false);
+                CommitBatch(BatchCount);
             until PurchaseHeader.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('PURCHASE-HEADER'));
+    end;
+
+    // Row-checkpoint safety for large tenants: commits every BatchSize() rows so a single
+    // FindSet(true) loop over a large table (Vendor, Purchase Header, Gen. Journal Line, etc.)
+    // never runs as one giant uncommitted transaction. Mirrors "DXR MCC Bellon Migr Phase3"'s
+    // PersistChangedRecord/FinishTable pattern, adapted for typed Record variables instead of
+    // RecordRef.
+    local procedure CommitBatch(var BatchCount: Integer)
+    begin
+        BatchCount += 1;
+        if BatchCount < BatchSize() then
+            exit;
+        Commit();
+        BatchCount := 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure GetStepTag(Suffix: Text): Code[250]

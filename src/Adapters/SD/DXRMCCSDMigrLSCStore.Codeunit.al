@@ -14,8 +14,10 @@ codeunit 60078 "DXR MCC SD Migr LSCStore"
     begin
         if LSCStore.FindSet(true) then
             repeat
-                LSCStore."Print Header Doc._DXR" := LSCStore."PE Print Header Doc. DXR";
-                LSCStore.Modify(false);
+                if LSCStore."Print Header Doc._DXR" <> LSCStore."PE Print Header Doc. DXR" then begin
+                    LSCStore."Print Header Doc._DXR" := LSCStore."PE Print Header Doc. DXR";
+                    LSCStore.Modify(false);
+                end;
             until LSCStore.Next() = 0;
     end;
 }

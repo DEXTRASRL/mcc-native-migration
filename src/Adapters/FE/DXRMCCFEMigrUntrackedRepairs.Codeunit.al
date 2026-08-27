@@ -261,6 +261,7 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
     var
         Header: Record "Sales Invoice Header";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if Header.FindSet(true) then
             repeat
@@ -279,6 +280,12 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
                 end;
                 if Modified then
                     Header.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Header.Next() = 0;
     end;
 
@@ -286,6 +293,7 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
     var
         Header: Record "Sales Cr.Memo Header";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if Header.FindSet(true) then
             repeat
@@ -304,6 +312,12 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
                 end;
                 if Modified then
                     Header.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Header.Next() = 0;
     end;
 
@@ -311,6 +325,7 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
     var
         Header: Record "Purch. Inv. Header";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if Header.FindSet(true) then
             repeat
@@ -329,6 +344,12 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
                 end;
                 if Modified then
                     Header.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Header.Next() = 0;
     end;
 
@@ -336,6 +357,7 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
     var
         Header: Record "Purch. Cr. Memo Hdr.";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if Header.FindSet(true) then
             repeat
@@ -354,6 +376,12 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
                 end;
                 if Modified then
                     Header.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Header.Next() = 0;
     end;
 }

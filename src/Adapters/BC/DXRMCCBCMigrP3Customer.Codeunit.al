@@ -10,6 +10,7 @@ codeunit 60099 "DXR MCC BC Migr P3 Customer"
     var
         CustomerRec: Record Customer;
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if not CustomerRec.FindSet(true) then
             exit;
@@ -33,7 +34,14 @@ codeunit 60099 "DXR MCC BC Migr P3 Customer"
 
             if Modified then
                 CustomerRec.Modify(false);
+
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= 500 then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
         until CustomerRec.Next() = 0;
+        Commit();
     end;
 }
 

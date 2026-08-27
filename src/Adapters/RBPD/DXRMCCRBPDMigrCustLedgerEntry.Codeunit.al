@@ -10,14 +10,27 @@ codeunit 60105 "DXR MCC RBPD Migr CustLedgEnt"
     trigger OnRun()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        RowsSinceCommit: Integer;
     begin
         CustLedgerEntry.SetFilter("IB No. Authorizacion_Old", '<>%1', '');
         CustLedgerEntry.SetLoadFields("Entry No.", "IB No. Authorizacion_Old", "IB No. Authorizacion DXR-IB");
         if CustLedgerEntry.FindSet(true) then
             repeat
-                CustLedgerEntry."IB No. Authorizacion DXR-IB" := CustLedgerEntry."IB No. Authorizacion_Old";
-                CustLedgerEntry.Modify(false);
+                if CustLedgerEntry."IB No. Authorizacion DXR-IB" <> CustLedgerEntry."IB No. Authorizacion_Old" then begin
+                    CustLedgerEntry."IB No. Authorizacion DXR-IB" := CustLedgerEntry."IB No. Authorizacion_Old";
+                    CustLedgerEntry.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until CustLedgerEntry.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

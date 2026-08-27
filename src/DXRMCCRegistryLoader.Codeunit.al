@@ -1171,76 +1171,113 @@ codeunit 60012 "DXR MCC Registry Loader"
         case ExtCode of
             'DXP':
                 case DispatcherId of
-                    60080: exit(CategoryDispatcher(CategoryCode, 60200, 60201, 60202, 0));
-                    60081: exit(CategoryDispatcher(CategoryCode, 60203, 60204, 0, 0));
-                    60082: exit(CategoryDispatcher(CategoryCode, 60205, 60206, 60207, 0));
-                    60083: exit(CategoryDispatcher(CategoryCode, 60208, 60209, 60210, 0));
-                    60084: exit(CategoryDispatcher(CategoryCode, 60211, 60212, 60213, 0));
-                    60085: exit(CategoryDispatcher(CategoryCode, 60214, 60215, 0, 0));
+                    60080:
+                        exit(CategoryDispatcher(CategoryCode, 60200, 60201, 60202, 0));
+                    60081:
+                        exit(CategoryDispatcher(CategoryCode, 60203, 60204, 0, 0));
+                    60082:
+                        exit(CategoryDispatcher(CategoryCode, 60205, 60206, 60207, 0));
+                    60083:
+                        exit(CategoryDispatcher(CategoryCode, 60208, 60209, 60210, 0));
+                    60084:
+                        exit(CategoryDispatcher(CategoryCode, 60211, 60212, 60213, 0));
+                    60085:
+                        exit(CategoryDispatcher(CategoryCode, 60214, 60215, 0, 0));
                 end;
             'VP':
                 case DispatcherId of
-                    60115: exit(CategoryDispatcher(CategoryCode, 60216, 60217, 0, 0));
-                    60116: exit(CategoryDispatcher(CategoryCode, 0, 60218, 60219, 0));
-                    60118: exit(CategoryDispatcher(CategoryCode, 0, 60220, 60221, 0));
-                    60121: exit(CategoryDispatcher(CategoryCode, 60222, 60223, 60224, 60225));
+                    60115:
+                        exit(CategoryDispatcher(CategoryCode, 60216, 60217, 0, 0));
+                    60116:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60218, 60219, 0));
+                    60118:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60220, 60221, 0));
+                    60121:
+                        exit(CategoryDispatcher(CategoryCode, 60222, 60223, 60224, 60225));
                 end;
             'PCM':
                 case DispatcherId of
-                    60122: exit(CategoryDispatcher(CategoryCode, 60226, 60227, 0, 0));
-                    60123: exit(CategoryDispatcher(CategoryCode, 60228, 0, 0, 60229));
-                    60125: exit(CategoryDispatcher(CategoryCode, 60230, 60231, 60232, 60233));
+                    60122:
+                        exit(CategoryDispatcher(CategoryCode, 60226, 60227, 0, 0));
+                    60123:
+                        exit(CategoryDispatcher(CategoryCode, 60228, 0, 0, 60229));
+                    60125:
+                        exit(CategoryDispatcher(CategoryCode, 60230, 60231, 60232, 60233));
                 end;
             'TU':
                 if DispatcherId = 60126 then
                     exit(CategoryDispatcher(CategoryCode, 60234, 60235, 0, 0));
             'FE':
                 case DispatcherId of
-                    60137: exit(CategoryDispatcher(CategoryCode, 60300, 60301, 0, 0));
-                    60138: exit(CategoryDispatcher(CategoryCode, 0, 60302, 60303, 0));
-                    60139: exit(CategoryDispatcher(CategoryCode, 0, 60304, 60305, 0));
-                    60140: exit(CategoryDispatcher(CategoryCode, 60306, 60307, 60308, 0));
+                    60137:
+                        exit(CategoryDispatcher(CategoryCode, 60300, 60301, 0, 0));
+                    60138:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60302, 60303, 0));
+                    60139:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60304, 60305, 0));
+                    60140:
+                        exit(CategoryDispatcher(CategoryCode, 60306, 60307, 60308, 0));
                 end;
             'BELLON':
                 case DispatcherId of
-                    60146: exit(CategoryDispatcher(CategoryCode, 60309, 60310, 60311, 60312));
-                    60150: exit(CategoryDispatcher(CategoryCode, 60313, 60314, 60315, 60316));
-                    60155: exit(CategoryDispatcher(CategoryCode, 60317, 60318, 0, 0));
-                    60157: exit(CategoryDispatcher(CategoryCode, 60319, 60320, 0, 0));
+                    60146:
+                        exit(CategoryDispatcher(CategoryCode, 60309, 60310, 60311, 60312));
+                    60150:
+                        exit(CategoryDispatcher(CategoryCode, 60313, 60314, 60315, 60316));
+                    60155:
+                        exit(CategoryDispatcher(CategoryCode, 60317, 60318, 0, 0));
+                    60157:
+                        exit(CategoryDispatcher(CategoryCode, 60319, 60320, 0, 0));
                 end;
             'BELLONPOS':
                 if DispatcherId = 60159 then
                     exit(CategoryDispatcher(CategoryCode, 60321, 0, 60322, 60323));
             'DRLOC':
                 case DispatcherId of
-                    60165: exit(CategoryDispatcher(CategoryCode, 60324, 60325, 0, 0));
-                    60167: exit(CategoryDispatcher(CategoryCode, 0, 60326, 60327, 0));
-                    60168: exit(CategoryDispatcher(CategoryCode, 0, 60328, 60329, 0));
-                    60169: exit(CategoryDispatcher(CategoryCode, 0, 60330, 60331, 0));
-                    60170: exit(CategoryDispatcher(CategoryCode, 60332, 0, 60333, 60334));
+                    60165:
+                        exit(CategoryDispatcher(CategoryCode, 60324, 60325, 0, 0));
+                    60167:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60326, 60327, 0));
+                    60168:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60328, 60329, 0));
+                    60169:
+                        exit(CategoryDispatcher(CategoryCode, 0, 60330, 60331, 0));
+                    60170:
+                        exit(CategoryDispatcher(CategoryCode, 60332, 0, 60333, 60334));
                 end;
             'DESB':
                 if DispatcherId = 60127 then
                     case CategoryCode of
-                        'SETUP': exit(60250);
-                        'MASTER': exit(60251);
-                        'HIST': exit(60252);
-                        'OTHER': exit(60253);
+                        'SETUP':
+                            exit(60250);
+                        'MASTER':
+                            exit(60251);
+                        'HIST':
+                            exit(60252);
+                        'OTHER':
+                            exit(60253);
                     end;
             'DESLS':
                 if DispatcherId in [60129, 60130] then
                     case CategoryCode of
-                        'SETUP': exit(60254);
-                        'MASTER': exit(60255);
-                        'HIST': exit(60256);
-                        'OTHER': exit(60257);
+                        'SETUP':
+                            exit(60254);
+                        'MASTER':
+                            exit(60255);
+                        'HIST':
+                            exit(60256);
+                        'OTHER':
+                            exit(60257);
                     end;
             'RC':
                 if DispatcherId in [60131, 60135] then
                     case CategoryCode of
-                        'SETUP': exit(60258);
-                        'HIST': exit(60259);
-                        'OTHER': exit(60260);
+                        'SETUP':
+                            exit(60258);
+                        'HIST':
+                            exit(60259);
+                        'OTHER':
+                            exit(60260);
                     end;
         end;
         exit(DispatcherId);
@@ -1264,79 +1301,122 @@ codeunit 60012 "DXR MCC Registry Loader"
         case ExtCode of
             'DXP':
                 case DispatcherId of
-                    60080: exit(60420);
-                    60081: exit(60421);
-                    60082: exit(60422);
-                    60083: exit(60423);
-                    60084: exit(60424);
-                    60085: exit(60425);
+                    60080:
+                        exit(60420);
+                    60081:
+                        exit(60421);
+                    60082:
+                        exit(60422);
+                    60083:
+                        exit(60423);
+                    60084:
+                        exit(60424);
+                    60085:
+                        exit(60425);
                 end;
             'VP':
                 case DispatcherId of
-                    60116: exit(60426);
-                    60121: exit(60427);
+                    60116:
+                        exit(60426);
+                    60121:
+                        exit(60427);
                 end;
             'PCM':
                 case DispatcherId of
-                    60124: exit(60428);
-                    60125: exit(60429);
+                    60124:
+                        exit(60428);
+                    60125:
+                        exit(60429);
                 end;
             'TU':
-                if DispatcherId = 60126 then exit(60430);
+                if DispatcherId = 60126 then
+                    exit(60430);
             'RBPD':
                 case DispatcherId of
-                    60105: exit(60431);
-                    60106: exit(60432);
-                    60109: exit(60433);
-                    60110: exit(60434);
-                    60111: exit(60435);
-                    60112: exit(60436);
+                    60105:
+                        exit(60431);
+                    60106:
+                        exit(60432);
+                    60109:
+                        exit(60433);
+                    60110:
+                        exit(60434);
+                    60111:
+                        exit(60435);
+                    60112:
+                        exit(60436);
                 end;
             'SD':
                 case DispatcherId of
-                    60072: exit(60438);
-                    60075: exit(60439);
-                    60076: exit(60440);
+                    60072:
+                        exit(60438);
+                    60075:
+                        exit(60439);
+                    60076:
+                        exit(60440);
                 end;
             'FE':
                 case DispatcherId of
-                    60138: exit(60354);
-                    60139: exit(60355);
-                    60140: exit(60356);
+                    60138:
+                        exit(60354);
+                    60139:
+                        exit(60355);
+                    60140:
+                        exit(60356);
                 end;
             'DRLOC':
                 case DispatcherId of
-                    60165: exit(60350);
-                    60167: exit(60351);
-                    60168: exit(60352);
-                    60169: exit(60353);
+                    60165:
+                        exit(60350);
+                    60167:
+                        exit(60351);
+                    60168:
+                        exit(60352);
+                    60169:
+                        exit(60353);
                 end;
             'LSLOC':
                 case DispatcherId of
-                    60174: exit(60357);
-                    60178: exit(60358);
+                    60174:
+                        exit(60357);
+                    60178:
+                        exit(60358);
                 end;
             'DESB':
                 case DispatcherId of
-                    60127: exit(60380);
-                    60128: exit(60128);
+                    60127:
+                        exit(60380);
+                    60128:
+                        exit(60128);
                 end;
             'DESLS':
-                if DispatcherId = 60130 then exit(60381);
+                if DispatcherId = 60130 then
+                    exit(60381);
             'RC':
-                if DispatcherId = 60132 then exit(60382);
+                if DispatcherId = 60132 then
+                    exit(60382);
             'BELLON':
                 case DispatcherId of
-                    60146: exit(60383);
-                    60147: exit(60147);
-                    60150: exit(60384);
-                    60153: exit(60153);
-                    60154: exit(60154);
-                    60155: exit(60385);
-                    60156: exit(60156);
-                    60157: exit(60386);
-                    60158: exit(60388);
-                    60166: exit(60166);
+                    60146:
+                        exit(60383);
+                    60147:
+                        exit(60147);
+                    60150:
+                        exit(60384);
+                    60153:
+                        exit(60153);
+                    60154:
+                        exit(60154);
+                    60155:
+                        exit(60385);
+                    60156:
+                        exit(60156);
+                    60157:
+                        exit(60386);
+                    60158:
+                        exit(60388);
+                    60166:
+                        exit(60166);
                 end;
         end;
         exit(0);
@@ -1345,11 +1425,21 @@ codeunit 60012 "DXR MCC Registry Loader"
     local procedure CategoryDispatcher(CategoryCode: Code[10]; SetupId: Integer; MasterId: Integer; HistoricId: Integer; OtherId: Integer): Integer
     begin
         case CategoryCode of
-            'SETUP': if SetupId <> 0 then exit(SetupId);
-            'MA': if MasterId <> 0 then exit(MasterId);
-            'MASTER': if MasterId <> 0 then exit(MasterId);
-            'HIST': if HistoricId <> 0 then exit(HistoricId);
-            'OTHER': if OtherId <> 0 then exit(OtherId);
+            'SETUP':
+                if SetupId <> 0 then
+                    exit(SetupId);
+            'MA':
+                if MasterId <> 0 then
+                    exit(MasterId);
+            'MASTER':
+                if MasterId <> 0 then
+                    exit(MasterId);
+            'HIST':
+                if HistoricId <> 0 then
+                    exit(HistoricId);
+            'OTHER':
+                if OtherId <> 0 then
+                    exit(OtherId);
         end;
         Error('No category dispatcher is registered for category %1.', CategoryCode);
     end;

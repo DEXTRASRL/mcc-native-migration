@@ -469,6 +469,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         BankAccount: Record "Bank Account";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-BANK-ACCOUNT')) then
             exit;
@@ -479,7 +480,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                     BankAccount."VP Account Type_DXR" := BankAccount."VP Account Type_Old";
                     BankAccount.Modify(false);
                 end;
+                CommitBatch(BatchCount);
             until BankAccount.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-BANK-ACCOUNT'));
     end;
@@ -489,6 +492,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         GenJournalLine: Record "Gen. Journal Line";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-GEN-JOURNAL-LINE')) then
             exit;
@@ -506,7 +510,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 if Modified then
                     GenJournalLine.Modify(false);
+                CommitBatch(BatchCount);
             until GenJournalLine.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-GEN-JOURNAL-LINE'));
     end;
@@ -516,6 +522,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         PostCode: Record "Post Code";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-POST-CODE')) then
             exit;
@@ -529,7 +536,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 if Modified then
                     PostCode.Modify(false);
+                CommitBatch(BatchCount);
             until PostCode.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-POST-CODE'));
     end;
@@ -539,6 +548,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         UserSetup: Record "User Setup";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-USER-SETUP')) then
             exit;
@@ -572,7 +582,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 if Modified then
                     UserSetup.Modify(false);
+                CommitBatch(BatchCount);
             until UserSetup.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-USER-SETUP'));
     end;
@@ -582,6 +594,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         Vendor: Record Vendor;
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-VENDOR')) then
             exit;
@@ -631,7 +644,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 if Modified then
                     Vendor.Modify(false);
+                CommitBatch(BatchCount);
             until Vendor.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-VENDOR'));
     end;
@@ -641,6 +656,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
         UpgradeTag: Codeunit "Upgrade Tag";
         VendorBankAccount: Record "Vendor Bank Account";
         Modified: Boolean;
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-VENDOR-BANK-ACCOUNT')) then
             exit;
@@ -690,7 +706,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                 end;
                 if Modified then
                     VendorBankAccount.Modify(false);
+                CommitBatch(BatchCount);
             until VendorBankAccount.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-VENDOR-BANK-ACCOUNT'));
     end;
@@ -699,6 +717,7 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         PurchaseHeader: Record "Purchase Header";
+        BatchCount: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(GetStepTag('FLD-PURCHASE-HEADER')) then
             exit;
@@ -709,7 +728,9 @@ codeunit 60121 "DXR MCC VP Migr Phase7"
                     PurchaseHeader.VPAmountCredit_DXR := PurchaseHeader.VPAmountCredit_Old;
                     PurchaseHeader.Modify(false);
                 end;
+                CommitBatch(BatchCount);
             until PurchaseHeader.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(GetStepTag('FLD-PURCHASE-HEADER'));
     end;

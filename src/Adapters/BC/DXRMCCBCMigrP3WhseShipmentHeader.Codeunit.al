@@ -10,6 +10,7 @@ codeunit 60103 "DXR MCC BC Migr P3 WhseShipHd"
     var
         WhseShipmentHeaderRec: Record "Warehouse Shipment Header";
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if not WhseShipmentHeaderRec.FindSet(true) then
             exit;
@@ -38,7 +39,14 @@ codeunit 60103 "DXR MCC BC Migr P3 WhseShipHd"
 
             if Modified then
                 WhseShipmentHeaderRec.Modify(false);
+
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= 500 then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
         until WhseShipmentHeaderRec.Next() = 0;
+        Commit();
     end;
 }
 

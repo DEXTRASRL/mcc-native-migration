@@ -8,6 +8,7 @@ codeunit 60101 "DXR MCC BC Migr P3 SalesHdr"
     trigger OnRun()
     var
         SalesHeaderRec: Record "Sales Header";
+        RowsSinceCommit: Integer;
     begin
         if not SalesHeaderRec.FindSet(true) then
             exit;
@@ -16,7 +17,14 @@ codeunit 60101 "DXR MCC BC Migr P3 SalesHdr"
                 SalesHeaderRec."Reference Address_DXR" := SalesHeaderRec."Reference Address_Old";
                 SalesHeaderRec.Modify(false);
             end;
+
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= 500 then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
         until SalesHeaderRec.Next() = 0;
+        Commit();
     end;
 }
 

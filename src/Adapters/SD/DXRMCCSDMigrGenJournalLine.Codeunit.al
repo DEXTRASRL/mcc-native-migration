@@ -9,12 +9,25 @@ codeunit 60076 "DXR MCC SD Migr GenJnlLine"
     trigger OnRun()
     var
         GenJnlLine: Record "Gen. Journal Line";
+        RowsSinceCommit: Integer;
     begin
         if GenJnlLine.FindSet(true) then
             repeat
-                GenJnlLine."Special Dispatch_DXR" := GenJnlLine."Special Dispatch DXR";
-                GenJnlLine.Modify(false);
+                if GenJnlLine."Special Dispatch_DXR" <> GenJnlLine."Special Dispatch DXR" then begin
+                    GenJnlLine."Special Dispatch_DXR" := GenJnlLine."Special Dispatch DXR";
+                    GenJnlLine.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until GenJnlLine.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

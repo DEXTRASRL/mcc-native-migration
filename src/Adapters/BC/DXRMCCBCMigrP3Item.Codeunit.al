@@ -9,6 +9,7 @@ codeunit 60100 "DXR MCC BC Migr P3 Item"
     var
         ItemRec: Record Item;
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if not ItemRec.FindSet(true) then
             exit;
@@ -27,7 +28,14 @@ codeunit 60100 "DXR MCC BC Migr P3 Item"
 
             if Modified then
                 ItemRec.Modify(false);
+
+            RowsSinceCommit += 1;
+            if RowsSinceCommit >= 500 then begin
+                Commit();
+                RowsSinceCommit := 0;
+            end;
         until ItemRec.Next() = 0;
+        Commit();
     end;
 }
 

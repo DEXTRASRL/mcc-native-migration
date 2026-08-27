@@ -26,39 +26,43 @@ codeunit 60153 "DXR MCC Bellon Migr Phase9"
         UpgradeTag.SetUpgradeTag('DXR-TransferHeaderIdRestore283');
     end;
 
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
+    local procedure CopyFieldIfExists(var RecRef: RecordRef; TargetFieldName: Text; SourceFieldName: Text)
     var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
     begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
+        // Field numbers remain in the published schema to keep BC's RecordRef mechanisms (Field(),
+        // FieldExist()) compatible, but migration lookup itself is entirely name based - same
+        // resolver as Phase3/Phase7 (DXR MCC Master Field Resolver), skip-if-target-already-
+        // populated. Names recovered from this table's own tableextension source
+        // (src/Extentions/tables/TransferHeader.TableExt.al in the Bellon Customization app).
+        if MasterFieldResolver.CopyFirstPopulatedField(RecRef, TargetFieldName, SourceFieldName) then
+            RecordChanged := true;
+    end;
 
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
+        RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure MigrateTableExt_TransferHeaderIdRestore()
@@ -68,12 +72,16 @@ codeunit 60153 "DXR MCC Bellon Migr Phase9"
         RecRef.Open(Database::"Transfer Header");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50011, 52787); // Tipo Request_Old
-                CopyFieldIfExists(RecRef, 50012, 52788); // Transfer Status_Old
-                RecRef.Modify(false);
+                CopyFieldIfExists(RecRef, 'Tipo Request_DXR', 'Tipo Request_Old');
+                CopyFieldIfExists(RecRef, 'Transfer Status_DXR', 'Transfer Status_Old');
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

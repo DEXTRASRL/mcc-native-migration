@@ -12,16 +12,28 @@ codeunit 60106 "DXR MCC RBPD Migr GenJnlLine"
     trigger OnRun()
     var
         GenJournalLine: Record "Gen. Journal Line";
+        RowsSinceCommit: Integer;
     begin
         GenJournalLine.SetFilter("IB No. Authorizacion_Old", '<>%1', '');
         GenJournalLine.SetLoadFields("Journal Template Name", "Journal Batch Name", "Line No.",
             "IB No. Authorizacion_Old", "IB ISRecaudo_Old", "IB No. Authorizacion DXR-IB", "IB ISRecaudo DXR-IB");
         if GenJournalLine.FindSet(true) then
             repeat
-                GenJournalLine."IB No. Authorizacion DXR-IB" := GenJournalLine."IB No. Authorizacion_Old";
-                GenJournalLine."IB ISRecaudo DXR-IB" := GenJournalLine."IB ISRecaudo_Old";
-                GenJournalLine.Modify(false);
+                if (GenJournalLine."IB No. Authorizacion DXR-IB" <> GenJournalLine."IB No. Authorizacion_Old") or
+                   (GenJournalLine."IB ISRecaudo DXR-IB" <> GenJournalLine."IB ISRecaudo_Old")
+                then begin
+                    GenJournalLine."IB No. Authorizacion DXR-IB" := GenJournalLine."IB No. Authorizacion_Old";
+                    GenJournalLine."IB ISRecaudo DXR-IB" := GenJournalLine."IB ISRecaudo_Old";
+                    GenJournalLine.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until GenJournalLine.Next() = 0;
+        Commit();
+        RowsSinceCommit := 0;
 
         GenJournalLine.Reset();
         GenJournalLine.SetRange("IB No. Authorizacion_Old", '');
@@ -30,9 +42,21 @@ codeunit 60106 "DXR MCC RBPD Migr GenJnlLine"
             "IB ISRecaudo_Old", "IB ISRecaudo DXR-IB");
         if GenJournalLine.FindSet(true) then
             repeat
-                GenJournalLine."IB ISRecaudo DXR-IB" := GenJournalLine."IB ISRecaudo_Old";
-                GenJournalLine.Modify(false);
+                if GenJournalLine."IB ISRecaudo DXR-IB" <> GenJournalLine."IB ISRecaudo_Old" then begin
+                    GenJournalLine."IB ISRecaudo DXR-IB" := GenJournalLine."IB ISRecaudo_Old";
+                    GenJournalLine.Modify(false);
+                end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until GenJournalLine.Next() = 0;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 }
 

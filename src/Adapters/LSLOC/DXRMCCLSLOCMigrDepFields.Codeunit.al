@@ -141,6 +141,7 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     var
         Source: Record "DXArchived Consumer Sales 607";
         Target: Record "DXR_Arch Consumer Sales 607";
+        BatchCount: Integer;
     begin
         if Source.FindSet() then
             repeat
@@ -151,6 +152,12 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
                     Target."Stmt. Posting Date_DXR" := Source."LSDX Stmt. Posting Date";
                     Target.Modify(false);
                 end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Source.Next() = 0;
     end;
 
@@ -158,6 +165,7 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     var
         Source: Record "DX Consumer Sales 607 Buffer";
         Target: Record "DXR_Consumer Sales 607 Buffer";
+        BatchCount: Integer;
     begin
         if Source.FindSet() then
             repeat
@@ -167,6 +175,12 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
                     Target."Posted Statement Date_DXR" := Source."LSDX Posted Statement Date";
                     Target."Stmt. Posting Date_DXR" := Source."LSDX Stmt. Posting Date";
                     Target.Modify(false);
+                end;
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
                 end;
             until Source.Next() = 0;
     end;

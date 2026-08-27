@@ -77,9 +77,9 @@ codeunit 60149 "DXR MCC Bellon Migr Phase5"
                 CopyFieldIfTargetEmpty(RecRef, 'B2C Customer_BE_DXR', 'B2C Customer_DXR'); // B2C Customer_BE_DXR -> _DXR
                 CopyFieldIfTargetEmpty(RecRef, 'Last Date/Time Modified_BE_DXR', 'Last Date/Time Modified_DXR'); // Last Date/Time Modified_BE_DXR -> _DXR
                 CopyFieldIfTargetEmpty(RecRef, 'Req Fecha Reg Merc_BE_DXR', 'Req Fecha Reg Merc_DXR'); // Req Fecha Reg Merc_BE_DXR -> _DXR
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
-        RecRef.Close();
+        FinishTable(RecRef);
     end;
 
     local procedure BridgeItemOldGenFields()
@@ -123,9 +123,35 @@ codeunit 60149 "DXR MCC Bellon Migr Phase5"
                 // 52818 (Buyer Group Code_DXR) / 52819 (Inventory2_DXR) son FlowFields -- sin dato fisico que copiar.
                 CopyFieldIfTargetEmpty(RecRef, 'Item Status_BE_DXR', 'Item Status_DXR'); // Item Status_BE_DXR -> _DXR
                 CopyFieldIfTargetEmpty(RecRef, 'Control Existencia_BE_DXR', 'Control Existencia_DXR'); // Control Existencia_BE_DXR -> _DXR
-                RecRef.Modify(false);
+                PersistChangedRecord(RecRef);
             until RecRef.Next() = 0;
+        FinishTable(RecRef);
+    end;
+
+    local procedure PersistChangedRecord(var RecRef: RecordRef)
+    begin
+        if RecordChanged then
+            RecRef.Modify(false);
+        Clear(RecordChanged);
+
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishTable(var RecRef: RecordRef)
+    begin
         RecRef.Close();
+        Commit();
+        RowsSinceCommit := 0;
+        Clear(RecordChanged);
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     // "Never-overwrite" merge policy: copies source name -> target name only if the source field
@@ -153,6 +179,7 @@ codeunit 60149 "DXR MCC Bellon Migr Phase5"
             exit;
 
         TargetField.Value := SourceField.Value();
+        RecordChanged := true;
     end;
 
     local procedure IsFieldRefEmpty(FldRef: FieldRef): Boolean
@@ -195,6 +222,10 @@ codeunit 60149 "DXR MCC Bellon Migr Phase5"
                 exit(Format(FldRef.Value) = '');
         end;
     end;
+
+    var
+        RecordChanged: Boolean;
+        RowsSinceCommit: Integer;
 }
 
 #endif

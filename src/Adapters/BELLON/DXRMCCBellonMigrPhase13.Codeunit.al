@@ -110,8 +110,11 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
 
     local procedure MigrateMissingOldToDxrBridgeFields(var UpgradeTag: Codeunit "Upgrade Tag")
     var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
         RecRef: RecordRef;
         NCFSetup: Record "DXR_NCF Setup";
+        Modified: Boolean;
+        VendorRowsSinceCommit: Integer;
     begin
         if UpgradeTag.HasUpgradeTag('DXR-BellonP13OldGapCompleted') then
             exit;
@@ -157,25 +160,37 @@ codeunit 60157 "DXR MCC Bellon Migr Phase13"
         // 50047/50053), reachable by Phase 7's Vendor procedure. These 13 have their final _DXR
         // field declared directly (57113-57125) with no intermediate at all, so this copies
         // straight from the legacy source to the final field.
+        // Name-based resolution via the shared resolver (same technique as this codeunit's own
+        // RunMaster(), which targets the exact same 13 Vendor fields) instead of the raw numeric
+        // CopyFieldIfExists(OldFieldNo, NewFieldNo) pattern used elsewhere in this file.
         RecRef.Open(Database::"Vendor");
         if RecRef.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50018, 57113); // BE Tipo Servicio -> Tipo Servicio_DXR
-                CopyFieldIfExists(RecRef, 50019, 57114); // BE Clasificación ABC -> Clasificación ABC_DXR
-                CopyFieldIfExists(RecRef, 50020, 57115); // BE Enc. Cobros Nombre -> Enc. Cobros Nombre_DXR
-                CopyFieldIfExists(RecRef, 50021, 57116); // BE Enc. Cobros email -> Enc. Cobros Email_DXR.
-                CopyFieldIfExists(RecRef, 50022, 57117); // BE Enc. Cobros celular -> Enc. Cobros celular_DXR
-                CopyFieldIfExists(RecRef, 50023, 57118); // BE Enc. Cobros Cumpleaños -> Enc. Cobros Cumpleaños_DXR
-                CopyFieldIfExists(RecRef, 50024, 57119); // BE Frecuencia de Pago -> Frecuencia de Pago_DXR
-                CopyFieldIfExists(RecRef, 50025, 57120); // BE Límite de Crédito -> Límite de Crédito_DXR
-                CopyFieldIfExists(RecRef, 50028, 57121); // BE Municipio -> Municipio_DXR
-                CopyFieldIfExists(RecRef, 50029, 57122); // BE Provincia -> Provincia_DXR
-                CopyFieldIfExists(RecRef, 50030, 57123); // BE Despachador Email -> Despachador Email_DX.R
-                CopyFieldIfExists(RecRef, 50031, 57124); // BE Proveedor Cilindros -> Proveedor Cilindros_DXR
-                CopyFieldIfExists(RecRef, 50032, 57125); // BE Gestor_CXP_ID -> Gestor_CXP_ID_DXR.
-                RecRef.Modify(false);
+                Modified := false;
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Tipo Servicio_DXR', 'BE Tipo Servicio') or Modified; // 50018 -> 57113
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Clasificación ABC_DXR', 'BE Clasificación ABC') or Modified; // 50019 -> 57114
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Nombre_DXR', 'BE Enc. Cobros Nombre') or Modified; // 50020 -> 57115
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Email_DXR.', 'BE Enc. Cobros email') or Modified; // 50021 -> 57116
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros celular_DXR', 'BE Enc. Cobros celular') or Modified; // 50022 -> 57117
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Enc. Cobros Cumpleaños_DXR', 'BE Enc. Cobros Cumpleaños') or Modified; // 50023 -> 57118
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Frecuencia de Pago_DXR', 'BE Frecuencia de Pago') or Modified; // 50024 -> 57119
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Límite de Crédito_DXR', 'BE Límite de Crédito') or Modified; // 50025 -> 57120
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Municipio_DXR', 'BE Municipio') or Modified; // 50028 -> 57121
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Provincia_DXR', 'BE Provincia') or Modified; // 50029 -> 57122
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Despachador Email_DX.R', 'BE Despachador Email') or Modified; // 50030 -> 57123
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Proveedor Cilindros_DXR', 'BE Proveedor Cilindros') or Modified; // 50031 -> 57124
+                Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Gestor_CXP_ID_DXR.', 'BE Gestor_CXP_ID') or Modified; // 50032 -> 57125
+                if Modified then
+                    RecRef.Modify(false);
+
+                VendorRowsSinceCommit += 1;
+                if VendorRowsSinceCommit >= 500 then begin
+                    Commit();
+                    VendorRowsSinceCommit := 0;
+                end;
             until RecRef.Next() = 0;
         RecRef.Close();
+        Commit();
 
         UpgradeTag.SetUpgradeTag('DXR-BellonP13OldGapCompleted');
     end;

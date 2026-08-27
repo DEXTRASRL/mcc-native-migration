@@ -107,6 +107,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     var
         OldHeader: Record "Transunion Header";
         NewHeader: Record "DXR_Transunion Header";
+        RowsSinceCommit: Integer;
     begin
         if OldHeader.FindSet() then
             repeat
@@ -114,40 +115,46 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                     NewHeader.Init();
                     NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
                     NewHeader."No. Documento" := OldHeader."No. Documento";
-                NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
-                NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
-                NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
-                NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
-                NewHeader.NCF := OldHeader.NCF;
-                NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
-                NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
-                NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
-                NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
-                NewHeader."No. Linea" := OldHeader."No. Linea";
-                NewHeader."Estado Reg." := OldHeader."Estado Reg.";
-                NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
-                NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
-                NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
-                NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
-                NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
-                NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
-                NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
-                NewHeader."Vencido 181" := OldHeader."Vencido 181";
-                NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
-                NewHeader."Entry No." := OldHeader."Entry No.";
-                NewHeader.DayLeft := OldHeader.DayLeft;
-                NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
-                NewHeader.Store := OldHeader.Store;
-                NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
-                NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
-                NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
-                NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
-                NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
-                NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
+                    NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
+                    NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
+                    NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
+                    NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
+                    NewHeader.NCF := OldHeader.NCF;
+                    NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
+                    NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
+                    NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
+                    NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
+                    NewHeader."No. Linea" := OldHeader."No. Linea";
+                    NewHeader."Estado Reg." := OldHeader."Estado Reg.";
+                    NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
+                    NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
+                    NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
+                    NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
+                    NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
+                    NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
+                    NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
+                    NewHeader."Vencido 181" := OldHeader."Vencido 181";
+                    NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
+                    NewHeader."Entry No." := OldHeader."Entry No.";
+                    NewHeader.DayLeft := OldHeader.DayLeft;
+                    NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
+                    NewHeader.Store := OldHeader.Store;
+                    NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
+                    NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
+                    NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
+                    NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
+                    NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
+                    NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
                     NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
                     NewHeader.Insert(false);
                 end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until OldHeader.Next() = 0;
+        Commit();
     end;
 
     local procedure MigrateOriginalCustomerFields()
@@ -156,6 +163,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
         Customer: Record Customer;
         RecRef: RecordRef;
         Modified: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if Customer.FindSet(true) then
             repeat
@@ -168,22 +176,53 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Teléfono 2_DXR', 'TU - Teléfono 2|Teléfono 2_Old') or Modified;
                 if Modified then
                     RecRef.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until Customer.Next() = 0;
+        Commit();
     end;
 
     local procedure MigrateLegacyCustLedgerEntryFields()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        Changed: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if CustLedgerEntry.FindSet(true) then
             repeat
-                CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."TU - Data Crédito VIP";
-                CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."TU - Forma Crédito";
-                CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."TU - Cuenta Abogado";
-                CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."TU - Incobrable";
-                CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."TU - Teléfono 2";
-                CustLedgerEntry.Modify(false);
+                Changed := false;
+                if CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."TU - Data Crédito VIP" then begin
+                    CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."TU - Data Crédito VIP";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."TU - Forma Crédito" then begin
+                    CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."TU - Forma Crédito";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."TU - Cuenta Abogado" then begin
+                    CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."TU - Cuenta Abogado";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."TU - Incobrable" then begin
+                    CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."TU - Incobrable";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."TU - Teléfono 2" then begin
+                    CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."TU - Teléfono 2";
+                    Changed := true;
+                end;
+                if Changed then
+                    CustLedgerEntry.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until CustLedgerEntry.Next() = 0;
+        Commit();
     end;
 
     // Table 57305 "DXR_Transunion Header Old2" is Access = Internal on TU's side, and TU's own
@@ -211,6 +250,7 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     var
         OldHeader: Record "DXR_Transunion Header Old2";
         NewHeader: Record "DXR_Transunion Header";
+        RowsSinceCommit: Integer;
     begin
         if OldHeader.FindSet() then
             repeat
@@ -218,55 +258,86 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
                     NewHeader.Init();
                     NewHeader."Tipo Documento" := OldHeader."Tipo Documento";
                     NewHeader."No. Documento" := OldHeader."No. Documento";
-                NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
-                NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
-                NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
-                NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
-                NewHeader.NCF := OldHeader.NCF;
-                NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
-                NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
-                NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
-                NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
-                NewHeader."No. Linea" := OldHeader."No. Linea";
-                NewHeader."Estado Reg." := OldHeader."Estado Reg.";
-                NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
-                NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
-                NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
-                NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
-                NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
-                NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
-                NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
-                NewHeader."Vencido 181" := OldHeader."Vencido 181";
-                NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
-                NewHeader."Entry No." := OldHeader."Entry No.";
-                NewHeader.DayLeft := OldHeader.DayLeft;
-                NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
-                NewHeader.Store := OldHeader.Store;
-                NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
-                NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
-                NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
-                NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
-                NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
-                NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
+                    NewHeader."Tipo Identificacion" := OldHeader."Tipo Identificacion";
+                    NewHeader."Cod. Identificacion" := OldHeader."Cod. Identificacion";
+                    NewHeader."Cod. Cliente" := OldHeader."Cod. Cliente";
+                    NewHeader."Nombre Cliente" := OldHeader."Nombre Cliente";
+                    NewHeader.NCF := OldHeader.NCF;
+                    NewHeader."NCF Modificado" := OldHeader."NCF Modificado";
+                    NewHeader."Fecha Factura" := OldHeader."Fecha Factura";
+                    NewHeader."Monto en Atraso" := OldHeader."Monto en Atraso";
+                    NewHeader."Monto Facturado" := OldHeader."Monto Facturado";
+                    NewHeader."No. Linea" := OldHeader."No. Linea";
+                    NewHeader."Estado Reg." := OldHeader."Estado Reg.";
+                    NewHeader."Monto Ult. Pago" := OldHeader."Monto Ult. Pago";
+                    NewHeader."Vencido 1-30" := OldHeader."Vencido 1-30";
+                    NewHeader."Vencido 31-60" := OldHeader."Vencido 31-60";
+                    NewHeader."Vencido 61-90" := OldHeader."Vencido 61-90";
+                    NewHeader."Vencido 91-120" := OldHeader."Vencido 91-120";
+                    NewHeader."Vencido 121-150" := OldHeader."Vencido 121-150";
+                    NewHeader."Vencido 151-180" := OldHeader."Vencido 151-180";
+                    NewHeader."Vencido 181" := OldHeader."Vencido 181";
+                    NewHeader."Fecha Vencimiento" := OldHeader."Fecha Vencimiento";
+                    NewHeader."Entry No." := OldHeader."Entry No.";
+                    NewHeader.DayLeft := OldHeader.DayLeft;
+                    NewHeader."Fecha Ult. Pago" := OldHeader."Fecha Ult. Pago";
+                    NewHeader.Store := OldHeader.Store;
+                    NewHeader."Total Vencido 1-30" := OldHeader."Total Vencido 1-30";
+                    NewHeader."Total Vencido 31-60" := OldHeader."Total Vencido 31-60";
+                    NewHeader."Total Vencido 61-90" := OldHeader."Total Vencido 61-90";
+                    NewHeader."Total Vencido 91-120" := OldHeader."Total Vencido 91-120";
+                    NewHeader."Total Vencido 121-150" := OldHeader."Total Vencido 121-150";
+                    NewHeader."Total Vencido 151-180" := OldHeader."Total Vencido 151-180";
                     NewHeader."Total Vencido 181" := OldHeader."Total Vencido 181";
                     NewHeader.Insert(false);
                 end;
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until OldHeader.Next() = 0;
+        Commit();
     end;
 
     local procedure MigrateGen2LegacyCustLedgerEntryFields()
     var
         CustLedgerEntry: Record "Cust. Ledger Entry";
+        Changed: Boolean;
+        RowsSinceCommit: Integer;
     begin
         if CustLedgerEntry.FindSet(true) then
             repeat
-                CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."Data Crédito VIP_Old";
-                CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."Forma Crédito_Old";
-                CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."Cuenta Abogado_Old";
-                CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."Incobrable_Old";
-                CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."Teléfono 2_Old";
-                CustLedgerEntry.Modify(false);
+                Changed := false;
+                if CustLedgerEntry."Data Crédito VIP_DXR" <> CustLedgerEntry."Data Crédito VIP_Old" then begin
+                    CustLedgerEntry."Data Crédito VIP_DXR" := CustLedgerEntry."Data Crédito VIP_Old";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Forma Crédito_DXR" <> CustLedgerEntry."Forma Crédito_Old" then begin
+                    CustLedgerEntry."Forma Crédito_DXR" := CustLedgerEntry."Forma Crédito_Old";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Cuenta Abogado_DXR" <> CustLedgerEntry."Cuenta Abogado_Old" then begin
+                    CustLedgerEntry."Cuenta Abogado_DXR" := CustLedgerEntry."Cuenta Abogado_Old";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Incobrable_DXR" <> CustLedgerEntry."Incobrable_Old" then begin
+                    CustLedgerEntry."Incobrable_DXR" := CustLedgerEntry."Incobrable_Old";
+                    Changed := true;
+                end;
+                if CustLedgerEntry."Teléfono 2_DXR" <> CustLedgerEntry."Teléfono 2_Old" then begin
+                    CustLedgerEntry."Teléfono 2_DXR" := CustLedgerEntry."Teléfono 2_Old";
+                    Changed := true;
+                end;
+                if Changed then
+                    CustLedgerEntry.Modify(false);
+                RowsSinceCommit += 1;
+                if RowsSinceCommit >= BatchSize() then begin
+                    Commit();
+                    RowsSinceCommit := 0;
+                end;
             until CustLedgerEntry.Next() = 0;
+        Commit();
     end;
 
     local procedure AssignPermissionSetsToAllUsers()
@@ -308,6 +379,11 @@ codeunit 60126 "DXR MCC TU Migr Dispatcher"
     local procedure TUAppId(): Guid
     begin
         exit('7c42bd17-42ea-4c0a-b6db-e7034ad57faf');
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
     end;
 
     local procedure TableMigrationTag(): Code[250]

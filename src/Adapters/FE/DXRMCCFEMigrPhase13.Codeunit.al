@@ -23,18 +23,32 @@ codeunit 60142 "DXR MCC FE Migr Phase13"
     local procedure ClearInvalidNCFAffectedValues()
     var
         SalesInvoiceHeader: Record "Sales Invoice Header";
+        BatchCount: Integer;
     begin
         SalesInvoiceHeader.SetFilter("NCF_DXR Afectado_DXR", '<>%1', '');
         if SalesInvoiceHeader.FindSet(true) then
             repeat
                 ClearInvalidNCFAffectedValue(SalesInvoiceHeader);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SalesInvoiceHeader.Next() = 0;
 
+        BatchCount := 0;
         SalesInvoiceHeader.Reset();
         SalesInvoiceHeader.SetFilter("DXNCF Afectado", '<>%1', '');
         if SalesInvoiceHeader.FindSet(true) then
             repeat
                 ClearInvalidNCFAffectedValue(SalesInvoiceHeader);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until SalesInvoiceHeader.Next() = 0;
     end;
 

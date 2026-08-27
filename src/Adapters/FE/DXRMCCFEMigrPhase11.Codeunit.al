@@ -652,8 +652,8 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55503); // EF Archived Sent Request
         if SourceRef.FindSet(false) then
             repeat
-                DocumentNoFld := SourceRef.Field(1);
-                DocumentSourceTypeFld := SourceRef.Field(2);
+                DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+                DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
 
                 if TargetArchivedSentRequest.Get(DocumentNoFld.Value(), DocumentSourceTypeFld.Value()) then begin
                     if ShouldReplaceArchivedSentRequest(SourceRef, TargetArchivedSentRequest) then begin
@@ -680,20 +680,20 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         EFCTrackIDFld, EFCTypeFld, SourceCodeTypeFld, RequestTypeFld, SecurityCodeFld : FieldRef;
         StampedDateFld, SignedDateFld, XMLFileFld, TargetXMLFileFld : FieldRef;
     begin
-        DocumentNoFld := SourceRef.Field(1);
-        DocumentSourceTypeFld := SourceRef.Field(2);
-        ENCFFld := SourceRef.Field(3);
-        PostingDateFld := SourceRef.Field(4);
-        DocumentStatusFld := SourceRef.Field(5);
-        CodeFld := SourceRef.Field(6);
-        EFCTrackIDFld := SourceRef.Field(7);
-        EFCTypeFld := SourceRef.Field(8);
-        SourceCodeTypeFld := SourceRef.Field(9);
-        RequestTypeFld := SourceRef.Field(10);
-        SecurityCodeFld := SourceRef.Field(11);
-        StampedDateFld := SourceRef.Field(12);
-        SignedDateFld := SourceRef.Field(13);
-        XMLFileFld := SourceRef.Field(14);
+        DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+        DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
+        ENCFFld := ResolveField(SourceRef, 'e-NCF');
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
+        DocumentStatusFld := ResolveField(SourceRef, 'Document Status');
+        CodeFld := ResolveField(SourceRef, 'Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        EFCTypeFld := ResolveField(SourceRef, 'EFC Type');
+        SourceCodeTypeFld := ResolveField(SourceRef, 'EF Source Code Type');
+        RequestTypeFld := ResolveField(SourceRef, 'EF Request Type');
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        XMLFileFld := ResolveField(SourceRef, 'XML File');
 
         TargetArchivedSentRequest.Init();
         TargetArchivedSentRequest."Document No." := DocumentNoFld.Value();
@@ -715,17 +715,32 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         // CopyStandaloneTable already uses for every field, BLOBs included) rather than explicit
         // stream APIs, which this AL/compiler version does not expose on FieldRef.
         TargetRef.GetTable(TargetArchivedSentRequest);
-        TargetXMLFileFld := TargetRef.Field(14);
+        TargetXMLFileFld := ResolveField(TargetRef, 'XML File');
         TargetXMLFileFld.Value := XMLFileFld.Value;
         TargetRef.Modify(false);
     end;
 
-    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldNo: Integer): Boolean
+    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldName: Text): Boolean
     var
         BlobFld: FieldRef;
     begin
-        BlobFld := SourceRef.Field(BlobFieldNo);
+        BlobFld := ResolveField(SourceRef, BlobFieldName);
         exit(BlobFld.Length() > 0);
+    end;
+
+    // Name-based FieldRef resolution (never bare numeric field IDs) via the shared
+    // "DXR MCC Master Field Resolver" codeunit's metadata loop - same mechanism
+    // CopyStandaloneTable() already uses through TargetRecordRef.FieldExist/.Field(Name).
+    // Errors loudly instead of silently binding to a differently-numbered field if the
+    // expected field name is missing (e.g. renamed/removed upstream).
+    local procedure ResolveField(var RecRef: RecordRef; FieldName: Text): FieldRef
+    var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
+        ResolvedField: FieldRef;
+    begin
+        if not MasterFieldResolver.TryResolveFieldByName(RecRef, FieldName, ResolvedField) then
+            Error('Field "%1" was not found on table %2 while migrating FE Phase 11 data.', FieldName, RecRef.Number());
+        exit(ResolvedField);
     end;
 
     local procedure GetVariantAsInteger(Value: Variant): Integer
@@ -749,12 +764,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         if SourceScore <> TargetScore then
             exit(SourceScore > TargetScore);
 
-        StampedDateFld := SourceRef.Field(12);
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
         SourceStampedDate := StampedDateFld.Value();
         if SourceStampedDate <> TargetArchivedSentRequest."Stamped Date" then
             exit(SourceStampedDate > TargetArchivedSentRequest."Stamped Date");
 
-        PostingDateFld := SourceRef.Field(4);
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
         SourcePostingDate := PostingDateFld.Value();
         exit(SourcePostingDate > TargetArchivedSentRequest."Posting Date");
     end;
@@ -769,10 +784,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         StampedDate: Date;
         Score: Integer;
     begin
-        SecurityCodeFld := SourceRef.Field(11);
-        EFCTrackIDFld := SourceRef.Field(7);
-        SignedDateFld := SourceRef.Field(13);
-        StampedDateFld := SourceRef.Field(12);
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
 
         SecurityCode := SecurityCodeFld.Value();
         EFCTrackID := EFCTrackIDFld.Value();
@@ -787,7 +802,7 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
             Score += 1;
         if StampedDate <> 0D then
             Score += 1;
-        if HasBlobValue(SourceRef, 14) then
+        if HasBlobValue(SourceRef, 'XML File') then
             Score += 1;
 
         exit(Score);
@@ -824,12 +839,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55504); // EF Codigos Item
         if SourceRef.FindSet() then
             repeat
-                DocumentNoFld := SourceRef.Field(300);
-                DocumentLineNoFld := SourceRef.Field(301);
+                DocumentNoFld := ResolveField(SourceRef, 'DocumentNo');
+                DocumentLineNoFld := ResolveField(SourceRef, 'DocumentLineNo');
 
                 if not TargetCodigosItem.Get(DocumentNoFld.Value(), DocumentLineNoFld.Value()) then begin
-                    TipoCodigoFld := SourceRef.Field(1);
-                    CodigoItemFld := SourceRef.Field(2);
+                    TipoCodigoFld := ResolveField(SourceRef, 'TipoCodigo');
+                    CodigoItemFld := ResolveField(SourceRef, 'CodigoItem');
 
                     TargetCodigosItem.Init();
                     TargetCodigosItem.DocumentNo := DocumentNoFld.Value();

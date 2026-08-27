@@ -39,7 +39,7 @@ codeunit 60446 "DXR MCC Master Field Resolver"
         exit(false);
     end;
 
-    local procedure TryResolveFieldByName(var RecRef: RecordRef; FieldName: Text; var ResolvedField: FieldRef): Boolean
+    procedure TryResolveFieldByName(var RecRef: RecordRef; FieldName: Text; var ResolvedField: FieldRef): Boolean
     var
         CandidateField: FieldRef;
         FieldIndex: Integer;

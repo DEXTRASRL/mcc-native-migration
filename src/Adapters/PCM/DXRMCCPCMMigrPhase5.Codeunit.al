@@ -63,6 +63,11 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         MigrateApprovalEntryFields();
     end;
 
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
+    end;
+
     local procedure MigratePricesCtrlSetup()
     var
         UpgradeTag: Codeunit "Upgrade Tag";
@@ -174,6 +179,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         OldHistory: Record "DXR_Approval History_Old";
         NewHistory: Record "DXR_Approval History";
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step2Tag()) then
             exit;
@@ -220,7 +226,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
                 NewHistory."Total Amount" := OldHistory."Total Amount";
                 NewHistory."Vendor No." := OldHistory."Vendor No.";
                 NewHistory.Insert(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until OldHistory.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step2Tag());
     end;
@@ -230,6 +243,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         ApprovalEntry: Record "Approval Entry";
         Modified: Boolean;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step3Tag()) then
             exit;
@@ -253,7 +267,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 
                 if Modified then
                     ApprovalEntry.Modify(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until ApprovalEntry.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step3Tag());
     end;
@@ -262,6 +283,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
     var
         UpgradeTag: Codeunit "Upgrade Tag";
         Customer: Record Customer;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step4Tag()) then
             exit;
@@ -273,7 +295,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
                     Customer."PRC Store_DXR" := Customer."PRC Store";
                     Customer.Modify(false);
                 end;
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until Customer.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step4Tag());
     end;
@@ -283,6 +312,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         StorePriceGroup: Record "LSC Store Price Group";
         Modified: Boolean;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step5Tag()) then
             exit;
@@ -306,7 +336,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 
                 if Modified then
                     StorePriceGroup.Modify(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until StorePriceGroup.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step5Tag());
     end;
@@ -316,6 +353,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         Workflow: Record Workflow;
         Modified: Boolean;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step6Tag()) then
             exit;
@@ -340,7 +378,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 
                 if Modified then
                     Workflow.Modify(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until Workflow.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step6Tag());
     end;
@@ -350,6 +395,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesHeader: Record "Sales Header";
         Modified: Boolean;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step7Tag()) then
             exit;
@@ -402,7 +448,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 
                 if Modified then
                     SalesHeader.Modify(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until SalesHeader.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step7Tag());
     end;
@@ -412,6 +465,7 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
         UpgradeTag: Codeunit "Upgrade Tag";
         SalesLine: Record "Sales Line";
         Modified: Boolean;
+        RowCounter: Integer;
     begin
         if UpgradeTag.HasUpgradeTag(Step8Tag()) then
             exit;
@@ -552,7 +606,14 @@ codeunit 60125 "DXR MCC PCM Migr Phase5"
 
                 if Modified then
                     SalesLine.Modify(false);
+
+                RowCounter += 1;
+                if RowCounter >= BatchSize() then begin
+                    Commit();
+                    RowCounter := 0;
+                end;
             until SalesLine.Next() = 0;
+        Commit();
 
         UpgradeTag.SetUpgradeTag(Step8Tag());
     end;

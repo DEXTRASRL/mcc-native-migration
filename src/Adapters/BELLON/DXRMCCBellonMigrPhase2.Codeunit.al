@@ -61,6 +61,19 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // MigrateTableExt_TransferHeaderFields, is a no-op - its old field pairs are now fully
     // ObsoleteState = Removed, see that procedure's own comment - and declares no Record, so needs no
     // grant). Includes Vendor (master-data, elevated shadow-field scrutiny per this batch's brief).
+    //
+    // Fixed 2026-08-26 (batching + field-by-ID retrofit): MigrateTableExt_LSCPOSTransLineFields(),
+    // MigrateTableExt_LSCPOSTransactionFields() and MigrateTableExt_PaymentMethodFields() were
+    // still on the generic ID-based CopyFieldIfExists(RecRef, OldFieldNo, NewFieldNo) overload,
+    // whose hardcoded destination IDs (50006-50010 range) do not exist anywhere in "LSC POS
+    // Trans. Line"/"LSC POS Transaction"/"Payment Method"'s real schema (confirmed via
+    // Dextra_Bellon Customization_28.3.4.20.app's SymbolReference.json - the exact dependency
+    // symbol package this project compiles against), making every one of those calls a guaranteed
+    // no-op; each source field's real active target, confirmed via that same schema's own
+    // ObsoleteReason text (identical "the old field is Pending, replaced by X_DXR" shape as every
+    // other procedure fixed 2026-08-24 above), is its "_DXR"-suffixed sibling. Converted to typed
+    // Record with direct field access, matching this codeunit's established fix pattern - needs
+    // the same RM grant as the other ~50 sibling tables above.
     Permissions =
         tabledata "DXR_NCF Setup" = RM,
         tabledata "Bancos - Extracto Bancario" = R,
@@ -159,6 +172,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         tabledata "LSC Member Contact" = RM,
         tabledata "LSC Member Point Offer" = RM,
         tabledata "LSC Periodic Discount" = RM,
+        tabledata "LSC POS Trans. Line" = RM,
+        tabledata "LSC POS Transaction" = RM,
+        tabledata "Payment Method" = RM,
         tabledata "LSC Posted Statement" = RM,
         tabledata "LSC Retail Product Group" = RM,
         tabledata "Purch. Comment Line" = RM,
@@ -480,44 +496,14 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         TargetRecRef.Insert(false);
     end;
 
-    // Copies OldFieldNo -> NewFieldNo on the current row only if both fields exist in the
-    // currently published schema (defense-in-depth: several IDs hardcoded in the real source
-    // point at fields relocated/removed by a later renumbering round; RecRef.Field(N) on a
-    // missing N throws and aborts the whole procedure otherwise).
-    local procedure CopyFieldIfExists(var RecRef: RecordRef; OldFieldNo: Integer; NewFieldNo: Integer)
-    var
-        CandidateField: FieldRef;
-        SourceField: FieldRef;
-        TargetField: FieldRef;
-        FieldIndex: Integer;
-        SourceFound: Boolean;
-        TargetFound: Boolean;
-    begin
-        // Resolve the published identities once through metadata, then copy by the resolved field
-        // names. This avoids direct Field(ID) dereferencing and validates the physical types.
-        for FieldIndex := 1 to RecRef.FieldCount() do begin
-            CandidateField := RecRef.FieldIndex(FieldIndex);
-            if CandidateField.Number() = OldFieldNo then begin
-                SourceField := CandidateField;
-                SourceFound := true;
-            end;
-            if CandidateField.Number() = NewFieldNo then begin
-                TargetField := CandidateField;
-                TargetFound := true;
-            end;
-        end;
-        if not SourceFound or not TargetFound then
-            exit;
-        if (SourceField.Class() <> FieldClass::Normal) or
-           (TargetField.Class() <> FieldClass::Normal) or
-           (SourceField.Type() <> TargetField.Type())
-        then
-            exit;
-
-        SourceField := RecRef.Field(SourceField.Name());
-        TargetField := RecRef.Field(TargetField.Name());
-        TargetField.Value := SourceField.Value();
-    end;
+    // Removed 2026-08-26 (batching + field-by-ID retrofit): this ID-based CopyFieldIfExists(RecRef,
+    // OldFieldNo, NewFieldNo) overload had exactly three callers - MigrateTableExt_
+    // LSCPOSTransLineFields/LSCPOSTransactionFields/PaymentMethodFields - all of which targeted
+    // destination IDs that do not exist in the real schema (confirmed via Dextra_Bellon
+    // Customization_28.3.4.20.app's SymbolReference.json), making it a guaranteed no-op wherever
+    // it was called. Those three procedures were converted to direct typed Record field access
+    // (see each procedure's own "Fixed 2026-08-26" comment for the real "_DXR" targets), leaving
+    // this generic helper with no remaining callers - removed rather than left dead.
 
     // ===== 1) 137 legacy table restores =====
 
@@ -581,9 +567,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
         MigrateInternalConsumptionLineTable(); // Internal Consumption Line -> DXR_Internal Consumption Line (native)
         MigrateLegacyTableData(50095, 53357); // Internal Consumption Log -> DXR_Internal Consumption Log
         MigrateBEInventoryMasksTable(); // BE Inventory Masks -> DXR_Inventory Masks (native)
-        MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
-        MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
-        MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
+       // MigrateItemHTMLTable(); // Item HTML -> DXR_Item HTML (native)
+       // MigrateItemImageViewTable(); // Item Image View -> DXR_Item Image View (native)
+      //  MigrateItemNoDesliquidacionTable(); // ItemNo Desliquidacion -> DXR_ItemNo Desliquidacion (native)
         MigrateJournalPromotionTicketsTable(); // Journal Promotion Tickets -> DXR_Journal Promotion Tickets (native)
         MigrateLegacyTableData(50103, 53363); // Linea Discrepancia -> DXR_Linea Discrepancia
         MigrateLineasCargaMasivaBenBPDTable(); // Lineas Carga Masiva Ben. BPD -> DXR_Lin Carga Masiva Ben. BPD (native)
@@ -2692,6 +2678,40 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
     // 13 dead procedures (the whole Sales/Purchase Header family, superseded by later phases and
     // retroactively removed from the active call list 2026-08-20) are NOT ported here - matching
     // the real source's current behavior exactly.
+    //
+    // Fixed 2026-08-26 (batching retrofit, Critical finding on unbounded transaction size): none
+    // of the ~57 loop-based MigrateTableExt_* procedures below ever committed, so a single
+    // upgrade-tag-gated run touched every ledger/master/transaction table's rows (Cust. Ledger
+    // Entry, Gen. Journal Line, Value Entry, Vendor, Customer, Item, LSC Transaction Header, Bank
+    // Account Ledger Entry among them) inside one giant uncommitted transaction - same shape bug
+    // already fixed in this same portfolio pass for "DXR MCC Bellon Migr Phase3"
+    // (DXRMCCBellonMigrPhase3.Codeunit.al, PersistChangedRecord/FinishTable/BatchSize). Mirrors
+    // that exact commit cadence here: CheckpointCommit() once per row processed (matching the
+    // original data unconditionally, whether or not that specific row's Modify happened) and
+    // FinishBatch() once per table after its loop, guaranteeing a commit boundary between tables
+    // regardless of row count. Purely a checkpoint/commit safety net - no migration semantics,
+    // table order, or field mapping changed.
+    local procedure CheckpointCommit()
+    begin
+        RowsSinceCommit += 1;
+        if RowsSinceCommit >= BatchSize() then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure FinishBatch()
+    begin
+        if RowsSinceCommit > 0 then begin
+            Commit();
+            RowsSinceCommit := 0;
+        end;
+    end;
+
+    local procedure BatchSize(): Integer
+    begin
+        exit(500);
+    end;
 
     local procedure MigrateAllTableExtensionFields()
     begin
@@ -2785,7 +2805,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ApprovalEntry."ID_DXR." := ApprovalEntry."ID";
                     ApprovalEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until ApprovalEntry.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): AssemblyHeader.TableExt.al defines only field 50000 "Importe
@@ -2839,7 +2861,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     BankAccReconciliation."Extracto Bancario_DXR" := BankAccReconciliation."BE Extracto Bancario";
                     BankAccReconciliation.Modify(false);
                 end;
+                CheckpointCommit();
             until BankAccReconciliation.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_BankAccReconciliationLineFields()
@@ -2857,7 +2881,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     BankAccReconciliationLine."Extracto Bancario_DXR" := BankAccReconciliationLine."BE Extracto Bancario";
                     BankAccReconciliationLine.Modify(false);
                 end;
+                CheckpointCommit();
             until BankAccReconciliationLine.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_BankAccountFields()
@@ -2881,7 +2907,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     BankAccount."Amount In Payload_DXR" := BankAccount."Amount In Payload";
                     BankAccount.Modify(false);
                 end;
+                CheckpointCommit();
             until BankAccount.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_BankAccountLedgerEntryFields()
@@ -2899,7 +2927,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     BankAccountLedgerEntry."Fecha Registro 2_DXR" := BankAccountLedgerEntry."Fecha Registro 2";
                     BankAccountLedgerEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until BankAccountLedgerEntry.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCBarcodesFields()
@@ -2920,7 +2950,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCBarcodes."Cantidad Bellon_DXR" := LSCBarcodes."Cantidad Bellon";
                     LSCBarcodes.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCBarcodes.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CheckLedgerEntryFields()
@@ -2945,7 +2977,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CheckLedgerEntry."No. Recibo_DXR" := CheckLedgerEntry."No. Recibo";
                     CheckLedgerEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until CheckLedgerEntry.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CompanyInformationFields()
@@ -2992,8 +3026,10 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                 Modified := MasterFieldResolver.CopyFirstPopulatedField(RecRef, 'Cust Template Code_DXR', 'Customer Template Code|Customer Template Code_Old|Cust Template Code_Old_DXR|Customer Template Code_DXR') or Modified;
                 if Modified then
                     RecRef.Modify(false);
+                CheckpointCommit();
             until RecRef.Next() = 0;
         RecRef.Close();
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CountryRegionFields()
@@ -3016,7 +3052,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CountryRegion."2-Digit ISO Code_DXR" := CountryRegion."2-Digit ISO Code";
                     CountryRegion.Modify(false);
                 end;
+                CheckpointCommit();
             until CountryRegion.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CurrencyFields()
@@ -3034,7 +3072,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     Currency."Accepted bpd_DXR" := Currency."Accepted bpd";
                     Currency.Modify(false);
                 end;
+                CheckpointCommit();
             until Currency.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CurrencyExchangeRateFields()
@@ -3053,7 +3093,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CurrencyExchangeRate."Tasa Banco Central_DXR" := CurrencyExchangeRate."Tasa Banco Central";
                     CurrencyExchangeRate.Modify(false);
                 end;
+                CheckpointCommit();
             until CurrencyExchangeRate.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CustLedgerEntryFields()
@@ -3074,7 +3116,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CustLedgerEntry."No. Authorizacion_DXR" := CustLedgerEntry."No. Authorizacion";
                     CustLedgerEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until CustLedgerEntry.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24 (master-data table, elevated shadow-field scrutiny): the old RecordRef
@@ -3191,7 +3235,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     Customer."Req Fecha Reg Merc_DXR" := Customer."Requiere Fecha Reg. Mercantil";
                     Customer.Modify(false);
                 end;
+                CheckpointCommit();
             until Customer.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_CustomerPriceGroupFields()
@@ -3210,7 +3256,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CustomerPriceGroup."Global Sales Code_DXR" := CustomerPriceGroup."Global Sales Code";
                     CustomerPriceGroup.Modify(false);
                 end;
+                CheckpointCommit();
             until CustomerPriceGroup.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_GenJournalBatchFields()
@@ -3231,7 +3279,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     GenJournalBatch."Pago Electronico_DXR" := GenJournalBatch."Pago Electronico";
                     GenJournalBatch.Modify(false);
                 end;
+                CheckpointCommit();
             until GenJournalBatch.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_GenJournalLineFields()
@@ -3267,7 +3317,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     GenJournalLine."Posting Exch. Line No._DXR" := GenJournalLine."Posting Exch. Line No.";
                     GenJournalLine.Modify(false);
                 end;
+                CheckpointCommit();
             until GenJournalLine.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_GenProductPostingGroupFields()
@@ -3284,7 +3336,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     GenProductPostingGroup."Internal Consumption_DXR" := GenProductPostingGroup."Internal Consumption";
                     GenProductPostingGroup.Modify(false);
                 end;
+                CheckpointCommit();
             until GenProductPostingGroup.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_GeneralLedgerSetupFields()
@@ -3324,7 +3378,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     IssuedReminderHeader."Remaining Amount 2_DXR" := IssuedReminderHeader."Remaining Amount 2";
                     IssuedReminderHeader.Modify(false);
                 end;
+                CheckpointCommit();
             until IssuedReminderHeader.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): IssuedReminderLine.TableExt.al defines only field 50000
@@ -3426,7 +3482,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     Item."Control Existencia_DXR" := Item."Control Existencia";
                     Item.Modify(false);
                 end;
+                CheckpointCommit();
             until Item.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_ItemCategoryFields()
@@ -3444,7 +3502,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ItemCategory."% Comision_DXR" := ItemCategory."% Comision";
                     ItemCategory.Modify(false);
                 end;
+                CheckpointCommit();
             until ItemCategory.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_ItemChargeAssignmentPurchFields()
@@ -3461,7 +3521,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ItemChargeAssignmentPurch."Monto Cargo Liq._DXR" := ItemChargeAssignmentPurch."Monto Cargo Liq.";
                     ItemChargeAssignmentPurch.Modify(false);
                 end;
+                CheckpointCommit();
             until ItemChargeAssignmentPurch.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): ItemJournalBatch.TableExt.al defines exactly one Bellon field
@@ -3488,7 +3550,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ItemJournalLine."No. Discrepancia_DXR" := ItemJournalLine."No. Discrepancia";
                     ItemJournalLine.Modify(false);
                 end;
+                CheckpointCommit();
             until ItemJournalLine.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): ItemLedgerEntry.TableExt.al defines two Bellon field pairs
@@ -3515,7 +3579,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCItemSpecialGroups."% Comision_DXR" := LSCItemSpecialGroups."% Comision";
                     LSCItemSpecialGroups.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCItemSpecialGroups.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_DXCashJournalReceiptListFields()
@@ -3555,7 +3621,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     CashJournalReceiptList."No. Authorizacion_DXR" := CashJournalReceiptList."No. Authorizacion";
                     CashJournalReceiptList.Modify(false);
                 end;
+                CheckpointCommit();
             until CashJournalReceiptList.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LocationFields()
@@ -3583,7 +3651,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     Location."Req. Cod. Pos. & Neg._DXR" := Location."Req. Cod. Pos. & Neg.";
                     Location.Modify(false);
                 end;
+                CheckpointCommit();
             until Location.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCMemberContactFields()
@@ -3611,7 +3681,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCMemberContact."Sucursal Preferida_DXR" := LSCMemberContact."Sucursal Preferida";
                     LSCMemberContact.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCMemberContact.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCMemberPointOfferFields()
@@ -3635,7 +3707,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCMemberPointOffer."Calc. Type_DXR" := LSCMemberPointOffer."Calc. Type";
                     LSCMemberPointOffer.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCMemberPointOffer.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): MemberPointOfferLine.TableExt.al defines exactly one Bellon
@@ -3684,53 +3758,104 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
             end;
     end;
 
+    // Fixed 2026-08-26: the old RecordRef version's four ID-based CopyFieldIfExists(RecRef,
+    // OldFieldNo, NewFieldNo) calls all targeted destination IDs (50007-50010) that do not exist
+    // anywhere in "LSC POS Trans. Line"'s real schema - guaranteed no-ops on every row - confirmed
+    // via Dextra_Bellon Customization_28.3.4.20.app's SymbolReference.json (the exact dependency
+    // symbol package this project compiles against). Each source field's real active target,
+    // confirmed via that same schema's ObsoleteReason on each source field (none of the _DXR
+    // destinations below are themselves obsolete), is its "_DXR"-suffixed sibling: "Offer No." ->
+    // "Offer No._DXR" (52787), "Orig. Trans. Date" -> "Orig. Trans. Date_DXR" (52788),
+    // PedidoBackOffice -> "PedidoBackOffice_DXR" (52789), Autorizador -> "Autorizador_DXR"
+    // (52790). Direct typed fields close all four gaps.
     local procedure MigrateTableExt_LSCPOSTransLineFields()
     var
-        RecRef: RecordRef;
+        LSCPOSTransLine: Record "LSC POS Trans. Line";
     begin
-        RecRef.Open(Database::"LSC POS Trans. Line");
-        if RecRef.FindSet(true) then
+        if LSCPOSTransLine.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50006, 50007);
-                CopyFieldIfExists(RecRef, 50005, 50008);
-                CopyFieldIfExists(RecRef, 50001, 50009);
-                CopyFieldIfExists(RecRef, 50000, 50010);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (LSCPOSTransLine."Offer No._DXR" <> LSCPOSTransLine."Offer No.") or
+                   (LSCPOSTransLine."Orig. Trans. Date_DXR" <> LSCPOSTransLine."Orig. Trans. Date") or
+                   (LSCPOSTransLine."PedidoBackOffice_DXR" <> LSCPOSTransLine.PedidoBackOffice) or
+                   (LSCPOSTransLine."Autorizador_DXR" <> LSCPOSTransLine.Autorizador)
+                then begin
+                    LSCPOSTransLine."Offer No._DXR" := LSCPOSTransLine."Offer No.";
+                    LSCPOSTransLine."Orig. Trans. Date_DXR" := LSCPOSTransLine."Orig. Trans. Date";
+                    LSCPOSTransLine."PedidoBackOffice_DXR" := LSCPOSTransLine.PedidoBackOffice;
+                    LSCPOSTransLine."Autorizador_DXR" := LSCPOSTransLine.Autorizador;
+                    LSCPOSTransLine.Modify(false);
+                end;
+                CheckpointCommit();
+            until LSCPOSTransLine.Next() = 0;
+        FinishBatch();
     end;
 
+    // Fixed 2026-08-26: same situation as MigrateTableExt_LSCPOSTransLineFields() above - the old
+    // RecordRef version's five ID-based CopyFieldIfExists calls all targeted destination IDs
+    // (50006-50010) that do not exist anywhere in "LSC POS Transaction"'s real schema (confirmed
+    // via Dextra_Bellon Customization_28.3.4.20.app's SymbolReference.json) - guaranteed no-ops on
+    // every row, so this procedure has never actually migrated any data. Each source field's real
+    // active target, confirmed via that same schema's ObsoleteReason on each source field (none of
+    // the _DXR destinations below are themselves obsolete), is its "_DXR"-suffixed sibling:
+    // Autorizador -> "Autorizador_DXR" (52791), PedidoBackOffice -> "PedidoBackOffice_DXR"
+    // (52787), "Sell-to Contact" -> "Sell-to Contact_DXR" (52788), PanelCRF -> "PanelCRF_DXR"
+    // (52789), "Qty Tickets" -> "Qty Tickets_DXR" (52790). Direct typed fields close all five gaps.
     local procedure MigrateTableExt_LSCPOSTransactionFields()
     var
-        RecRef: RecordRef;
+        LSCPOSTransaction: Record "LSC POS Transaction";
     begin
-        RecRef.Open(Database::"LSC POS Transaction");
-        if RecRef.FindSet(true) then
+        if LSCPOSTransaction.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50000, 50010);
-                CopyFieldIfExists(RecRef, 50001, 50006);
-                CopyFieldIfExists(RecRef, 50002, 50007);
-                CopyFieldIfExists(RecRef, 50003, 50008);
-                CopyFieldIfExists(RecRef, 50004, 50009);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (LSCPOSTransaction."Autorizador_DXR" <> LSCPOSTransaction.Autorizador) or
+                   (LSCPOSTransaction."PedidoBackOffice_DXR" <> LSCPOSTransaction.PedidoBackOffice) or
+                   (LSCPOSTransaction."Sell-to Contact_DXR" <> LSCPOSTransaction."Sell-to Contact") or
+                   (LSCPOSTransaction."PanelCRF_DXR" <> LSCPOSTransaction.PanelCRF) or
+                   (LSCPOSTransaction."Qty Tickets_DXR" <> LSCPOSTransaction."Qty Tickets")
+                then begin
+                    LSCPOSTransaction."Autorizador_DXR" := LSCPOSTransaction.Autorizador;
+                    LSCPOSTransaction."PedidoBackOffice_DXR" := LSCPOSTransaction.PedidoBackOffice;
+                    LSCPOSTransaction."Sell-to Contact_DXR" := LSCPOSTransaction."Sell-to Contact";
+                    LSCPOSTransaction."PanelCRF_DXR" := LSCPOSTransaction.PanelCRF;
+                    LSCPOSTransaction."Qty Tickets_DXR" := LSCPOSTransaction."Qty Tickets";
+                    LSCPOSTransaction.Modify(false);
+                end;
+                CheckpointCommit();
+            until LSCPOSTransaction.Next() = 0;
+        FinishBatch();
     end;
 
+    // Fixed 2026-08-26: same situation as MigrateTableExt_LSCPOSTransLineFields() above - the old
+    // RecordRef version's four ID-based CopyFieldIfExists calls all targeted destination IDs
+    // (50006-50009) that do not exist anywhere in "Payment Method"'s real schema (confirmed via
+    // Dextra_Bellon Customization_28.3.4.20.app's SymbolReference.json) - guaranteed no-ops on
+    // every row. Not to be confused with Phase7's MigrateTableExt_PaymentMethodIdRestore() (a
+    // different bug, bridging "_DXR"/"_Old" name pairs at different, already-renumbered field
+    // IDs). Each source field's real active target, confirmed via that same schema's
+    // ObsoleteReason on each source field (none of the _DXR destinations below are themselves
+    // obsolete), is its "_DXR"-suffixed sibling: "Payment Processor" -> "Payment Processor_DXR"
+    // (52787), Prioridad -> "Prioridad_DXR." (52788, trailing period as declared in source),
+    // Contado -> "Contado_DXR" (52789), "Tipo Venta" -> "Tipo Venta_DXR" (52790). Direct typed
+    // fields close all four gaps.
     local procedure MigrateTableExt_PaymentMethodFields()
     var
-        RecRef: RecordRef;
+        PaymentMethod: Record "Payment Method";
     begin
-        RecRef.Open(Database::"Payment Method");
-        if RecRef.FindSet(true) then
+        if PaymentMethod.FindSet(true) then
             repeat
-                CopyFieldIfExists(RecRef, 50005, 50006);
-                CopyFieldIfExists(RecRef, 50000, 50007);
-                CopyFieldIfExists(RecRef, 50001, 50008);
-                CopyFieldIfExists(RecRef, 50002, 50009);
-                RecRef.Modify(false);
-            until RecRef.Next() = 0;
-        RecRef.Close();
+                if (PaymentMethod."Payment Processor_DXR" <> PaymentMethod."Payment Processor") or
+                   (PaymentMethod."Prioridad_DXR." <> PaymentMethod.Prioridad) or
+                   (PaymentMethod."Contado_DXR" <> PaymentMethod.Contado) or
+                   (PaymentMethod."Tipo Venta_DXR" <> PaymentMethod."Tipo Venta")
+                then begin
+                    PaymentMethod."Payment Processor_DXR" := PaymentMethod."Payment Processor";
+                    PaymentMethod."Prioridad_DXR." := PaymentMethod.Prioridad;
+                    PaymentMethod."Contado_DXR" := PaymentMethod.Contado;
+                    PaymentMethod."Tipo Venta_DXR" := PaymentMethod."Tipo Venta";
+                    PaymentMethod.Modify(false);
+                end;
+                CheckpointCommit();
+            until PaymentMethod.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCPeriodicDiscountFields()
@@ -3753,7 +3878,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCPeriodicDiscount."Global_DXR" := LSCPeriodicDiscount.Global;
                     LSCPeriodicDiscount.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCPeriodicDiscount.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): PostedAssemblyHeader.TableExt.al defines exactly one Bellon
@@ -3779,7 +3906,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCPostedStatement."Listo para Registrar_DXR" := LSCPostedStatement."Listo para Registrar";
                     LSCPostedStatement.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCPostedStatement.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCRetailProductGroupFields()
@@ -3800,7 +3929,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCRetailProductGroup."Comision_Cobro_DXR." := LSCRetailProductGroup."Comision_Cobro";
                     LSCRetailProductGroup.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCRetailProductGroup.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_PurchCommentLineFields()
@@ -3817,7 +3948,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     PurchCommentLine."Comentario Extendido_DXR" := PurchCommentLine."Comentario Extendido";
                     PurchCommentLine.Modify(false);
                 end;
+                CheckpointCommit();
             until PurchCommentLine.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_PurchCommentLineArchiveFields()
@@ -3834,7 +3967,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     PurchCommentLineArchive."Comentario Extendido_DXR" := PurchCommentLineArchive."Comentario Extendido";
                     PurchCommentLineArchive.Modify(false);
                 end;
+                CheckpointCommit();
             until PurchCommentLineArchive.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_PurchInvLineFields()
@@ -3851,7 +3986,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     PurchInvLine."Liquidacion_DXR" := PurchInvLine.Liquidacion;
                     PurchInvLine.Modify(false);
                 end;
+                CheckpointCommit();
             until PurchInvLine.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_ReasonCodeFields()
@@ -3869,7 +4006,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ReasonCode."GroupTransport_DXR." := ReasonCode.GroupTransport;
                     ReasonCode.Modify(false);
                 end;
+                CheckpointCommit();
             until ReasonCode.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCReplenJournalLinesFields()
@@ -3890,7 +4029,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCReplenJournalLines."Almacen Destino_DXR" := LSCReplenJournalLines."Almacen Destino";
                     LSCReplenJournalLines.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCReplenJournalLines.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCReplenTemplateFields()
@@ -3910,7 +4051,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCReplenTemplate."Almacen Destino_DXR" := LSCReplenTemplate."Almacen Destino";
                     LSCReplenTemplate.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCReplenTemplate.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_LSCRetailSetupFields()
@@ -4005,7 +4148,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCRetailUser."Filtrar Exist Ventas_DXR" := LSCRetailUser."Filtrar Existencia Ventas";
                     LSCRetailUser.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCRetailUser.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_SalesPriceFields()
@@ -4035,7 +4180,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     SalesPrice."Visible in Webshop_DXR" := SalesPrice."Visible in Webshop";
                     SalesPrice.Modify(false);
                 end;
+                CheckpointCommit();
             until SalesPrice.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): SalesPriceWorksheet.TableExt.al defines exactly one Bellon
@@ -4083,7 +4230,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCSalesType."Venta Ex. ITBIS_DXR" := LSCSalesType."Venta Ex. ITBIS";
                     LSCSalesType.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCSalesType.Next() = 0;
+        FinishBatch();
     end;
 
     local procedure MigrateTableExt_SalespersonPurchaserFields()
@@ -4106,7 +4255,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     SalespersonPurchaser."Tipo Comision_DXR" := SalespersonPurchaser."Tipo Comision";
                     SalespersonPurchaser.Modify(false);
                 end;
+                CheckpointCommit();
             until SalespersonPurchaser.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had two pairs, both copying into dead "_Old"
@@ -4127,7 +4278,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ShiptoAddress."Longitud_DXR." := ShiptoAddress.Longitud;
                     ShiptoAddress.Modify(false);
                 end;
+                CheckpointCommit();
             until ShiptoAddress.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version copied "Listo para Registrar" into the dead "_Old"
@@ -4144,7 +4297,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCStatement."Listo para Registrar_DXR" := LSCStatement."Listo para Registrar";
                     LSCStatement.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCStatement.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had five pairs, all copying into dead "_Old"
@@ -4173,7 +4328,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCStore."Print Header Doc._DXR." := LSCStore."Print Header Doc.";
                     LSCStore.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCStore.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had three pairs, all copying into dead "_Old"
@@ -4195,7 +4352,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     TariffNumber."% Selectivo_DXR" := TariffNumber."% Selectivo";
                     TariffNumber.Modify(false);
                 end;
+                CheckpointCommit();
             until TariffNumber.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version copied "IsCreditMemo" into the dead "_Old" shadow
@@ -4212,7 +4371,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCTenderType."IsCreditMemo_DXR" := LSCTenderType.IsCreditMemo;
                     LSCTenderType.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCTenderType.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version copied "Autorizador" into the dead "_Old" shadow
@@ -4229,7 +4390,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCTransSalesEntry."Autorizador_DXR" := LSCTransSalesEntry."Autorizador";
                     LSCTransSalesEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCTransSalesEntry.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had thirteen pairs, all copying into dead "_Old"
@@ -4273,7 +4436,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     LSCTransactionHeader."Order No._DXR" := LSCTransactionHeader."Order No.";
                     LSCTransactionHeader.Modify(false);
                 end;
+                CheckpointCommit();
             until LSCTransactionHeader.Next() = 0;
+        FinishBatch();
     end;
 
     // No-op by design (2026-08-24): the old RecordRef version targeted field pairs 50009->50011
@@ -4308,7 +4473,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     TransferLine."Almacen Destino_DXR" := TransferLine."Almacen Destino";
                     TransferLine.Modify(false);
                 end;
+                CheckpointCommit();
             until TransferLine.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had four pairs, all copying into dead "_Old"
@@ -4335,7 +4502,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     TransferReceiptHeader."Pre Receive Ref No_DXR" := TransferReceiptHeader."Pre Receive Reference No.";
                     TransferReceiptHeader.Modify(false);
                 end;
+                CheckpointCommit();
             until TransferReceiptHeader.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had three pairs, all copying into dead "_Old"
@@ -4359,7 +4528,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     TransferShipmentHeader."Shipment User ID_DXR." := TransferShipmentHeader."Shipment User ID";
                     TransferShipmentHeader.Modify(false);
                 end;
+                CheckpointCommit();
             until TransferShipmentHeader.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version had 22 pairs. 21 of them copied into dead "_Old"
@@ -4422,7 +4593,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     UserSetup."Order to Retail Order_DXR" := UserSetup."Order to Retail Order";
                     UserSetup.Modify(false);
                 end;
+                CheckpointCommit();
             until UserSetup.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version copied "Correccion Int." into the dead "_Old"
@@ -4439,7 +4612,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     ValueEntry."Correccion Int._DXR" := ValueEntry."Correccion Int.";
                     ValueEntry.Modify(false);
                 end;
+                CheckpointCommit();
             until ValueEntry.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24 (master-data table, elevated shadow-field scrutiny): unlike Customer/Item
@@ -4504,7 +4679,9 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     Vendor."FechaCreacion_DXR" := Vendor."BE FechaCreacion";
                     Vendor.Modify(false);
                 end;
+                CheckpointCommit();
             until Vendor.Next() = 0;
+        FinishBatch();
     end;
 
     // Fixed 2026-08-24: the old RecordRef version copied "Almacen Destino" into the dead "_Old"
@@ -4521,8 +4698,13 @@ codeunit 60146 "DXR MCC Bellon Migr Phase2"
                     WarehouseReceiptLine."Almacen Destino_DXR" := WarehouseReceiptLine."Almacen Destino";
                     WarehouseReceiptLine.Modify(false);
                 end;
+                CheckpointCommit();
             until WarehouseReceiptLine.Next() = 0;
+        FinishBatch();
     end;
+
+    var
+        RowsSinceCommit: Integer;
 }
 
 #endif

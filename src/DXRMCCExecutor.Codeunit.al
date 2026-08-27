@@ -94,10 +94,10 @@ codeunit 60011 "DXR MCC Executor"
                     ExtensionCode, CategoryFromPortfolioOrdinal(CategoryOrdinal), BandOrdinal,
                     CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, RunRequestEntryNo = 0)
                 then begin
-                if RunRequestEntryNo = 0 then
-                    CloseProgress();
-                exit;
-            end;
+                    if RunRequestEntryNo = 0 then
+                        CloseProgress();
+                    exit;
+                end;
 
         AssignPortfolioPermissions(RunRequestEntryNo);
         if RunRequestEntryNo = 0 then
@@ -420,11 +420,11 @@ codeunit 60011 "DXR MCC Executor"
                     if RunRequest."Historic Phase Status" = RunRequest."Historic Phase Status"::Running then
                         FinishPortfolioPhase(RunRequestEntryNo, 3, false, false)
                     else
-                    if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then
+                        if RunRequest."Other Phase Status" = RunRequest."Other Phase Status"::Running then
                             FinishPortfolioPhase(RunRequestEntryNo, 4, false, false)
-                    else
-                        if RunRequest."Reporting Phase Status" = RunRequest."Reporting Phase Status"::Running then
-                            FinishPortfolioPhase(RunRequestEntryNo, 5, false, false);
+                        else
+                            if RunRequest."Reporting Phase Status" = RunRequest."Reporting Phase Status"::Running then
+                                FinishPortfolioPhase(RunRequestEntryNo, 5, false, false);
     end;
 
     /// <summary>
@@ -486,19 +486,19 @@ codeunit 60011 "DXR MCC Executor"
                 if (ResumeBandOrdinal >= 0) and (BandOrdinal < ResumeBandOrdinal) then begin
                     // The complete band was checkpointed before the failed attempt.
                 end else
-                if not PastCheckpoint then begin
-                    if Extension.Code = ResumeAfterExtCode then
-                        PastCheckpoint := true;
-                end else begin
-                    if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('Categoría %1 (%2): ejecutando extensión %3', Format(Category), Format(BandOrdinal), Extension.Code)) then begin
-                        MarkRunRequestCancelled(RunRequestEntryNo);
-                        exit;
+                    if not PastCheckpoint then begin
+                        if Extension.Code = ResumeAfterExtCode then
+                            PastCheckpoint := true;
+                    end else begin
+                        if not CheckCancelAndUpdateStep(RunRequestEntryNo, StrSubstNo('Categoría %1 (%2): ejecutando extensión %3', Format(Category), Format(BandOrdinal), Extension.Code)) then begin
+                            MarkRunRequestCancelled(RunRequestEntryNo);
+                            exit;
+                        end;
+                        if not RunExtensionCategory(Extension.Code, Category, BandOrdinal, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
+                            exit;
+                        ProcessedNo += 1;
+                        SaveCategoryCheckpoint(RunRequestEntryNo, BandOrdinal, Extension.Code, ProcessedNo);
                     end;
-                    if not RunExtensionCategory(Extension.Code, Category, BandOrdinal, CompletedCount, GapCount, ErrorCount, BlockedCount, RunRequestEntryNo, false) then
-                        exit;
-                    ProcessedNo += 1;
-                    SaveCategoryCheckpoint(RunRequestEntryNo, BandOrdinal, Extension.Code, ProcessedNo);
-                end;
             end;
         end;
 
@@ -1199,42 +1199,42 @@ codeunit 60011 "DXR MCC Executor"
                     Concept.Status := Concept.Status::Error;
                 end;
             end else
-            if InformationalSkipped then begin
-                RunLog.Status := RunLog.Status::Skipped;
-                RunLog."Error Message" := CopyStr('Concepto informativo o retirado: no tiene dispatcher ni identidad de tablas; no existe trabajo runtime que ejecutar.', 1, MaxStrLen(RunLog."Error Message"));
-                Concept.Status := Concept.Status::Skipped;
-            end else
-            if IsSkippableMissingRecordError(ErrorText) then begin
-                // Optional singleton setup records are validly absent in some companies. The
-                // owning dispatcher reports that absence as an error, but MCC treats it as an
-                // isolated skipped concept so the remaining setup/master/historic units continue.
-                RunLog.Status := RunLog.Status::Skipped;
-                RunLog."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(RunLog."Error Message"));
-                Concept.Status := Concept.Status::Skipped;
-            end else
-            if ErrorText <> '' then begin
-                RunLog.Status := RunLog.Status::Error;
-                RunLog."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(RunLog."Error Message"));
-                Concept.Status := Concept.Status::Error;
-            end else
-            if NotRowBased then begin
-                // Leave Concept.Status = "Not Row-Based" exactly as Counter set it - not
-                // verifiable, and never a false "Completed". RunLog has no matching option (it's a
-                // run-history log, not the concept's own truth field) - log as Completed since the
-                // dispatcher (if any) ran without erroring.
-                RunLog.Status := RunLog.Status::Completed;
-            end else
-            if HasGap then begin
-                Concept.Status := Concept.Status::"Completed With Gaps";
-                RunLog.Status := RunLog.Status::"Completed With Gaps";
-            end else begin
-                Concept.Status := Concept.Status::Completed;
-                RunLog.Status := RunLog.Status::Completed;
-                if DispatcherWarning <> '' then
-                    RunLog."Error Message" := CopyStr(
-                        StrSubstNo('Completado por reconciliación de conteos; el dispatcher reportó después: %1', DispatcherWarning),
-                        1, MaxStrLen(RunLog."Error Message"));
-            end;
+                if InformationalSkipped then begin
+                    RunLog.Status := RunLog.Status::Skipped;
+                    RunLog."Error Message" := CopyStr('Concepto informativo o retirado: no tiene dispatcher ni identidad de tablas; no existe trabajo runtime que ejecutar.', 1, MaxStrLen(RunLog."Error Message"));
+                    Concept.Status := Concept.Status::Skipped;
+                end else
+                    if IsSkippableMissingRecordError(ErrorText) then begin
+                        // Optional singleton setup records are validly absent in some companies. The
+                        // owning dispatcher reports that absence as an error, but MCC treats it as an
+                        // isolated skipped concept so the remaining setup/master/historic units continue.
+                        RunLog.Status := RunLog.Status::Skipped;
+                        RunLog."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(RunLog."Error Message"));
+                        Concept.Status := Concept.Status::Skipped;
+                    end else
+                        if ErrorText <> '' then begin
+                            RunLog.Status := RunLog.Status::Error;
+                            RunLog."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(RunLog."Error Message"));
+                            Concept.Status := Concept.Status::Error;
+                        end else
+                            if NotRowBased then begin
+                                // Leave Concept.Status = "Not Row-Based" exactly as Counter set it - not
+                                // verifiable, and never a false "Completed". RunLog has no matching option (it's a
+                                // run-history log, not the concept's own truth field) - log as Completed since the
+                                // dispatcher (if any) ran without erroring.
+                                RunLog.Status := RunLog.Status::Completed;
+                            end else
+                                if HasGap then begin
+                                    Concept.Status := Concept.Status::"Completed With Gaps";
+                                    RunLog.Status := RunLog.Status::"Completed With Gaps";
+                                end else begin
+                                    Concept.Status := Concept.Status::Completed;
+                                    RunLog.Status := RunLog.Status::Completed;
+                                    if DispatcherWarning <> '' then
+                                        RunLog."Error Message" := CopyStr(
+                                            StrSubstNo('Completado por reconciliación de conteos; el dispatcher reportó después: %1', DispatcherWarning),
+                                            1, MaxStrLen(RunLog."Error Message"));
+                                end;
 
         Concept."Last Run DateTime" := CurrentDateTime();
         Concept.Modify(true);
