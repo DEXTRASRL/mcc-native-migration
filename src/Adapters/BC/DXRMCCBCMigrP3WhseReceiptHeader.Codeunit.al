@@ -4,49 +4,63 @@ codeunit 60102 "DXR MCC BC Migr P3 WhseRcptHd"
     // Native local migration - ported from Base Controls' own "DXR_BC Migr Phase 3".
     // CopyWhseReceiptHeaderFields(): 4 renumbered tableextension fields, fill-only-if-blank
     // (idempotent).
+    //
+    // Fixed 2026-08-27: same whole-table UPDLOCK problem, and the same fix, as
+    // "DXR MCC BC Migr P3 Customer" - see that codeunit's header for the full rationale and the
+    // Learn references. Warehouse Receipt Header is a live transactional table, so the old
+    // full-table update lock blocked warehouse operators for the duration of the run.
     Permissions = tabledata "Warehouse Receipt Header" = RIMD;
 
     trigger OnRun()
     var
         WhseReceiptHeaderRec: Record "Warehouse Receipt Header";
-        Modified: Boolean;
+        WhseReceiptHeaderToUpdate: Record "Warehouse Receipt Header";
         RowsSinceCommit: Integer;
     begin
-        if not WhseReceiptHeaderRec.FindSet(true) then
+        WhseReceiptHeaderRec.SetLoadFields(
+            "No.",
+            "Customer No._DXR", "Customer No._Old",
+            "Vendor No._DXR", "Vendor No._Old",
+            "Vendor Name_DXR", "Vendor Name_Old",
+            "Customer Name_DXR", "Customer Name_Old");
+        if not WhseReceiptHeaderRec.FindSet(false) then
             exit;
         repeat
-            Modified := false;
+            if RowNeedsMigration(WhseReceiptHeaderRec) then
+                if WhseReceiptHeaderToUpdate.Get(WhseReceiptHeaderRec."No.") then begin
+                    if (WhseReceiptHeaderToUpdate."Customer No._DXR" = '') and (WhseReceiptHeaderToUpdate."Customer No._Old" <> '') then
+                        WhseReceiptHeaderToUpdate."Customer No._DXR" := WhseReceiptHeaderToUpdate."Customer No._Old";
 
-            if (WhseReceiptHeaderRec."Customer No._DXR" = '') and (WhseReceiptHeaderRec."Customer No._Old" <> '') then begin
-                WhseReceiptHeaderRec."Customer No._DXR" := WhseReceiptHeaderRec."Customer No._Old";
-                Modified := true;
-            end;
+                    if (WhseReceiptHeaderToUpdate."Vendor No._DXR" = '') and (WhseReceiptHeaderToUpdate."Vendor No._Old" <> '') then
+                        WhseReceiptHeaderToUpdate."Vendor No._DXR" := WhseReceiptHeaderToUpdate."Vendor No._Old";
 
-            if (WhseReceiptHeaderRec."Vendor No._DXR" = '') and (WhseReceiptHeaderRec."Vendor No._Old" <> '') then begin
-                WhseReceiptHeaderRec."Vendor No._DXR" := WhseReceiptHeaderRec."Vendor No._Old";
-                Modified := true;
-            end;
+                    if (WhseReceiptHeaderToUpdate."Vendor Name_DXR" = '') and (WhseReceiptHeaderToUpdate."Vendor Name_Old" <> '') then
+                        WhseReceiptHeaderToUpdate."Vendor Name_DXR" := WhseReceiptHeaderToUpdate."Vendor Name_Old";
 
-            if (WhseReceiptHeaderRec."Vendor Name_DXR" = '') and (WhseReceiptHeaderRec."Vendor Name_Old" <> '') then begin
-                WhseReceiptHeaderRec."Vendor Name_DXR" := WhseReceiptHeaderRec."Vendor Name_Old";
-                Modified := true;
-            end;
+                    if (WhseReceiptHeaderToUpdate."Customer Name_DXR" = '') and (WhseReceiptHeaderToUpdate."Customer Name_Old" <> '') then
+                        WhseReceiptHeaderToUpdate."Customer Name_DXR" := WhseReceiptHeaderToUpdate."Customer Name_Old";
 
-            if (WhseReceiptHeaderRec."Customer Name_DXR" = '') and (WhseReceiptHeaderRec."Customer Name_Old" <> '') then begin
-                WhseReceiptHeaderRec."Customer Name_DXR" := WhseReceiptHeaderRec."Customer Name_Old";
-                Modified := true;
-            end;
+                    WhseReceiptHeaderToUpdate.Modify(false);
 
-            if Modified then
-                WhseReceiptHeaderRec.Modify(false);
-
-            RowsSinceCommit += 1;
-            if RowsSinceCommit >= 500 then begin
-                Commit();
-                RowsSinceCommit := 0;
-            end;
+                    RowsSinceCommit += 1;
+                    if RowsSinceCommit >= 500 then begin
+                        Commit();
+                        RowsSinceCommit := 0;
+                    end;
+                end;
         until WhseReceiptHeaderRec.Next() = 0;
-        Commit();
+
+        if RowsSinceCommit > 0 then
+            Commit();
+    end;
+
+    local procedure RowNeedsMigration(var WhseReceiptHeaderRec: Record "Warehouse Receipt Header"): Boolean
+    begin
+        exit(
+            ((WhseReceiptHeaderRec."Customer No._DXR" = '') and (WhseReceiptHeaderRec."Customer No._Old" <> '')) or
+            ((WhseReceiptHeaderRec."Vendor No._DXR" = '') and (WhseReceiptHeaderRec."Vendor No._Old" <> '')) or
+            ((WhseReceiptHeaderRec."Vendor Name_DXR" = '') and (WhseReceiptHeaderRec."Vendor Name_Old" <> '')) or
+            ((WhseReceiptHeaderRec."Customer Name_DXR" = '') and (WhseReceiptHeaderRec."Customer Name_Old" <> '')));
     end;
 }
 
