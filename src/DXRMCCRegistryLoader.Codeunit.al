@@ -973,15 +973,15 @@ codeunit 60012 "DXR MCC Registry Loader"
         // MCC-owned normal codeunits expose their operations safely outside schema sync and keep
         // idempotence at one Upgrade Tag per callable unit.
         InsConcept('LSLOC', 'LSLOC-TOLOC', 5, 'Item field range restore (same-table)', 60174, Database::Item, Database::Item, 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, Database::"LSC Hospitality Type", Database::"LSC Hospitality Type", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60180, Database::"LSC Label Functions", Database::"LSC Label Functions", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60181, Database::"LSC POS Print Setup Header", Database::"LSC POS Print Setup Header", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60182, Database::"LSC POS Terminal", Database::"LSC POS Terminal", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, Database::"LSC POS Transaction", Database::"LSC POS Transaction", 'OTHER');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60183, Database::"LSC Sales Type", Database::"LSC Sales Type", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60184, Database::"LSC Store", Database::"LSC Store", 'SETUP');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, Database::"LSC Store Inventory Line", Database::"LSC Store Inventory Line", 'MA');
-        InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, Database::"LSC Transaction Header", Database::"LSC Transaction Header", 'OTHER');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 6, 'LSC Hospitality Type field range restore (same-table)', 60172, Database::"LSC Hospitality Type", Database::"LSC Hospitality Type", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 7, 'LSC Label Functions field range restore (same-table)', 60180, Database::"LSC Label Functions", Database::"LSC Label Functions", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 8, 'LSC POS Print Setup Header field range restore (same-table)', 60181, Database::"LSC POS Print Setup Header", Database::"LSC POS Print Setup Header", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 9, 'LSC POS Terminal field range restore (same-table, 2 ranges)', 60182, Database::"LSC POS Terminal", Database::"LSC POS Terminal", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 10, 'LSC POS Transaction field range restore (same-table, 2 ranges)', 60175, Database::"LSC POS Transaction", Database::"LSC POS Transaction", 'OTHER');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 11, 'LSC Sales Type field range restore (same-table)', 60183, Database::"LSC Sales Type", Database::"LSC Sales Type", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 12, 'LSC Store field range restore (same-table)', 60184, Database::"LSC Store", Database::"LSC Store", 'SETUP');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 13, 'LSC Store Inventory Line field range restore (same-table)', 60174, Database::"LSC Store Inventory Line", Database::"LSC Store Inventory Line", 'MA');
+        // InsConcept('LSLOC', 'LSLOC-TOLOC', 14, 'LSC Transaction Header field range restore (same-table, 3 ranges)', 60175, Database::"LSC Transaction Header", Database::"LSC Transaction Header", 'OTHER');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 15, 'Consumer Sales 607 Buffer dependency-field sync (54150 -> 52213, target rows must pre-exist)', 60178, 0, 0, 'MA');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 16, 'Gaps Setup dependency-field sync (54122 -> 52165, target rows must pre-exist - same table pair as DRLOC-GAP seq98''s full-row restore, different action)', 60177, 0, 0, 'SETUP');
         InsConcept('LSLOC', 'LSLOC-DEPFLD', 17, 'NCF Setup dependency-field sync (54132 -> 52179, target rows must pre-exist)', 60177, 0, 0, 'SETUP');

@@ -76,7 +76,7 @@ codeunit 60010 "DXR MCC Counter"
     local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
         RecRef: RecordRef;
-#if not ESCUDEA and not BCDX
+#if ESCUDEA and not BCDX
         DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
     begin
         // The owning adapter carries the external DESB table permissions. Generic RecordRef
