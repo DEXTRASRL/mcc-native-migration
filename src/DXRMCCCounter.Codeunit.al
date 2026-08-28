@@ -77,17 +77,17 @@ codeunit 60010 "DXR MCC Counter"
     var
         RecRef: RecordRef;
 #if not ESCUDEA and not BCDX
-        DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
+    // DESBWorker: Codeunit "DXR MCC DESB Migr Worker";
     begin
         // The owning adapter carries the external DESB table permissions. Generic RecordRef
         // counting under the interactive caller can otherwise report a false open failure even
         // though the typed migration worker just read and wrote the same table successfully.
-        if ExtensionCode = 'DESB' then begin
-            Count := DESBWorker.CountTable(TableId);
-            exit;
-        end;
+        // if ExtensionCode = 'DESB' then begin
+        //     Count := DESBWorker.CountTable(TableId);
+        //     exit;
+        // end;
 #else
-    begin
+    // begin
 #endif
         RecRef.Open(TableId);
         Count := RecRef.Count();
