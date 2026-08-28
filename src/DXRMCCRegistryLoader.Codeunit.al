@@ -99,6 +99,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
+        InsExt('RO', 'Reportes Operativos', 'e02aa60f-28f3-4d39-ad95-16f2904b29a6', 1000,
+            'Draft adapter added 2026-08-26 (src/Adapters/RO), pending review. NOT a dependency of this branch''s app.json - its .app is not present in the current .alpackages, so the adapter could not be re-verified against this branch''s exact build; re-run the symbol extraction described in that adapter''s header comment before enabling.');
+        InsExt('FFER', 'FFER-Reports', '39fbe54d-39cc-49df-9bcb-91852e013490', 1040,
+            'Draft adapter added 2026-08-26 (src/Adapters/FFER), pending review. Owns zero tables of its own - only adds reporting TableExtensions onto Item and DX-Prontopago-module''s Setup table (both generations). No app.json internalsVisibleTo change needed.');
+        InsExt('HGC', 'Hageco', 'c38e881a-5759-4421-93a9-a68f6da380b1', 1050,
+            'Dependency of this branch''s app.json (28.0.0.8). Audited 2026-08-28 against the compiled .app''s own SymbolReference.json for a DXR_-renumbering migration surface: found NONE. All ~120 "DXRHAG"-suffixed fields across its TableExtensions are already Active with no obsolete/legacy counterpart anywhere in this build (they are the extension''s own field-naming convention, not a renumbering pair). The only ObsoleteState=Removed fields found (User Setup ePAGOS approval fields, Vendor Bank Account payment-routing fields, Sales Invoice/Cr.Memo NCF fields) are fully Removed - not merely Pending - so their data is not even readable via AL any more, and their ObsoleteReason text names no live replacement field to copy into (plain feature retirement, same class as Brik Interfaces earlier in this campaign, not a DXR ID migration). Its one Subtype=Upgrade codeunit ("HGC VATAmtLine Cleanup Upgrade", 51397) is Access=Internal and unrelated (VAT Amount Line cleanup, not DXR renumbering) - not reachable from MCC and not in scope. No adapter folder created - there is nothing here for one to do; re-audit if a future Hageco version adds a real old/new field pair.');
+        InsExt('INBC', 'Interfaz Nomina BC', '1c09dc85-18ef-4c7e-9087-26a896040b93', 1060,
+            'Dependency of this branch''s app.json (28.3.0.1). Draft adapter added 2026-08-28 (src/Adapters/INBC), pending review. Ships its own complete, public, self-gating migration framework (Codeunit "DXR_MigrPhaseDispatcher" 56117, single payroll-data phase via "DXR_MigrPhase1PayrollData" 56119) - adapter delegates to it rather than reimplementing field copies, same pattern as DX-Prontopago-module. No app.json internalsVisibleTo change needed (nothing Access=Internal on the call path).');
         InsExt('REPORTING', 'Portfolio Reporting Migration', '', 990,
             'MCC-owned final portfolio phase. Reassigns persisted legacy report IDs to the report IDs declared by the current physical AL build.');
     end;
@@ -322,6 +330,42 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('DPP', 'DPP-P5', 1, 'RETIRED 2026-08-22: dispatcher 53650 does not exist anywhere in DescuentoProntoPago-OLD source - this was a stale/incorrect registry entry. See DPP-UPG for the extension''s one real migration action.', 0, 0, 0, 'OTHER');
         InsConcept('DPP', 'DPP-P6', 2, 'RETIRED 2026-08-22: dispatcher 53652 does not exist anywhere in DescuentoProntoPago-OLD source - this was a stale/incorrect registry entry. See DPP-UPG for the extension''s one real migration action.', 0, 0, 0, 'OTHER');
         InsConcept('DPP', 'DPP-UPG', 3, 'Cash Journal Receipt List: DPP Disc. PP Amount restore from DPPDisc. Cash Payment ("DPP Upgrade Manager" 54283/52120102, Subtype=Upgrade - Codeunit.Run() cannot invoke it outside schema-sync; mark Blocked with this reason, it runs automatically on next publish/upgrade only)', 54283, 0, 0, 'HIST');
+
+        // ---- DPP-P2: draft adapter added 2026-08-26 (src/Adapters/DPP), re-analyzed against the
+        // CURRENT 28.3.1.4 build (a different, far more developed codebase than the
+        // "DescuentoProntoPago-OLD" source the DPP-P5/P6 retirement note above was written
+        // against - no contradiction, the extension was rewritten in between). This app now ships
+        // its own complete, idempotent, PUBLIC migration framework
+        // ("DXR_Prontopago Migr Scheduler".ScheduleMigrationIfNeeded(), NOT Subtype=Upgrade), so
+        // all 6 rows below share dispatcher 60620, which just delegates to that call - dispatcher
+        // still wrapped in /* */ pending review. ----
+        InsConcept('DPP', 'DPP-P2', 1, 'Discount PMT legacy table restore (56601 -> 53637, via DXR_Prontopago Migr Scheduler.ScheduleMigrationIfNeeded)', 60620, 56601, 53637, 'SETUP');
+        InsConcept('DPP', 'DPP-P2', 2, 'DiscountPMT Setup legacy table restore (56602 -> 53639, via DXR_Prontopago Migr Scheduler.ScheduleMigrationIfNeeded)', 60620, 56602, 53639, 'SETUP');
+        InsConcept('DPP', 'DPP-P2', 3, 'Disc. Cash Payment PMT legacy table restore (56603 -> 53641)', 60620, 56603, 53641, 'MA');
+        InsConcept('DPP', 'DPP-P2', 4, 'PMTDisc. Cash Payment legacy table restore (56604 -> 53645)', 60620, 56604, 53645, 'MA');
+        InsConcept('DPP', 'DPP-P2', 5, 'DPP Log Documents legacy table restore (56600 -> 53643)', 60620, 56600, 53643, 'HIST');
+        InsConcept('DPP', 'DPP-P2', 6, 'Cust. Ledger Entry / Detailed Cust. Ledg. Entry / Sales Cr.Memo Header / Sales Header field restore (3-generation _Old/_DXR fields, Phase 6)', 60620, 0, 0, 'HIST');
+
+        // ---- RO: Reportes Operativos (draft adapter added 2026-08-26, src/Adapters/RO, NOT a
+        // dependency of this branch's app.json - dispatcher still wrapped in /* */ pending review
+        // and re-verification against a current .app) ----
+        InsConcept('RO', 'RO-P1', 1, 'DX Report Configuration legacy table restore (51200 -> 51261)', 60610, 51200, 51261, 'SETUP');
+        InsConcept('RO', 'RO-P1', 2, 'Payment Method: DX Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 3, 'Bank Account Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 4, 'Cust. Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 5, 'Gen. Journal Line: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 6, 'G/L Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 7, 'Vendor Ledger Entry: DX Payment Method Type field restore', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 8, 'Sales Header: DX Work Description field restore (Blob)', 60610, 0, 0, 'MA');
+        InsConcept('RO', 'RO-P1', 9, 'User Setup: Firma Encargado/Cargo/Nombre Archivo field restore (2 Text + 1 Blob)', 60610, 0, 0, 'MA');
+
+        // ---- FFER: FFER-Reports (draft adapter added 2026-08-26, src/Adapters/FFER, dispatcher
+        // still wrapped in /* */ pending review) ----
+        InsConcept('FFER', 'FFER-P1', 1, 'Item: FF Package Code field restore', 60630, 0, 0, 'MASTER');
+        InsConcept('FFER', 'FFER-P1', 2, 'DiscountPMT Setup: Enable Discount PMT Term_DXR field restore (cross-table, DPP''s own migration does not carry third-party fields)', 60630, 0, 0, 'SETUP');
+
+        // ---- INBC: Interfaz Nomina BC (draft adapter added 2026-08-28, src/Adapters/INBC) ----
+        InsConcept('INBC', 'INBC-P1', 1, 'Payroll data field/table restore (delegates to the extension''s own DXR_MigrPhaseDispatcher.RunPhase1IfNeeded())', 60640, 0, 0, 'MASTER');
 
 #if not ESCUDEA and not BCDX
         // ---- RBPD: RecaudoBPD ----

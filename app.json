@@ -33,6 +33,24 @@
       "publisher": "Dextra",
       "name": "Base App DR Localization",
       "version": "28.3.6.12"
+    },
+    {
+      "id": "c38e881a-5759-4421-93a9-a68f6da380b1",
+      "publisher": "Dextra",
+      "name": "Hageco",
+      "version": "28.0.0.8"
+    },
+    {
+      "id": "1c09dc85-18ef-4c7e-9087-26a896040b93",
+      "publisher": "Dextra",
+      "name": "Interfaz Nomina BC",
+      "version": "28.3.0.1"
+    },
+    {
+      "id": "e02aa60f-28f3-4d39-ad95-16f2904b29a6",
+      "publisher": "Dextra",
+      "name": "Reportes Operativos",
+      "version": "28.4.0.3"
     }
   ],
   "idRanges": [

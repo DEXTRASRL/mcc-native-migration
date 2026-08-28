@@ -23,11 +23,11 @@
             "request": "attach",
             "type": "al",
             "environmentType": "Sandbox",
-            "environmentName": "QA_Desarrollo",
-            "sessionId": 76379,
+            "environmentName": "QA-Desarrollo",
+            "sessionId": 165413,
             "breakOnNext": "WebClient",
             "breakOnError": "ExcludeTry",
-            "tenant": "162ca705-df47-4864-837c-d2083f5d08af"
+            "tenant": "516c7620-d9b0-47a7-87e6-a0d60fee16a3"
         }
     ]
 }
