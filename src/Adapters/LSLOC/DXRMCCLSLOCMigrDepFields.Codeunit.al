@@ -1,4 +1,4 @@
-#if not ESCUDEA and not BCDX
+
 codeunit 60163 "DXR MCC LSLOC Migr DepFields"
 {
     // Native local migration - ported from LS Central DR Localization's own
@@ -282,5 +282,3 @@ codeunit 60163 "DXR MCC LSLOC Migr DepFields"
     end;
 
 }
-
-#endif

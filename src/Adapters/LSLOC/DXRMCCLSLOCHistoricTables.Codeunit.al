@@ -1,4 +1,4 @@
-#if not ESCUDEA and not BCDX
+
 codeunit 60176 "DXR MCC LSLOC Hist Tables"
 {
     trigger OnRun()
@@ -12,5 +12,3 @@ codeunit 60176 "DXR MCC LSLOC Hist Tables"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-HISTTABLES-20260825.');
     end;
 }
-
-#endif

@@ -1,4 +1,4 @@
-#if not ESCUDEA and not BCDX
+
 codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
 {
     // Native local migration - ported verbatim from LS Central DR Localization's own
@@ -116,5 +116,3 @@ codeunit 60161 "DXR MCC LSLOC Migr OPOSSetup"
         LSLOCDispatcher.RunOPOSSetupFromGapsSetup();
     end;
 }
-
-#endif

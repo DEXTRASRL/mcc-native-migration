@@ -1,4 +1,3 @@
-#if not ESCUDEA and not BCDX
 codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
 {
     // Native local migration - ported verbatim from LS Central DR Localization's own
@@ -993,5 +992,3 @@ codeunit 60162 "DXR MCC LSLOC Migr ToDXRLS"
         RecordChanged: Boolean;
         RowsSinceCommit: Integer;
 }
-
-#endif

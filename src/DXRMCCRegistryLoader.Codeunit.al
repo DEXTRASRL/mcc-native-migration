@@ -99,8 +99,8 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsExt('BANKREC', 'DX Bank Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '');
         InsExt('VPAPI', 'VendorPay API', '1dda7edb-4946-4c91-a426-810b5635ddad', 120,
             'Depends on Vendor Payloads (VP).');
-        // Draft adapter (2026-08-26) - dispatcher still wrapped in /* */ under src/Adapters/ECF
-        // pending human review; see its header comment for the symbol-table findings. Of this
+        // Registered 2026-08-27 (was draft-only through 2026-08-26): dispatcher "DXR MCC ECF Migr
+        // Dispatcher" (60447) under src/Adapters/ECF, active code (not commented out). Of this
         // branch's 8 non-core dependencies, ECF Simple is the only one with a genuine 27->28
         // table-move to migrate (the other 7 - Brik Interfaces, DXR-POS Advanced Features,
         // DXR-POS-PRINTING, ECF Simple Credito Parcial, POS Delivery, Price Checker, STRATA KPI
@@ -469,11 +469,14 @@ codeunit 60012 "DXR MCC Registry Loader"
         // per-dispatcher dedup in DXR MCC Executor).
         InsConcept('TU', 'TU-GAP', 4, 'Transunion Setup legacy table restore, gen-0 (57300 -> 53601, same final target as TU-P1 seq1)', 60126, 57300, 53601, 'SETUP');
         InsConcept('TU', 'TU-GAP', 5, 'Transunion Header legacy table restore, gen-0 (57301 -> 53602, same final target as TU-P1 seq2)', 60126, 57301, 53602, 'MA');
-
-        // ---- ECF: ECF Simple (draft adapter, src/Adapters/ECF, dispatcher still wrapped in
-        // /* */ pending review) ----
-        InsConcept('ECF', 'ECF-P1', 1, 'Administration Setup field restore (EF Administration Setup -> DXR_Administration Setup, 13 fields)', 60446, 0, 0, 'SETUP');
 #endif
+
+        // ---- ECF: ECF Simple (dispatcher "DXR MCC ECF Migr Dispatcher" 60447, src/Adapters/ECF,
+        // active code, registered 2026-08-27). Deliberately OUTSIDE the "#if not ESCUDEA and not
+        // BCDX" guard above: unlike LSLOC/TU/RBPD/etc. in that block, ECF Simple has no LS Central
+        // dependency, so it must load in every build variant (BCDX, ESCUDEA, and the base build) -
+        // see InsExt('ECF', ...) above, which is likewise unguarded. ----
+        InsConcept('ECF', 'ECF-P1', 1, 'Administration Setup field restore (EF Administration Setup -> DXR_Administration Setup, 13 fields)', 60447, 0, 0, 'SETUP');
 
 #if not ESCUDEA and not BCDX
         // ---- DESB: Despacho Base (38 table pairs + 2 collision-fix phases + permission repair) ----
@@ -971,7 +974,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSFE', 'LSFE-P2', 2, 'Legacy fields to DXR + POS contingency-authority repair (background worker, runs synchronously when invoked directly)', 60145, 0, 0, 'OTHER');
 #endif
 
-#if not ESCUDEA and not BCDX
+
         // ---- LSLOC: LS Central DR Localization. Each registry concept points to the smallest
         // callable MCC dispatcher available. In particular, setup field restores must never share
         // one dispatcher: doing so held Label Functions plus the following setup tables in the
@@ -1004,7 +1007,7 @@ codeunit 60012 "DXR MCC Registry Loader"
         InsConcept('LSLOC', 'LSLOC-TOLOC', 22, 'LSDX OPOS Print Setup legacy table restore (54302 -> 54494)', 60173, 54302, 54494, 'SETUP');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 23, 'LSDX POS 607 Diagnostic legacy table restore (54324 -> 54495)', 60176, 54324, 54495, 'HIST');
         InsConcept('LSLOC', 'LSLOC-TOLOC', 24, 'LSDX LS NCF Process Reg. legacy table restore (54328 -> 54496)', 60176, 54328, 54496, 'HIST');
-#endif
+
         InsConcept('REPORTING', 'REPORTING-P1', 1,
             'Reassign legacy report IDs in Report Selections, custom selections, layouts, printers and extension setup tables',
             60443, 0, 0, 'REPORTING');

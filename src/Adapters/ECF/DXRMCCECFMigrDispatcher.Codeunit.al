@@ -1,5 +1,7 @@
-// DRAFT - NOT ENABLED. Adapter for "ECF Simple" (App ID 48545db5-4c13-4b3a-ac3b-75e7aa30e15e,
-// adapter code ECF). This is the ONLY one of this branch's 8 non-core dependencies (Brik
+// Registered 2026-08-27 (InsExt('ECF',...) + InsConcept('ECF','ECF-P1',1,...,60447,...) in
+// DXRMCCRegistryLoader.Codeunit.al). Adapter for "ECF Simple" (App ID
+// 48545db5-4c13-4b3a-ac3b-75e7aa30e15e, adapter code ECF). This is the ONLY one of this branch's
+// 8 non-core dependencies (Brik
 // Interfaces, DXR-POS Advanced Features, DXR-POS-PRINTING, ECF Simple, ECF Simple Credito
 // Parcial, POS Delivery, Price Checker, STRATA KPI Connector) that has a genuine 27->28
 // table-move to migrate - the other 7 were checked the same way and show zero
@@ -54,13 +56,12 @@
 //  - EnumExtension "DXR_Service Provider" (adds option "ECF SIMPLE" = 59100) - enum extensions add
 //    option values, not stored data; nothing to migrate.
 //
-// PROPOSED REGISTRY ENTRIES (human to add to src/DXRMCCRegistryLoader.Codeunit.al - NOT applied
-// here):
+// REGISTRY ENTRIES (added to src/DXRMCCRegistryLoader.Codeunit.al 2026-08-27):
 //   InsExt('ECF', 'ECF Simple', '48545db5-4c13-4b3a-ac3b-75e7aa30e15e', 1030, '');
-//   InsConcept('ECF', 'ECF-P1', 1, 'Administration Setup field restore (EF Administration Setup -> DXR_Administration Setup, 13 fields)', 60446, 0, 0, 'SETUP');
+//   InsConcept('ECF', 'ECF-P1', 1, 'Administration Setup field restore (EF Administration Setup -> DXR_Administration Setup, 13 fields)', 60447, 0, 0, 'SETUP');
 
 
-codeunit 60446 "DXR MCC ECF Migr Dispatcher"
+codeunit 60447 "DXR MCC ECF Migr Dispatcher"
 {
     Permissions =
         tabledata "EF Administration Setup" = R,

@@ -1,4 +1,4 @@
-#if not ESCUDEA and not BCDX
+
 codeunit 60172 "DXR MCC LSLOC Hospitality"
 {
     trigger OnRun()
@@ -13,4 +13,3 @@ codeunit 60172 "DXR MCC LSLOC Hospitality"
     end;
 }
 
-#endif

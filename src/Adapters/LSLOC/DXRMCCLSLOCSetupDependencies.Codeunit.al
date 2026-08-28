@@ -1,4 +1,4 @@
-#if not ESCUDEA and not BCDX
+
 codeunit 60177 "DXR MCC LSLOC Setup Deps"
 {
     trigger OnRun()
@@ -13,4 +13,4 @@ codeunit 60177 "DXR MCC LSLOC Setup Deps"
     end;
 }
 
-#endif
+
