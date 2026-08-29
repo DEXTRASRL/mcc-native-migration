@@ -412,9 +412,23 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     local procedure MigrateVendorLedgerEntryFields()
     var
         VendorLedgerEntry: Record "Vendor Ledger Entry";
+        VendorLedgerEntryToUpdate: Record "Vendor Ledger Entry";
         BatchCount: Integer;
     begin
-        if VendorLedgerEntry.FindSet(true) then
+        // Fixed 2026-08-27: A1 - this is the only UNFILTERED Vendor Ledger Entry scan in this codeunit
+        // (every other one is narrowed by Document Type/Vendor No./NCF first). FindSet(true) over the
+        // whole table took a SQL UPDLOCK on every vendor ledger entry for the entire run (Learn,
+        // "Record.FindSet") and, with no SetLoadFields, joined the companion table of every Vendor
+        // Ledger Entry tableextension once per row. Partial unlocked scan, Get()/lock only on rows that
+        // really change, and the Commit counter now advances per MODIFIED row instead of per scanned row.
+        VendorLedgerEntry.SetLoadFields(
+            "Entry No.",
+            "Withholding Payment_DXR", "Dx Withholding Payment",
+            "Cod. Retencion ITBIS_DXR", "DXCod. Retencion ITBIS",
+            "Cod. Retencion ISR_DXR", "DXCod. Retencion ISR",
+            "Withholding Apply Type_DXR", "DX Withholding Apply Type",
+            "NCF_DXR Usado_DXR", "DXNCF Usado");
+        if VendorLedgerEntry.FindSet(false) then
             repeat
                 if (not VendorLedgerEntry."Withholding Payment_DXR" and VendorLedgerEntry."Dx Withholding Payment") or
                    ((VendorLedgerEntry."Cod. Retencion ITBIS_DXR" = '') and (VendorLedgerEntry."DXCod. Retencion ITBIS" <> '')) or
@@ -422,26 +436,30 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
                    ((VendorLedgerEntry."Withholding Apply Type_DXR" = VendorLedgerEntry."Withholding Apply Type_DXR"::"On Invoice") and
                     (VendorLedgerEntry."DX Withholding Apply Type" = VendorLedgerEntry."DX Withholding Apply Type"::"On Payment")) or
                    (not VendorLedgerEntry."NCF_DXR Usado_DXR" and VendorLedgerEntry."DXNCF Usado")
-                then begin
-                    if VendorLedgerEntry."Dx Withholding Payment" then
-                        VendorLedgerEntry."Withholding Payment_DXR" := true;
-                    if (VendorLedgerEntry."Cod. Retencion ITBIS_DXR" = '') and (VendorLedgerEntry."DXCod. Retencion ITBIS" <> '') then
-                        VendorLedgerEntry."Cod. Retencion ITBIS_DXR" := VendorLedgerEntry."DXCod. Retencion ITBIS";
-                    if (VendorLedgerEntry."Cod. Retencion ISR_DXR" = '') and (VendorLedgerEntry."DXCod. Retencion ISR" <> '') then
-                        VendorLedgerEntry."Cod. Retencion ISR_DXR" := VendorLedgerEntry."DXCod. Retencion ISR";
-                    if VendorLedgerEntry."DX Withholding Apply Type" = VendorLedgerEntry."DX Withholding Apply Type"::"On Payment" then
-                        VendorLedgerEntry."Withholding Apply Type_DXR" := VendorLedgerEntry."Withholding Apply Type_DXR"::"On Payment";
-                    if VendorLedgerEntry."DXNCF Usado" then
-                        VendorLedgerEntry."NCF_DXR Usado_DXR" := true;
-                    VendorLedgerEntry.Modify(false);
-                end;
+                then
+                    if VendorLedgerEntryToUpdate.Get(VendorLedgerEntry."Entry No.") then begin
+                        if VendorLedgerEntryToUpdate."Dx Withholding Payment" then
+                            VendorLedgerEntryToUpdate."Withholding Payment_DXR" := true;
+                        if (VendorLedgerEntryToUpdate."Cod. Retencion ITBIS_DXR" = '') and (VendorLedgerEntryToUpdate."DXCod. Retencion ITBIS" <> '') then
+                            VendorLedgerEntryToUpdate."Cod. Retencion ITBIS_DXR" := VendorLedgerEntryToUpdate."DXCod. Retencion ITBIS";
+                        if (VendorLedgerEntryToUpdate."Cod. Retencion ISR_DXR" = '') and (VendorLedgerEntryToUpdate."DXCod. Retencion ISR" <> '') then
+                            VendorLedgerEntryToUpdate."Cod. Retencion ISR_DXR" := VendorLedgerEntryToUpdate."DXCod. Retencion ISR";
+                        if VendorLedgerEntryToUpdate."DX Withholding Apply Type" = VendorLedgerEntryToUpdate."DX Withholding Apply Type"::"On Payment" then
+                            VendorLedgerEntryToUpdate."Withholding Apply Type_DXR" := VendorLedgerEntryToUpdate."Withholding Apply Type_DXR"::"On Payment";
+                        if VendorLedgerEntryToUpdate."DXNCF Usado" then
+                            VendorLedgerEntryToUpdate."NCF_DXR Usado_DXR" := true;
+                        VendorLedgerEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until VendorLedgerEntry.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // Outer loop is bounded by the frozen legacy DXR_VendWithholdLedgerEntry snapshot (step 1 above),
@@ -504,21 +522,31 @@ codeunit 60169 "DXR MCC DRLOC Migr Phase5"
     local procedure MigrateDetailedCustLedgEntryFields()
     var
         DetailedCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
+        DetailedCustLedgEntryToUpdate: Record "Detailed Cust. Ledg. Entry";
         BatchCount: Integer;
     begin
-        if DetailedCustLedgEntry.FindSet(true) then
+        // Fixed 2026-08-27: A1 - unfiltered FindSet(true) update-locked this whole transaction-volume-
+        // scale table for the entire run and, with no SetLoadFields, joined every tableextension
+        // companion table per row. Partial unlocked scan + Get()/lock only on rows that really change +
+        // Commit counter advancing per MODIFIED row.
+        DetailedCustLedgEntry.SetLoadFields("Entry No.", "Status_DXR", "Dx Status");
+        if DetailedCustLedgEntry.FindSet(false) then
             repeat
-                if DetailedCustLedgEntry."Status_DXR" <> DetailedCustLedgEntry."Dx Status" then begin
-                    DetailedCustLedgEntry."Status_DXR" := DetailedCustLedgEntry."Dx Status";
-                    DetailedCustLedgEntry.Modify(false);
-                end;
+                if DetailedCustLedgEntry."Status_DXR" <> DetailedCustLedgEntry."Dx Status" then
+                    if DetailedCustLedgEntryToUpdate.Get(DetailedCustLedgEntry."Entry No.") then begin
+                        DetailedCustLedgEntryToUpdate."Status_DXR" := DetailedCustLedgEntryToUpdate."Dx Status";
+                        DetailedCustLedgEntryToUpdate.Modify(false);
 
-                BatchCount += 1;
-                if BatchCount >= 100 then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
+                        BatchCount += 1;
+                        if BatchCount >= 100 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until DetailedCustLedgEntry.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // ===== Sub-batch 2a, procedure 1/4: updateWithholdingEntries() =====

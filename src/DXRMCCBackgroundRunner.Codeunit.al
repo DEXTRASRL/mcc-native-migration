@@ -33,6 +33,7 @@ codeunit 60013 "DXR MCC Background Runner"
         ResultSummary: Text[250];
         FailureText: Text;
         ExecutionHadErrors: Boolean;
+        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
     begin
         // Cooperative cancel: if "Cancel" was pressed while this request was still Scheduled
         // (waiting for its TaskScheduler slot), honor it here instead of starting the work at all.
@@ -42,6 +43,8 @@ codeunit 60013 "DXR MCC Background Runner"
             Rec."Result Summary" := 'Cancelado antes de iniciar.';
             Rec.Modify(true);
             LockMgt.ForceReleaseLockForRunRequest(Rec."Entry No.");
+            if Rec."Tenant Chain" then
+                TenantRunMgt.CancelRemainingTenantChain(Rec."Tenant Run ID", Rec."Company Sequence");
             exit;
         end;
 
@@ -59,6 +62,8 @@ codeunit 60013 "DXR MCC Background Runner"
             Rec.Find();
             if Rec.Status = Rec.Status::Cancelled then begin
                 LockMgt.ForceReleaseLockForRunRequest(Rec."Entry No.");
+                if Rec."Tenant Chain" then
+                    TenantRunMgt.CancelRemainingTenantChain(Rec."Tenant Run ID", Rec."Company Sequence");
                 exit;
             end;
 
@@ -71,6 +76,8 @@ codeunit 60013 "DXR MCC Background Runner"
             Rec."Current Step" := '';
             Rec.Modify(true);
             LockMgt.ForceReleaseLockForRunRequest(Rec."Entry No.");
+            if Rec."Tenant Chain" then
+                TenantRunMgt.ContinueTenantChain(Rec."Tenant Run ID", Rec."Company Sequence");
             exit;
         end;
 
@@ -124,6 +131,8 @@ codeunit 60013 "DXR MCC Background Runner"
         Rec."Completed At" := CurrentDateTime();
         Rec.Modify(true);
         LockMgt.ForceReleaseLockForRunRequest(Rec."Entry No.");
+        if Rec."Tenant Chain" then
+            TenantRunMgt.ContinueTenantChain(Rec."Tenant Run ID", Rec."Company Sequence");
     end;
 
     local procedure MaxAttempts(): Integer
@@ -149,9 +158,17 @@ codeunit 60013 "DXR MCC Background Runner"
         Executor: Codeunit "DXR MCC Executor";
     begin
         RunRequest."Task Id" := TaskScheduler.CreateTask(
-            Codeunit::"DXR MCC Background Runner", 0, true, CompanyName(),
+            Codeunit::"DXR MCC Background Runner", 0, true, RunRequestCompanyName(RunRequest),
             CurrentDateTime() + RetryDelay(RunRequest."Attempt No."), RunRequest.RecordId(), Executor.MigrationTaskTimeout());
         RunRequest.Modify(true);
+    end;
+
+    local procedure RunRequestCompanyName(var RunRequest: Record "DXR MCC Run Request"): Text
+    begin
+        if RunRequest."Company Name" <> '' then
+            exit(RunRequest."Company Name");
+
+        exit(CompanyName());
     end;
 
     [TryFunction]
@@ -182,24 +199,24 @@ codeunit 60013 "DXR MCC Background Runner"
                 begin
                     Executor.RunExtension(Rec."Extension Code", Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.");
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Extension %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped/blocked/informational.',
-                        Rec."Extension Code", Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                        'Extension %1: %2 completed, %3 completed with gaps, %4 failed.',
+                        Rec."Extension Code", Completed, Gaps, Errors), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::Portfolio:
                 begin
                     Executor.RunPortfolio(Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.");
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Portfolio: %1 completed, %2 completed with gaps, %3 failed, %4 skipped/blocked/informational.',
-                        Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                        'Portfolio: %1 completed, %2 completed with gaps, %3 failed.',
+                        Completed, Gaps, Errors), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::Category:
                 begin
-                    Executor.RunCategory(Rec.Category, Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.", CopyStr(Rec."Checkpoint Key", 1, 20));
+                    Executor.RunCategory(Rec.Category, Completed, Gaps, Errors, BlockedSkipped, Rec."Entry No.", Rec."Checkpoint Key");
                     ResultSummary := CopyStr(StrSubstNo(
-                        'Category %1: %2 completed, %3 completed with gaps, %4 failed, %5 skipped/blocked/informational.',
-                        Format(Rec.Category), Completed, Gaps, Errors, BlockedSkipped), 1, MaxStrLen(ResultSummary));
+                        'Category %1: %2 completed, %3 completed with gaps, %4 failed.',
+                        Format(Rec.Category), Completed, Gaps, Errors), 1, MaxStrLen(ResultSummary));
                     ExecutionHadErrors := Errors > 0;
                 end;
             Rec.Scope::RecountAll:

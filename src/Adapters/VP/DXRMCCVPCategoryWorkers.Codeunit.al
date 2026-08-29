@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60216 "DXR MCC VP P1 Setup"
 {
     trigger OnRun()
@@ -233,3 +234,5 @@ codeunit 60427 "DXR MCC VP P7 Accounting"
         exit('DXR-MCC-VP-P7-ACCOUNTING-20260825.');
     end;
 }
+
+#endif

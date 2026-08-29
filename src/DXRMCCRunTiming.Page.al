@@ -69,6 +69,14 @@ page 60024 "DXR MCC Run Timing"
                 field("Other Completed At"; Rec."Other Completed At") { }
                 field("Other Duration"; Rec."Other Duration") { }
             }
+            group(Reporting)
+            {
+                Caption = 'Reporting';
+                field("Reporting Phase Status"; Rec."Reporting Phase Status") { }
+                field("Reporting Started At"; Rec."Reporting Started At") { }
+                field("Reporting Completed At"; Rec."Reporting Completed At") { }
+                field("Reporting Duration"; Rec."Reporting Duration") { }
+            }
         }
     }
 

@@ -43,6 +43,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         SeedLSFacturacionElectronica(SeededCount);
         SeedLSLocalizacionBase(SeededCount);
         SeedPriceControlsMgt(SeededCount);
+        SeedIfBlank('REPORTING', 'REPORTING-P1', 1, 'DXR-MCC-REPORTING-ID-MIGRATION-20260825.', SeededCount);
         SeedRecaudoBPD(SeededCount);
         SeedSpecialDispatch(SeededCount);
         SeedTransUnion(SeededCount);
@@ -111,8 +112,8 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
     // DXRDespachoMigrWorker's EnsurePermissionSetsAssignedIfNeeded).
     local procedure SeedDespachoBaseOther(var SeededCount: Integer)
     begin
-        SeedIfBlank('DESB', 'DESB-P2', 40, 'DXR-DespachoBase-MigrPhase2-SALESHEADER-28.3-20260822', SeededCount);
-        SeedIfBlank('DESB', 'DESB-P2', 41, 'DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-28.3', SeededCount);
+        SeedIfBlank('DESB', 'DESB-P2', 40, 'DXR-DespachoBase-MigrPhase2-SALESHEADER-NAME-FALLBACK-20260826', SeededCount);
+        SeedIfBlank('DESB', 'DESB-P2', 41, 'DXR-DespachoBase-MigrPhase2-TRANSFERHEADER-NAME-FALLBACK-20260826', SeededCount);
         SeedIfBlank('DESB', 'DESB-PERM', 42, 'DXR-DespachoBase-PermSetRepair-28.3-20260820', SeededCount);
     end;
 
@@ -460,7 +461,16 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         SeedIfBlank('PCM', 'PCM-P5', 8, 'DXR-Phase5Step6Workflow-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P5', 9, 'DXR-Phase5Step7SalesHeader-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P5', 10, 'DXR-Phase5Step8SalesLine-28.3.0.0', SeededCount);
-        SeedIfBlank('PCM', 'PCM-P2', 11, 'DXR-CustomerFieldsMigrated-28.3.0.0', SeededCount);
+        // Fixed 2026-08-27 (Tarea 3, ronda 1/5): el trabajo real de este concepto (PCM-P2 #11,
+        // Customer) se movio a "DXR MCC Master Customer" (60450).ApplyPCM() - el motor por tabla
+        // que reemplaza los 6 recorridos individuales de Customer. "DXR MCC PCM Migr Phase2"
+        // .MigrateCustomerFields() quedo como no-op y ya NO llama a SetUpgradeTag con el literal
+        // 'DXR-CustomerFieldsMigrated-28.3.0.0' (sigue existiendo como texto en
+        // CustomerFieldsMigratedTag(), pero nada lo fija) - ese literal quedaria huerfano para
+        // siempre si el seed lo siguiera apuntando. Se reapunta al tag que hoy gobierna de verdad
+        // si Customer se vuelve a migrar, para que "Force Rerun" sobre esta fila limpie el tag
+        // correcto y el motor por tabla vuelva a procesar Customer.
+        SeedIfBlank('PCM', 'PCM-P2', 11, 'DXR-MCC-MASTER-CUSTOMER-20260827', SeededCount);
         SeedIfBlank('PCM', 'PCM-P2', 12, 'DXR-StorePriceGroupFieldsMigrated-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P3', 13, 'DXR-ApprovalEntryFieldsMigrated-28.3.0.0', SeededCount);
         SeedIfBlank('PCM', 'PCM-P3', 14, 'DXR-WorkflowFieldsMigrated-28.3.0.0', SeededCount);
@@ -565,7 +575,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
     var
         i: Integer;
     begin
-        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-BELLON-SALESPURCH-ID-DEDUP-28.3-1', SeededCount);
+        SeedIfBlank('BELLON', 'BELLON-P3', 1, 'DXR-SalesPurchIdDedup283-NAME-FALLBACK-20260826', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P5', 2, 'BELLON-MIGR-PHASE5-CUSTITEMDXR-COMPLETED-20260820', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P6', 3, 'DXR-BELLON-TABLEID-RENUMBER-RESTORE-28.3-1', SeededCount);
         SeedIfBlank('BELLON', 'BELLON-P7', 4, 'DXR-BELLON-TABLEEXT-ID-RESTORE-28.3-1', SeededCount);
@@ -597,7 +607,7 @@ codeunit 60018 "DXR MCC Upgrade Tag Seed"
         i: Integer;
     begin
         for i := 1 to 9 do
-            SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLEEXT-FIELDS-NORM-28.3', SeededCount);
+            SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLEEXT-FIELDS-NAME-FALLBACK-20260826', SeededCount);
         for i := 10 to 12 do
             SeedIfBlank('BELLONPOS', 'BELLONPOS-P2', i, 'DXR-BELLONPOS-TABLES-NORM-28.3', SeededCount);
     end;

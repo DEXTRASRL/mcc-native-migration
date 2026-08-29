@@ -78,10 +78,19 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     local procedure CopyCurrencyFields()
     var
         Currency: Record Currency;
+        Blank: Record Currency;
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields this loop reads/writes; PK
+        // fields are always loaded) so the scan stops joining the companion table of every Currency
+        // tableextension in this portfolio once per row.
+        Currency.SetLoadFields("Currency Type_DXR", "EF Currency Type");
         if Currency.FindSet(true) then
             repeat
-                Currency."Currency Type_DXR" := Currency."EF Currency Type";
+                // Fixed 2026-08-27 (never-overwrite): unconditional copy - a re-run of this migration
+                // (e.g. per-table upgrade tags with a company already migrated) would blindly
+                // overwrite an already-populated _DXR value.
+                if Currency."Currency Type_DXR" = Blank."Currency Type_DXR" then
+                    Currency."Currency Type_DXR" := Currency."EF Currency Type";
                 Currency.Modify(false);
             until Currency.Next() = 0;
     end;
@@ -89,19 +98,34 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     local procedure CopyPostCodeFields()
     var
         PostCode: Record "Post Code";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A1/A4): added SetLoadFields (exactly the 4 fields read/written) and a
+        // bounded Commit - "Post Code" is a full country postal catalogue (tens of thousands of rows
+        // in a DR install), so this used to run as one single unbounded transaction.
+        PostCode.SetLoadFields("Township Code_DXR", "EF Township Code", "County Code_DXR", "EF County Code");
         if PostCode.FindSet(true) then
             repeat
                 PostCode."Township Code_DXR" := PostCode."EF Township Code";
                 PostCode."County Code_DXR" := PostCode."EF County Code";
                 PostCode.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 500 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until PostCode.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     local procedure CopyUnitOfMeasureFields()
     var
         UnitOfMeasure: Record "Unit of Measure";
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields read/written).
+        UnitOfMeasure.SetLoadFields("UOM Type_DXR", "EF UOM Type");
         if UnitOfMeasure.FindSet(true) then
             repeat
                 UnitOfMeasure."UOM Type_DXR" := UnitOfMeasure."EF UOM Type";
@@ -113,6 +137,8 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     var
         VATPostingSetup: Record "VAT Posting Setup";
     begin
+        // Fixed 2026-08-27 (A1): added SetLoadFields (exactly the 2 fields read/written).
+        VATPostingSetup.SetLoadFields("Tax Indicator_DXR", "EF Tax Indicator");
         if VATPostingSetup.FindSet(true) then
             repeat
                 VATPostingSetup."Tax Indicator_DXR" :=
@@ -126,26 +152,14 @@ codeunit 60137 "DXR MCC FE Migr Phase8"
     // (EFItem.TableExt.al:10,19,31,44). Batched in Commit-groups of ProductBatchSize() (100),
     // matching the source's own Item batch size (see class header comment).
     local procedure CopyItemFieldsInBatches()
-    var
-        Item: Record Item;
-        BatchCount: Integer;
     begin
-        if Item.FindSet(true) then
-            repeat
-                if (Item."Applies for ISC_DXR" <> Item."EF Applies for ISC") or
-                   (Item."Tax Type_DXR" <> Item."EF Tax Type")
-                then begin
-                    Item."Applies for ISC_DXR" := Item."EF Applies for ISC";
-                    Item."Tax Type_DXR" := Item."EF Tax Type";
-                    Item.Modify(false);
-                end;
-
-                BatchCount += 1;
-                if BatchCount >= ProductBatchSize() then begin
-                    Commit();
-                    BatchCount := 0;
-                end;
-            until Item.Next() = 0;
+        // Fixed 2026-08-27 (Task 4, motor por tabla): el cuerpo se movio a "DXR MCC Master Item"
+        // (60451).ApplyFE() - ese codeunit hace un solo recorrido de Item para los 5 bloques que si
+        // migraron (BC, BELLON, DESB, DRLOC, FE) en vez de uno por extension. No-op deliberado, no
+        // se borra: RunMaster() y MigrateMasterTableExtensionFields() siguen invocando este
+        // procedimiento; el tag del trigger OnRun de este codeunit ('DXR-EF-TASKSCHEDULER-V5-
+        // PHASE2-MASTER-FIELDS-20260625') sigue vivo y sigue gobernando Currency/Post Code/Unit of
+        // Measure/VAT Posting Setup con normalidad - no era un tag interno de este procedimiento.
     end;
 
     local procedure ProductBatchSize(): Integer

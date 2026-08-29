@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60115 "DXR MCC VP Migr Phase1"
 {
     // Native local migration (2026-08-23, per user directive to stop delegating via .Run() and
@@ -322,3 +323,5 @@ codeunit 60115 "DXR MCC VP Migr Phase1"
         exit(CopyStr(StrSubstNo('VP-DXR-MIGR-P1-%1-20260728', Suffix), 1, 250));
     end;
 }
+
+#endif

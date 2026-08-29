@@ -108,8 +108,8 @@ table 60001 "DXR MCC Concept"
             Caption = 'Category';
             // Keep the four published ordinals intact. Master and Accounting are appended so
             // new runs can be traced independently without reinterpreting stored legacy rows.
-            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting;
-            OptionCaption = 'Setup,Master/Accounting (Legacy),Historic,Other,Master,Accounting';
+            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting;
+            OptionCaption = 'Setup,Master/Accounting (Legacy),Historic,Other,Master,Accounting,Reporting';
             DataClassification = SystemMetadata;
             // Refreshed from source by Reload Registry (same treatment as Description/Dispatcher/
             // Legacy/New Table ID - this is derived classification metadata, not operator-set

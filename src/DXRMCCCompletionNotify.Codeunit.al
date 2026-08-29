@@ -33,7 +33,7 @@ codeunit 60017 "DXR MCC Completion Notify"
             exit;
 
         SendNotification(RunRequest);
- 
+
         RunRequest.Notified := true;
         RunRequest.Modify(false);
     end;

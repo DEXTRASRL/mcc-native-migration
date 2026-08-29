@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60171 "DXR MCC LSLOC POS Setup"
 {
     trigger OnRun()
@@ -11,3 +12,5 @@ codeunit 60171 "DXR MCC LSLOC POS Setup"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-POSSETUP-20260825.');
     end;
 }
+
+#endif

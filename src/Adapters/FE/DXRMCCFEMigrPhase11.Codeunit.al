@@ -43,9 +43,39 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     // scope, left exactly as before (still generic RecordRef/FieldRef by numeric table ID),
     // matching this plan's established precedent (Phase7's "Applies Withholding_DXR" fill,
     // Phase8's Item fields) of leaving out-of-scope in-file code untouched.
+    // Fixed 2026-08-27 (A3): the "EF ..." source tables that CopyStandaloneTable()/
+    // MigrateArchivedSentRequest()/MigrateCodigosItem() open by numeric table ID through
+    // RecordRef.Open() were missing from this block entirely - only the 12 typed ones were listed.
+    // Permissionset 60000 "DXR MCC" grants no tabledata on foreign tables, so this property is the
+    // only runtime access this codeunit has, and these phases run in the background under
+    // TaskScheduler: every RecordRef.Open(555xx) read below would have failed with a missing-Read-
+    // permission error. Added at R only - all of them are read-only sources (the targets already had
+    // their RIMD entries).
     Permissions =
         tabledata "EF Administration Setup" = R,
+        tabledata "EF Archived E Documents" = R,
+        tabledata "EF Archived Sent Request" = R,
+        tabledata "EF Bulk Credit Memo Entry" = R,
+        tabledata "EF Bulk Credit Memo Log" = R,
+        tabledata "EF Bulk NCF Import Entry" = R,
+        tabledata "EF Codigos Item" = R,
         tabledata "EF Currency Type" = R,
+        tabledata "EF Descuentos O Recargos" = R,
+        tabledata "EF Detalle Bienes o Servicios" = R,
+        tabledata "EF Encabezado" = R,
+        tabledata "EF Imp. Adicionales - Encab." = R,
+        tabledata "EF Impuestos Adicionales - DBS" = R,
+        tabledata "EF Informacion Referencia" = R,
+        tabledata "EF Log Message" = R,
+        tabledata "EF Process Request" = R,
+        tabledata "EF Receipt Acknowledgement" = R,
+        tabledata "EF Resend Document Queue" = R,
+        tabledata "EF Resend Job Log" = R,
+        tabledata "EF Response Documents" = R,
+        tabledata "EF Subcantidad" = R,
+        tabledata "EF SubDescuento" = R,
+        tabledata "EF SubRecargo" = R,
+        tabledata "EF SubTotales Informativos" = R,
         tabledata "EF Formas de Pago" = R,
         tabledata "EF Form Type" = R,
         tabledata "EF Income Validation Type" = R,
@@ -312,7 +342,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Formas de Pago";
         New: Record "DXR_Formas de Pago";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): "EF Formas de Pago" holds one row per payment form per document, so
+        // this loop is of unbounded volume and used to run as one single uncommitted transaction.
+        // Bounded Commit every 100 upserted rows (plus the remainder), the same batch size
+        // CopyStandaloneTable() in this codeunit already uses for the same category of table.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago);
@@ -328,7 +363,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq281: EF Form Type (55529) -> DXR_Form Type (52484). PK = (DocumentNo, FormaPago, "Line No.").
@@ -337,7 +380,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Form Type";
         New: Record "DXR_Form Type";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per payment-form line per document - same unbounded-volume
+        // reason and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.FormaPago, Legacy."Line No.");
@@ -353,7 +399,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq284: EF Income Validation Type (55512) -> DXR_Income Validation Type (52488). PK = Id.
@@ -404,7 +458,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         Legacy: Record "EF Paginacion";
         New: Record "DXR_Paginacion";
         IsNewRecord: Boolean;
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per printed page per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above.
         if Legacy.FindSet() then
             repeat
                 IsNewRecord := not New.Get(Legacy.DocumentNo, Legacy.PaginaNo);
@@ -432,7 +489,15 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.Insert(false)
                 else
                     New.Modify(false);
+
+                BatchCount += 1;
+                if BatchCount >= 100 then begin
+                    Commit();
+                    BatchCount := 0;
+                end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq289: EF Payment Type Form (55517) -> DXR_Payment Type Form (52493). PK = Id.
@@ -480,7 +545,11 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     var
         Legacy: Record "EF Telefono Emisor";
         New: Record "DXR_Telefono Emisor";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27 (A4): one row per emitter phone per document - same unbounded-volume reason
+        // and same bounded Commit as CopyFormasDePagoFields above. The counter advances per INSERTED
+        // row only, since rows that already exist on the target are left untouched.
         if Legacy.FindSet() then
             repeat
                 if not New.Get(Legacy.DocumentNo, Legacy.TelefonoEmisor) then begin
@@ -488,8 +557,16 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
                     New.DocumentNo := Legacy.DocumentNo;
                     New.TelefonoEmisor := Legacy.TelefonoEmisor;
                     New.Insert(false);
+
+                    BatchCount += 1;
+                    if BatchCount >= 100 then begin
+                        Commit();
+                        BatchCount := 0;
+                    end;
                 end;
             until Legacy.Next() = 0;
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // seq301: EF Township (55527) -> DXR_Township (52507). Field NAMES renamed on the target
@@ -544,90 +621,80 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
     // Generic standalone-table reconciliation used by the remaining FE-P11 table pairs. Tables
     // are opened by object ID, but primary keys and stored values are matched by exact field name
     // and type; field IDs are never used to infer cross-table identity.
+    /// <summary>
+    /// Fixed 2026-08-27 (B2 + B3). Two independent silent-data-loss defects in the same helper, and
+    /// this helper migrates the 18 e-invoicing tables of this phase - including
+    /// "DXR_Archived E Documents", "DXR_Response Documents", "DXR_Receipt Acknowledgement" and
+    /// "DXR_Log Message", i.e. the stored e-CF XML itself.
+    ///
+    /// B2 - BLOB fields were migrated EMPTY. Every field was copied with
+    /// `TargetFieldRef.Value := SourceFieldRef.Value` and nothing ever calculated the BLOBs. A BLOB
+    /// read through a FieldRef without a preceding calculation returns empty, and BLOB is
+    /// FieldClass::Normal, so it passed every filter and wrote a blank in silence: no error, and the
+    /// row count still reconciled, which is why this never surfaced. Learn (FieldRef.CalcField):
+    /// "You can also use the CalcFields method to calculate binary large objects (BLOBs)". Each BLOB
+    /// is now calculated on the source row before it is read.
+    ///
+    /// B3 - fields and primary keys were resolved BY NAME ONLY. The DXR normalization renames
+    /// destination fields with a "_DXR" suffix, so a renamed field was skipped without warning, and
+    /// - far worse - if a PRIMARY KEY field did not resolve, the old code did Close/Close/exit on
+    /// the FIRST row, returning as if the source table were empty: zero rows migrated, no error,
+    /// phase reported success. That is exactly the defect already confirmed and fixed in
+    /// "DXR MCC LSLOC Migr ToDXRLS". Resolution is now name -> name + "_DXR" -> same field number,
+    /// each candidate still validated on Class = Normal and on type, built ONCE per table pair
+    /// instead of per field per row; and an unmappable primary key now raises a real error instead
+    /// of silently returning.
+    ///
+    /// The two duplicated copy loops (insert branch / modify branch) were identical and are now one.
+    /// No change to which tables are copied, in what order, or under which upgrade tag.
+    /// </summary>
     local procedure CopyStandaloneTable(SourceTableId: Integer; TargetTableId: Integer)
     var
         SourceRecordRef: RecordRef;
         TargetRecordRef: RecordRef;
         SourceKeyRef: KeyRef;
-        SourceFieldRef: FieldRef;
-        TargetFieldRef: FieldRef;
         SourcePkFieldRef: FieldRef;
         TargetPkFieldRef: FieldRef;
-        FieldIndex: Integer;
+        FieldMap: Dictionary of [Integer, Integer];
         KeyFieldIndex: Integer;
         TargetExists: Boolean;
-        AllKeyFieldsMapped: Boolean;
         BatchCount: Integer;
     begin
         SourceRecordRef.Open(SourceTableId);
         TargetRecordRef.Open(TargetTableId);
+        BuildFieldMap(SourceRecordRef, TargetRecordRef, FieldMap);
 
         SourceKeyRef := SourceRecordRef.KeyIndex(1);
+        for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
+            SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
+            if not FieldMap.ContainsKey(SourcePkFieldRef.Number) then begin
+                TargetRecordRef.Close();
+                SourceRecordRef.Close();
+                Error(
+                    'No se pudo mapear el campo de clave primaria "%1" (No. %2) de la tabla %3 hacia la tabla %4: no existe ahí con ese nombre, ni con sufijo _DXR, ni con ese mismo número y tipo. La copia se detiene en vez de reportar éxito habiendo migrado 0 filas.',
+                    SourcePkFieldRef.Name, SourcePkFieldRef.Number, SourceTableId, TargetTableId);
+            end;
+        end;
 
         if SourceRecordRef.FindSet(false) then
             repeat
                 TargetRecordRef.Reset();
-                AllKeyFieldsMapped := true;
-
                 for KeyFieldIndex := 1 to SourceKeyRef.FieldCount() do begin
                     SourcePkFieldRef := SourceKeyRef.FieldIndex(KeyFieldIndex);
-                    if TargetRecordRef.FieldExist(SourcePkFieldRef.Name) then begin
-                        TargetPkFieldRef := TargetRecordRef.Field(SourcePkFieldRef.Name);
-                        if SourcePkFieldRef.Type = TargetPkFieldRef.Type then
-                            TargetPkFieldRef.SetRange(SourcePkFieldRef.Value)
-                        else
-                            AllKeyFieldsMapped := false;
-                    end else
-                        AllKeyFieldsMapped := false;
+                    TargetPkFieldRef := TargetRecordRef.Field(FieldMap.Get(SourcePkFieldRef.Number));
+                    TargetPkFieldRef.SetRange(SourcePkFieldRef.Value);
                 end;
 
-                TargetExists := AllKeyFieldsMapped and TargetRecordRef.FindFirst();
-
-                if not AllKeyFieldsMapped then begin
-                    TargetRecordRef.Close();
-                    SourceRecordRef.Close();
-                    exit;
-                end;
-
-                if TargetExists then begin
-                    for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
-                        SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
-
-                        if (SourceFieldRef.Number < 2000000000) and
-                           (SourceFieldRef.Class = FieldClass::Normal) and
-                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
-                        then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
-
-                            if (TargetFieldRef.Class = FieldClass::Normal) and
-                               (SourceFieldRef.Type = TargetFieldRef.Type)
-                            then
-                                TargetFieldRef.Value := SourceFieldRef.Value;
-                        end;
-                    end;
-
-                    TargetRecordRef.Modify(false);
-                end else begin
+                TargetExists := TargetRecordRef.FindFirst();
+                if not TargetExists then
                     TargetRecordRef.Init();
 
-                    for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
-                        SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+                CopyMappedFields(SourceRecordRef, TargetRecordRef, FieldMap);
 
-                        if (SourceFieldRef.Number < 2000000000) and
-                           (SourceFieldRef.Class = FieldClass::Normal) and
-                           TargetRecordRef.FieldExist(SourceFieldRef.Name)
-                        then begin
-                            TargetFieldRef := TargetRecordRef.Field(SourceFieldRef.Name);
-
-                            if (TargetFieldRef.Class = FieldClass::Normal) and
-                               (SourceFieldRef.Type = TargetFieldRef.Type)
-                            then
-                                TargetFieldRef.Value := SourceFieldRef.Value;
-                        end;
-                    end;
-
+                if TargetExists then
+                    TargetRecordRef.Modify(false)
+                else
                     TargetRecordRef.Insert(false);
-                end;
 
                 BatchCount += 1;
                 if BatchCount >= 100 then begin
@@ -638,6 +705,76 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
 
         TargetRecordRef.Close();
         SourceRecordRef.Close();
+    end;
+
+    /// <summary>
+    /// Copies every mapped field of the current source row onto the current target row. BLOB fields
+    /// are calculated on the source first - without that they read back empty (see
+    /// CopyStandaloneTable's own header, defect B2).
+    /// </summary>
+    local procedure CopyMappedFields(var SourceRecordRef: RecordRef; var TargetRecordRef: RecordRef; var FieldMap: Dictionary of [Integer, Integer])
+    var
+        SourceFieldRef: FieldRef;
+        TargetFieldRef: FieldRef;
+        FieldIndex: Integer;
+    begin
+        for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
+            SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+            if FieldMap.ContainsKey(SourceFieldRef.Number) then begin
+                if SourceFieldRef.Type = FieldType::Blob then
+                    SourceFieldRef.CalcField();
+                TargetFieldRef := TargetRecordRef.Field(FieldMap.Get(SourceFieldRef.Number));
+                TargetFieldRef.Value := SourceFieldRef.Value;
+            end;
+        end;
+    end;
+
+    /// <summary>
+    /// Resolves source field number -> target field number once per table pair. Tries the exact name
+    /// first (unrenamed fields), then the "_DXR"-suffixed name (the DXR normalization's actual rename
+    /// pattern), and only then the same field number as a last resort. Every candidate must agree on
+    /// Class = Normal and on type, so a coincidentally reused field number can never write a value
+    /// into an unrelated destination field.
+    /// </summary>
+    local procedure BuildFieldMap(var SourceRecordRef: RecordRef; var TargetRecordRef: RecordRef; var FieldMap: Dictionary of [Integer, Integer])
+    var
+        SourceFieldRef: FieldRef;
+        TargetFieldRef: FieldRef;
+        TargetNoByName: Dictionary of [Text, Integer];
+        TargetTypeByNo: Dictionary of [Integer, Text];
+        FieldIndex: Integer;
+        TargetNo: Integer;
+        SourceName: Text;
+    begin
+        Clear(FieldMap);
+
+        for FieldIndex := 1 to TargetRecordRef.FieldCount() do begin
+            TargetFieldRef := TargetRecordRef.FieldIndex(FieldIndex);
+            if (TargetFieldRef.Number < 2000000000) and (TargetFieldRef.Class = FieldClass::Normal) then begin
+                TargetNoByName.Set(UpperCase(TargetFieldRef.Name), TargetFieldRef.Number);
+                TargetTypeByNo.Set(TargetFieldRef.Number, Format(TargetFieldRef.Type));
+            end;
+        end;
+
+        for FieldIndex := 1 to SourceRecordRef.FieldCount() do begin
+            SourceFieldRef := SourceRecordRef.FieldIndex(FieldIndex);
+            if (SourceFieldRef.Number < 2000000000) and (SourceFieldRef.Class = FieldClass::Normal) then begin
+                SourceName := UpperCase(SourceFieldRef.Name);
+                TargetNo := 0;
+                if TargetNoByName.ContainsKey(SourceName) then
+                    TargetNo := TargetNoByName.Get(SourceName)
+                else
+                    if TargetNoByName.ContainsKey(SourceName + '_DXR') then
+                        TargetNo := TargetNoByName.Get(SourceName + '_DXR')
+                    else
+                        if TargetTypeByNo.ContainsKey(SourceFieldRef.Number) then
+                            TargetNo := SourceFieldRef.Number;
+
+                if TargetNo <> 0 then
+                    if TargetTypeByNo.Get(TargetNo) = Format(SourceFieldRef.Type) then
+                        FieldMap.Set(SourceFieldRef.Number, TargetNo);
+            end;
+        end;
     end;
 
     local procedure MigrateArchivedSentRequest()
@@ -652,8 +789,8 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55503); // EF Archived Sent Request
         if SourceRef.FindSet(false) then
             repeat
-                DocumentNoFld := SourceRef.Field(1);
-                DocumentSourceTypeFld := SourceRef.Field(2);
+                DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+                DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
 
                 if TargetArchivedSentRequest.Get(DocumentNoFld.Value(), DocumentSourceTypeFld.Value()) then begin
                     if ShouldReplaceArchivedSentRequest(SourceRef, TargetArchivedSentRequest) then begin
@@ -680,20 +817,20 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         EFCTrackIDFld, EFCTypeFld, SourceCodeTypeFld, RequestTypeFld, SecurityCodeFld : FieldRef;
         StampedDateFld, SignedDateFld, XMLFileFld, TargetXMLFileFld : FieldRef;
     begin
-        DocumentNoFld := SourceRef.Field(1);
-        DocumentSourceTypeFld := SourceRef.Field(2);
-        ENCFFld := SourceRef.Field(3);
-        PostingDateFld := SourceRef.Field(4);
-        DocumentStatusFld := SourceRef.Field(5);
-        CodeFld := SourceRef.Field(6);
-        EFCTrackIDFld := SourceRef.Field(7);
-        EFCTypeFld := SourceRef.Field(8);
-        SourceCodeTypeFld := SourceRef.Field(9);
-        RequestTypeFld := SourceRef.Field(10);
-        SecurityCodeFld := SourceRef.Field(11);
-        StampedDateFld := SourceRef.Field(12);
-        SignedDateFld := SourceRef.Field(13);
-        XMLFileFld := SourceRef.Field(14);
+        DocumentNoFld := ResolveField(SourceRef, 'Document No.');
+        DocumentSourceTypeFld := ResolveField(SourceRef, 'Document Source Type');
+        ENCFFld := ResolveField(SourceRef, 'e-NCF');
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
+        DocumentStatusFld := ResolveField(SourceRef, 'Document Status');
+        CodeFld := ResolveField(SourceRef, 'Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        EFCTypeFld := ResolveField(SourceRef, 'EFC Type');
+        SourceCodeTypeFld := ResolveField(SourceRef, 'EF Source Code Type');
+        RequestTypeFld := ResolveField(SourceRef, 'EF Request Type');
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        XMLFileFld := ResolveField(SourceRef, 'XML File');
 
         TargetArchivedSentRequest.Init();
         TargetArchivedSentRequest."Document No." := DocumentNoFld.Value();
@@ -714,18 +851,41 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         // BLOB fields copy via plain FieldRef.Value assignment (same mechanism
         // CopyStandaloneTable already uses for every field, BLOBs included) rather than explicit
         // stream APIs, which this AL/compiler version does not expose on FieldRef.
+        // Fixed 2026-08-27 (B2): the source BLOB was never calculated, so this assignment copied an
+        // EMPTY value and every archived e-CF arrived without its XML, silently. Learn
+        // (FieldRef.CalcField): "You can also use the CalcFields method to calculate binary large
+        // objects (BLOBs)".
+        XMLFileFld.CalcField();
         TargetRef.GetTable(TargetArchivedSentRequest);
-        TargetXMLFileFld := TargetRef.Field(14);
+        TargetXMLFileFld := ResolveField(TargetRef, 'XML File');
         TargetXMLFileFld.Value := XMLFileFld.Value;
         TargetRef.Modify(false);
     end;
 
-    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldNo: Integer): Boolean
+    local procedure HasBlobValue(var SourceRef: RecordRef; BlobFieldName: Text): Boolean
     var
         BlobFld: FieldRef;
     begin
-        BlobFld := SourceRef.Field(BlobFieldNo);
+        BlobFld := ResolveField(SourceRef, BlobFieldName);
+        // Fixed 2026-08-27 (B2): Length() on a BLOB that was never calculated reports 0, so this
+        // guard answered "no XML here" for every row and the block it gates never ran at all.
+        BlobFld.CalcField();
         exit(BlobFld.Length() > 0);
+    end;
+
+    // Name-based FieldRef resolution (never bare numeric field IDs) via the shared
+    // "DXR MCC Master Field Resolver" codeunit's metadata loop - same mechanism
+    // CopyStandaloneTable() already uses through TargetRecordRef.FieldExist/.Field(Name).
+    // Errors loudly instead of silently binding to a differently-numbered field if the
+    // expected field name is missing (e.g. renamed/removed upstream).
+    local procedure ResolveField(var RecRef: RecordRef; FieldName: Text): FieldRef
+    var
+        MasterFieldResolver: Codeunit "DXR MCC Master Field Resolver";
+        ResolvedField: FieldRef;
+    begin
+        if not MasterFieldResolver.TryResolveFieldByName(RecRef, FieldName, ResolvedField) then
+            Error('Field "%1" was not found on table %2 while migrating FE Phase 11 data.', FieldName, RecRef.Number());
+        exit(ResolvedField);
     end;
 
     local procedure GetVariantAsInteger(Value: Variant): Integer
@@ -749,12 +909,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         if SourceScore <> TargetScore then
             exit(SourceScore > TargetScore);
 
-        StampedDateFld := SourceRef.Field(12);
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
         SourceStampedDate := StampedDateFld.Value();
         if SourceStampedDate <> TargetArchivedSentRequest."Stamped Date" then
             exit(SourceStampedDate > TargetArchivedSentRequest."Stamped Date");
 
-        PostingDateFld := SourceRef.Field(4);
+        PostingDateFld := ResolveField(SourceRef, 'Posting Date');
         SourcePostingDate := PostingDateFld.Value();
         exit(SourcePostingDate > TargetArchivedSentRequest."Posting Date");
     end;
@@ -769,10 +929,10 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         StampedDate: Date;
         Score: Integer;
     begin
-        SecurityCodeFld := SourceRef.Field(11);
-        EFCTrackIDFld := SourceRef.Field(7);
-        SignedDateFld := SourceRef.Field(13);
-        StampedDateFld := SourceRef.Field(12);
+        SecurityCodeFld := ResolveField(SourceRef, 'Security Code');
+        EFCTrackIDFld := ResolveField(SourceRef, 'EFC Track ID');
+        SignedDateFld := ResolveField(SourceRef, 'Signed Date');
+        StampedDateFld := ResolveField(SourceRef, 'Stamped Date');
 
         SecurityCode := SecurityCodeFld.Value();
         EFCTrackID := EFCTrackIDFld.Value();
@@ -787,7 +947,7 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
             Score += 1;
         if StampedDate <> 0D then
             Score += 1;
-        if HasBlobValue(SourceRef, 14) then
+        if HasBlobValue(SourceRef, 'XML File') then
             Score += 1;
 
         exit(Score);
@@ -824,12 +984,12 @@ codeunit 60140 "DXR MCC FE Migr Phase11"
         SourceRef.Open(55504); // EF Codigos Item
         if SourceRef.FindSet() then
             repeat
-                DocumentNoFld := SourceRef.Field(300);
-                DocumentLineNoFld := SourceRef.Field(301);
+                DocumentNoFld := ResolveField(SourceRef, 'DocumentNo');
+                DocumentLineNoFld := ResolveField(SourceRef, 'DocumentLineNo');
 
                 if not TargetCodigosItem.Get(DocumentNoFld.Value(), DocumentLineNoFld.Value()) then begin
-                    TipoCodigoFld := SourceRef.Field(1);
-                    CodigoItemFld := SourceRef.Field(2);
+                    TipoCodigoFld := ResolveField(SourceRef, 'TipoCodigo');
+                    CodigoItemFld := ResolveField(SourceRef, 'CodigoItem');
 
                     TargetCodigosItem.Init();
                     TargetCodigosItem.DocumentNo := DocumentNoFld.Value();

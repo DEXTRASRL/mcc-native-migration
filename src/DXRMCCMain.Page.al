@@ -52,6 +52,119 @@ page 60020 "DXR Migration Control Center"
     {
         area(Processing)
         {
+            group(TenantExecution)
+            {
+                Caption = 'Todas las companias del tenant';
+
+                action(RunTenantPortfolio)
+                {
+                    Caption = 'Run Entire Tenant Portfolio';
+                    ApplicationArea = All;
+                    Image = ExecuteBatch;
+                    ToolTip = 'Creates one portfolio request per company in the current tenant and runs them sequentially, never in parallel.';
+
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                    begin
+                        if not Confirm('Programar el portafolio completo para TODAS las companias del tenant, una compania a la vez?') then
+                            exit;
+                        TenantRunMgt.SchedulePortfolioForAllCompanies();
+                        Message('Cadena multi-compania programada. Abra DXR MCC Tenant Runs para supervisarla.');
+                    end;
+                }
+                action(RunTenantSetup)
+                {
+                    Caption = 'Run Tenant Setup';
+                    ApplicationArea = All;
+                    Image = Setup;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Setup);
+                        Message('Setup programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(RunTenantMaster)
+                {
+                    Caption = 'Run Tenant Master';
+                    ApplicationArea = All;
+                    Image = Customer;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Master);
+                        Message('Master programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(RunTenantAccounting)
+                {
+                    Caption = 'Run Tenant Accounting';
+                    ApplicationArea = All;
+                    Image = ChartOfAccounts;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Accounting);
+                        Message('Accounting programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(RunTenantHistoric)
+                {
+                    Caption = 'Run Tenant Historic';
+                    ApplicationArea = All;
+                    Image = History;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Historic);
+                        Message('Historic programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(RunTenantOther)
+                {
+                    Caption = 'Run Tenant Other';
+                    ApplicationArea = All;
+                    Image = Process;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Other);
+                        Message('Other programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(RunTenantReporting)
+                {
+                    Caption = 'Run Tenant Reporting';
+                    ApplicationArea = All;
+                    Image = Report;
+                    trigger OnAction()
+                    var
+                        TenantRunMgt: Codeunit "DXR MCC Tenant Run Mgt.";
+                        Concept: Record "DXR MCC Concept";
+                    begin
+                        TenantRunMgt.ScheduleCategoryForAllCompanies(Concept.Category::Reporting);
+                        Message('Reporting programado secuencialmente para todas las companias del tenant.');
+                    end;
+                }
+                action(OpenTenantRuns)
+                {
+                    Caption = 'Tenant Runs';
+                    ApplicationArea = All;
+                    Image = TaskList;
+                    RunObject = page "DXR MCC Tenant Runs";
+                }
+            }
             action(RunExtension)
             {
                 Caption = 'Run All Phases For This Extension';
@@ -73,12 +186,12 @@ page 60020 "DXR Migration Control Center"
                 Caption = 'Run Entire Portfolio';
                 ApplicationArea = All;
                 Image = ExecuteBatch;
-                ToolTip = 'Schedules the complete portfolio in 5 independently traceable passes: Setup, Master, Accounting, Historic, and Other. Each pass follows extension dependency order. Check DXR MCC Run Requests for progress and phase timings.';
+                ToolTip = 'Schedules the complete portfolio in 6 independently traceable passes: Setup, Master, Accounting, Historic, Other, and Reporting. Each pass follows extension dependency order. Check DXR MCC Run Requests for progress and phase timings.';
                 trigger OnAction()
                 var
                     Executor: Codeunit "DXR MCC Executor";
                 begin
-                    if not Confirm('Schedule the complete portfolio in dependency order (Setup, Master, Accounting, Historic, and Other)?') then
+                    if not Confirm('Schedule the complete portfolio in dependency order (Setup, Master, Accounting, Historic, Other, and Reporting)?') then
                         exit;
                     Executor.SchedulePortfolio();
                     Message('Scheduled. Open "DXR MCC Run Requests" to watch progress, or Run Log once it finishes.');
@@ -150,6 +263,23 @@ page 60020 "DXR Migration Control Center"
                         exit;
                     Executor.ScheduleCategory(Concept.Category::Historic);
                     Message('Scheduled. Open "DXR MCC Run Requests" to watch progress, or Run Log once it finishes.');
+                end;
+            }
+            action(RunAllReporting)
+            {
+                Caption = 'Run All Reporting';
+                ApplicationArea = All;
+                Image = Report;
+                ToolTip = 'Reassigns legacy report IDs to the report IDs declared by the current AL build across report selections, layouts, printers, and known extension setup tables.';
+                trigger OnAction()
+                var
+                    Executor: Codeunit "DXR MCC Executor";
+                    Concept: Record "DXR MCC Concept";
+                begin
+                    if not Confirm('Schedule the Reporting migration phase for the complete portfolio?') then
+                        exit;
+                    Executor.ScheduleCategory(Concept.Category::Reporting);
+                    Message('Scheduled. Open "DXR MCC Run Requests" to watch Reporting progress and timing.');
                 end;
             }
             action(RecountAll)

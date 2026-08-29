@@ -530,8 +530,19 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
     var
         ApplicationAreaSetup: Record "Application Area Setup";
         PurchaseHeader: Record "Purchase Header";
+        PurchaseHeaderToUpdate: Record "Purchase Header";
         SalesHeader: Record "Sales Header";
+        SalesHeaderToUpdate: Record "Sales Header";
+        BatchCount: Integer;
     begin
+        // Fixed 2026-08-27: A1 + A4 - all three scans below were unfiltered FindSet(true) with no
+        // SetLoadFields: a SQL UPDLOCK held on the whole table for the run (Learn, "Record.FindSet")
+        // plus a companion-table join per tableextension per row. Purchase Header and Sales Header are
+        // now read partial/unlocked with the lock taken via Get() only on rows that really change, and
+        // a Commit every 500 MODIFIED rows bounds what was previously a single unbounded transaction.
+        // Application Area Setup keeps FindSet(true) (one row per company/profile/user, composite
+        // primary key) and only gains the partial-record hint.
+        ApplicationAreaSetup.SetLoadFields(RegisterApplicationArea_DXR, DxRegisterApplicationArea);
         if ApplicationAreaSetup.FindSet(true) then
             repeat
                 if ApplicationAreaSetup.RegisterApplicationArea_DXR <> ApplicationAreaSetup.DxRegisterApplicationArea then begin
@@ -540,26 +551,49 @@ codeunit 60170 "DXR MCC DRLOC Migr Phase6"
                 end;
             until ApplicationAreaSetup.Next() = 0;
 
-        if PurchaseHeader.FindSet(true) then
+        PurchaseHeader.SetLoadFields("Document Type", "No.", "NCF_DXR Afectado_DXR", "DXNCF Afectado");
+        if PurchaseHeader.FindSet(false) then
             repeat
-                if PurchaseHeader."NCF_DXR Afectado_DXR" <> PurchaseHeader."DXNCF Afectado" then begin
-                    PurchaseHeader."NCF_DXR Afectado_DXR" := PurchaseHeader."DXNCF Afectado";
-                    PurchaseHeader.Modify(false);
-                end;
+                if PurchaseHeader."NCF_DXR Afectado_DXR" <> PurchaseHeader."DXNCF Afectado" then
+                    if PurchaseHeaderToUpdate.Get(PurchaseHeader."Document Type", PurchaseHeader."No.") then begin
+                        PurchaseHeaderToUpdate."NCF_DXR Afectado_DXR" := PurchaseHeaderToUpdate."DXNCF Afectado";
+                        PurchaseHeaderToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until PurchaseHeader.Next() = 0;
 
-        if SalesHeader.FindSet(true) then
+        SalesHeader.SetLoadFields(
+            "Document Type", "No.",
+            "NCF_DXR Modificado_DXR", "DXNCF Modificado",
+            "NCF_DXR Afectado_DXR", "DXNCF Afectado",
+            "NCF_DXR Factura_DXR", "DXNCF Factura");
+        if SalesHeader.FindSet(false) then
             repeat
                 if (SalesHeader."NCF_DXR Modificado_DXR" <> SalesHeader."DXNCF Modificado") or
                    (SalesHeader."NCF_DXR Afectado_DXR" <> SalesHeader."DXNCF Afectado") or
                    (SalesHeader."NCF_DXR Factura_DXR" <> SalesHeader."DXNCF Factura")
-                then begin
-                    SalesHeader."NCF_DXR Modificado_DXR" := SalesHeader."DXNCF Modificado";
-                    SalesHeader."NCF_DXR Afectado_DXR" := SalesHeader."DXNCF Afectado";
-                    SalesHeader."NCF_DXR Factura_DXR" := SalesHeader."DXNCF Factura";
-                    SalesHeader.Modify(false);
-                end;
+                then
+                    if SalesHeaderToUpdate.Get(SalesHeader."Document Type", SalesHeader."No.") then begin
+                        SalesHeaderToUpdate."NCF_DXR Modificado_DXR" := SalesHeaderToUpdate."DXNCF Modificado";
+                        SalesHeaderToUpdate."NCF_DXR Afectado_DXR" := SalesHeaderToUpdate."DXNCF Afectado";
+                        SalesHeaderToUpdate."NCF_DXR Factura_DXR" := SalesHeaderToUpdate."DXNCF Factura";
+                        SalesHeaderToUpdate.Modify(false);
+
+                        BatchCount += 1;
+                        if BatchCount >= 500 then begin
+                            Commit();
+                            BatchCount := 0;
+                        end;
+                    end;
             until SalesHeader.Next() = 0;
+
+        if BatchCount > 0 then
+            Commit();
     end;
 
     // EF Send Registry is a transaction-history-scale table - periodic Commit() every 100 rows added

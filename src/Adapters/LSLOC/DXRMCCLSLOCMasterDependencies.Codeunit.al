@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60178 "DXR MCC LSLOC Master Deps"
 {
     trigger OnRun()
@@ -22,3 +23,5 @@ codeunit 60358 "DXR MCC LSLOC Accounting Dep"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-ACCOUNTINGDEPS-20260825.');
     end;
 }
+
+#endif

@@ -76,7 +76,7 @@ codeunit 60010 "DXR MCC Counter"
     local procedure TryCountTable(ExtensionCode: Code[20]; TableId: Integer; var Count: Integer)
     var
         RecRef: RecordRef;
-        // DESBWorker: Codeunit "DXR MCC DESB Migr Worker"; // DESB adapter commented out (not a declared app.json dependency); codeunit no longer compiled.
+    // DESBWorker: Codeunit "DXR MCC DESB Migr Worker"; // DESB adapter commented out (not a declared app.json dependency); codeunit no longer compiled.
     begin
         // The owning adapter carries the external DESB table permissions. Generic RecordRef
         // counting under the interactive caller can otherwise report a false open failure even

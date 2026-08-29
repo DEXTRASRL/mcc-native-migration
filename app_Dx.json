@@ -1,0 +1,49 @@
+{
+  "id": "a5b9bf50-7945-4455-8df4-3be9c7431a7b",
+  "name": "DXR Migration Control Center",
+  "publisher": "Dextra",
+  "version": "2.2.0.6",
+  "brief": "Central registry and launcher for every DXR ID-renumbering data migration across the Dextra BC portfolio.",
+  "description": "Centralizes visibility and execution of the portfolio-wide data migrations created by the 2026-08 DXR_ ID renumbering remediation: per-extension, per-concept old/migrated record counts, dependency-ordered execution, run history, and a gap report to identify extensions that still need re-running.",
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "runtime": "17.0",
+  "logo": "",
+  "url": "",
+  "EULA": "",
+  "privacyStatement": "",
+  "help": "",
+  "target": "Cloud",
+  "screenshots": [],
+  "dependencies": [{
+      "id": "4ccf94f0-8e86-437f-99fc-a4eeda4a5122",
+      "publisher": "Dextra",
+      "name": "Facturacion Electronica",
+      "version": "28.3.6.4"
+    },
+    {
+      "id": "b269ef93-1340-452e-bc44-732c5dacd1c8",
+      "publisher": "Dextra",
+      "name": "Base App DR Localization",
+      "version": "28.3.6.12"
+    }
+  ],
+  "idRanges": [
+    {
+      "from": 60000,
+      "to": 65000
+    }
+  ],
+  "features": [
+    "NoImplicitWith",
+    "TranslationFile",
+    "GenerateCaptions"
+  ],
+  "preprocessorSymbols": ["BCDX"],
+  "resourceExposurePolicy": {
+    "allowDebugging": false,
+    "includeSourceInSymbolFile": false,
+    "allowDownloadingSource": false,
+    "applyToDevExtension": true
+  }
+}

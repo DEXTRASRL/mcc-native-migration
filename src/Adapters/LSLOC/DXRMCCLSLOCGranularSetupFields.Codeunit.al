@@ -1,3 +1,4 @@
+#if not ESCUDEA and not BCDX
 codeunit 60180 "DXR MCC LSLOC Label Functions"
 {
     trigger OnRun()
@@ -67,3 +68,5 @@ codeunit 60184 "DXR MCC LSLOC Store Fields"
         UpgradeTag.SetUpgradeTag('DXR-MCC-LSLOC-STOREFIELDS-20260825.');
     end;
 }
+
+#endif

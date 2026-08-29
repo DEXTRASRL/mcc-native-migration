@@ -100,7 +100,7 @@ table 60003 "DXR MCC Run Request"
         {
             Caption = 'Category';
             // Published ordinals 0..3 are immutable. New requests use the appended values.
-            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting;
+            OptionMembers = Setup,"Master/Accounting",Historic,Other,Master,Accounting,Reporting;
             DataClassification = SystemMetadata;
             Editable = false;
             // Only meaningful when Scope = Category (see DXR MCC Executor.ScheduleCategory /
@@ -335,6 +335,61 @@ table 60003 "DXR MCC Run Request"
             DataClassification = SystemMetadata;
             Editable = false;
         }
+        field(44; "Reporting Started At"; DateTime)
+        {
+            Caption = 'Reporting Started At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(45; "Reporting Completed At"; DateTime)
+        {
+            Caption = 'Reporting Completed At';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(46; "Reporting Duration"; Duration)
+        {
+            Caption = 'Reporting Duration';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(47; "Reporting Phase Status"; Option)
+        {
+            Caption = 'Reporting Phase Status';
+            OptionMembers = Pending,Running,Completed,Failed,Cancelled;
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(48; "Company Name"; Text[30])
+        {
+            Caption = 'Company Name';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(49; "Tenant Run ID"; Guid)
+        {
+            Caption = 'Tenant Run ID';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(50; "Company Sequence"; Integer)
+        {
+            Caption = 'Company Sequence';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(51; "Tenant Chain"; Boolean)
+        {
+            Caption = 'Tenant Chain';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(52; "Company Entry No."; Integer)
+        {
+            Caption = 'Company Entry No.';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
     }
     keys
     {
@@ -343,6 +398,9 @@ table 60003 "DXR MCC Run Request"
             Clustered = true;
         }
         key(Recent; "Scheduled At")
+        {
+        }
+        key(TenantChain; "Tenant Run ID", "Company Sequence")
         {
         }
     }

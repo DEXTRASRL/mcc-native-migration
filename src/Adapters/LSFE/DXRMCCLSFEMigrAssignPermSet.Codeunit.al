@@ -1,3 +1,4 @@
+#if not BCDX
 codeunit 60144 "DXR MCC LSFE Migr PermSet"
 {
     // Native local migration - ported verbatim from LS Facturacion Electronica's own
@@ -28,6 +29,9 @@ codeunit 60144 "DXR MCC LSFE Migr PermSet"
         // Hardcoded LS Facturacion Electronica's real app ID (from its own app.json) instead of
         // NavApp.GetCurrentModuleInfo(), which would wrongly resolve to MCC's own app ID when this
         // logic runs inside MCC.
+        // Fixed 2026-08-27 (A1): added SetLoadFields - the loop only needs "User Security ID", and
+        // the User table carries tableextensions whose companion tables were joined in per row.
+        UserRec.SetLoadFields("User Security ID");
         if not UserRec.FindSet() then
             exit;
         repeat
@@ -61,3 +65,5 @@ codeunit 60144 "DXR MCC LSFE Migr PermSet"
         exit('4e2e9532-7e97-4f5e-af6e-1b5f2e51b9e2');
     end;
 }
+
+#endif
