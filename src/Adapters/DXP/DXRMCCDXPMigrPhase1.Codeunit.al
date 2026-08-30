@@ -1,4 +1,4 @@
-/*
+
 codeunit 60080 "DXR MCC DXP Migr Phase1"
 {
     // Native local migration (2026-08-23, per user directive to stop delegating via .Run() and
@@ -32,9 +32,9 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
                   tabledata "DX Promotion Bin Lines" = R,
                   tabledata "DXR_Promotion Bin Lines" = RIM,
                   tabledata "DX Promotion Bin Setup" = R,
-                  tabledata "DXR_Promotion Bin Setup" = RIM,
-                  tabledata "DX Error Audit Log" = R,
-                  tabledata "DXR_Error Audit Log" = RIM;
+                  tabledata "DXR_Promotion Bin Setup" = RIM;
+    //   tabledata "DX Error Audit Log" = R,
+    //   tabledata "DXR_Error Audit Log" = RIM;
 
     trigger OnRun()
     begin
@@ -66,7 +66,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
     procedure RunHistoric()
     begin
         MigratePaymentProcessLogs();
-        MigrateErrorAuditLog();
+        // MigrateErrorAuditLog(); // commented out - procedure body itself is commented out below
     end;
 
     local procedure MigratePaymentSetup()
@@ -192,22 +192,22 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
             until Source.Next() = 0;
     end;
 
-    local procedure MigrateErrorAuditLog()
-    var
-        Source: Record "DX Error Audit Log";
-        Dest: Record "DXR_Error Audit Log";
-        BatchCount: Integer;
-    begin
-        if Source.FindSet(false) then
-            repeat
-                if not Dest.Get(Source."Entry No.") then begin
-                    Dest.Init();
-                    CopyErrorAuditLogFields(Source, Dest, true);
-                    Dest.Insert(false);
-                end;
-                CommitBatch(BatchCount);
-            until Source.Next() = 0;
-    end;
+    // local procedure MigrateErrorAuditLog()
+    // var
+    //     Source: Record "DX Error Audit Log";
+    //     Dest: Record "DXR_Error Audit Log";
+    //     BatchCount: Integer;
+    // begin
+    //     if Source.FindSet(false) then
+    //         repeat
+    //             if not Dest.Get(Source."Entry No.") then begin
+    //                 Dest.Init();
+    //                 CopyErrorAuditLogFields(Source, Dest, true);
+    //                 Dest.Insert(false);
+    //             end;
+    //             CommitBatch(BatchCount);
+    //         until Source.Next() = 0;
+    // end;
 
     local procedure CommitBatch(var BatchCount: Integer)
     begin
@@ -223,7 +223,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         if IncludePrimaryKey then
             Dest.DXKey := Source.DXKey;
         Dest.DXURLEndPoint := Source.DXURLEndPoint;
-        Dest.DXProvider := (Source.DXProvider.AsInteger());
+        Dest.DXProvider := "DXR_Provider".FromInteger(Source.DXProvider.AsInteger());
         Dest.DXInfocodeSetup := Source.DXInfocodeSetup;
         Dest."DX Use Promo Bin Card" := Source."DX Use Promo Bin Card";
         Dest."DX Visanet TokenECR" := Source."DX Visanet TokenECR";
@@ -271,7 +271,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest."DX Application Identifier" := Source."DX Application Identifier";
         Dest."DX Cuotas" := Source."DX Cuotas";
         Dest."DX Service Code" := Source."DX Service Code";
-        Dest."DX Status" := (Source."DX Status".AsInteger());
+        Dest."DX Status" := "DXR_Status".FromInteger(Source."DX Status".AsInteger());
         Dest."DX Line No." := Source."DX Line No.";
         Dest."DX Close Batch" := Source."DX Close Batch";
         Dest."Dx Total Sales" := Source."Dx Total Sales";
@@ -283,7 +283,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest."DX SubTotal" := Source."DX SubTotal";
         Dest."DX CierreZ" := Source."DX CierreZ";
         Dest."DX Replication Counter" := Source."DX Replication Counter";
-        Dest."DX Provider" := (Source."DX Provider".AsInteger());
+        Dest."DX Provider" := "DXR_Provider".FromInteger(Source."DX Provider".AsInteger());
         Source.CalcFields("DX Picture");
         Source."DX Picture".CreateInStream(SourceStream);
         Dest."DX Picture".CreateOutStream(DestStream);
@@ -319,7 +319,7 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest."Process Type" := Source."Process Type";
         Dest."Process Status" := Source."Process Status";
         Dest."Error Message" := Source."Error Message";
-        Dest.Provider := (Source.Provider.AsInteger());
+        Dest.Provider := "DXR_Provider".FromInteger(Source.Provider.AsInteger());
         Dest."Transaction ID" := Source."Transaction ID";
         Dest."Authorization No." := Source."Authorization No.";
         Dest.Amount := Source.Amount;
@@ -401,27 +401,26 @@ codeunit 60080 "DXR MCC DXP Migr Phase1"
         Dest."Max Discount Allowed" := Source."Max Discount Allowed";
     end;
 
-    local procedure CopyErrorAuditLogFields(Source: Record "DX Error Audit Log"; var Dest: Record "DXR_Error Audit Log"; IncludePrimaryKey: Boolean)
-    begin
-        if IncludePrimaryKey then
-            Dest."Entry No." := Source."Entry No.";
-        Dest."Created At" := Source."Created At";
-        Dest."Created Date" := Source."Created Date";
-        Dest."Created Time" := Source."Created Time";
-        Dest."Source Category" := Source."Source Category";
-        Dest."Source Name" := Source."Source Name";
-        Dest."Error Message" := Source."Error Message";
-        Dest."Store No." := Source."Store No.";
-        Dest."POS Terminal No." := Source."POS Terminal No.";
-        Dest."Receipt No." := Source."Receipt No.";
-        Dest."Line No." := Source."Line No.";
-        Dest."User ID" := Source."User ID";
-        Dest."Session ID" := Source."Session ID";
-        Dest."Transaction ID" := Source."Transaction ID";
-        Dest.Provider := (Source.Provider.AsInteger());
-        Dest.Handled := Source.Handled;
-        Dest."Additional Context" := Source."Additional Context";
-    end;
+    // local procedure CopyErrorAuditLogFields(Source: Record "DX Error Audit Log"; var Dest: Record "DXR_Error Audit Log"; IncludePrimaryKey: Boolean)
+    // begin
+    //     if IncludePrimaryKey then
+    //         Dest."Entry No." := Source."Entry No.";
+    //     Dest."Created At" := Source."Created At";
+    //     Dest."Created Date" := Source."Created Date";
+    //     Dest."Created Time" := Source."Created Time";
+    //     Dest."Source Category" := Source."Source Category";
+    //     Dest."Source Name" := Source."Source Name";
+    //     Dest."Error Message" := Source."Error Message";
+    //     Dest."Store No." := Source."Store No.";
+    //     Dest."POS Terminal No." := Source."POS Terminal No.";
+    //     Dest."Receipt No." := Source."Receipt No.";
+    //     Dest."Line No." := Source."Line No.";
+    //     Dest."User ID" := Source."User ID";
+    //     Dest."Session ID" := Source."Session ID";
+    //     Dest."Transaction ID" := Source."Transaction ID";
+    //     Dest.Provider := (Source.Provider.AsInteger());
+    //     Dest.Handled := Source.Handled;
+    //     Dest."Additional Context" := Source."Additional Context";
+    // end;
 }
 
-*/

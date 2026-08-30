@@ -1,4 +1,4 @@
-/*
+
 codeunit 60084 "DXR MCC DXP Migr Phase5"
 {
     // Native local migration - ported verbatim from DX-Payments' own "DXR_DXP_Migr_Phase5_Tables"
@@ -27,24 +27,16 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     // deliberately (unconditional replication-counter bump on Store Payments; a ModifiedAllowed
     // guard on Promo Bin Header that errors on raw field-copy writes since Validate never
     // ran) - see DX-Payments' own commit 0c499f0 for the original review finding.
-    Permissions = tabledata "DXR_Payment Setup 54700" = R,
-                  tabledata "DXR_Payment Setup" = RIM,
-                  tabledata "DXR_Promotion Bin Card 54701" = R,
+    Permissions = tabledata "DXR_Payment Setup" = RIM,
                   tabledata "DXR_Promotion Bin Card" = RIM,
-                  tabledata "DXR_Store Payments 54702" = R,
                   tabledata "DXR_Store Payments" = RIM,
-                  tabledata "DXR_Payment Process Logs 54703" = R,
                   tabledata "DXR_Payment Process Logs" = RIM,
-                  tabledata "DXR_Promo Bin Header 54704" = R,
                   tabledata "DXR_Promo Bin Header" = RIM,
-                  tabledata "DXR_Promo Bin ItemsLines 54705" = R,
                   tabledata "DXR_Promotion Bin Items Lines" = RIM,
-                  tabledata "DXR_Promotion Bin Lines 54706" = R,
                   tabledata "DXR_Promotion Bin Lines" = RIM,
-                  tabledata "DXR_Promotion Bin Setup 54707" = R,
-                  tabledata "DXR_Promotion Bin Setup" = RIM,
-                  tabledata "DXR_Error Audit Log 54708" = R,
-                  tabledata "DXR_Error Audit Log" = RIM;
+                  tabledata "DXR_Promotion Bin Setup" = RIM;
+    //              tabledata "DXR_Error Audit Log" = R,
+    //              tabledata "DXR_Error Audit Log" = RIM;
 
     trigger OnRun()
     begin
@@ -76,12 +68,12 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
     procedure RunHistoric()
     begin
         RepairPaymentProcessLogs();
-        RepairErrorAuditLog();
+        // RepairErrorAuditLog();
     end;
 
     local procedure RepairPaymentSetup()
     var
-        Source: Record "DXR_Payment Setup 54700";
+        Source: Record "DXR_Payment Setup";
         Dest: Record "DXR_Payment Setup";
     begin
         if Source.FindSet() then
@@ -99,7 +91,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPromotionBinCard()
     var
-        Source: Record "DXR_Promotion Bin Card 54701";
+        Source: Record "DXR_Promotion Bin Card";
         Dest: Record "DXR_Promotion Bin Card";
     begin
         if Source.FindSet() then
@@ -117,7 +109,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairStorePayments()
     var
-        Source: Record "DXR_Store Payments 54702";
+        Source: Record "DXR_Store Payments";
         Dest: Record "DXR_Store Payments";
     begin
         if Source.FindSet() then
@@ -138,7 +130,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPaymentProcessLogs()
     var
-        Source: Record "DXR_Payment Process Logs 54703";
+        Source: Record "DXR_Payment Process Logs";
         Dest: Record "DXR_Payment Process Logs";
         BatchCount: Integer;
     begin
@@ -158,7 +150,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPromoBinHeader()
     var
-        Source: Record "DXR_Promo Bin Header 54704";
+        Source: Record "DXR_Promo Bin Header";
         Dest: Record "DXR_Promo Bin Header";
     begin
         if Source.FindSet() then
@@ -179,7 +171,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPromotionBinItemsLines()
     var
-        Source: Record "DXR_Promo Bin ItemsLines 54705";
+        Source: Record "DXR_Promotion Bin Items Lines";
         Dest: Record "DXR_Promotion Bin Items Lines";
     begin
         if Source.FindSet() then
@@ -199,7 +191,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPromotionBinLines()
     var
-        Source: Record "DXR_Promotion Bin Lines 54706";
+        Source: Record "DXR_Promotion Bin Lines";
         Dest: Record "DXR_Promotion Bin Lines";
     begin
         if Source.FindSet() then
@@ -217,7 +209,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
 
     local procedure RepairPromotionBinSetup()
     var
-        Source: Record "DXR_Promotion Bin Setup 54707";
+        Source: Record "DXR_Promotion Bin Setup";
         Dest: Record "DXR_Promotion Bin Setup";
     begin
         if Source.FindSet() then
@@ -233,25 +225,25 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
             until Source.Next() = 0;
     end;
 
-    local procedure RepairErrorAuditLog()
-    var
-        Source: Record "DXR_Error Audit Log 54708";
-        Dest: Record "DXR_Error Audit Log";
-        BatchCount: Integer;
-    begin
-        if Source.FindSet(false) then
-            repeat
-                if Dest.Get(Source."Entry No.") then begin
-                    CopyErrorAuditLogFields(Source, Dest, false);
-                    Dest.Modify(false);
-                end else begin
-                    Dest.Init();
-                    CopyErrorAuditLogFields(Source, Dest, true);
-                    Dest.Insert(false);
-                end;
-                CommitBatch(BatchCount);
-            until Source.Next() = 0;
-    end;
+    // local procedure RepairErrorAuditLog()
+    // var
+    //     Source: Record "DXR_Error Audit Log";
+    //     Dest: Record "DXR_Error Audit Log";
+    //     BatchCount: Integer;
+    // begin
+    //     if Source.FindSet(false) then
+    //         repeat
+    //             if Dest.Get(Source."Entry No.") then begin
+    //                 CopyErrorAuditLogFields(Source, Dest, false);
+    //                 Dest.Modify(false);
+    //             end else begin
+    //                 Dest.Init();
+    //                 CopyErrorAuditLogFields(Source, Dest, true);
+    //                 Dest.Insert(false);
+    //             end;
+    //             CommitBatch(BatchCount);
+    //         until Source.Next() = 0;
+    // end;
 
     local procedure CommitBatch(var BatchCount: Integer)
     begin
@@ -262,7 +254,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         BatchCount := 0;
     end;
 
-    local procedure CopyPaymentSetupFields(Source: Record "DXR_Payment Setup 54700"; var Dest: Record "DXR_Payment Setup"; IncludePrimaryKey: Boolean)
+    local procedure CopyPaymentSetupFields(Source: Record "DXR_Payment Setup"; var Dest: Record "DXR_Payment Setup"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then
             Dest.DXKey := Source.DXKey;
@@ -277,7 +269,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."Active Logs" := Source."Active Logs";
     end;
 
-    local procedure CopyPromotionBinCardFields(Source: Record "DXR_Promotion Bin Card 54701"; var Dest: Record "DXR_Promotion Bin Card"; IncludePrimaryKey: Boolean)
+    local procedure CopyPromotionBinCardFields(Source: Record "DXR_Promotion Bin Card"; var Dest: Record "DXR_Promotion Bin Card"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then
             Dest."Promo Bin Code" := Source."Promo Bin Code";
@@ -287,7 +279,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest.Active := Source.Active;
     end;
 
-    local procedure CopyStorePaymentsFields(Source: Record "DXR_Store Payments 54702"; var Dest: Record "DXR_Store Payments"; IncludePrimaryKey: Boolean)
+    local procedure CopyStorePaymentsFields(Source: Record "DXR_Store Payments"; var Dest: Record "DXR_Store Payments"; IncludePrimaryKey: Boolean)
     var
         SourceStream: InStream;
         DestStream: OutStream;
@@ -350,7 +342,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."DX Entry No." := Source."DX Entry No.";
     end;
 
-    local procedure CopyPaymentProcessLogFields(Source: Record "DXR_Payment Process Logs 54703"; var Dest: Record "DXR_Payment Process Logs"; IncludePrimaryKey: Boolean)
+    local procedure CopyPaymentProcessLogFields(Source: Record "DXR_Payment Process Logs"; var Dest: Record "DXR_Payment Process Logs"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then
             Dest."Entry No." := Source."Entry No.";
@@ -376,7 +368,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."Process Lap Time" := Source."Process Lap Time";
     end;
 
-    local procedure CopyPromoBinHeaderFields(Source: Record "DXR_Promo Bin Header 54704"; var Dest: Record "DXR_Promo Bin Header"; IncludePrimaryKey: Boolean)
+    local procedure CopyPromoBinHeaderFields(Source: Record "DXR_Promo Bin Header"; var Dest: Record "DXR_Promo Bin Header"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then
             Dest."No." := Source."No.";
@@ -407,7 +399,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."Percentage %" := Source."Percentage %";
     end;
 
-    local procedure CopyPromotionBinItemFields(Source: Record "DXR_Promo Bin ItemsLines 54705"; var Dest: Record "DXR_Promotion Bin Items Lines"; IncludePrimaryKey: Boolean)
+    local procedure CopyPromotionBinItemFields(Source: Record "DXR_Promotion Bin Items Lines"; var Dest: Record "DXR_Promotion Bin Items Lines"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then begin
             Dest."Offer No." := Source."Offer No.";
@@ -422,7 +414,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest.Exclude := Source.Exclude;
     end;
 
-    local procedure CopyPromotionBinLineFields(Source: Record "DXR_Promotion Bin Lines 54706"; var Dest: Record "DXR_Promotion Bin Lines"; IncludePrimaryKey: Boolean)
+    local procedure CopyPromotionBinLineFields(Source: Record "DXR_Promotion Bin Lines"; var Dest: Record "DXR_Promotion Bin Lines"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then begin
             Dest."Offer No." := Source."Offer No.";
@@ -434,7 +426,7 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest.Active := Source.Active;
     end;
 
-    local procedure CopyPromotionBinSetupFields(Source: Record "DXR_Promotion Bin Setup 54707"; var Dest: Record "DXR_Promotion Bin Setup"; IncludePrimaryKey: Boolean)
+    local procedure CopyPromotionBinSetupFields(Source: Record "DXR_Promotion Bin Setup"; var Dest: Record "DXR_Promotion Bin Setup"; IncludePrimaryKey: Boolean)
     begin
         if IncludePrimaryKey then
             Dest."Key" := Source."Key";
@@ -445,27 +437,25 @@ codeunit 60084 "DXR MCC DXP Migr Phase5"
         Dest."Max Discount Allowed" := Source."Max Discount Allowed";
     end;
 
-    local procedure CopyErrorAuditLogFields(Source: Record "DXR_Error Audit Log 54708"; var Dest: Record "DXR_Error Audit Log"; IncludePrimaryKey: Boolean)
-    begin
-        if IncludePrimaryKey then
-            Dest."Entry No." := Source."Entry No.";
-        Dest."Created At" := Source."Created At";
-        Dest."Created Date" := Source."Created Date";
-        Dest."Created Time" := Source."Created Time";
-        Dest."Source Category" := Source."Source Category";
-        Dest."Source Name" := Source."Source Name";
-        Dest."Error Message" := Source."Error Message";
-        Dest."Store No." := Source."Store No.";
-        Dest."POS Terminal No." := Source."POS Terminal No.";
-        Dest."Receipt No." := Source."Receipt No.";
-        Dest."Line No." := Source."Line No.";
-        Dest."User ID" := Source."User ID";
-        Dest."Session ID" := Source."Session ID";
-        Dest."Transaction ID" := Source."Transaction ID";
-        Dest.Provider := Source.Provider;
-        Dest.Handled := Source.Handled;
-        Dest."Additional Context" := Source."Additional Context";
-    end;
+    // local procedure CopyErrorAuditLogFields(Source: Record "DXR_Error Audit Log"; var Dest: Record "DXR_Error Audit Log"; IncludePrimaryKey: Boolean)
+    // begin
+    //     if IncludePrimaryKey then
+    //         Dest."Entry No." := Source."Entry No.";
+    //     Dest."Created At" := Source."Created At";
+    //     Dest."Created Date" := Source."Created Date";
+    //     Dest."Created Time" := Source."Created Time";
+    //     Dest."Source Category" := Source."Source Category";
+    //     Dest."Source Name" := Source."Source Name";
+    //     Dest."Error Message" := Source."Error Message";
+    //     Dest."Store No." := Source."Store No.";
+    //     Dest."POS Terminal No." := Source."POS Terminal No.";
+    //     Dest."Receipt No." := Source."Receipt No.";
+    //     Dest."Line No." := Source."Line No.";
+    //     Dest."User ID" := Source."User ID";
+    //     Dest."Session ID" := Source."Session ID";
+    //     Dest."Transaction ID" := Source."Transaction ID";
+    //     Dest.Provider := Source.Provider;
+    //     Dest.Handled := Source.Handled;
+    //     Dest."Additional Context" := Source."Additional Context";
+    // end;
 }
-
-*/

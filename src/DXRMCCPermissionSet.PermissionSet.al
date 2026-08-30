@@ -118,7 +118,6 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P7 Sales Line" = X,
         codeunit "DXR MCC FE P7 Sales Inv. Line" = X,
         codeunit "DXR MCC FE P7 Sales CrMemoLn" = X,
-#if not BCDX
         codeunit "DXR MCC LSFE Migr PermSet" = X,
         codeunit "DXR MCC LSFE Migr POS Cont." = X,
         // codeunit "DXR MCC Bellon Migr Phase2" = X,
@@ -248,7 +247,6 @@ permissionset 60000 "DXR MCC"
         codeunit "DXR MCC FE P9 Accounting" = X,
         codeunit "DXR MCC FE P10 Accounting" = X,
         codeunit "DXR MCC FE P11 Accounting" = X,
-#if not ESCUDEA and not BCDX
         codeunit "DXR MCC LSLOC Accounting Fld" = X,
         codeunit "DXR MCC LSLOC Accounting Dep" = X,
         // codeunit "DXR MCC DESB Accounting" = X,

@@ -1,9 +1,8 @@
-// DRAFT - NOT ENABLED. Adapter for "DX Bank Reconciliation" (app ID
-// 3f45e9d8-89f4-4be2-b687-f69908d8ad63, package Dextra_DX Bank Reconciliation_28.3.1.0.app).
-// Extension row 'BANKREC' already exists in DXRMCCRegistryLoader (InsExt('BANKREC', 'DX Bank
-// Reconciliation', '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '')) - this file only proposes the
-// missing Concept rows + the dispatcher/worker codeunits that would back them. Everything below is
-// wrapped in a comment block pending human review; nothing here compiles or runs yet.
+// Adapter for "DX Bank Reconciliation" (app ID 3f45e9d8-89f4-4be2-b687-f69908d8ad63, package
+// Dextra_DX Bank Reconciliation_28.3.1.0.app). Extension row 'BANKREC' already exists in
+// DXRMCCRegistryLoader (InsExt('BANKREC', 'DX Bank Reconciliation',
+// '3f45e9d8-89f4-4be2-b687-f69908d8ad63', 920, '')), and its 12 Concept rows are registered too
+// (dispatcher IDs corrected 2026-08-29 - see DXRMCCBANKRECCategoryWorkers.Codeunit.al).
 //
 // Symbol extraction (SymbolReference.json from the .app) found 12 clean OLD -> NEW table pairs, all
 // field-for-field identical (same IDs/names/types on both sides) plus one internal checkpoint table
@@ -57,7 +56,7 @@
 // 60442; nothing else in src/ uses 60450+).
 
 
-codeunit 60450 "DXR MCC BANKREC Migr Dispatch"
+codeunit 60453 "DXR MCC BANKREC Migr Dispatch"
 {
     // Field-by-field assignment, no TransferFields - every pair below is identical in field
     // IDs/names/types between OLD and NEW (confirmed against the extension's own SymbolReference.json).

@@ -1,4 +1,4 @@
-/*
+
 codeunit 60200 "DXR MCC DXP P1 Setup"
 {
     trigger OnRun()
@@ -321,6 +321,7 @@ codeunit 60420 "DXR MCC DXP P1 Accounting"
         Worker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P1-ACCOUNTING-20260825.');
@@ -339,6 +340,7 @@ codeunit 60421 "DXR MCC DXP P2 Accounting"
         Worker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P2-ACCOUNTING-20260825.');
@@ -357,6 +359,7 @@ codeunit 60422 "DXR MCC DXP P3 Accounting"
         Worker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P3-ACCOUNTING-20260825.');
@@ -377,6 +380,7 @@ codeunit 60423 "DXR MCC DXP P4 Accounting"
         FinalWorker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P4-ACCOUNTING-20260825.');
@@ -395,6 +399,7 @@ codeunit 60424 "DXR MCC DXP P5 Accounting"
         Worker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P5-ACCOUNTING-20260825.');
@@ -413,10 +418,9 @@ codeunit 60425 "DXR MCC DXP P6 Accounting"
         Worker.RunAccounting();
         UpgradeTag.SetUpgradeTag(Tag());
     end;
+
     local procedure Tag(): Code[250]
     begin
         exit('DXR-MCC-DXP-P6-ACCOUNTING-20260825.');
     end;
 }
-
-*/

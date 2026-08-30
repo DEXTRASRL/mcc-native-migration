@@ -1,4 +1,4 @@
-/*
+
 codeunit 60081 "DXR MCC DXP Migr Phase2"
 {
     // Converted 2026-08-24: previously routed 38 field copies across 5 tables through a generic
@@ -54,16 +54,16 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
                 // Cross-enum-type conversion: DXPuerto (enum "DX Port") → Puerto_DXR (enum DXR_Port)
                 // Ordinal values verified identical before .AsInteger() conversion (Port: {0:COM1..9:COM10}).
                 // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
-                PosTerminal.Puerto_DXR := (PosTerminal.DXPuerto.AsInteger());
+                //PosTerminal.Puerto_DXR := "DXR_Port".FromInteger(PosTerminal.DXPuerto.AsInteger());
                 // Cross-enum-type conversion: DXProveedor (enum "DX Provider") → Proveedor_DXR (enum DXR_Provider)
                 // Ordinal values verified identical before .AsInteger() conversion (Provider: {0:" ",1:Azul,2:Cardnet,3:Visanet,4:"Azul Com"}).
                 // WARNING: Do not copy this pattern to other fields without re-verifying both enums' ordinals match exactly.
-                PosTerminal.Proveedor_DXR := (PosTerminal.DXProveedor.AsInteger());
+                PosTerminal.Proveedor_DXR := "DXR_Provider".FromInteger(PosTerminal.DXProveedor.AsInteger());
                 PosTerminal."Imprime Ticket_DXR" := PosTerminal."DXImprime Ticket";
-                PosTerminal."Puerto Secundario_DXR" := PosTerminal."DXPuerto Secundario";
+                //PosTerminal."Puerto Secundario_DXR" := PosTerminal."DXPuerto Secundario";
                 PosTerminal."Direccion IP Secundaria_DXR" := PosTerminal."DXDireccion IP Secundaria";
                 PosTerminal."Direccion IP_DXR" := PosTerminal."DXDireccion IP";
-                PosTerminal."Puerto IP_DXR" := PosTerminal."DXPuerto IP";
+                //PosTerminal."Puerto IP_DXR" := PosTerminal."DXPuerto IP";
                 PosTerminal."Numero Transaccion_DXR" := PosTerminal."DXNumero Transaccion";
                 PosTerminal."Numero Terminal_DXR" := PosTerminal."DXNumero Terminal";
                 PosTerminal."Merchant ID_DXR" := PosTerminal."DXMerchant ID";
@@ -127,5 +127,3 @@ codeunit 60081 "DXR MCC DXP Migr Phase2"
             until TransPaymentEntry.Next() = 0;
     end;
 }
-
-*/
