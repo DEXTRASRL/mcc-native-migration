@@ -290,16 +290,16 @@ codeunit 60143 "DXR MCC FE Migr Untrk Repairs"
         if Header.FindSet(true) then
             repeat
                 Modified := false;
-                if (Header."Alternate NCF_DXR" = '') and (Header."Alternal NCF_DXR" <> '') then begin
-                    Header."Alternate NCF_DXR" := Header."Alternal NCF_DXR";
+                if (Header."Alternate NCF_DXR_V2" = '') and (Header."Alternal NCF_DXR" <> '') then begin
+                    Header."Alternate NCF_DXR_V2" := Header."Alternal NCF_DXR";
                     Modified := true;
                 end;
-                if (Header."Alternate No. Series_DXR" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
-                    Header."Alternate No. Series_DXR" := Header."Alternal No. Series_DXR";
+                if (Header."Alternate No. Series_DXR_V2" = '') and (Header."Alternal No. Series_DXR" <> '') then begin
+                    Header."Alternate No. Series_DXR_V2" := Header."Alternal No. Series_DXR";
                     Modified := true;
                 end;
-                if not Header."Has NCF Contingency_DXR" and Header."Has Contingencies_DXR" then begin
-                    Header."Has NCF Contingency_DXR" := true;
+                if not Header."Has NCF Contingency_DXR_V2" and Header."Has Contingencies_DXR" then begin
+                    Header."Has NCF Contingency_DXR_V2" := true;
                     Modified := true;
                 end;
                 if Modified then
