@@ -14,11 +14,11 @@ codeunit 60017 "DXR MCC Completion Notify"
     Access = Internal;
     Permissions = tabledata "DXR MCC Run Request" = RM;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Company Triggers", 'OnCompanyOpen', '', false, false)]
-    local procedure OnCompanyOpen()
-    begin
-        
-    end;
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"Company Triggers", 'OnCompanyOpen', '', false, false)]
+    // local procedure OnCompanyOpen()
+    // begin
+
+    // end;
 
     internal procedure ShowPendingCompletionIfAny()
     var

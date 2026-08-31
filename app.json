@@ -2,7 +2,7 @@
   "id": "a5b9bf50-7945-4455-8df4-3be9c7431a7b",
   "name": "DXR Migration Control Center",
   "publisher": "Dextra",
-  "version": "28.0.1.13",
+  "version": "28.0.1.14",
   "brief": "Central registry and launcher for every DXR ID-renumbering data migration across the Dextra BC portfolio.",
   "description": "Centralizes visibility and execution of the portfolio-wide data migrations created by the 2026-08 DXR_ ID renumbering remediation: per-extension, per-concept old/migrated record counts, dependency-ordered execution, run history, and a gap report to identify extensions that still need re-running.",
   "platform": "1.0.0.0",
