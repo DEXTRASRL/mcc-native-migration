@@ -276,6 +276,11 @@ codeunit 60012 "DXR MCC Registry Loader"
         // restores this batch ports, but this table had ZERO registry row anywhere in MCC before now
         // (confirmed via grep, zero matches) - a genuine untracked gap, same class as seq96-104 above.
         InsConcept('DRLOC', 'DRLOC-P2', 106, 'Application Area Setup field restore (Dextra Business Central/LS Central/Empty Labels flags)', 60165, 0, 0, 'SETUP');
+        // Added 2026-08-31: standalone one-time adapter, own Phase/Upgrade Tag, deliberately kept
+        // separate from DRLOC-P2/P4's bulk field restores above - see "DXR MCC Fix Customer Fiscal"
+        // (60457) header comment for the specific gap this repairs (Uses NCF/NCF Type/Tipo
+        // Identificacion inconsistency left by earlier migration passes).
+        InsConcept('DRLOC', 'DRLOC-FIX', 107, 'Customer fiscal fields gap repair (Uses NCF/NCF Type/Tipo Identificacion_DXR)', 60457, 0, 0, 'OTHER');
 
 
         // ---- VP: Vendor Payloads (Phase 1-6 legacy population + Phase 7 Id Cutover, 23 table pairs) ----
